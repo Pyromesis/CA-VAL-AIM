@@ -74,12 +74,11 @@ public partial class MenuScreen : ScreenBase
         col.AddChild(QuickBar());
         col.AddChild(Spacer(0, 10 * k));
 
-        // first-launch panels, one at a time: "What's new" first, then the updates opt-in, then "Support ValTrainer"
+        // first-launch panels, one at a time: "What's new" first, then the updates opt-in
         if (WhatsNew.Pending is { } notes)
             AddChild(new WhatsNewPanel(notes, k, CloseWhatsNew));
         else if (UpdatesPrompt.Pending)
             AddChild(new UpdatesPromptPanel(k, AnswerUpdatesPrompt));
-        else ShowSupportIfDue();
 
         var body = HBox(30 * k);
         body.SizeFlagsVertical = SizeFlags.ExpandFill;
@@ -107,7 +106,6 @@ public partial class MenuScreen : ScreenBase
         UiTheme.ClickSound();
         if (UpdatesPrompt.Pending && !GetChildren().Any(c => c is UpdatesPromptPanel))
             AddChild(new UpdatesPromptPanel(K, AnswerUpdatesPrompt));
-        else ShowSupportIfDue();
     }
 
     void AnswerUpdatesPrompt(bool yes)
@@ -115,23 +113,6 @@ public partial class MenuScreen : ScreenBase
         foreach (var c in GetChildren()) if (c is UpdatesPromptPanel p) p.QueueFree();
         UiTheme.ClickSound();
         UpdatesPrompt.Answer(yes);
-        ShowSupportIfDue();
-    }
-
-    /// <summary>The support panel when it's due (after the other first-launch panels).</summary>
-    void ShowSupportIfDue()
-    {
-        if (!SupportPrompt.Pending || GetChildren().Any(c => c is SupportPanel)) return;
-        SupportPrompt.Shown();
-        AddChild(new SupportPanel(K, true, () => { }));
-    }
-
-    /// <summary>The menu's SUPPORT button.</summary>
-    void ShowSupport()
-    {
-        if (GetChildren().Any(c => c is SupportPanel)) return;
-        UiTheme.ClickSound();
-        AddChild(new SupportPanel(K, false, () => { }));
     }
 
     /// <summary>The menu's REPORT A BUG button.</summary>
@@ -443,7 +424,7 @@ public partial class MenuScreen : ScreenBase
     void CheckMatchPrompt(bool refill)
     {
         matchRecheck = 30;
-        if (matchAsk != null || matchDone || WhatsNew.Pending != null || UpdatesPrompt.Pending || SupportPrompt.Pending) return;
+        if (matchAsk != null || matchDone || WhatsNew.Pending != null || UpdatesPrompt.Pending) return;
         var rec = Warmup.LockInMatchLog.Due(Warmup.WarmupStore.I, DateTime.Now);
         if (rec == null) return;
         matchAsk = rec;
