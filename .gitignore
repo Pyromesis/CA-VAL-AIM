@@ -1,0 +1,60 @@
+# ValTrainer .gitignore
+# Godot 4 needs *.import and *.uid files TRACKED (they hold import settings and resource UIDs); never ignore them.
+
+# ---- Godot ----
+.godot/
+*.tmp
+export_credentials.cfg
+*.pck
+
+# Build copy of the root CHANGELOG.md made by tools/build-release.ps1 before exporting
+/ValTrainerGodot/CHANGELOG.md
+
+# ---- .NET / C# ----
+bin/
+obj/
+*.user
+*.suo
+*.userprefs
+.vs/
+.vscode/
+.idea/
+*.DotSettings.user
+mono_crash.*.json
+
+# ---- Release / export output ----
+dist/
+*.exe
+*.zip
+*.tpz
+
+# ---- Local tools (CI downloads its own copies) ----
+/tools/godot/
+/tools/innosetup/
+/tools/ffmpeg/
+/tools/wingetcreate/
+
+# ---- Extracted real-map assets (local only; not redistributed) ----
+# The optional Riot-extracted GLBs/collision and Unreal reader libraries stay on the
+# build machine. The game falls back to the traced blockouts without them.
+/oodle-data-shared.dll
+/zlib-ng2.dll
+/ValTrainerGodot/assets/maps/
+/ValTrainerGodot/maps/
+
+# ---- Run data, logs, test output ----
+*.vtt
+*.log
+logs/
+*.corrupt
+
+# ---- OS junk ----
+Thumbs.db
+ehthumbs.db
+desktop.ini
+.DS_Store
+$RECYCLE.BIN/
+*~
+
+# GitHub CLI (portable, downloaded locally for publishing)
+/tools/gh/
