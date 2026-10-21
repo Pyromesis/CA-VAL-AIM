@@ -41,6 +41,8 @@ dist/
 /zlib-ng2.dll
 /ValTrainerGodot/assets/maps/
 /ValTrainerGodot/maps/
+/maps/
+/dist-maps/
 
 # ---- Run data, logs, test output ----
 *.vtt

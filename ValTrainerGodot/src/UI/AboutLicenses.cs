@@ -13,8 +13,8 @@ namespace ValTrainer.UI;
 public static class AboutLicenses
 {
     public const string GplNotice =
-        "ValTrainer — a free, fan-made VALORANT-style aim trainer.\n" +
-        "Copyright (C) 2026 ValTrainer contributors\n\n" +
+        "Valtraining — a free, fan-made VALORANT-style aim trainer.\n" +
+        "Copyright (C) 2026 Pyromesis and contributors\n\n" +
         "This program is free software: you can redistribute it and/or modify it under the terms of the GNU General " +
         "Public License as published by the Free Software Foundation, either version 3 of the License, or (at your " +
         "option) any later version.\n\n" +
@@ -22,9 +22,12 @@ public static class AboutLicenses
         "implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License " +
         "for more details.\n\n" +
         "You should have received a copy of the GNU General Public License along with this program (LICENSE.txt next " +
-        "to ValTrainer.exe). If not, see <https://www.gnu.org/licenses/>.\n\n" +
-        "ValTrainer is not affiliated with or endorsed by Riot Games. VALORANT is a trademark of Riot Games, Inc. " +
-        "ValTrainer contains no Riot Games assets.";
+        "to the executable). If not, see <https://www.gnu.org/licenses/>.\n\n" +
+        "This build is based on the open-source ValTrainer project. The original copyright notices and license terms " +
+        "are preserved in NOTICE.\n\n" +
+        "Valtraining is not affiliated with or endorsed by Riot Games. VALORANT is a trademark of Riot Games, Inc. " +
+        "The optional maps folder contains Riot Games assets extracted for interoperability and is not covered by " +
+        "the GNU GPL; see NOTICE and CREDITS.md.";
 
     public const string DotNetLicense =
         "The MIT License (MIT)\n\n" +
@@ -75,7 +78,7 @@ public static class AboutLicenses
             sb.Append(new string('=', 64)).Append('\n').Append(title).Append('\n').Append(new string('=', 64)).Append("\n\n");
         }
 
-        Heading(Part.ValTrainer, $"VALTRAINER {AppInfo.Version} — GNU GENERAL PUBLIC LICENSE v3");
+        Heading(Part.ValTrainer, $"VALTRAINING {AppInfo.Version} — GNU GENERAL PUBLIC LICENSE v3");
         sb.Append(GplNotice);
         if (AppInfo.HasRepo) sb.Append("\n\nSource code: ").Append(AppInfo.RepoUrl);
 
@@ -130,11 +133,18 @@ public static class AboutLicenses
         }
     }
 
-    /// <summary>CREDITS.md (exported with the game) as plain text: markdown links, emphasis and tables simplified.</summary>
+    /// <summary>CREDITS.md (next to the executable when present, otherwise the copy exported with the game) as plain
+    /// text: markdown links, emphasis and tables simplified.</summary>
     static string Credits()
     {
         string md = "";
-        try { if (Godot.FileAccess.FileExists("res://CREDITS.md")) md = Godot.FileAccess.GetFileAsString("res://CREDITS.md"); } catch { }
+        try
+        {
+            var ext = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(OS.GetExecutablePath()) ?? "", "CREDITS.md");
+            if (System.IO.File.Exists(ext)) md = System.IO.File.ReadAllText(ext);
+            else if (Godot.FileAccess.FileExists("res://CREDITS.md")) md = Godot.FileAccess.GetFileAsString("res://CREDITS.md");
+        }
+        catch { }
         if (md.Length == 0) return "See CREDITS.md in the source code.";
         var sb = new StringBuilder();
         foreach (var raw in md.Replace("\r", "").Split('\n'))

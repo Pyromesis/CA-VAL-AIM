@@ -80,7 +80,7 @@ public partial class UpdatesPromptPanel : Control
         var vs = GetViewportRect().Size;
         var panel = new VPanel
         {
-            Title = "UPDATES", Caption = $"ValTrainer {AppInfo.Version}", K = k, Fill = new Color(0.07f, 0.11f, 0.15f, 0.97f),
+            Title = "UPDATES", Caption = $"Valtraining {AppInfo.Version}", K = k, Fill = new Color(0.07f, 0.11f, 0.15f, 0.97f),
             CustomMinimumSize = new Vector2(Mathf.Min(780 * k, vs.X - 80 * k), 0),
         };
         center.AddChild(panel);
@@ -100,12 +100,12 @@ public partial class UpdatesPromptPanel : Control
                 Gfx.Text(b, UiTheme.Display, q2, Gfx.TextW(UiTheme.Display, q1, fs), y, fs, UiTheme.Accent);
             },
         });
-        col.AddChild(Text("ValTrainer can keep itself up to date. If you turn this on, it will:", 16, UiTheme.Dim));
-        Bullet(col, "ask github.com for the latest ValTrainer release, at startup and every 6 hours");
-        Bullet(col, "download a newer version in the background and install it when you restart ValTrainer");
+        col.AddChild(Text("Valtraining can keep itself up to date. If you turn this on, it will:", 16, UiTheme.Dim));
+        Bullet(col, "ask github.com for the latest Valtraining release, at startup and every 6 hours");
+        Bullet(col, "download a newer version in the background and install it when you restart Valtraining");
         Bullet(col, "send nothing about you: no settings, stats, recordings or IDs (GitHub sees an ordinary web request)");
         col.AddChild(new Control { CustomMinimumSize = new Vector2(0, 2 * k), MouseFilter = MouseFilterEnum.Ignore });
-        col.AddChild(Text("Until you say yes, ValTrainer makes no network requests. You can change this any time in Settings → About, where CHECK NOW also checks once.", 14, UiTheme.Faint));
+        col.AddChild(Text("Until you say yes, Valtraining makes no network requests. You can change this any time in Settings → About, where CHECK NOW also checks once.", 14, UiTheme.Faint));
         col.AddChild(new Control { CustomMinimumSize = new Vector2(0, 6 * k), MouseFilter = MouseFilterEnum.Ignore });
 
         var foot = new HBoxContainer();

@@ -94,7 +94,7 @@ public partial class SettingsScreen : ScreenBase
         if (page == Page.About)
         {
             BuildAbout(cols);
-            col.AddChild(Lbl("Esc — back to menu   ·   ValTrainer is free software (GPL-3.0)   ·   fan-made, not affiliated with or endorsed by Riot Games",
+            col.AddChild(Lbl("Esc — back to menu   ·   Valtraining is free software (GPL-3.0)   ·   fan-made, not affiliated with or endorsed by Riot Games",
                 UiTheme.Body, 13, UiTheme.Faint));
         }
         else
@@ -556,7 +556,7 @@ public partial class SettingsScreen : ScreenBase
     void BuildAbout(HBoxContainer cols)
     {
         float k = K;
-        var v = Column(cols, "VALTRAINER", $"version {AppInfo.Version}", 1f);
+        var v = Column(cols, "VALTRAINING", $"version {AppInfo.Version}", 1f);
 
         v.AddChild(new DrawBox
         {
@@ -567,8 +567,8 @@ public partial class SettingsScreen : ScreenBase
                 float y = 50 * k, x = 10 * k;
                 Gfx.Text(d, UiTheme.Display, "VAL", x, y, fs, UiTheme.Accent);
                 x += Gfx.TextW(UiTheme.Display, "VAL", fs) + 1 * k;
-                Gfx.Text(d, UiTheme.Display, "TRAINER", x, y, fs, UiTheme.Text);
-                x += Gfx.TextW(UiTheme.Display, "TRAINER", fs) + 14 * k;
+                Gfx.Text(d, UiTheme.Display, "TRAINING", x, y, fs, UiTheme.Text);
+                x += Gfx.TextW(UiTheme.Display, "TRAINING", fs) + 14 * k;
                 Gfx.Text(d, UiTheme.HudWide, "v" + AppInfo.Version, x, y, vs, UiTheme.Dim);
                 Gfx.TextFit(d, UiTheme.Body, "Free, fan-made aim trainer · open source (GPL-3.0) · not affiliated with Riot Games",
                     10 * k, 76 * k, ss, UiTheme.Dim, d.Size.X - 10 * k);
@@ -653,42 +653,12 @@ public partial class SettingsScreen : ScreenBase
         });
 
         v.AddChild(Spacer(0, 6 * k));
-        v.AddChild(new SectionLabel { Text = "SUPPORT", K = k });
-        v.AddChild(Segmented("Support reminders", new[] { "OFF", "ON" }, () => St.SupportReminders ? 1 : 0,
-            i => { St.SupportReminders = i == 1; SupportPrompt.Pending = false; },
-            note: () => St.SupportReminders ? "Now and then the menu shows the Buy Me a Coffee / Ko-fi panel (at most every 14 days)"
-                : "Off: the panel only opens from the menu's SUPPORT VALTRAINER button"));
-        var jars = HBox(12 * k);
-        jars.CustomMinimumSize = new Vector2(0, 52 * k);
-        jars.AddChild(Spacer(4 * k, 0));
-        foreach (var (label, url) in new[] { ("BUY ME A COFFEE", AppInfo.BuyMeACoffeeUrl), ("KO-FI", AppInfo.KofiUrl) })
-        {
-            var b = Btn(label, VButton.Look.Secondary, () => AppInfo.OpenSupport(url), label.Length > 6 ? 210 : 120, 40, 17);
-            b.SizeFlagsVertical = SizeFlags.ShrinkCenter;
-            b.TooltipText = $"Opens {url.Replace("https://", "")} in your browser";
-            jars.AddChild(b);
-        }
-        v.AddChild(jars);
-
-        v.AddChild(Spacer(0, 6 * k));
         v.AddChild(new SectionLabel { Text = "HELP & FEEDBACK", K = k });
         // flows onto a second row when the column is too narrow for all five buttons
         var help = new HFlowContainer();
         help.AddThemeConstantOverride("h_separation", (int)(10 * k));
         help.AddThemeConstantOverride("v_separation", (int)(8 * k));
         help.CustomMinimumSize = new Vector2(0, 52 * k);
-        var discord = Btn("DISCORD", VButton.Look.Secondary, () => AppInfo.OpenSupport(AppInfo.DiscordUrl), 130, 40, 17);
-        discord.TooltipText = "Opens the ValTrainer Discord invite: help, bug reports, suggestions and voice chats";
-        discord.SizeFlagsVertical = SizeFlags.ShrinkCenter;
-        help.AddChild(discord);
-        var bug = Btn("REPORT A BUG", VButton.Look.Secondary, () => ShowBugReport(), 170, 40, 17);
-        bug.TooltipText = "Describe the problem and send it to #bug-reports on the ValTrainer Discord. You see everything before it's sent";
-        bug.SizeFlagsVertical = SizeFlags.ShrinkCenter;
-        help.AddChild(bug);
-        var idea = Btn("SUGGEST A FEATURE", VButton.Look.Secondary, () => ShowBugReport(true), 210, 40, 17);
-        idea.TooltipText = "Send an idea for a drill, an agent, a map or a setting to #suggestions on the ValTrainer Discord";
-        idea.SizeFlagsVertical = SizeFlags.ShrinkCenter;
-        help.AddChild(idea);
         if (AppInfo.HasRepo)
         {
             var site = Btn("GITHUB PAGE", VButton.Look.Secondary, () => AppInfo.OpenGitHub(AppInfo.RepoUrl), 160, 40, 17);
@@ -755,7 +725,7 @@ public partial class SettingsScreen : ScreenBase
     (string, Color) CheckStatus() => UpdateCheck.Status switch
     {
         UpdateCheck.State.Checking => ("Checking GitHub…", UiTheme.Dim),
-        UpdateCheck.State.Available => ($"ValTrainer {UpdateCheck.Latest} is available", UiTheme.Good),
+        UpdateCheck.State.Available => ($"Valtraining {UpdateCheck.Latest} is available", UiTheme.Good),
         UpdateCheck.State.UpToDate => ("You have the latest version" + (St.LastUpdateCheck > 0 ? $" · checked {Ago(St.LastUpdateCheck)}" : ""), UiTheme.Dim),
         UpdateCheck.State.Failed => (string.IsNullOrWhiteSpace(UpdateCheck.Message) ? "Couldn't check for updates" : $"Couldn't check for updates: {UpdateCheck.Message}", UiTheme.Warn),
         UpdateCheck.State.Off => (UpdateCheck.Message ?? "Off", UiTheme.Faint),
@@ -772,7 +742,7 @@ public partial class SettingsScreen : ScreenBase
     }
 
     static string SystemInfoText() =>
-        $"ValTrainer {AppInfo.Version}{(App.Dev ? " (dev)" : "")}\n" +
+        $"Valtraining {AppInfo.Version}{(App.Dev ? " (dev)" : "")}\n" +
         $"Renderer: {SysInfo.Summary}\n" +
         $"Graphics quality: {Qualities[Math.Clamp(St.Quality, 0, 3)]}{(St.AutoQualityReason != null ? $" (auto: {St.AutoQualityReason})" : "")}\n" +
         $"VALORANT settings: {(App.Valorant.Found ? "imported" : App.Valorant.Status.ToString())}\n" +
@@ -974,7 +944,7 @@ public partial class SettingsScreen : ScreenBase
         var buttons = new List<VButton>();
         foreach (var (part, name) in new[]
                  {
-                     (AboutLicenses.Part.ValTrainer, "VALTRAINER"), (AboutLicenses.Part.Godot, "GODOT"),
+                     (AboutLicenses.Part.ValTrainer, "VALTRAINING"), (AboutLicenses.Part.Godot, "GODOT"),
                      (AboutLicenses.Part.GodotThirdParty, "ENGINE PARTS"), (AboutLicenses.Part.DotNet, ".NET"), (AboutLicenses.Part.Assets, "ASSETS"),
                  })
         {

@@ -299,7 +299,7 @@ jobs:
             if ($LASTEXITCODE -ne 0) { throw "gh release upload failed" }
             gh release edit $env:TAG --notes-file "$env:RUNNER_TEMP\notes.md"
           } else {
-            $a = @("release", "create", $env:TAG, "--verify-tag", "--title", "ValTrainer $env:TAG", "--notes-file", "$env:RUNNER_TEMP\notes.md")
+            $a = @("release", "create", $env:TAG, "--verify-tag", "--title", "Valtraining $env:TAG", "--notes-file", "$env:RUNNER_TEMP\notes.md")
             if ($env:PRERELEASE -eq 'true') { $a += "--prerelease" }
             gh @a @files
           }
@@ -312,39 +312,3 @@ jobs:
           name: selftest-logs
           path: selftest-logs
           if-no-files-found: ignore
-
-  # After the GitHub Release is out, upload it to itch.io with butler (skipped while BUTLER_API_KEY isn't set;
-  # prereleases aren't uploaded). See .github/workflows/itch.yml.
-  itch:
-    name: Upload to itch.io
-    needs: release
-    if: needs.release.outputs.prerelease != 'true'
-    uses: ./.github/workflows/itch.yml
-    with:
-      version: ${{ needs.release.outputs.version }}
-    secrets:
-      BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
-
-  # Then announce it in the ValTrainer Discord's #announcements (skipped while DISCORD_WEBHOOK_URL isn't set;
-  # prereleases aren't announced). See .github/workflows/discord.yml.
-  discord:
-    name: Announce on Discord
-    needs: release
-    if: needs.release.outputs.prerelease != 'true'
-    uses: ./.github/workflows/discord.yml
-    with:
-      version: ${{ needs.release.outputs.version }}
-    secrets:
-      DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-
-  # And mark the bug reports this release fixes (commits with "Fixes-Discord: <thread id>") as Fixed in #bug-reports:
-  # reply with the version, tag Fixed, close the post. Skipped while DISCORD_BOT_TOKEN isn't set. See discord-fixes.yml.
-  discord-fixes:
-    name: Mark fixed bug reports
-    needs: release
-    if: needs.release.outputs.prerelease != 'true'
-    uses: ./.github/workflows/discord-fixes.yml
-    with:
-      version: ${{ needs.release.outputs.version }}
-    secrets:
-      DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}

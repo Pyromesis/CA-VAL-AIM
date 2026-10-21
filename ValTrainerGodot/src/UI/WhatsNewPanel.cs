@@ -118,7 +118,7 @@ public partial class WhatsNewPanel : Control
         var vs = GetViewportRect().Size;
         var panel = new VPanel
         {
-            Title = "WHAT'S NEW", Caption = $"ValTrainer {AppInfo.Version}", K = k, Fill = new Color(0.07f, 0.11f, 0.15f, 0.97f),
+            Title = "WHAT'S NEW", Caption = $"Valtraining {AppInfo.Version}", K = k, Fill = new Color(0.07f, 0.11f, 0.15f, 0.97f),
             CustomMinimumSize = new Vector2(Mathf.Min(960 * k, vs.X - 80 * k), Mathf.Min(760 * k, vs.Y - 80 * k)),
         };
         center.AddChild(panel);

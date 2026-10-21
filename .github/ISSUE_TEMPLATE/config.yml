@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
   - name: Download the latest version
-    url: https://github.com/idoraz1/ValTrainer/releases/latest
+    url: https://github.com/Pyromesis/Valtraining/releases/latest
     about: The installer, the portable zip and checksums.
   - name: Report a security problem privately
-    url: https://github.com/idoraz1/ValTrainer/security/advisories/new
+    url: https://github.com/Pyromesis/Valtraining/security/advisories/new
     about: Please don't open a public issue for security problems (see SECURITY.md).

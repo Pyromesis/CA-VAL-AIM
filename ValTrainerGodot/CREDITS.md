@@ -1,12 +1,14 @@
 # Credits
 
-ValTrainer is a fan-made aim/movement trainer and is not affiliated with or endorsed by Riot Games. The 3D blockouts, UI and textures are original or CC0 with one exception: the map minimap images in `assets/maps/` are official VALORANT art, © Riot Games, used here for a free, non-commercial fan project under Riot's Fan Content Policy. They are **not** CC0; delete that folder to fall back to the palette-only map postcards.
+Valtraining is a fan-made aim/movement trainer and is not affiliated with or endorsed by Riot Games. The 3D blockout geometry, UI and textures are original or CC0, with two exceptions: the map minimap images in `assets/maps/` and the optional extracted map geometry in the release's `maps/` folder are official VALORANT assets, © Riot Games, used here for a free, non-commercial fan project under Riot's Fan Content Policy. They are **not** CC0 and **not** covered by the GNU GPL; delete those folders to fall back to the palette-only map postcards and blockout maps.
 
 Every other third-party asset bundled in `assets/` is released under **CC0 1.0 Universal (public domain)**: <https://creativecommons.org/publicdomain/zero/1.0/>.
 Credit is not required, but these creators deserve it. Thank you!
 
-## Map minimaps
-`assets/maps/{ascent,bind,breeze,haven,icebox,split}.png` are the official VALORANT minimaps (source: valorant-api.com). They are used only to draw the map picker, the countdown briefing and the in-game minimap. The playable geometry remains ValTrainer's own true-scale blockout. These six files are © Riot Games and are not covered by the CC0 licence above.
+## Map minimaps and extracted geometry
+`assets/maps/*.png` are the official VALORANT minimaps for all 13 maps (source: valorant-api.com). They are used only to draw the map picker, the countdown briefing and the in-game minimap. These files are © Riot Games and are not covered by the CC0 licence above.
+
+The release packages also include a `maps/` folder with extracted VALORANT geometry, textures, collision data and manifests for Ascent, Fracture, Lotus, Sunset, Pearl, Summit, Abyss and Corrode. These files are © Riot Games, are not covered by the CC0 licence or the GNU GPL, and are included only in the release binaries (not in the Git repository) for interoperability in this free, non-commercial fan project. Delete `maps/` to fall back to the blockout maps.
 
 ## 3D models and animation: Quaternius (<https://quaternius.com>, <https://www.patreon.com/quaternius>)
 - **Universal Base Characters** (Standard): base bodies, heads, eyes, eyebrows, hair. <https://quaternius.itch.io/universal-base-characters>
@@ -46,7 +48,7 @@ The character `.gltf` files in `assets/characters/` are derivative merges of the
 - **Impact Sounds** (impacts and footsteps) by Kenney: <https://kenney.nl/assets/impact-sounds>
 - **Interface Sounds** by Kenney: <https://kenney.nl/assets/interface-sounds>
 - The sentinel-setup cues of Site Anchor (alarm, turret, wire, sensor, barriers, vines…) are synthesized in code (`src/Game/Fx/SentinelSfx.cs`); no samples.
-- The agent flash sounds in `assets/audio/flash` (throw, flight, windup and pop per agent, Gekko's Dizzy set, and the "flashed" ring) are synthesized by ValTrainer's own generator `tools/sfx/flash_sfx.py`. They are our own work, released as CC0, with no samples and no third-party or Riot audio.
+- The agent flash sounds in `assets/audio/flash` (throw, flight, windup and pop per agent, Gekko's Dizzy set, and the "flashed" ring) are synthesized by Valtraining's own generator `tools/sfx/flash_sfx.py`. They are our own work, released as CC0, with no samples and no third-party or Riot audio.
 
 ## Engine
 Built with the Godot Engine (MIT license): <https://godotengine.org/license>

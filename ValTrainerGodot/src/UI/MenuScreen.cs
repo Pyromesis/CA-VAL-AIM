@@ -259,12 +259,12 @@ public partial class MenuScreen : ScreenBase
             {
                 var go = Btn("RESTART TO UPDATE", VButton.Look.Primary, Updater.RestartToUpdate, 210, 32, 16);
                 go.TooltipText = Updater.NeedsElevation
-                    ? "Installs the update and restarts ValTrainer. ValTrainer is installed for all users, so Windows asks for permission"
-                    : "Installs the update and restarts ValTrainer (takes a few seconds; settings and stats are kept)";
+                    ? "Installs the update and restarts Valtraining. Valtraining is installed for all users, so Windows asks for permission"
+                    : "Installs the update and restarts Valtraining (takes a few seconds; settings and stats are kept)";
                 Add(go);
                 Add(WhatsNew());
                 var later = Btn("LATER", VButton.Look.Ghost, () => { UpdateCheck.BannerDismissed = true; bannerRev = -1; RefreshBanner(); }, 100, 32, 15);
-                later.TooltipText = Updater.NeedsElevation ? "Hide until next launch" : "Installs the next time you start ValTrainer";
+                later.TooltipText = Updater.NeedsElevation ? "Hide until next launch" : "Installs the next time you start Valtraining";
                 Add(later);
                 break;
             }
@@ -321,7 +321,7 @@ public partial class MenuScreen : ScreenBase
                 float baseY = 56 * k;
                 float w = Gfx.TextW(UiTheme.Display, "VAL", fs);
                 Gfx.Text(d, UiTheme.Display, "VAL", 0, baseY, fs, UiTheme.Accent);
-                Gfx.Text(d, UiTheme.Display, "TRAINER", w + 2 * k, baseY, fs, UiTheme.Text);
+                Gfx.Text(d, UiTheme.Display, "TRAINING", w + 2 * k, baseY, fs, UiTheme.Text);
                 int ss = UiTheme.Fs(12, k);
                 Gfx.Text(d, UiTheme.HudWide, "AIM · MOVEMENT · UTILITY — YOUR OWN VALORANT SETTINGS", 2 * k, 78 * k, ss, UiTheme.Dim);
             },
@@ -376,11 +376,7 @@ public partial class MenuScreen : ScreenBase
             b.TooltipText = tooltip;
             f.AddChild(b);
         }
-        Link("SUPPORT", "Buy Me a Coffee or Ko-fi: ValTrainer stays free either way", ShowSupport, 90);
-        Link("REPORT A BUG", "Something broken? Describe it and send it to #bug-reports on the ValTrainer Discord. You see everything before it's sent", ShowBugReport, 120);
-        Link("SUGGEST A FEATURE", "Missing a drill, an agent or a setting? Send your idea to #suggestions on the ValTrainer Discord", ShowSuggest, 150);
-        Link("DISCORD", "Join the ValTrainer Discord: release news, help, bug reports, suggestions and voice chats by rank",
-            () => AppInfo.OpenSupport(AppInfo.DiscordUrl), 82);
+        Link("GITHUB", "Source code, releases and issue tracker", () => AppInfo.OpenGitHub(AppInfo.RepoUrl), 82);
         var ver = Lbl("v" + AppInfo.Version + (Main.I.Dev && !CmdLine.Showcase ? " · DEV" : ""), UiTheme.HudWide, 11, UiTheme.Faint);
         ver.SizeFlagsVertical = SizeFlags.ShrinkCenter;
         f.AddChild(ver);
@@ -1363,15 +1359,15 @@ public partial class UpdateBanner : Control
         string v = Version.ToUpperInvariant();
         string head = Kind switch
         {
-            Stage.Ready => $"VALTRAINER {v} IS READY",
-            Stage.Applying => $"INSTALLING VALTRAINER {v}…",
-            _ => $"VALTRAINER {v} IS AVAILABLE",
+            Stage.Ready => $"VALTRAINING {v} IS READY",
+            Stage.Applying => $"INSTALLING VALTRAINING {v}…",
+            _ => $"VALTRAINING {v} IS AVAILABLE",
         };
         string sub = Kind switch
         {
             Stage.Downloading => $"Downloading update {Updater.Progress * 100:0}%",
             Stage.Ready => "restart to update · you have " + AppInfo.Version + (Updater.NeedsElevation ? " · Windows will ask for permission" : ""),
-            Stage.Applying => "ValTrainer restarts by itself",
+            Stage.Applying => "Valtraining restarts by itself",
             _ => $"you have {AppInfo.Version}",
         };
         Gfx.Text(this, UiTheme.HudWide, head, 42 * k, Gfx.Mid(cy, fs), fs, UiTheme.Text);

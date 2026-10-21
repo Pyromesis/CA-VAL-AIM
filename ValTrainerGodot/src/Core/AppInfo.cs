@@ -8,8 +8,8 @@ namespace ValTrainer.Core;
 /// </summary>
 public static class AppInfo
 {
-    public const string Name = "ValTrainer";
-    public const string Publisher = "ValTrainer contributors";
+    public const string Name = "Valtraining";
+    public const string Publisher = "Pyromesis";
 
     /// <summary>"owner/repo" on GitHub. Update checks, the GitHub issue links and the installer's links stay off while this
     /// still holds the "OWNER" placeholder (tools\build-release.ps1 reads it from here too).</summary>
@@ -41,7 +41,7 @@ public static class AppInfo
     /// <summary>The issue-template chooser (bug report / feature request).</summary>
     public static string NewIssueUrl => RepoUrl + "/issues/new/choose";
     /// <summary>The project's website (downloads).</summary>
-    public const string Website = "https://valtrainer.github.io/";
+    public static string Website => LatestReleaseUrl;
     /// <summary>GitHub REST: newest published release (drafts and prereleases are excluded by GitHub).</summary>
     public static string LatestReleaseApi => $"https://api.github.com/repos/{GitHubRepo}/releases/latest";
 
@@ -54,23 +54,21 @@ public static class AppInfo
         catch (Exception e) { Log.Error($"Couldn't open {url}: {e.Message}"); return false; }
     }
 
-    /// <summary>Tip jars (Support panel, Settings → About). Opened in the browser only when the player clicks.</summary>
-    public const string BuyMeACoffeeUrl = "https://buymeacoffee.com/idoraz1";
-    public const string KofiUrl = "https://ko-fi.com/idoraz1";
-    /// <summary>The ValTrainer Discord (release news, bug reports, suggestions, help, voice chats by rank).</summary>
-    public const string DiscordUrl = "https://discord.gg/Y6UKUX89C8";
-    /// <summary>The bug-report relay: the public Cloudflare Worker URL (see tools/bug-relay) that posts in-app reports to
-    /// #bug-reports on the Discord. Only used when the player presses SEND in the Report a bug panel. Empty = this build
-    /// can't send reports: the panel copies the report and opens the Discord invite instead.</summary>
-    public const string BugReportUrl = "https://valtrainer-bug-relay.idoraz2008.workers.dev/report";
+    /// <summary>Community channels. Empty in this build: there is no external support or chat service.</summary>
+    public const string BuyMeACoffeeUrl = "";
+    public const string KofiUrl = "";
+    public const string DiscordUrl = "";
+    /// <summary>Optional in-app report relay. Empty: reports stay local and can be copied to a GitHub issue.</summary>
+    public const string BugReportUrl = "";
 
-    /// <summary>The ValTrainer Discord server (guild) id: links to a post in it (the player's own bug report).</summary>
-    public const string DiscordServerId = "1558100125794967603";
+    /// <summary>Optional chat server id for report threads. Empty: the feature is off.</summary>
+    public const string DiscordServerId = "";
 
     /// <summary>Opens the player's bug-report post on the ValTrainer Discord (a numeric thread id from the relay's answer,
     /// nothing else). Only server members can see it: <see cref="DiscordUrl"/> is the invite.</summary>
     public static bool OpenDiscordPost(string threadId)
     {
+        if (DiscordServerId.Length == 0 || DiscordUrl.Length == 0) return false;
         if (threadId.Length is < 15 or > 25 || !threadId.All(char.IsAsciiDigit)) return false;
         try { return OS.ShellOpen($"https://discord.com/channels/{DiscordServerId}/{threadId}") == Error.Ok; }
         catch (Exception e) { Log.Error($"Couldn't open the report post: {e.Message}"); return false; }
@@ -80,6 +78,7 @@ public static class AppInfo
     /// ValTrainer itself).</summary>
     public static bool OpenSupport(string url)
     {
+        if (url.Length == 0) return false;
         if (url != BuyMeACoffeeUrl && url != KofiUrl && url != DiscordUrl) return false;
         try { return OS.ShellOpen(url) == Error.Ok; }
         catch (Exception e) { Log.Error($"Couldn't open {url}: {e.Message}"); return false; }

@@ -68,7 +68,7 @@ public partial class Main : Node
         UiTheme.Init();
         Loc.SetLanguage(Settings.Language);
         if (!OS.GetCmdlineUserArgs().Concat(OS.GetCmdlineArgs()).Contains("--dev")) ApplyDisplay();
-        GetTree().Root.Title = "ValTrainer";
+        GetTree().Root.Title = "Valtraining";
 
         var args = OS.GetCmdlineUserArgs().Concat(OS.GetCmdlineArgs()).ToArray();
         Dev = args.Contains("--dev");
@@ -128,7 +128,7 @@ public partial class Main : Node
         if (Dev && args.Contains("--throw-test")) throwTest = 61; // dev: prove callback/task exceptions reach the log
         WhatsNew.Prepare(Settings);  // "What's new" panel after an update (dev: --whats-new [fromVersion])
         UpdatesPrompt.Prepare(Settings); // opt-in "Check GitHub for new versions?" (dev: --updates-prompt, --updates-consent yes|no)
-        SupportPrompt.Prepare(Settings); // "Support ValTrainer" panel: first launch, then now and then (dev: --support-prompt)
+        // Support panel disabled in this build: no external donation or chat services.
         Updater.Init();              // how this copy updates itself; finishes / gives up on an update started last run
         UpdateCheck.StartupCheck();  // only once the player opted in: at startup and every 6 h (dev: --update-test <version>, --update-source <url>)
         int ti = Array.IndexOf(args, "--tier");
