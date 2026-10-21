@@ -3,17 +3,17 @@ using Godot;
 namespace ValTrainer.Core;
 
 /// <summary>
-/// Who and what this build is: version (single source of truth: <c>application/config/version</c> in project.godot,
-/// which also feeds the exe's file/product version at export) and where it lives on GitHub.
+/// Who and what this build is: version (stamped on the executable at export, with
+/// <c>application/config/version</c> in project.godot as the fallback) and where it lives on GitHub.
 /// </summary>
 public static class AppInfo
 {
-    public const string Name = "Valtraining";
+    public const string Name = "ValTraining";
     public const string Publisher = "Pyromesis";
 
     /// <summary>"owner/repo" on GitHub. Update checks, the GitHub issue links and the installer's links stay off while this
     /// still holds the "OWNER" placeholder (tools\build-release.ps1 reads it from here too).</summary>
-    public const string GitHubRepo = "Pyromesis/Valtraining";
+    public const string GitHubRepo = "Pyromesis/ValTraining";
 
     /// <summary>False while <see cref="GitHubRepo"/> is the placeholder: everything that would link there is hidden.</summary>
     public static bool HasRepo =>
@@ -27,6 +27,24 @@ public static class AppInfo
 
     static string ReadVersion()
     {
+        // The .NET assembly and the executable can be replaced without re-exporting the .pck (the updater does exactly
+        // that), so the version stamped on the executable wins: it always describes the build that is running.
+        try
+        {
+            string? exe = System.Environment.ProcessPath;
+            if (!string.IsNullOrEmpty(exe) && File.Exists(exe))
+            {
+                string? fv = System.Diagnostics.FileVersionInfo.GetVersionInfo(exe).FileVersion?.Trim();
+                if (!string.IsNullOrEmpty(fv))
+                {
+                    // "1.16.1.0" -> "1.16.1"
+                    var p = fv.Split('.');
+                    string v = p.Length == 4 && p[3] == "0" ? string.Join('.', p, 0, 3) : fv;
+                    if (SemVer.Normalize(v) != null) return SemVer.Normalize(v)!;
+                }
+            }
+        }
+        catch { }
         try
         {
             var v = ProjectSettings.GetSetting("application/config/version", "").AsString().Trim();

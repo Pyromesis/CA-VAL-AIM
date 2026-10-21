@@ -186,7 +186,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: unsigned-setup
-          path: dist/ValTrainer-${{ steps.ver.outputs.version }}-Setup.exe
+          path: dist/ValTraining-${{ steps.ver.outputs.version }}-Setup.exe
           if-no-files-found: error
           retention-days: 1
 
@@ -215,7 +215,7 @@ jobs:
           VERSION: ${{ steps.ver.outputs.version }}
         run: |
           $ErrorActionPreference = 'Stop'
-          $name = "ValTrainer-$env:VERSION-Setup.exe"
+          $name = "ValTraining-$env:VERSION-Setup.exe"
           $src = Join-Path $env:SIGNED $name
           if (-not (Test-Path $src)) { throw "SignPath returned no $name" }
           $sig = Get-AuthenticodeSignature $src
@@ -231,7 +231,7 @@ jobs:
           VERSION: ${{ steps.ver.outputs.version }}
         run: |
           $ErrorActionPreference = 'Stop'
-          foreach ($f in "ValTrainer-$env:VERSION-Setup.exe", "ValTrainer-$env:VERSION-Portable.zip", "SHA256SUMS.txt") {
+          foreach ($f in "ValTraining-$env:VERSION-Setup.exe", "ValTraining-$env:VERSION-Portable.zip", "SHA256SUMS.txt") {
             if (-not (Test-Path "dist\$f")) { throw "dist\$f is missing" }
           }
           # Only the files directly in dist\ are published (not the dist\app folder of a signed build).
@@ -240,10 +240,10 @@ jobs:
           if ($env:SIGNPATH_ENABLED -eq 'true') {
             # The exe inside the portable zip must be the signed one too.
             Add-Type -AssemblyName System.IO.Compression.FileSystem
-            $zip = [IO.Compression.ZipFile]::OpenRead((Resolve-Path "dist\ValTrainer-$env:VERSION-Portable.zip").Path)
+            $zip = [IO.Compression.ZipFile]::OpenRead((Resolve-Path "dist\ValTraining-$env:VERSION-Portable.zip").Path)
             try {
               # Windows PowerShell's ZipFile writes '\' separators.
-              $e = $zip.Entries | Where-Object { ($_.FullName -replace '\\', '/') -eq "ValTrainer-$env:VERSION/ValTrainer.exe" }
+              $e = $zip.Entries | Where-Object { ($_.FullName -replace '\\', '/') -eq "ValTraining-$env:VERSION/ValTrainer.exe" }
               if (-not $e) { throw "ValTrainer.exe is missing from the portable zip" }
               $tmp = Join-Path $env:RUNNER_TEMP 'zip-check.exe'
               [IO.Compression.ZipFileExtensions]::ExtractToFile($e, $tmp, $true)
@@ -265,14 +265,14 @@ jobs:
           $footer = @"
 
           ---
-          **Download:** ``ValTrainer-$env:VERSION-Setup.exe`` (installer, recommended) or ``ValTrainer-$env:VERSION-Portable.zip`` (unzip and run, no install). Windows 10 (1607+) or 11, 64-bit.
+          **Download:** ``ValTraining-$env:VERSION-Setup.exe`` (installer, recommended) or ``ValTraining-$env:VERSION-Portable.zip`` (unzip and run, no install). Windows 10 (1607+) or 11, 64-bit.
           ValTrainer isn't code-signed yet, so Windows SmartScreen may say "Windows protected your PC": click **More info** -> **Run anyway**. Check your download against ``SHA256SUMS.txt`` if you like.
           "@
           if ($env:SIGNPATH_ENABLED -eq 'true') {
             $footer = @"
 
           ---
-          **Download:** ``ValTrainer-$env:VERSION-Setup.exe`` (installer, recommended) or ``ValTrainer-$env:VERSION-Portable.zip`` (unzip and run, no install). Windows 10 (1607+) or 11, 64-bit.
+          **Download:** ``ValTraining-$env:VERSION-Setup.exe`` (installer, recommended) or ``ValTraining-$env:VERSION-Portable.zip`` (unzip and run, no install). Windows 10 (1607+) or 11, 64-bit.
           The installer and ValTrainer.exe are code-signed. Free code signing provided by [SignPath.io](https://about.signpath.io/), certificate by [SignPath Foundation](https://signpath.org/). Check your download against ``SHA256SUMS.txt`` if you like.
           "@
           }
@@ -299,7 +299,7 @@ jobs:
             if ($LASTEXITCODE -ne 0) { throw "gh release upload failed" }
             gh release edit $env:TAG --notes-file "$env:RUNNER_TEMP\notes.md"
           } else {
-            $a = @("release", "create", $env:TAG, "--verify-tag", "--title", "Valtraining $env:TAG", "--notes-file", "$env:RUNNER_TEMP\notes.md")
+            $a = @("release", "create", $env:TAG, "--verify-tag", "--title", "ValTraining $env:TAG", "--notes-file", "$env:RUNNER_TEMP\notes.md")
             if ($env:PRERELEASE -eq 'true') { $a += "--prerelease" }
             gh @a @files
           }

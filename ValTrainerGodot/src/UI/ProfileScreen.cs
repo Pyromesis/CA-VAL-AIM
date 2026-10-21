@@ -532,14 +532,14 @@ public partial class ProfileScreen : ScreenBase
         bool on = TryActive(a);
         b.Kind = on ? VButton.Look.Select : VButton.Look.Primary;
         b.Selected = on;
-        b.Label = on ? (Loc.Spanish ? "ACTIVA EN VALTRAINING" : "ACTIVE IN VALTRAINING") : (Loc.Spanish ? "PROBARLA EN VALTRAINING" : "TRY IT IN VALTRAINING");
+        b.Label = on ? (Loc.Spanish ? "ACTIVA EN ValTraining" : "ACTIVE IN ValTraining") : (Loc.Spanish ? "PROBARLA EN ValTraining" : "TRY IT IN ValTraining");
         b.Sub = on ? (Loc.Spanish ? "clic para volver" : "click to switch back") : null;
         b.TooltipText = on
-            ? (Loc.Spanish ? "Valtraining usa la sensibilidad recomendada. Haz clic para volver a la anterior."
-                : "Valtraining is using the recommended sens. Click to go back to your previous sens.")
+            ? (Loc.Spanish ? "ValTraining usa la sensibilidad recomendada. Haz clic para volver a la anterior."
+                : "ValTraining is using the recommended sens. Click to go back to your previous sens.")
             : (Loc.Spanish
-                ? $"Usa {Rounded(a.RecommendedSens).ToString("0.000", Inv)} en los ejercicios de Valtraining (tus ajustes de Valorant no cambian)"
-                : $"Use {Rounded(a.RecommendedSens).ToString("0.000", Inv)} in Valtraining's drills (your Valorant settings stay unchanged)");
+                ? $"Usa {Rounded(a.RecommendedSens).ToString("0.000", Inv)} en los ejercicios de ValTraining (tus ajustes de Valorant no cambian)"
+                : $"Use {Rounded(a.RecommendedSens).ToString("0.000", Inv)} in ValTraining's drills (your Valorant settings stay unchanged)");
         b.QueueRedraw();
     }
 
@@ -580,7 +580,7 @@ public partial class ProfileScreen : ScreenBase
             Gfx.Text(d, UiTheme.Body, Loc.Numeric($"{sens * dpi:0} eDPI · {cm:0.0} cm/360"), x, Gfx.Mid(100 * k, sub), sub, UiTheme.Dim);
         }
 
-        Block(0, has ? "CURRENT" : "CURRENT · " + (app.Settings.UseSensOverride ? "VALTRAINING" : "FROM VALORANT"), cur, curCm, UiTheme.Text);
+        Block(0, has ? "CURRENT" : "CURRENT · " + (app.Settings.UseSensOverride ? "ValTraining" : "FROM VALORANT"), cur, curCm, UiTheme.Text);
         float colW = 190 * k, ax = colW + 46 * k, rx = colW + 104 * k;
         float? recCm = null;
         if (has)

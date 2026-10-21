@@ -148,12 +148,7 @@ public partial class MenuScreen : ScreenBase
         row.AddChild(Divider());
         row.AddChild(QuickGroup("LANGUAGE", new[] { "EN", "ES" }, () => Loc.Spanish ? 1 : 0,
             i => Main.I.SetLanguage(i == 1 ? "es" : "en"), 64, 52));
-        row.AddChild(Spacer(0, 1));
-        var note = Lbl("applies to every drill", UiTheme.Body, 12, UiTheme.Faint);
-        note.SizeFlagsHorizontal = SizeFlags.ExpandFill;
-        note.SizeFlagsVertical = SizeFlags.ShrinkCenter;
-        note.HorizontalAlignment = HorizontalAlignment.Right;
-        row.AddChild(note);
+        row.AddChild(new UpdateNowButton { K = k, CustomMinimumSize = new Vector2(220 * k, 32 * k), SizeFlagsHorizontal = SizeFlags.ShrinkEnd, SizeFlagsVertical = SizeFlags.ShrinkCenter });
         return panel;
     }
 
@@ -240,12 +235,12 @@ public partial class MenuScreen : ScreenBase
             {
                 var go = Btn("RESTART TO UPDATE", VButton.Look.Primary, Updater.RestartToUpdate, 210, 32, 16);
                 go.TooltipText = Updater.NeedsElevation
-                    ? "Installs the update and restarts Valtraining. Valtraining is installed for all users, so Windows asks for permission"
-                    : "Installs the update and restarts Valtraining (takes a few seconds; settings and stats are kept)";
+                    ? "Installs the update and restarts ValTraining. ValTraining is installed for all users, so Windows asks for permission"
+                    : "Installs the update and restarts ValTraining (takes a few seconds; settings and stats are kept)";
                 Add(go);
                 Add(WhatsNew());
                 var later = Btn("LATER", VButton.Look.Ghost, () => { UpdateCheck.BannerDismissed = true; bannerRev = -1; RefreshBanner(); }, 100, 32, 15);
-                later.TooltipText = Updater.NeedsElevation ? "Hide until next launch" : "Installs the next time you start Valtraining";
+                later.TooltipText = Updater.NeedsElevation ? "Hide until next launch" : "Installs the next time you start ValTraining";
                 Add(later);
                 break;
             }
@@ -256,9 +251,14 @@ public partial class MenuScreen : ScreenBase
                 if (stage == UpdateBanner.Stage.Downloading) Add(WhatsNew());
                 else
                 {
-                    var dl = Btn("DOWNLOAD", VButton.Look.Primary, () => AppInfo.OpenGitHub(url), 150, 32, 16);
+                    var dl = Btn("DOWNLOAD", VButton.Look.Primary, () =>
+                    {
+                        if (!Updater.UpdateNow()) AppInfo.OpenGitHub(url);
+                    }, 150, 32, 16);
                     dl.Disabled = !hasPage;
-                    dl.TooltipText = dl.Disabled ? "No download page is set for this build" : "Opens the release page in your browser";
+                    dl.TooltipText = dl.Disabled
+                        ? "No download page is set for this build"
+                        : "Downloads the update, verifies it against SHA256SUMS.txt and offers to restart";
                     Add(dl);
                 }
                 var skip = Btn("SKIP THIS VERSION", VButton.Look.Ghost, () => UpdateCheck.SkipVersion(ver), 170, 32, 15);
@@ -339,8 +339,7 @@ public partial class MenuScreen : ScreenBase
         return h;
     }
 
-    /// <summary>Slim bottom bar: the fan-made note, the community links (text-only, so they don't compete with the
-    /// navigation) and the version.</summary>
+    /// <summary>Slim bottom bar: the fan-made note, the community link and the version.</summary>
     Control Footer()
     {
         float k = K;
@@ -1340,19 +1339,137 @@ public partial class UpdateBanner : Control
         string v = Version.ToUpperInvariant();
         string head = Kind switch
         {
-            Stage.Ready => $"VALTRAINING {v} IS READY",
-            Stage.Applying => $"INSTALLING VALTRAINING {v}…",
-            _ => $"VALTRAINING {v} IS AVAILABLE",
+            Stage.Ready => $"ValTraining {v} IS READY",
+            Stage.Applying => $"INSTALLING ValTraining {v}…",
+            _ => $"ValTraining {v} IS AVAILABLE",
         };
         string sub = Kind switch
         {
             Stage.Downloading => $"Downloading update {Updater.Progress * 100:0}%",
             Stage.Ready => "restart to update · you have " + AppInfo.Version + (Updater.NeedsElevation ? " · Windows will ask for permission" : ""),
-            Stage.Applying => "Valtraining restarts by itself",
+            Stage.Applying => "ValTraining restarts by itself",
             _ => $"you have {AppInfo.Version}",
         };
         Gfx.Text(this, UiTheme.HudWide, head, 42 * k, Gfx.Mid(cy, fs), fs, UiTheme.Text);
         float x = 42 * k + Gfx.TextW(UiTheme.HudWide, head, fs) + 14 * k;
         Gfx.Text(this, UiTheme.Body, sub, x, Gfx.Mid(cy, ss), ss, Kind == Stage.Ready ? UiTheme.Good : UiTheme.Dim);
+    }
+}
+
+/// <summary>The always-visible UPDATE button in the menu footer. It checks GitHub when pressed, then downloads the
+/// newest release (even with automatic downloads off) and turns into RESTART TO UPDATE when the verified installer is
+/// ready. If this copy can't update itself, it opens the release page instead.</summary>
+public partial class UpdateNowButton : VButton
+{
+    int seen = -1;
+
+    public override void _Ready()
+    {
+        base._Ready();
+        Kind = Look.Secondary;
+        FontPx = 12;
+        Pressed += Act;
+        Refresh(true);
+    }
+
+    public override void _Process(double delta)
+    {
+        base._Process(delta);
+        if (seen != UpdateCheck.Revision) Refresh(false);
+    }
+
+    void Act()
+    {
+        if (Updater.Status is Updater.State.Applying or Updater.State.Downloading) return;
+        if (Updater.Status == Updater.State.Ready)
+        {
+            Updater.RestartToUpdate();
+            return;
+        }
+        if (UpdateCheck.NewerAvailable)
+        {
+            if (!Updater.UpdateNow())
+                AppInfo.OpenGitHub(UpdateCheck.LatestUrl ?? AppInfo.LatestReleaseUrl);
+            return;
+        }
+        if (UpdateCheck.CanCheck) UpdateCheck.CheckNow();
+        else if (AppInfo.HasRepo) AppInfo.OpenGitHub(UpdateCheck.LatestUrl ?? AppInfo.LatestReleaseUrl);
+    }
+
+    void Refresh(bool force)
+    {
+        if (!force && seen == UpdateCheck.Revision) return;
+        seen = UpdateCheck.Revision;
+        string label = "CHECK FOR UPDATES";
+        var look = Look.Secondary;
+        bool disabled = false;
+        string tip;
+        if (!AppInfo.HasRepo)
+        {
+            disabled = true;
+            tip = "No GitHub repository is set for this build";
+        }
+        else if (Updater.Status == Updater.State.Applying)
+        {
+            label = "INSTALLING…";
+            disabled = true;
+            look = Look.Primary;
+            tip = "ValTraining is installing the update and will restart";
+        }
+        else if (Updater.Status == Updater.State.Ready)
+        {
+            label = "RESTART TO UPDATE";
+            look = Look.Primary;
+            tip = Updater.NeedsElevation
+                ? "Installs the update and restarts ValTraining. Windows will ask for permission"
+                : "Installs the update and restarts ValTraining (settings and stats are kept)";
+        }
+        else if (Updater.Status == Updater.State.Downloading)
+        {
+            label = Loc.T("DOWNLOADING") + $" {Updater.Progress * 100:0}%";
+            disabled = true;
+            look = Look.Primary;
+            tip = "Downloading and verifying the update…";
+        }
+        else if (UpdateCheck.Status == UpdateCheck.State.Checking)
+        {
+            label = "CHECKING…";
+            disabled = true;
+            tip = "Asking GitHub for the newest ValTraining release…";
+        }
+        else if (UpdateCheck.NewerAvailable)
+        {
+            bool canDownload = Updater.Status is not (Updater.State.Off or Updater.State.Failed)
+                && UpdateCheck.LatestAssets is { } assets
+                && (Updater.Kind == InstallKind.Portable ? assets.PortableUrl != null : assets.SetupUrl != null);
+            label = canDownload ? Loc.T("UPDATE TO") + " " + UpdateCheck.Latest : Loc.T("OPEN DOWNLOAD");
+            look = Look.Primary;
+            tip = canDownload
+                ? $"Downloads ValTraining {UpdateCheck.Latest} and verifies it against SHA256SUMS.txt, then offers to restart"
+                : "Opens the release page so you can download the installer";
+        }
+        else if (UpdateCheck.Status == UpdateCheck.State.UpToDate)
+        {
+            label = "UP TO DATE";
+            tip = "You have the newest ValTraining" + (UpdateCheck.Message != null ? " · " + UpdateCheck.Message : "");
+        }
+        else
+        {
+            tip = UpdateCheck.CanCheck
+                ? "Ask GitHub now whether a newer ValTraining release is out"
+                : UpdateCheck.Message ?? "Updates aren't available in this build";
+            if (!UpdateCheck.CanCheck) disabled = true;
+            if (UpdateCheck.Status == UpdateCheck.State.Failed && UpdateCheck.Message != null)
+                tip = "Last check failed: " + UpdateCheck.Message;
+        }
+        if (Label != label)
+        {
+            Log.Info($"Update button: {label} (available {UpdateCheck.Latest ?? "none"}, updater {Updater.Status})");
+            Label = label;
+            QueueRedraw();
+        }
+        if (Kind != look) { Kind = look; QueueRedraw(); }
+        if (Disabled != disabled) { Disabled = disabled; QueueRedraw(); }
+        TooltipText = tip;
     }
 }

@@ -190,6 +190,37 @@ public static partial class Updater
         OnCheckResult();
     }
 
+    /// <summary>The footer's UPDATE button: downloads the newest release on the player's explicit request, even when
+    /// automatic downloads are off. Returns false when this copy can't update itself (or the release has no asset),
+    /// so the caller can open the release page instead. A ready update restarts right away.</summary>
+    public static bool UpdateNow()
+    {
+        if (Status == State.Applying) return true;
+        if (Status == State.Ready) { RestartToUpdate(); return true; }
+        if (Status is State.Off or State.Failed) return false;
+        string? target = UpdateCheck.Latest;
+        if (target == null || !UpdateCheck.NewerAvailable) return false;
+        var assets = UpdateCheck.LatestAssets;
+        bool portable = Kind == InstallKind.Portable;
+        if (assets == null || (portable ? assets.PortableUrl : assets.SetupUrl) == null) return false;
+        UpdateCheck.UseLatestForManualUpdate();
+        if (st.Version != target)
+        {
+            Cancel();
+            st = new UpdaterState { Version = target };
+            SaveState();
+            CleanOtherFiles();
+            transientFailures = 0;
+            retryAt = DateTime.MinValue;
+            Set(State.Idle, null);
+        }
+        if (st.GaveUp) return false;
+        retryAt = DateTime.MinValue; // a manual click bypasses the automatic retry delay
+        if (st.Ready || job != null) return true;
+        StartDownload();
+        return true;
+    }
+
     // ---------------------------------------------------------------- per frame
 
     /// <summary>Main thread, every frame (cheap): finishes downloads and applies, retries after failures.</summary>
@@ -224,14 +255,14 @@ public static partial class Updater
         string? url = portable ? assets?.PortableUrl : assets?.SetupUrl;
         long size = portable ? assets?.PortableSize ?? 0 : assets?.SetupSize ?? 0;
         string? sums = assets?.SumsUrl;
-        if (url == null || sums == null || !UpdateAssets.Trusted(url, AppInfo.GitHubRepo, UpdateCheck.Source)
+        if (assets == null || url == null || sums == null || !UpdateAssets.Trusted(url, AppInfo.GitHubRepo, UpdateCheck.Source)
             || !UpdateAssets.Trusted(sums, AppInfo.GitHubRepo, UpdateCheck.Source))
         {
             Set(State.Idle, $"No {(portable ? "portable zip" : "installer")} in release {st.Version}");
             return;
         }
         int throttle = int.TryParse(CmdLine.DevAfter("--update-throttle"), out var kb) && kb > 0 ? kb : 0;
-        string asset = portable ? $"ValTrainer-{st.Version}-Portable.zip" : $"ValTrainer-{st.Version}-Setup.exe";
+        string asset = assets.AssetName(st.Version!, portable);
         job = new Job(st.Version!, url, size, sums, asset, portable, dir, AppInfo.Version, throttle * 1024L);
         Log.Info($"Updater: downloading {asset}{(throttle > 0 ? $" (throttled to {throttle} KB/s)" : "")}");
         Set(State.Downloading, null);
@@ -393,7 +424,9 @@ public static partial class Updater
                 if (!st.GaveUp)
                 {
                     if (st.File != null) keep.Add(st.File);
-                    string asset = Kind == InstallKind.Portable ? $"ValTrainer-{st.Version}-Portable.zip" : $"ValTrainer-{st.Version}-Setup.exe";
+                    bool portable = Kind == InstallKind.Portable;
+                    string asset = UpdateCheck.LatestAssets?.AssetName(st.Version, portable)
+                                   ?? $"ValTraining-{st.Version}-{(portable ? "Portable.zip" : "Setup.exe")}";
                     keep.Add(asset + ".part");
                 }
             }

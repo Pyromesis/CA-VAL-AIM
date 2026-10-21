@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.16.1 — 2026-10-21
+
+### Added
+
+- The app is now **ValTraining** everywhere: window, menu, installer, Start menu shortcuts and release packages.
+- Automatic in-game updates: ValTraining checks GitHub at startup and every six hours, shows the new release in the menu
+  with an always-visible UPDATE button (and a banner when a version is available), downloads it in the background,
+  verifies it against `SHA256SUMS.txt` and turns into RESTART TO UPDATE. Turning automatic checks off in Settings → About
+  still leaves the UPDATE button, which checks and downloads on demand.
+- The installer and portable zip are named `ValTraining-<version>-Setup.exe` and `ValTraining-<version>-Portable.zip`.
+  The updater keeps accepting the older `ValTrainer-…` names.
+
+### Fixed
+
+- The version shown by the app now comes from the executable, so updates that replace only the assembly report the
+  version they really are instead of the version baked into the original export.
+- Release packaging now refuses a staged app that is missing `ValTrainer.dll`.
+
 ## 1.16.0 — 2026-10-20
 
 ### Added

@@ -1,6 +1,6 @@
 # Credits
 
-Valtraining is a fan-made aim/movement trainer and is not affiliated with or endorsed by Riot Games. The 3D blockout geometry, UI and textures are original or CC0, with two exceptions: the map minimap images in `assets/maps/` and the optional extracted map geometry in the release's `maps/` folder are official VALORANT assets, © Riot Games, used here for a free, non-commercial fan project under Riot's Fan Content Policy. They are **not** CC0 and **not** covered by the GNU GPL; delete those folders to fall back to the palette-only map postcards and blockout maps.
+ValTraining is a fan-made aim/movement trainer and is not affiliated with or endorsed by Riot Games. The 3D blockout geometry, UI and textures are original or CC0, with two exceptions: the map minimap images in `assets/maps/` and the optional extracted map geometry in the release's `maps/` folder are official VALORANT assets, © Riot Games, used here for a free, non-commercial fan project under Riot's Fan Content Policy. They are **not** CC0 and **not** covered by the GNU GPL; delete those folders to fall back to the palette-only map postcards and blockout maps.
 
 Every other third-party asset bundled in `assets/` is released under **CC0 1.0 Universal (public domain)**: <https://creativecommons.org/publicdomain/zero/1.0/>.
 Credit is not required, but these creators deserve it. Thank you!
@@ -48,7 +48,7 @@ The character `.gltf` files in `assets/characters/` are derivative merges of the
 - **Impact Sounds** (impacts and footsteps) by Kenney: <https://kenney.nl/assets/impact-sounds>
 - **Interface Sounds** by Kenney: <https://kenney.nl/assets/interface-sounds>
 - The sentinel-setup cues of Site Anchor (alarm, turret, wire, sensor, barriers, vines…) are synthesized in code (`src/Game/Fx/SentinelSfx.cs`); no samples.
-- The agent flash sounds in `assets/audio/flash` (throw, flight, windup and pop per agent, Gekko's Dizzy set, and the "flashed" ring) are synthesized by Valtraining's own generator `tools/sfx/flash_sfx.py`. They are our own work, released as CC0, with no samples and no third-party or Riot audio.
+- The agent flash sounds in `assets/audio/flash` (throw, flight, windup and pop per agent, Gekko's Dizzy set, and the "flashed" ring) are synthesized by ValTraining's own generator `tools/sfx/flash_sfx.py`. They are our own work, released as CC0, with no samples and no third-party or Riot audio.
 
 ## Engine
 Built with the Godot Engine (MIT license): <https://godotengine.org/license>

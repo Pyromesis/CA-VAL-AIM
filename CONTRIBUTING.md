@@ -1,10 +1,10 @@
-# Contributing to Valtraining
+# Contributing to ValTraining
 
 Thanks for helping! Bug reports, drill ideas, tuning data and code are welcome.
 
 ## Project rules
 
-1. **Never touch the game.** Valtraining reads VALORANT's config files (`%LOCALAPPDATA%\VALORANT\Saved\Config`)
+1. **Never touch the game.** ValTraining reads VALORANT's config files (`%LOCALAPPDATA%\VALORANT\Saved\Config`)
    read-only. It never reads or writes VALORANT's memory, never injects anything, never automates or simulates input for
    the game and never interacts with the VALORANT process.
 2. **Keep the repository free of Riot assets.** Do not commit extracted map geometry, minimaps, art, models, textures,
@@ -39,7 +39,7 @@ dotnet build ValTrainerGodot\ValTrainer.csproj           # compile the C# code
 & $env:GODOT -e --path ValTrainerGodot                   # or open the editor
 ```
 
-Godot's own options go **before** `--`; Valtraining's options go **after** it:
+Godot's own options go **before** `--`; ValTraining's options go **after** it:
 
 ```powershell
 & $env:GODOT --path ValTrainerGodot -- --dev --mode flick --tier 2
@@ -82,11 +82,12 @@ Releases are built on Windows and published manually:
 1. Set the version in `ValTrainerGodot/project.godot` (`application/config/version`) and add a `CHANGELOG.md` section.
 2. Build and test the C# code, then export the Windows .NET build.
 3. Stage the exported app, add `LICENSE.txt`, `NOTICE`, `THIRD-PARTY-NOTICES.txt` and the optional `maps/` folder.
-4. Build `ValTrainer-<version>-Setup.exe` with Inno Setup and `ValTrainer-<version>-Portable.zip` from the same stage.
+4. Build `ValTraining-<version>-Setup.exe` with Inno Setup and `ValTraining-<version>-Portable.zip` from the same stage.
 5. Generate `SHA256SUMS.txt` and publish a GitHub Release with the two packages and the checksums.
 
-The installer and portable zip use the `ValTrainer-<version>-...` filenames because the in-app updater looks for those
-exact asset names. The product name shown in the app and installer is **Valtraining**.
+The installer and portable zip use the `ValTraining-<version>-...` filenames; the in-app updater also accepts the older
+`ValTrainer-<version>-...` names. The product name shown in the app and installer is **ValTraining**; the executable
+keeps the `ValTrainer.exe` filename for save-file and update compatibility.
 
 ## Code signing
 

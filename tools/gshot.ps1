@@ -81,7 +81,7 @@ foreach ($t in $At) {
   # descendants (concurrent runs by other agents/tools are never captured or killed).
   $ids = Get-TreeIds $p.Id
   # Belt and braces: only a ValTrainer-titled window of a Godot/ValTrainer process from our own tree is ever captured.
-  $w = Get-Process -Id $ids -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne 0 -and $_.MainWindowTitle -match '^(ValTrainer|Valtraining)' } | Select-Object -First 1
+  $w = Get-Process -Id $ids -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne 0 -and $_.MainWindowTitle -match '^(ValTrainer|ValTraining)' } | Select-Object -First 1
   if (-not $w) { "[$Name] no window at ${t}s"; continue }
   $h = $w.MainWindowHandle
   $r = New-Object W3+RECT; [W3]::GetWindowRect($h, [ref]$r) | Out-Null

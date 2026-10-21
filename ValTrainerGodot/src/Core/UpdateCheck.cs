@@ -11,10 +11,10 @@ namespace ValTrainer.Core;
 /// hour), on a worker thread with a 5 s timeout. Offline, rate-limited (HTTP 403/429), no releases yet (404) or any
 /// other failure just means "no banner" (and another try in an hour): nothing blocks or throws on the main thread.
 /// The answer includes the release's downloads, which <see cref="Updater"/> fetches in the background.
-/// <para>Opt-in: no request at all until the player says yes to the first-launch "Check GitHub for new versions?"
-/// prompt (<see cref="AppSettings.UpdatesConsent"/>, see <c>UpdatesPrompt</c>) or turns checks on in Settings → About.
-/// CHECK NOW in Settings is the player's own request and checks once even while automatic checks are off. Every
-/// request is logged ("Update check: asking …").</para>
+/// <para>On by default: the first launch of a fresh install checks right away and every six hours after that. Turning
+/// "Check for updates" off in Settings → About (<see cref="AppSettings.UpdatesConsent"/> = false) stops it; CHECK NOW
+/// and the menu's UPDATE button are the player's own request and check once even then. Every request is logged
+/// ("Update check: asking …").</para>
 /// <para>Skipped while <see cref="AppInfo.GitHubRepo"/> is the placeholder, when the player turned it off in Settings
 /// and in --dev runs, unless <c>--dev --update-test &lt;version&gt;</c> fakes a release (no network) or
 /// <c>--dev --update-source &lt;url&gt;</c> asks a local fake release server instead of GitHub (updater tests).</para>
@@ -110,7 +110,7 @@ public static class UpdateCheck
         }
     }
 
-    static string OffReason => St.UpdatesConsent == null ? "Off until you turn it on" : "Turned off";
+    static string OffReason => "Turned off in Settings → About";
 
     /// <summary>Settings → "Check now": the player's own request, so it runs even while automatic checks are off (or
     /// were never turned on); ignores the 6-hour limit (still never in --dev or for the placeholder repo).</summary>
@@ -145,6 +145,19 @@ public static class UpdateCheck
         St.SkippedVersion = v;
         St.Save();
         Updater.SettingsChanged();
+        Revision++;
+    }
+
+    /// <summary>The player pressed the always-visible UPDATE button: a manual request overrides a skipped version
+    /// and makes the remembered release downloadable even when automatic checks are off.</summary>
+    public static void UseLatestForManualUpdate()
+    {
+        manualCheck = true;
+        if (Latest != null && St.SkippedVersion == Latest)
+        {
+            St.SkippedVersion = null;
+            St.Save();
+        }
         Revision++;
     }
 
@@ -263,8 +276,13 @@ public static class UpdateCheck
             string? dl = e.TryGetProperty("browser_download_url", out var d) ? d.GetString() : null;
             long size = e.TryGetProperty("size", out var s) && s.TryGetInt64(out var sz) ? sz : 0;
             if (name == null || dl == null || !UpdateAssets.Trusted(dl, repo, localSource)) continue;
-            if (name.Equals($"ValTrainer-{version}-Setup.exe", StringComparison.OrdinalIgnoreCase)) { a.SetupUrl = dl; a.SetupSize = size; }
-            else if (name.Equals($"ValTrainer-{version}-Portable.zip", StringComparison.OrdinalIgnoreCase)) { a.PortableUrl = dl; a.PortableSize = size; }
+            // "ValTraining-" is the current name; "ValTrainer-" keeps releases made before the rebrand downloadable.
+            bool setup = name.Equals($"ValTraining-{version}-Setup.exe", StringComparison.OrdinalIgnoreCase)
+                         || name.Equals($"ValTrainer-{version}-Setup.exe", StringComparison.OrdinalIgnoreCase);
+            bool portable = name.Equals($"ValTraining-{version}-Portable.zip", StringComparison.OrdinalIgnoreCase)
+                            || name.Equals($"ValTrainer-{version}-Portable.zip", StringComparison.OrdinalIgnoreCase);
+            if (setup) { a.SetupUrl = dl; a.SetupSize = size; a.SetupName = name; }
+            else if (portable) { a.PortableUrl = dl; a.PortableSize = size; a.PortableName = name; }
             else if (name.Equals("SHA256SUMS.txt", StringComparison.OrdinalIgnoreCase)) a.SumsUrl = dl;
         }
         return a.SumsUrl != null && (a.SetupUrl != null || a.PortableUrl != null) ? a : null;
@@ -277,9 +295,16 @@ public sealed class UpdateAssets
 {
     public string? SetupUrl;
     public long SetupSize;
+    public string? SetupName;
     public string? PortableUrl;
     public long PortableSize;
+    public string? PortableName;
     public string? SumsUrl;
+
+    /// <summary>File name of the release asset used for this copy (ValTraining-…, or the old ValTrainer-… name).</summary>
+    public string AssetName(string version, bool portable) =>
+        (portable ? PortableName : SetupName) ??
+        $"ValTraining-{version}-{(portable ? "Portable.zip" : "Setup.exe")}";
 
     /// <summary>https://github.com/&lt;repo&gt;/releases/download/… only (GitHub then redirects to its download host);
     /// a dev --update-source may also serve its files from its own scheme + host + port.</summary>

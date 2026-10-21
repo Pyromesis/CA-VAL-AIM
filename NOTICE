@@ -1,11 +1,11 @@
-Valtraining
+ValTraining
 Copyright (C) 2026 Pyromesis and contributors
 
 This program is a modified version of ValTrainer, Copyright (C) 2026 ValTrainer
 contributors. The original work is licensed under the GNU General Public License,
 version 3 or later.
 
-Modifications for Valtraining (2026): rebranding, additional map geometry,
+Modifications for ValTraining (2026): rebranding, additional map geometry,
 collision and movement fixes, Vandal/Phantom weapon behaviour, sensitivity tools,
 Spanish UI and release packaging.
 
@@ -15,5 +15,5 @@ either version 3 of the License, or (at your option) any later version. See LICE
 
 The optional maps/ folder contains assets extracted from Riot Games' VALORANT for
 interoperability. Those assets are not covered by the GNU GPL and remain the
-property of Riot Games, Inc. Valtraining is not affiliated with or endorsed by Riot
+property of Riot Games, Inc. ValTraining is not affiliated with or endorsed by Riot
 Games. VALORANT is a trademark of Riot Games, Inc.

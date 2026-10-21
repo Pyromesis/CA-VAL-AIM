@@ -68,7 +68,7 @@ public partial class Main : Node
         UiTheme.Init();
         Loc.SetLanguage(Settings.Language);
         if (!OS.GetCmdlineUserArgs().Concat(OS.GetCmdlineArgs()).Contains("--dev")) ApplyDisplay();
-        GetTree().Root.Title = "Valtraining";
+        GetTree().Root.Title = "ValTraining";
 
         var args = OS.GetCmdlineUserArgs().Concat(OS.GetCmdlineArgs()).ToArray();
         Dev = args.Contains("--dev");

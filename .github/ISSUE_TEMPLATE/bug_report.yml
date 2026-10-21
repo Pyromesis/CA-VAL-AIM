@@ -23,8 +23,8 @@ body:
     attributes:
       label: How did you install it?
       options:
-        - Installer (ValTrainer-x.y.z-Setup.exe)
-        - Portable zip (ValTrainer-x.y.z-Portable.zip)
+        - Installer (ValTraining-x.y.z-Setup.exe)
+        - Portable zip (ValTraining-x.y.z-Portable.zip)
         - Built from source
     validations:
       required: true

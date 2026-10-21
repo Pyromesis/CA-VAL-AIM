@@ -1,9 +1,9 @@
-# Valtraining
+# ValTraining
 
-[![Latest release](https://img.shields.io/github/v/release/Pyromesis/Valtraining?label=download)](https://github.com/Pyromesis/Valtraining/releases/latest)
+[![Latest release](https://img.shields.io/github/v/release/Pyromesis/ValTraining?label=download)](https://github.com/Pyromesis/ValTraining/releases/latest)
 [![License: GPL-3.0-or-later](https://img.shields.io/badge/license-GPL--3.0--or--later-blue)](LICENSE)
 
-**A free aim, movement and utility trainer for VALORANT players.** Valtraining imports your VALORANT sensitivity,
+**A free aim, movement and utility trainer for VALORANT players.** ValTraining imports your VALORANT sensitivity,
 crosshair and keybinds, so every drill feels like the game. Bots and targets scale to your rank, and an aim coach
 shows you what holds you back and how to fix it.
 
@@ -11,22 +11,24 @@ Windows 10/11 · free and open source · fan-made, not affiliated with Riot Game
 
 ## Download and install
 
-Get the latest version from **[GitHub Releases](https://github.com/Pyromesis/Valtraining/releases/latest)**:
+Get the latest version from **[GitHub Releases](https://github.com/Pyromesis/ValTraining/releases/latest)**:
 
 | File | For |
 |---|---|
-| `ValTrainer-1.16.0-Setup.exe` | **Recommended.** Installs for your Windows user (no admin rights needed), with Start menu shortcuts and an uninstaller. Includes the full map set. |
-| `ValTrainer-1.16.0-Portable.zip` | No installation: unzip anywhere and run `ValTrainer.exe`. Includes the full map set. |
+| `ValTraining-1.16.1-Setup.exe` | **Recommended.** Installs for your Windows user (no admin rights needed), with Start menu shortcuts and an uninstaller. Includes the full map set. |
+| `ValTraining-1.16.1-Portable.zip` | No installation: unzip anywhere and run `ValTrainer.exe`. Includes the full map set. |
 
 The release packages are large (about 2 GB) because they bundle the optional extracted map geometry in `maps/`. The Git
 repository does not contain those binaries; the app still runs without them and falls back to the blockout maps.
 
-The executable and installer keep the `ValTrainer` filename for save-file and update compatibility. The app and the
-installer display the product name **Valtraining**.
+The executable keeps the `ValTrainer.exe` filename for save-file and update compatibility. The installer and the app
+display the product name **ValTraining**.
 
-**Updates:** Valtraining can check GitHub for new versions at startup and every 6 hours. If you enable it, the app
-downloads the next release in the background and installs it when you restart. Settings and stats are kept. You can turn
-the check off in Settings → About. The app only contacts `api.github.com` and the release download URLs.
+**Updates:** ValTraining updates itself. At startup and every 6 hours it asks GitHub for the newest release, shows it in
+the menu and downloads it in the background; the update installs when you restart. Settings and stats are kept. A new
+release also appears in the always-visible **UPDATE** button, which checks and downloads on demand and turns into
+**RESTART TO UPDATE** once the download is verified against `SHA256SUMS.txt`. You can turn automatic checks off in
+Settings → About; the app only contacts `api.github.com` and the release download URLs.
 
 ## System requirements
 
@@ -34,7 +36,7 @@ the check off in Settings → About. The app only contacts `api.github.com` and 
 - Any GPU with a Vulkan or Direct3D 12 driver gets full graphics. Older GPUs, virtual machines and remote desktop switch
   automatically to a simpler OpenGL/Direct3D 11 mode.
 - About 2.5 GB of disk space with the full map set (the installer, the installed app and the maps).
-- VALORANT is optional: without it, Valtraining uses VALORANT's defaults and you set your sensitivity in Settings.
+- VALORANT is optional: without it, ValTraining uses VALORANT's defaults and you set your sensitivity in Settings.
 
 ## Maps
 
@@ -48,17 +50,17 @@ the picker, the countdown briefing and the in-game minimap.
 
 ## What it copies from VALORANT
 
-Valtraining reads `%LOCALAPPDATA%\VALORANT\Saved\Config` every time it starts.
+ValTraining reads `%LOCALAPPDATA%\VALORANT\Saved\Config` every time it starts.
 
 - **Aim:** sensitivity, plus the scoped and ADS multipliers. It uses the same math as VALORANT: 0.07° per count × sens,
   with a 103° horizontal FOV. The mouse is read as raw input, so your cm/360 is identical.
 - **Look:** the crosshair profile, drawn pixel-for-pixel with movement and firing error, and the enemy highlight colour.
 - **Controls:** all your keybinds (both slots; keys, mouse buttons and the scroll wheel): movement, walk, crouch, jump,
-  fire, alt fire, reload, plant / defuse and abilities; hold or toggle scope. The weapon hand is a Valtraining setting.
+  fire, alt fire, reload, plant / defuse and abilities; hold or toggle scope. The weapon hand is a ValTraining setting.
 - **Display:** resolution, display mode, monitor, VSync and FPS cap.
 
 If several VALORANT accounts have played on the PC, you can pick one in Settings. You can override any of these settings
-there too. Valtraining only reads VALORANT's settings files; it never changes them and never touches the game process,
+there too. ValTraining only reads VALORANT's settings files; it never changes them and never touches the game process,
 its memory or your input.
 
 ## Drills
@@ -112,7 +114,7 @@ Real-time Godot Forward+ rendering:
 - A first-person viewmodel (gloved hands, recoil, sway, reload, bolt cycle) that never clips into walls.
 - Muzzle flash, tracers, bullet-hole decals and per-agent flash effects.
 
-On the first start Valtraining picks a preset for your PC (Low on integrated, virtual or software GPUs). Change it any
+On the first start ValTraining picks a preset for your PC (Low on integrated, virtual or software GPUs). Change it any
 time in Settings.
 
 ## Aim coach
@@ -126,7 +128,7 @@ recent runs are kept). The coach analyses them:
 - **Run review:** the results screen adds a short review of that run: a summary, the top problems with fixes and what
   went well.
 - **Sens Finder:** a blind A/B test of about 13 minutes. It narrows down to the sensitivity you score best with and ends
-  with a recommended VALORANT sens, eDPI and cm/360, plus a button to use it in Valtraining. VALORANT itself is never
+  with a recommended VALORANT sens, eDPI and cm/360, plus a button to use it in ValTraining. VALORANT itself is never
   changed.
 
 The ratings need data: play Head Flicks, Strafe Tracking, Peek Practice, Counter-Strafe and Vandal Spray a few times each.
@@ -135,25 +137,25 @@ The ratings need data: play Head Flicks, Strafe Tracking, Peek Practice, Counter
 
 - **Nothing is uploaded on its own.** No account, no analytics, no telemetry leaves your PC.
 - Settings, stats and run recordings stay in `%APPDATA%\ValTrainer`. Delete that folder to reset everything.
-- The only network traffic is the optional update check to `api.github.com` (at startup and every 6 hours) and the
-  download of a release you accept. Turn it off in Settings and Valtraining never goes online.
+- The only network traffic is the update check to `api.github.com` (at startup and every 6 hours) and the download of a
+  new release. Turn automatic updates off in Settings → About and ValTraining never goes online on its own.
 - This build has no in-app bug-report relay and no Discord integration. Use the
-  [GitHub issue tracker](https://github.com/Pyromesis/Valtraining/issues) for bugs and feature requests.
+  [GitHub issue tracker](https://github.com/Pyromesis/ValTraining/issues) for bugs and feature requests.
 
 ## Troubleshooting
 
-- **The game won't start or the screen stays black:** use the Start menu shortcut **"ValTrainer (safe graphics)"**, or
+- **The game won't start or the screen stays black:** use the Start menu shortcut **"ValTraining (safe graphics)"**, or
   run `ValTrainer.exe --rendering-method gl_compatibility` or `ValTrainer.exe --rendering-driver d3d12`.
 - In compatibility mode the **first start can freeze for up to about 30 s** while shaders compile; later starts are fast.
 - **Where things are:** settings and stats are in `%APPDATA%\ValTrainer`; logs are in
   `%APPDATA%\Godot\app_userdata\ValTrainer\logs`. Settings → About has buttons to open both and to copy your system info.
 - A damaged settings or stats file is kept as `*.corrupt` and the app starts fresh.
 - Numbers always use "." as the decimal point, regardless of Windows region settings.
-- Still stuck? [Open a GitHub issue](https://github.com/Pyromesis/Valtraining/issues/new/choose) and attach `godot.log`.
+- Still stuck? [Open a GitHub issue](https://github.com/Pyromesis/ValTraining/issues/new/choose) and attach `godot.log`.
 
 ## Building from source
 
-Valtraining is built with the [Godot Engine](https://godotengine.org) 4.7 (.NET / C#). You need Godot 4.7.2 .NET and
+ValTraining is built with the [Godot Engine](https://godotengine.org) 4.7 (.NET / C#). You need Godot 4.7.2 .NET and
 the .NET 8 SDK. [CONTRIBUTING.md](CONTRIBUTING.md) explains how to build, run, test and export it, the dev flags, the
 project layout and the release process.
 
@@ -165,7 +167,7 @@ maps.
 
 Copyright (C) 2026 Pyromesis and contributors.
 
-Valtraining is free software: you can redistribute it and/or modify it under the terms of the **GNU General Public
+ValTraining is free software: you can redistribute it and/or modify it under the terms of the **GNU General Public
 License, version 3 or (at your option) any later version** (SPDX: `GPL-3.0-or-later`). See [LICENSE](LICENSE). It is
 distributed in the hope that it will be useful, but without any warranty.
 
@@ -178,5 +180,5 @@ and the optional extracted map geometry in `maps/` (© Riot Games, not CC0; see
 MIT-licensed. CC0 and MIT are compatible with the GPL; the installer and portable zip include their license notices in
 `THIRD-PARTY-NOTICES.txt`.
 
-Valtraining is fan-made and is not endorsed by or affiliated with Riot Games. VALORANT and its agent and map names are
+ValTraining is fan-made and is not endorsed by or affiliated with Riot Games. VALORANT and its agent and map names are
 trademarks of Riot Games, Inc.

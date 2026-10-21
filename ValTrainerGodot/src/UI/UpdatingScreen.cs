@@ -31,11 +31,11 @@ public partial class UpdatingScreen : ScreenBase
                 // spinner: a rotating accent arc
                 float r = 22 * k, a0 = (float)(t * 4.0);
                 d.DrawArc(new Vector2(cx, cy - 92 * k), r, a0, a0 + Mathf.Pi * 1.4f, 32, UiTheme.Accent, 4 * k, true);
-                Gfx.TextC(d, UiTheme.Display, "UPDATING VALTRAINING", cx, cy, ts, UiTheme.Text);
+                Gfx.TextC(d, UiTheme.Display, "UPDATING ValTraining", cx, cy, ts, UiTheme.Text);
                 Gfx.TextC(d, UiTheme.HudWide, $"{AppInfo.Version}  →  {version}", cx, cy + 38 * k, vs, UiTheme.Accent);
                 string sub = Updater.Kind == InstallKind.Portable
-                    ? "Replacing ValTrainer.exe. Valtraining starts again by itself in a moment."
-                    : "Installing the update. Valtraining closes and starts again by itself in a few seconds.";
+                    ? "Replacing ValTrainer.exe. ValTraining starts again by itself in a moment."
+                    : "Installing the update. ValTraining closes and starts again by itself in a few seconds.";
                 Gfx.TextC(d, UiTheme.Body, sub, cx, cy + 74 * k, ss, UiTheme.Dim);
                 Gfx.TextC(d, UiTheme.Body, "Your settings and stats are kept.", cx, cy + 98 * k, ss, UiTheme.Faint);
             },

@@ -13,7 +13,7 @@ namespace ValTrainer.UI;
 public static class AboutLicenses
 {
     public const string GplNotice =
-        "Valtraining — a free, fan-made VALORANT-style aim trainer.\n" +
+        "ValTraining — a free, fan-made VALORANT-style aim trainer.\n" +
         "Copyright (C) 2026 Pyromesis and contributors\n\n" +
         "This program is free software: you can redistribute it and/or modify it under the terms of the GNU General " +
         "Public License as published by the Free Software Foundation, either version 3 of the License, or (at your " +
@@ -25,7 +25,7 @@ public static class AboutLicenses
         "to the executable). If not, see <https://www.gnu.org/licenses/>.\n\n" +
         "This build is based on the open-source ValTrainer project. The original copyright notices and license terms " +
         "are preserved in NOTICE.\n\n" +
-        "Valtraining is not affiliated with or endorsed by Riot Games. VALORANT is a trademark of Riot Games, Inc. " +
+        "ValTraining is not affiliated with or endorsed by Riot Games. VALORANT is a trademark of Riot Games, Inc. " +
         "The optional maps folder contains Riot Games assets extracted for interoperability and is not covered by " +
         "the GNU GPL; see NOTICE and CREDITS.md.";
 
@@ -78,7 +78,7 @@ public static class AboutLicenses
             sb.Append(new string('=', 64)).Append('\n').Append(title).Append('\n').Append(new string('=', 64)).Append("\n\n");
         }
 
-        Heading(Part.ValTrainer, $"VALTRAINING {AppInfo.Version} — GNU GENERAL PUBLIC LICENSE v3");
+        Heading(Part.ValTrainer, $"ValTraining {AppInfo.Version} — GNU GENERAL PUBLIC LICENSE v3");
         sb.Append(GplNotice);
         if (AppInfo.HasRepo) sb.Append("\n\nSource code: ").Append(AppInfo.RepoUrl);
 

@@ -32,7 +32,7 @@
   #define OutputDir AddBackslash(SourcePath) + "..\dist"
 #endif
 #ifndef GitHubRepo
-  #define GitHubRepo "Pyromesis/Valtraining"
+  #define GitHubRepo "Pyromesis/ValTraining"
 #endif
 #define HasRepo (Pos("OWNER", GitHubRepo) == 0 && Pos("/", GitHubRepo) > 0)
 
@@ -42,9 +42,9 @@
 
 [Setup]
 AppId={{{#AppGuid}}
-AppName=Valtraining
+AppName=ValTraining
 AppVersion={#AppVersion}
-AppVerName=Valtraining {#AppVersion}
+AppVerName=ValTraining {#AppVersion}
 AppPublisher=Pyromesis
 AppCopyright=Copyright (C) 2026 Pyromesis and contributors. Based on ValTrainer; see NOTICE. GPL-3.0-or-later.
 #if HasRepo
@@ -59,15 +59,15 @@ VersionInfoProductVersion={#AppFileVersion}
 VersionInfoProductTextVersion={#AppFileVersion}
 VersionInfoTextVersion={#AppVersion}
 VersionInfoCompany=Pyromesis
-VersionInfoDescription=Valtraining Setup
-VersionInfoProductName=Valtraining
+VersionInfoDescription=ValTraining Setup
+VersionInfoProductName=ValTraining
 VersionInfoCopyright=Copyright (C) 2026 Pyromesis and contributors. GPL-3.0-or-later. See NOTICE.
 
-; Per-user by default: no UAC prompt, installs to %LOCALAPPDATA%\Programs\Valtraining.
+; Per-user by default: no UAC prompt, installs to %LOCALAPPDATA%\Programs\ValTraining.
 PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog commandline
-DefaultDirName={autopf}\Valtraining
-DefaultGroupName=Valtraining
+DefaultDirName={autopf}\ValTraining
+DefaultGroupName=ValTraining
 DisableProgramGroupPage=yes
 UsePreviousAppDir=yes
 
@@ -84,14 +84,14 @@ WizardStyle=modern
 LicenseFile={#SourceDir}\LICENSE.txt
 SetupIconFile={#IconFile}
 UninstallDisplayIcon={app}\{#AppExe}
-UninstallDisplayName=Valtraining
+UninstallDisplayName=ValTraining
 ShowLanguageDialog=no
 
 Compression=lzma2/max
 SolidCompression=yes
 LZMAUseSeparateProcess=yes
 OutputDir={#OutputDir}
-OutputBaseFilename=ValTrainer-{#AppVersion}-Setup
+OutputBaseFilename=ValTraining-{#AppVersion}-Setup
 
 ; Close a running ValTrainer (Restart Manager) before replacing its files.
 CloseApplications=yes
@@ -115,6 +115,10 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 [InstallDelete]
 ; Upgrades: drop the previous version's .NET assemblies so no stale DLL survives next to the new ones.
 Type: filesandordirs; Name: "{app}\data_ValTrainer_windows_x86_64"
+; Rebrand: remove the shortcuts the old ValTrainer/Valtraining installer left in the Start menu.
+Type: files; Name: "{autoprograms}\ValTrainer\*"
+Type: dirifempty; Name: "{autoprograms}\ValTrainer"
+Type: files; Name: "{autodesktop}\ValTrainer.lnk"
 
 [Files]
 Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
@@ -128,12 +132,12 @@ Filename: "{app}\install.ini"; Section: "ValTrainer"; Key: "Mode"; String: "{cod
 Type: files; Name: "{app}\install.ini"
 
 [Icons]
-Name: "{group}\Valtraining"; Filename: "{app}\{#AppExe}"; WorkingDir: "{app}"; Comment: "Aim trainer with your own VALORANT settings"
-Name: "{group}\Valtraining (safe graphics)"; Filename: "{app}\{#AppExe}"; Parameters: "--rendering-method gl_compatibility"; WorkingDir: "{app}"; Comment: "Starts Valtraining with the OpenGL Compatibility renderer, for graphics drivers that crash or show a black screen"
-Name: "{autodesktop}\Valtraining"; Filename: "{app}\{#AppExe}"; WorkingDir: "{app}"; Tasks: desktopicon
+Name: "{group}\ValTraining"; Filename: "{app}\{#AppExe}"; WorkingDir: "{app}"; Comment: "Aim trainer with your own VALORANT settings"
+Name: "{group}\ValTraining (safe graphics)"; Filename: "{app}\{#AppExe}"; Parameters: "--rendering-method gl_compatibility"; WorkingDir: "{app}"; Comment: "Starts ValTraining with the OpenGL Compatibility renderer, for graphics drivers that crash or show a black screen"
+Name: "{autodesktop}\ValTraining"; Filename: "{app}\{#AppExe}"; WorkingDir: "{app}"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\{#AppExe}"; Description: "{cm:LaunchProgram,Valtraining}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\{#AppExe}"; Description: "{cm:LaunchProgram,ValTraining}"; Flags: nowait postinstall skipifsilent
 ; In-app update (silent + /RELAUNCH): start the new version again, as the user (never elevated).
 Filename: "{app}\{#AppExe}"; Parameters: "{code:RelaunchParams}"; WorkingDir: "{app}"; Flags: nowait runasoriginaluser; Check: ShouldRelaunch
 
@@ -253,7 +257,7 @@ begin
   { Same or older version installed: Setup simply installs over it (settings and stats live elsewhere and are kept). }
   if (Old <> '') and (CompareVersions(Old, '{#AppVersion}') > 0) then
     Result := SuppressibleMsgBox(
-      'Valtraining ' + Old + ' is installed, which is newer than this setup (' + '{#AppVersion}' + ').' + #13#10#13#10 +
+      'ValTraining ' + Old + ' is installed, which is newer than this setup (' + '{#AppVersion}' + ').' + #13#10#13#10 +
       'Replace it with the older version ' + '{#AppVersion}' + '? Your settings and stats are kept.',
       mbConfirmation, MB_YESNO or MB_DEFBUTTON2, IDYES) = IDYES;
 end;
@@ -353,13 +357,13 @@ begin
   if Silent then
   begin
     Result := WaitForExit(Exe, 90);
-    if not Result then Log('Valtraining is still running after 90 s: nothing was changed.');
+    if not Result then Log('ValTraining is still running after 90 s: nothing was changed.');
     Exit;
   end;
   Result := WaitForExit(Exe, 3);
   while not Result do
   begin
-    if MsgBox('Valtraining is still running.' + #13#10#13#10 + 'Close it, then click Retry.',
+    if MsgBox('ValTraining is still running.' + #13#10#13#10 + 'Close it, then click Retry.',
               mbError, MB_RETRYCANCEL) <> IDRETRY then Exit;
     Result := WaitForExit(Exe, 3);
   end;
@@ -369,7 +373,7 @@ function PrepareToInstall(var NeedsRestart: Boolean): String;
 begin
   Result := '';
   if not WaitUntilClosed(ExpandConstant('{app}\{#AppExe}'), WizardSilent) then
-    Result := 'Valtraining is still running. Close it and run Setup again.';
+    Result := 'ValTraining is still running. Close it and run Setup again.';
 end;
 
 function InitializeUninstall(): Boolean;
@@ -390,7 +394,7 @@ begin
     DeleteUserData := False;
     if not UninstallSilent then
       DeleteUserData := MsgBox(
-        'Also delete your Valtraining settings, stats and recordings?' + #13#10#13#10 +
+        'Also delete your ValTraining settings, stats and recordings?' + #13#10#13#10 +
         'This removes:' + #13#10 +
         '  ' + ExpandConstant('{userappdata}\ValTrainer') + #13#10 +
         '      settings, stats and recordings' + #13#10 +

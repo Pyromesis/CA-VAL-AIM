@@ -94,7 +94,7 @@ public partial class SettingsScreen : ScreenBase
         if (page == Page.About)
         {
             BuildAbout(cols);
-            col.AddChild(Lbl("Esc — back to menu   ·   Valtraining is free software (GPL-3.0)   ·   fan-made, not affiliated with or endorsed by Riot Games",
+            col.AddChild(Lbl("Esc — back to menu   ·   ValTraining is free software (GPL-3.0)   ·   fan-made, not affiliated with or endorsed by Riot Games",
                 UiTheme.Body, 13, UiTheme.Faint));
         }
         else
@@ -556,7 +556,7 @@ public partial class SettingsScreen : ScreenBase
     void BuildAbout(HBoxContainer cols)
     {
         float k = K;
-        var v = Column(cols, "VALTRAINING", $"version {AppInfo.Version}", 1f);
+        var v = Column(cols, "ValTraining", $"version {AppInfo.Version}", 1f);
 
         v.AddChild(new DrawBox
         {
@@ -598,7 +598,7 @@ public partial class SettingsScreen : ScreenBase
 
         v.AddChild(Spacer(0, 6 * k));
         v.AddChild(new SectionLabel { Text = "UPDATES", K = k });
-        // Opt-in (see UpdatesPrompt): ON here is the same yes as ENABLE UPDATES on the first-launch prompt.
+        // On by default (see UpdateCheck): OFF here is the player's explicit no and survives restarts.
         v.AddChild(Segmented("Check for updates", new[] { "OFF", "ON" }, () => St.AutoUpdates ? 1 : 0,
             i =>
             {
@@ -608,8 +608,8 @@ public partial class SettingsScreen : ScreenBase
                 UpdateCheck.EnabledChanged();
             },
             note: () => !AppInfo.HasRepo ? "Not available: this build has no GitHub page set"
-                : St.AutoUpdates ? "At startup and every 6 hours, asks GitHub whether a newer release is out (nothing about you is sent)"
-                : "Off: ValTrainer makes no network requests. ON asks GitHub at startup and every 6 hours; CHECK NOW asks once"));
+                : St.AutoUpdates ? "On by default: at startup and every 6 hours, asks GitHub whether a newer release is out (nothing about you is sent)"
+                : "Off: ValTraining makes no network requests. ON asks GitHub at startup and every 6 hours; CHECK NOW asks once"));
         var auto = Segmented("Download updates automatically", new[] { "OFF", "ON" }, () => St.AutoDownloadUpdates ? 1 : 0,
             i => { St.AutoDownloadUpdates = i == 1; Updater.SettingsChanged(); }, note: AutoUpdateNote);
         auto.Enabled = () => St.AutoUpdates && Updater.Status != Updater.State.Off;
@@ -622,8 +622,8 @@ public partial class SettingsScreen : ScreenBase
         upd.AddChild(check);
         var get = Btn("DOWNLOAD", VButton.Look.Primary, () =>
         {
-            if (Updater.ReadyVersion != null) Updater.RestartToUpdate();
-            else AppInfo.OpenGitHub(UpdateCheck.LatestUrl ?? AppInfo.LatestReleaseUrl);
+            if (Updater.Status == Updater.State.Ready) Updater.RestartToUpdate();
+            else if (!Updater.UpdateNow()) AppInfo.OpenGitHub(UpdateCheck.LatestUrl ?? AppInfo.LatestReleaseUrl);
         }, 210, 40, 17);
         get.SizeFlagsVertical = SizeFlags.ShrinkCenter;
         upd.AddChild(get);
@@ -643,9 +643,9 @@ public partial class SettingsScreen : ScreenBase
             status.TooltipText = UpdateCheck.Status == UpdateCheck.State.Failed ? UpdateCheck.Message ?? "" : "";
             bool ready = Updater.ReadyVersion != null;
             get.Visible = ready || (UpdateCheck.NewerAvailable && AppInfo.HasRepo && Updater.Status != Updater.State.Applying);
-            get.Label = ready ? "RESTART TO UPDATE" : $"GET {UpdateCheck.Latest}";
-            get.TooltipText = ready ? "Installs the update and restarts ValTrainer" + (Updater.NeedsElevation ? " (Windows asks for permission)" : "")
-                : "Opens the release page in your browser";
+            get.Label = ready ? "RESTART TO UPDATE" : Loc.T("UPDATE TO") + " " + UpdateCheck.Latest;
+            get.TooltipText = ready ? "Installs the update and restarts ValTraining" + (Updater.NeedsElevation ? " (Windows asks for permission)" : "")
+                : "Downloads the installer, verifies it against SHA256SUMS.txt and offers to restart; opens the release page if this copy can't update itself";
             auto.Refresh();
             get.QueueRedraw();
             check.QueueRedraw();
@@ -725,7 +725,7 @@ public partial class SettingsScreen : ScreenBase
     (string, Color) CheckStatus() => UpdateCheck.Status switch
     {
         UpdateCheck.State.Checking => ("Checking GitHub…", UiTheme.Dim),
-        UpdateCheck.State.Available => ($"Valtraining {UpdateCheck.Latest} is available", UiTheme.Good),
+        UpdateCheck.State.Available => ($"ValTraining {UpdateCheck.Latest} is available", UiTheme.Good),
         UpdateCheck.State.UpToDate => ("You have the latest version" + (St.LastUpdateCheck > 0 ? $" · checked {Ago(St.LastUpdateCheck)}" : ""), UiTheme.Dim),
         UpdateCheck.State.Failed => (string.IsNullOrWhiteSpace(UpdateCheck.Message) ? "Couldn't check for updates" : $"Couldn't check for updates: {UpdateCheck.Message}", UiTheme.Warn),
         UpdateCheck.State.Off => (UpdateCheck.Message ?? "Off", UiTheme.Faint),
@@ -742,7 +742,7 @@ public partial class SettingsScreen : ScreenBase
     }
 
     static string SystemInfoText() =>
-        $"Valtraining {AppInfo.Version}{(App.Dev ? " (dev)" : "")}\n" +
+        $"ValTraining {AppInfo.Version}{(App.Dev ? " (dev)" : "")}\n" +
         $"Renderer: {SysInfo.Summary}\n" +
         $"Graphics quality: {Qualities[Math.Clamp(St.Quality, 0, 3)]}{(St.AutoQualityReason != null ? $" (auto: {St.AutoQualityReason})" : "")}\n" +
         $"VALORANT settings: {(App.Valorant.Found ? "imported" : App.Valorant.Status.ToString())}\n" +
@@ -944,7 +944,7 @@ public partial class SettingsScreen : ScreenBase
         var buttons = new List<VButton>();
         foreach (var (part, name) in new[]
                  {
-                     (AboutLicenses.Part.ValTrainer, "VALTRAINING"), (AboutLicenses.Part.Godot, "GODOT"),
+                     (AboutLicenses.Part.ValTrainer, "ValTraining"), (AboutLicenses.Part.Godot, "GODOT"),
                      (AboutLicenses.Part.GodotThirdParty, "ENGINE PARTS"), (AboutLicenses.Part.DotNet, ".NET"), (AboutLicenses.Part.Assets, "ASSETS"),
                  })
         {
