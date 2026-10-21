@@ -1,5 +1,35 @@
 # Changelog
 
+## [Unreleased]
+
+## [1.16.2] - 2026-10-21
+
+### Added
+
+- `tools/mapgen/gen_collision.py` rebuilds a map's `collision.json` straight from its GLBs, and
+  `tools/mapgen/audit_collision.py` checks the result against the drill definitions in
+  `MapSpots.*.cs` (spawn standable, choke/enemies/plants/retakes reachable on foot).
+  See `tools/mapgen/README.md`.
+
+### Fixed
+
+- Collision on the eight extracted maps (Ascent, Fracture, Lotus, Sunset, Pearl, Summit, Abyss,
+  Corrode) is rebuilt from the art. Lotus, Pearl, Sunset and Corrode spawned on a 4–5 m island, so
+  every drill began against an invisible wall; Fracture spawned inside the floor. Those spawns now
+  stand on the real floor, and the choke, enemy and plant spots are reachable.
+- Corridors that the old collision cut in half are open again: invisible walls no longer block the
+  site approaches, and the player no longer falls through missing floor.
+- Skyboxes, backdrops and distant terrain plates no longer become collision boxes. Everything
+  outside the playable volume is dropped, which also takes Fracture from 41k boxes to 20k.
+- Drill spawns and authored enemy positions snap onto the real collision floor at runtime, so a
+  spot authored a few decimetres off the art no longer drops the player out of the map.
+
+### Known issues
+
+- Corrode's `Rook_Art_AtkPathMid.glb` is a 132-byte empty file (also in the 1.16.1 packages), so
+  the corridor between attacker spawn and A site has neither art nor collision. It needs a fresh
+  extraction before that map plays like the real one.
+
 ## 1.16.1 — 2026-10-21
 
 ### Added

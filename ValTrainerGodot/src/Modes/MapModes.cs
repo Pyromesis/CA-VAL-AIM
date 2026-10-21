@@ -1,4 +1,4 @@
-using Godot;
+﻿using Godot;
 using ValTrainer.Core;
 using ValTrainer.Game;
 using ValTrainer.Game.Bots;
@@ -21,25 +21,64 @@ public abstract class MapMode : MovementMode
     public override MapSpot? Map => MapSpot;
     public override Vector3 StartFeet => SpawnFeet;
     public override float StartYaw => SpawnYaw;
-    public override string? Subtitle => $"{MapSpot.Map} — {MapSpot.Name}";
+    public override string? Subtitle => $"{MapSpot.Map} â€” {MapSpot.Name}";
 
     /// <summary>Choose the map before the session builds the world (called from the constructor path).</summary>
     protected MapMode()
     {
         var key = Main.I?.MapKey ?? "random";
         MapSpot = key == "random" ? MapSpots.All[Random.Shared.Next(MapSpots.All.Length)] : MapSpots.ByKey(key);
-        SpawnFeet = MapSpot.StartFeet;
+        SpawnFeet = SafeFeet(MapSpot.StartFeet, MapSpot.Solid);
         SpawnYaw = MapSpot.StartYaw;
+    }
+
+    /// <summary>
+    /// Puts the spawn on the actual floor and out of any geometry. The spot coordinates are authored
+    /// against the collision file, so a regenerated (or slightly different) collision would otherwise
+    /// drop the player inside a wall or half a metre above the ground.
+    /// </summary>
+    static Vector3 SafeFeet(Vector3 feet, IReadOnlyList<Box> world)
+    {
+        float g = Collision.Ground(feet, world);
+        if (float.IsFinite(g) && g >= feet.Y - MovementTuning.SnapDown) feet = new Vector3(feet.X, g, feet.Z);
+        if (!Collision.Overlaps(feet, world)) return feet;
+        for (int ring = 1; ring <= 8; ring++)
+            for (int k = 0; k < 8; k++)
+            {
+                float a = k * Mathf.Pi / 4f;
+                var p = new Vector3(feet.X + Mathf.Cos(a) * 0.5f * ring, feet.Y, feet.Z + Mathf.Sin(a) * 0.5f * ring);
+                float pg = Collision.Ground(p, world);
+                if (!float.IsFinite(pg) || pg < feet.Y - MovementTuning.SnapDown) continue;
+                p = new Vector3(p.X, pg, p.Z);
+                if (!Collision.Overlaps(p, world)) return p;
+            }
+        return feet;
     }
 
     protected static Vector3 EyeOf(EnemySpot e) => e.Feet + new Vector3(0, PlayerView.EyeHeight - (e.Stance == Stance.Crouch ? 0.5f : 0f), 0);
 
     protected (BotCharacter Body, BotBrain Brain) SpawnDefender(EnemySpot spot, Vector3 lookAt)
     {
-        var b = G.SpawnBot(spot.Feet, spot.Stance == Stance.Crouch);
+        var b = G.SpawnBot(StandOnFloor(spot.Feet, MapSpot.Solid), spot.Stance == Stance.Crouch);
         var held = (lookAt - b.Head).Normalized();
         b.FacingYaw = Mathf.RadToDeg(Mathf.Atan2(held.X, -held.Z));
         return (b, new BotBrain(b, Difficulty.Get(Tier).Bot, Rng) { HeldDir = held, ShoulderSight = Difficulty.ShoulderSight(Tier) });
+    }
+
+    /// <summary>
+    /// Drops an authored feet position onto the collision floor when it is within a jump of it. Enemy
+    /// spots are hand-placed against the collision file; a regenerated file can leave one floating or
+    /// knee-deep in a slab, which makes the duel feel wrong (a sunken bot is briefly unhittable).
+    /// </summary>
+    protected static Vector3 StandOnFloor(Vector3 feet, IReadOnlyList<Box> world)
+    {
+        float best = float.NegativeInfinity;
+        foreach (var b in world)
+            if (b.Max.Y <= feet.Y + 1.2f && b.Max.Y >= feet.Y - 1.2f &&
+                feet.X > b.Min.X - 0.2f && feet.X < b.Max.X + 0.2f &&
+                feet.Z > b.Min.Z - 0.2f && feet.Z < b.Max.Z + 0.2f)
+                best = Mathf.Max(best, b.Max.Y);
+        return float.IsFinite(best) ? new Vector3(feet.X, best, feet.Z) : feet;
     }
 }
 
@@ -65,7 +104,7 @@ public sealed class SiteClearMode : MapMode
         defenders.Clear();
         int n = Tier switch { 0 => 2, 1 => Rng.NextDouble() < 0.3 ? 3 : 2, 2 => 3, 3 => 3, _ => Rng.NextDouble() < 0.5 ? 4 : 3 };
         // Nobody may see ANY part of you at spawn (the bot brain checks head, chest and shoulders).
-        var startEye = MapSpot.StartFeet + new Vector3(0, PlayerView.EyeHeight, 0);
+        var startEye = SpawnFeet + new Vector3(0, PlayerView.EyeHeight, 0);
         var exposed = new[]
         {
             startEye, startEye + Vector3.Down * 0.45f,
@@ -81,7 +120,7 @@ public sealed class SiteClearMode : MapMode
             defenders.Add(SpawnDefender(spot, look));
         }
         roundStart = Now;
-        G.Respawn(MapSpot.StartFeet, MapSpot.StartYaw);
+        G.Respawn(SpawnFeet, MapSpot.StartYaw);
         G.Mover.ResetStops();
     }
 
@@ -167,7 +206,7 @@ public sealed class FlashDodgeMode : MapMode
 
     public override string Key => "flashmap";
     public override string Name => "Flash Dodge";
-    public override string Description => "Hold a real angle. Hear the flash, turn it off-screen (60–90°+), swing back, win the duel. Shoot Gekko's Dizzy before she spits.";
+    public override string Description => "Hold a real angle. Hear the flash, turn it off-screen (60â€“90Â°+), swing back, win the duel. Shoot Gekko's Dizzy before she spits.";
     public override string Category => "Utility";
 
     enum St { Hold, Thrown, Dizzy, Swing, After }
@@ -183,7 +222,7 @@ public sealed class FlashDodgeMode : MapMode
     readonly List<float> turnMs = new();
     string lastAgent = "";
 
-    // Gekko's Dizzy (DizzySpec): flight → forming → active hover; a lock-on, then one plasma blast at you
+    // Gekko's Dizzy (DizzySpec): flight â†’ forming â†’ active hover; a lock-on, then one plasma blast at you
     Vector3 dzPos, dzVel, boltFrom, boltTo;
     float dzT, lockAt = -1, boltT = -1, boltTravel;
     bool dzDead, dzFired, dzActive;
@@ -232,7 +271,7 @@ public sealed class FlashDodgeMode : MapMode
         bounceWindup = windupPlayed = false;
         switch (agent.Path)
         {
-            case FlashPath.Hawk: // Guiding Light flies at 18 m/s, auto-pops at the end of its 2 s flight; recast → 0.3 s
+            case FlashPath.Hawk: // Guiding Light flies at 18 m/s, auto-pops at the end of its 2 s flight; recast â†’ 0.3 s
                 land = Mathf.Clamp(dist / agent.Speed, 0.45f, 2f); flight = land + agent.Fuse; break;
             case FlashPath.Bounce: // Blindside is invisible until its first bounce, then pops 0.6 s later
                 land = Mathf.Clamp(dist / agent.Speed, 0.12f, 0.8f); flight = land + agent.Fuse; break;
@@ -311,10 +350,10 @@ public sealed class FlashDodgeMode : MapMode
         if (Main.I.Dev) Log.Info($"[flash] pop {lastAgent} at {stateT:0.00} s (land {land:0.00}, bounce windup {bounceWindup}): {grade} {sec:0.00} s");
         switch (grade)
         {
-            case BlindGrade.Flashed: flashed++; Score -= 40; G.Banner($"FLASHED {sec:0.0}s · {lastAgent}", UiTheme.Accent); break;
-            case BlindGrade.Partial: partial++; Score += 10; G.Banner($"Partial {sec:0.0}s · {lastAgent}", UiTheme.Warn); break;
+            case BlindGrade.Flashed: flashed++; Score -= 40; G.Banner($"FLASHED {sec:0.0}s Â· {lastAgent}", UiTheme.Accent); break;
+            case BlindGrade.Partial: partial++; Score += 10; G.Banner($"Partial {sec:0.0}s Â· {lastAgent}", UiTheme.Warn); break;
             case BlindGrade.NoLineOfSight: flashes--; G.Banner("Flash was blocked", UiTheme.Dim); break;
-            default: dodged++; Score += 50; G.Banner($"Dodged · {lastAgent}", UiTheme.Good); break;
+            default: dodged++; Score += 50; G.Banner($"Dodged Â· {lastAgent}", UiTheme.Good); break;
         }
         StartSwing();
     }
@@ -328,7 +367,7 @@ public sealed class FlashDodgeMode : MapMode
         Event("flash", 0, -1);
         dodged++; rosesShot++; Score += 60;
         lastAgent = $"{agent.Agent} {agent.Ability}";
-        G.Banner($"Shot the Arc Rose · {lastAgent}", UiTheme.Good);
+        G.Banner($"Shot the Arc Rose Â· {lastAgent}", UiTheme.Good);
         StartSwing();
     }
 
@@ -414,7 +453,7 @@ public sealed class FlashDodgeMode : MapMode
         G.Sound("dizzy_bubble", 0.7f);
         Event("dizzy", 2);
         flashed++; dizzyHit++; Score -= 40;
-        G.Banner("DIZZY'D 2.0s · Gekko Dizzy", UiTheme.Accent);
+        G.Banner("DIZZY'D 2.0s Â· Gekko Dizzy", UiTheme.Accent);
         if (Main.I.Dev) Log.Info($"[flash] Dizzy hit you (fired at {dzT - boltTravel:0.00} s after the throw)");
         StartSwing();
     }
@@ -433,14 +472,14 @@ public sealed class FlashDodgeMode : MapMode
     {
         Event("dizzy", 0, shot);
         dodged++; Score += points;
-        G.Banner($"{banner} · Gekko Dizzy", UiTheme.Good);
+        G.Banner($"{banner} Â· Gekko Dizzy", UiTheme.Good);
         if (Main.I.Dev) Log.Info($"[flash] Dizzy: {banner} (t {dzT:0.00} s)");
         StartSwing();
     }
 
     // ---------------- the entry ----------------
 
-    /// <summary>Attacker starts hidden behind the choke, walks start → choke → a clear swing spot, pre-aiming you.</summary>
+    /// <summary>Attacker starts hidden behind the choke, walks start â†’ choke â†’ a clear swing spot, pre-aiming you.</summary>
     void StartSwing()
     {
         var toPlayer = new Vector3(SpawnFeet.X - MapSpot.Choke.X, 0, SpawnFeet.Z - MapSpot.Choke.Z).Normalized();
@@ -537,7 +576,7 @@ public sealed class FlashDodgeMode : MapMode
                 if (stateT > 10f)
                 {
                     // The entry happened but nobody won the duel in time (or the attacker never got a sight line).
-                    G.Banner(brain is { FirstSeenAt: >= 0 } ? "Too slow — the entry survived" : "They didn't swing", UiTheme.Dim);
+                    G.Banner(brain is { FirstSeenAt: >= 0 } ? "Too slow â€” the entry survived" : "They didn't swing", UiTheme.Dim);
                     if (brain is { FirstSeenAt: >= 0 }) losses++;
                     st = St.After; stateT = 0;
                 }
@@ -596,7 +635,7 @@ public sealed class FlashDodgeMode : MapMode
 
     public override IEnumerable<string> HudLines()
     {
-        if (st == St.Hold) yield return "Hold the angle — listen for the flash";
+        if (st == St.Hold) yield return "Hold the angle â€” listen for the flash";
         if (st == St.Dizzy && !dzDead && !dzFired) yield return "Gekko's Dizzy: shoot her or get out of her sight";
     }
 
@@ -615,3 +654,4 @@ public sealed class FlashDodgeMode : MapMode
 
     public override int Badge() => wins + losses == 0 ? -1 : Difficulty.BadgeWinRate(Tier, (float)wins / (wins + losses));
 }
+

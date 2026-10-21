@@ -1,4 +1,4 @@
-using Godot;
+﻿using Godot;
 using ValTrainer.Core;
 using ValTrainer.Game;
 using ValTrainer.Game.Bots;
@@ -11,8 +11,8 @@ namespace ValTrainer.Modes;
 
 /// <summary>
 /// Site Anchor ("anchor", or "anchor:&lt;agent&gt;" with a sentinel's setup). You hold a real site-level defender spot alone.
-/// Every round: a short setup phase (place your sentinel utility like in the buy phase: aim, LMB), then 2–4 attackers
-/// (by tier) run up behind the choke — you can hear them — stack out of sight and execute through it on the map's
+/// Every round: a short setup phase (place your sentinel utility like in the buy phase: aim, LMB), then 2â€“4 attackers
+/// (by tier) run up behind the choke â€” you can hear them â€” stack out of sight and execute through it on the map's
 /// navigation grid: higher tiers flash first and swing together, lower tiers stagger. They clear common angles, duel
 /// you with the tier's bot model, shoot utility they spot, must break walls in their way, and one carries the spike to
 /// plant (4 s). You hold the round by killing them all (or surviving until time runs out without a plant).
@@ -34,14 +34,14 @@ public sealed partial class AnchorMode : MapMode
     public override string Key => Agent.Length == 0 ? "anchor" : "anchor:" + Agent;
     public override string Name => "Site Anchor";
     public override string Description => Agent.Length == 0
-        ? "Hold the site alone while 2–4 attackers execute through the choke. Hear them, hold your angle, win the duels."
+        ? "Hold the site alone while 2â€“4 attackers execute through the choke. Hear them, hold your angle, win the duels."
         : $"Hold the site alone with {AgentName}'s setup: place it, then stall and kill the execute.";
     public override string Category => Agent.Length == 0 ? "Map" : "Agents";
     public override float Duration => 180f;
     public override string SimKind => "bot";
     public override string? Subtitle => Agent.Length == 0
-        ? $"{MapSpot.Map} {MapSpot.Name} · {anchorName}"
-        : $"{AgentName}  —  {MapSpot.Map} {MapSpot.Name} · {anchorName}";
+        ? $"{MapSpot.Map} {MapSpot.Name} Â· {anchorName}"
+        : $"{AgentName}  â€”  {MapSpot.Map} {MapSpot.Name} Â· {anchorName}";
     public override AimFocus? Focus => phase == Phase.Live ? NearestHead(attackers.Where(a => a.Alive).Select(a => a.Body)) : null;
 
     string AgentName => Kit.Length > 0 ? Kit[0].Agent : "";
@@ -94,7 +94,7 @@ public sealed partial class AnchorMode : MapMode
 
     protected override void Setup()
     {
-        nav = BotNav.For($"{MapSpot.Key}:{G.Solid.Count}", G.Solid, MapSpot.StartFeet);
+        nav = BotNav.For($"{MapSpot.Key}:{G.Solid.Count}", G.Solid, SpawnFeet);
         ChooseAnchor();
         foreach (var a in Kit)
         {
@@ -110,7 +110,7 @@ public sealed partial class AnchorMode : MapMode
     void ChooseAnchor()
     {
         var choke = MapSpot.Choke;
-        var startEye = MapSpot.StartFeet + new Vector3(0, PlayerView.EyeHeight, 0);
+        var startEye = SpawnFeet + new Vector3(0, PlayerView.EyeHeight, 0);
         bool SeesChoke(EnemySpot e) => MapSpot.LineOfSight(EyeOf(e), choke + new Vector3(0, 1.5f, 0));
         bool SiteLevel(EnemySpot e) => e.Feet.Y - choke.Y < 1.5f && e.Feet.DistanceTo(choke) is > 6f and < 28f;
         var pool = MapSpot.Enemies.Where(e => SiteLevel(e) && SeesChoke(e) && !MapSpot.LineOfSight(EyeOf(e), startEye)).ToArray();
@@ -126,9 +126,9 @@ public sealed partial class AnchorMode : MapMode
         angles.Clear();
         foreach (var e in MapSpot.Enemies) angles.Add(EyeOf(e));
 
-        // The attackers' approach: start → choke, sampled every 0.5 m; the last point the anchor can't see is the stack.
-        var path = nav.FindPath(MapSpot.StartFeet, choke) ?? new List<Vector3> { choke };
-        var pts = new List<Vector3> { nav.Pos[nav.Nearest(MapSpot.StartFeet)] };
+        // The attackers' approach: start â†’ choke, sampled every 0.5 m; the last point the anchor can't see is the stack.
+        var path = nav.FindPath(SpawnFeet, choke) ?? new List<Vector3> { choke };
+        var pts = new List<Vector3> { nav.Pos[nav.Nearest(SpawnFeet)] };
         var prev = pts[0];
         foreach (var p in path)
         {
@@ -294,7 +294,7 @@ public sealed partial class AnchorMode : MapMode
                         RevealFx.Set(a.Body, a.Alive && a.IsRevealed ? 1f : 0f);
                 }
                 if (attackers.Count > 0 && attackers.All(a => !a.Alive)) EndRound(true, $"SITE HELD  {Now - liveStart:0.0}s");
-                else if (Now - liveStart > RoundTime) EndRound(true, "TIME — they didn't plant");
+                else if (Now - liveStart > RoundTime) EndRound(true, "TIME â€” they didn't plant");
                 else if (attackers.Count > 0 && !attackers.Any(a => a.Alive && a.Carrier))
                 {
                     // The carrier died: the nearest teammate picks up the spike and goes for the plant.
@@ -402,8 +402,8 @@ public sealed partial class AnchorMode : MapMode
         G.Blind.Apply(sec, BlindOverlay.LookOf(flashAgent), BlindModel.ScreenUv(G.View, flashPop, aspect));
         if (sec >= 0.5f) G.Sound("flash_ring", 0.6f * Mathf.Clamp(sec / 2.25f, 0.35f, 1f));
         Event("flash", grade switch { BlindGrade.Flashed => 2, BlindGrade.Partial => 1, BlindGrade.NoLineOfSight => -1, _ => 0 }, -1);
-        if (grade == BlindGrade.Flashed) { flashedFull++; Note($"FLASHED {sec:0.0}s · {flashAgent.Agent}", UiTheme.Accent); }
-        else if (grade == BlindGrade.Dodged) Note($"Flash dodged · {flashAgent.Agent}", UiTheme.Good);
+        if (grade == BlindGrade.Flashed) { flashedFull++; Note($"FLASHED {sec:0.0}s Â· {flashAgent.Agent}", UiTheme.Accent); }
+        else if (grade == BlindGrade.Dodged) Note($"Flash dodged Â· {flashAgent.Agent}", UiTheme.Good);
         orb.Pop();
         orb = null;
         Log($"flash popped: {grade} {sec:0.0}s");
@@ -480,13 +480,13 @@ public sealed partial class AnchorMode : MapMode
         Event("util_trigger", (int)d.A.Kind, affected);
         string what = d.A.Kind switch
         {
-            SentKind.Alarmbot => affected > 0 ? $"ALARMBOT · {affected} vulnerable" : "Alarmbot went off",
-            SentKind.Turret => "TURRET · contact",
-            SentKind.Trapwire => "TRAPWIRE · caught one",
-            SentKind.SonicSensor => affected > 0 ? $"SONIC SENSOR · {affected} concussed" : "Sonic sensor fired",
-            SentKind.Shear => "SHEAR · wall up",
-            SentKind.Chokehold => $"CHOKEHOLD · {affected} held",
-            SentKind.Trademark => "TRADEMARK · tagged",
+            SentKind.Alarmbot => affected > 0 ? $"ALARMBOT Â· {affected} vulnerable" : "Alarmbot went off",
+            SentKind.Turret => "TURRET Â· contact",
+            SentKind.Trapwire => "TRAPWIRE Â· caught one",
+            SentKind.SonicSensor => affected > 0 ? $"SONIC SENSOR Â· {affected} concussed" : "Sonic sensor fired",
+            SentKind.Shear => "SHEAR Â· wall up",
+            SentKind.Chokehold => $"CHOKEHOLD Â· {affected} held",
+            SentKind.Trademark => "TRADEMARK Â· tagged",
             SentKind.Razorvine => $"Razorvine: {affected} cut",
             SentKind.SlowOrb => $"Slow orb: {affected} slowed",
             SentKind.Interceptor => affected > 0 ? $"Interceptor: {affected} zapped" : "Interceptor: nothing to zap",
@@ -566,7 +566,7 @@ public sealed partial class AnchorMode : MapMode
             if (k != null)
             {
                 if (k.RefusalT > 0 && k.Refusal != null) return k.Refusal;
-                return k.A.Alt != null ? $"{k.A.Primary}   ·   {k.A.Alt}" : k.A.Primary;
+                return k.A.Alt != null ? $"{k.A.Primary}   Â·   {k.A.Alt}" : k.A.Primary;
             }
             var refused = kits.FirstOrDefault(x => x.RefusalT > 0 && x.Refusal != null);
             if (refused != null) return refused.Refusal;
@@ -587,11 +587,11 @@ public sealed partial class AnchorMode : MapMode
     {
         if (phase == Phase.Setup)
         {
-            if (kits.Count == 0) { yield return "Hold your angle — listen for the push"; yield break; }
+            if (kits.Count == 0) { yield return "Hold your angle â€” listen for the push"; yield break; }
             foreach (var k in kits)
             {
                 bool placed = devices.Any(d => d.A == k.A && !d.Dead) || k.Charges < k.A.Charges;
-                yield return $"[{k.KeyText}] {k.A.Ability}{(placed ? " — placed" : "")}";
+                yield return $"[{k.KeyText}] {k.A.Ability}{(placed ? " â€” placed" : "")}";
             }
             if (rounds == 0)
                 foreach (var k in kits) yield return k.A.HowTo;
@@ -621,7 +621,7 @@ public sealed partial class AnchorMode : MapMode
         int fs = UiTheme.Fs(30, k), ss = UiTheme.Fs(14, k);
         float cx = size.X / 2, y = 150 * k;
         Gfx.TextC(c, UiTheme.Display, kits.Count > 0 ? $"SETUP  {left:0}" : $"GET READY  {left:0}", cx, y, fs, UiTheme.Text);
-        Gfx.TextC(c, UiTheme.HudWide, kits.Count > 0 ? "PLACE YOUR UTILITY — THE PUSH COMES AFTER THE SETUP" : "THE ATTACKERS EXECUTE THROUGH THE CHOKE", cx, y + 24 * k, ss, UiTheme.Dim);
+        Gfx.TextC(c, UiTheme.HudWide, kits.Count > 0 ? "PLACE YOUR UTILITY â€” THE PUSH COMES AFTER THE SETUP" : "THE ATTACKERS EXECUTE THROUGH THE CHOKE", cx, y + 24 * k, ss, UiTheme.Dim);
         float w = 320 * k;
         c.DrawRect(new Rect2(cx - w / 2, y + 36 * k, w, 3 * k), new Color(1, 1, 1, 0.12f));
         c.DrawRect(new Rect2(cx - w / 2, y + 36 * k, w * (left / Mathf.Max(0.1f, setupLen)), 3 * k), kits.Count > 0 ? kits[0].A.Color : UiTheme.Warn);
@@ -648,9 +648,9 @@ public sealed partial class AnchorMode : MapMode
         var out_ = devices.FirstOrDefault(d => d.A == kit.A && !d.Dead && !d.Spent);
         string state = kit.State switch
         {
-            SentinelKit.Phase.Equipping => "EQUIPPING…",
-            SentinelKit.Phase.Equipped => kit.A.Kind == SentKind.BarrierOrb ? $"PLACE · {(kit.Alt ? "ROTATED" : "ACROSS")}" : "PLACE IT",
-            _ => out_ is RazorvineDev { CanActivate: true } || out_ is InterceptorDev { CanActivate: true } ? "OUT · KEY TO ACTIVATE"
+            SentinelKit.Phase.Equipping => "EQUIPPINGâ€¦",
+            SentinelKit.Phase.Equipped => kit.A.Kind == SentKind.BarrierOrb ? $"PLACE Â· {(kit.Alt ? "ROTATED" : "ACROSS")}" : "PLACE IT",
+            _ => out_ is RazorvineDev { CanActivate: true } || out_ is InterceptorDev { CanActivate: true } ? "OUT Â· KEY TO ACTIVATE"
                  : out_ != null ? "OUT" : ready ? "READY" : "USED",
         };
         Gfx.Text(c, UiTheme.HudWide, state, tx, Gfx.Mid(r.Position.Y + 44 * k, ss), ss, kit.State != SentinelKit.Phase.Ready ? accent : UiTheme.Dim);
@@ -700,8 +700,8 @@ public sealed partial class AnchorMode : MapMode
 
     public override IEnumerable<(string Label, string Value)> ResultLines()
     {
-        yield return ("Map", $"{MapSpot.Map} · {anchorName}");
-        if (Agent.Length > 0) yield return ("Agent", $"{AgentName} — {string.Join(" + ", Kit.Select(k => k.Ability))}");
+        yield return ("Map", $"{MapSpot.Map} Â· {anchorName}");
+        if (Agent.Length > 0) yield return ("Agent", $"{AgentName} â€” {string.Join(" + ", Kit.Select(k => k.Ability))}");
         yield return ("Rounds held / lost", $"{held} / {lost}" + (plants > 0 ? $"  ({plants} planted)" : ""));
         int played = held + lost;
         if (played > 0) yield return ("First blood", $"{100f * firstBloods / played:0}% of rounds");
@@ -732,3 +732,4 @@ public sealed partial class AnchorMode : MapMode
         return Math.Max(-1, b);
     }
 }
+
