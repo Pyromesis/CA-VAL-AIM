@@ -81,7 +81,8 @@ public static class AgentArt
     {
         var col = RoleColor(a.Role);
         float s = Mathf.Min(r.Size.X, r.Size.Y);
-        Gfx.Plate(ci, r, s * 0.16f, new Color(0.08f, 0.12f, 0.16f, 0.95f * alpha), new Color(col, (0.45f + 0.4f * glow) * alpha), Mathf.Max(1f, 1.5f * k));
+        Gfx.PlateEx(ci, r, s * 0.16f, true, false, false, true,
+            new Color(0.08f, 0.12f, 0.16f, 0.95f * alpha), new Color(col, (0.45f + 0.4f * glow) * alpha), Mathf.Max(1f, 1.5f * k));
         Gfx.VGradient(ci, new Rect2(r.Position.X + 1, r.Position.Y + r.Size.Y * 0.45f, r.Size.X - 2, r.Size.Y * 0.55f - 1),
             new Color(col, 0f), new Color(col, (0.2f + 0.12f * glow) * alpha));
         RoleGlyph(ci, r.GetCenter(), s * 0.4f, a.Role, new Color(col, (0.16f + 0.08f * glow) * alpha));
@@ -273,8 +274,12 @@ public partial class AbilityCard : Control
         var r = new Rect2(Vector2.Zero, Size);
         var col = AgentArt.RoleColor(agent.Role);
         bool trained = drills.Count > 0;
-        Gfx.Plate(this, r, 10 * k, new Color(0.07f, 0.11f, 0.15f, 0.88f), new Color(UiTheme.Text, 0.09f));
-        DrawRect(new Rect2(0, 0, r.Size.X - 10 * k, 2 * k), new Color(trained ? col : UiTheme.Faint, trained ? 0.8f : 0.4f));
+        Gfx.PlateEx(this, r, 10 * k, true, false, false, true, new Color(0.07f, 0.11f, 0.15f, 0.88f), new Color(UiTheme.Text, 0.09f), 1f);
+        // role strip along the top edge: accent run that fades out instead of a hard bar
+        float stripW = Mathf.Max(0, r.Size.X - 10 * k - 30 * k);
+        DrawRect(new Rect2(10 * k, 0, stripW, 2 * k), new Color(trained ? col : UiTheme.Faint, trained ? 0.8f : 0.4f));
+        Gfx.HGradient(this, new Rect2(10 * k + stripW, 0, 30 * k, 2 * k),
+            new Color(trained ? col : UiTheme.Faint, (trained ? 0.8f : 0.4f) * 0.5f), new Color(0, 0, 0, 0));
 
         float cap = 30 * k;
         AgentArt.KeyCap(this, new Rect2(pad, pad + 2 * k, cap, cap), ability.Slot, trained ? col : UiTheme.Dim, k);
@@ -360,8 +365,10 @@ public partial class RoleCard : BaseButton
         float k = K, pad = 22 * k;
         var r = new Rect2(Vector2.Zero, Size);
         var col = AgentArt.RoleColor(role);
-        Gfx.Plate(this, r, 16 * k, new Color(0.075f, 0.115f, 0.155f, 0.9f).Lerp(new Color(0.13f, 0.18f, 0.23f, 0.96f), hover), new Color(UiTheme.Text, 0.08f + 0.3f * hover));
-        DrawRect(new Rect2(0, 0, 3 * k, r.Size.Y - 18 * k), new Color(col, 0.6f + 0.4f * hover));
+        Gfx.PlateEx(this, r, 16 * k, true, false, false, true, new Color(0.075f, 0.115f, 0.155f, 0.9f).Lerp(new Color(0.13f, 0.18f, 0.23f, 0.96f), hover), new Color(UiTheme.Text, 0.08f + 0.3f * hover), 1f);
+        Gfx.Diamond(this, new Vector2(0, 16 * k), 3.4f * k, 3.4f * k, new Color(col, 0.55f + 0.45f * hover));
+        DrawRect(new Rect2(6 * k, 0, Mathf.Max(0, 30 * k - 6 * k), 2 * k), new Color(col, 0.6f + 0.4f * hover));
+        Gfx.HGradient(this, new Rect2(30 * k, 0, 26 * k, 2 * k), new Color(col, (0.6f + 0.4f * hover) * 0.5f), new Color(0, 0, 0, 0));
         Gfx.VGradient(this, new Rect2(1, r.Size.Y * 0.55f, r.Size.X - 2, r.Size.Y * 0.45f - 1), new Color(col, 0f), new Color(col, 0.08f + 0.05f * hover));
         if (hover > 0.01f) Gfx.Brackets(this, r.Grow(3 * k), 8 * k * hover, new Color(UiTheme.Text, 0.8f * hover), Mathf.Max(1, 2 * k));
 
@@ -421,8 +428,9 @@ public partial class AgentsLinkCard : BaseButton
         bool down = GetDrawMode() is DrawMode.Pressed or DrawMode.HoverPressed;
         var fill = new Color(0.075f, 0.115f, 0.155f, 0.9f).Lerp(new Color(0.13f, 0.18f, 0.23f, 0.96f), hover);
         if (down) fill = new Color(0.18f, 0.22f, 0.27f, 0.98f);
-        Gfx.Plate(this, r, 12 * k, fill, new Color(UiTheme.Text, 0.08f + 0.3f * hover));
-        DrawRect(new Rect2(0, 0, 3 * k, r.Size.Y - 14 * k), new Color(ModeCard.CategoryColor("Agents"), 0.55f + 0.45f * hover));
+        Gfx.PlateEx(this, r, 12 * k, true, false, false, true, fill, new Color(UiTheme.Text, 0.08f + 0.3f * hover), 1f);
+        var cat = ModeCard.CategoryColor("Agents");
+        DrawRect(new Rect2(0, 12 * k, 3 * k, Mathf.Max(0, r.Size.Y - 12 * k)), new Color(cat, 0.55f + 0.45f * hover));
         if (hover > 0.01f) Gfx.Brackets(this, r.Grow(3 * k), 8 * k * hover, new Color(UiTheme.Text, 0.8f * hover), Mathf.Max(1, 2 * k));
 
         float pad = 16 * k;

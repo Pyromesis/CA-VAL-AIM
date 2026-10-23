@@ -113,6 +113,91 @@ public sealed class VmMesh
         Add(verts.ToArray(), norms.ToArray(), ind.ToArray(), t);
     }
 
+    /// <summary>Flat-shaded box with half extents <paramref name="h"/> (24 vertices, so every face keeps its normal).</summary>
+    public void Box(Vector3 h, Transform3D t)
+    {
+        float x0 = -h.X, x1 = h.X, y0 = -h.Y, y1 = h.Y, z0 = -h.Z, z1 = h.Z;
+        var p000 = new Vector3(x0, y0, z0); var p001 = new Vector3(x0, y0, z1);
+        var p010 = new Vector3(x0, y1, z0); var p011 = new Vector3(x0, y1, z1);
+        var p100 = new Vector3(x1, y0, z0); var p101 = new Vector3(x1, y0, z1);
+        var p110 = new Vector3(x1, y1, z0); var p111 = new Vector3(x1, y1, z1);
+        Quad(p000, p010, p110, p100, Vector3.Back, t);
+        Quad(p001, p101, p111, p011, Vector3.Forward, t);
+        Quad(p000, p001, p011, p010, Vector3.Left, t);
+        Quad(p100, p110, p111, p101, Vector3.Right, t);
+        Quad(p000, p100, p101, p001, Vector3.Down, t);
+        Quad(p010, p011, p111, p110, Vector3.Up, t);
+    }
+
+    /// <summary>
+    /// Rectangular loft along Z: two cross-sections (half width/height) at z0 and z1, with their own
+    /// vertical centres. Used for receivers, cheek rests and butt pads that taper or tilt.
+    /// </summary>
+    public void LoftZ(float z0, float z1, Vector2 h0, Vector2 h1, float y0, float y1, Transform3D t)
+    {
+        float ax0 = -h0.X, ax1 = h0.X, ay0 = y0 - h0.Y, ay1 = y0 + h0.Y;
+        float bx0 = -h1.X, bx1 = h1.X, by0 = y1 - h1.Y, by1 = y1 + h1.Y;
+        var a00 = new Vector3(ax0, ay0, z0); var a01 = new Vector3(ax1, ay0, z0);
+        var a10 = new Vector3(ax0, ay1, z0); var a11 = new Vector3(ax1, ay1, z0);
+        var b00 = new Vector3(bx0, by0, z1); var b01 = new Vector3(bx1, by0, z1);
+        var b10 = new Vector3(bx0, by1, z1); var b11 = new Vector3(bx1, by1, z1);
+        Quad(a00, a01, a11, a10, Vector3.Back, t);
+        Quad(b00, b10, b11, b01, Vector3.Forward, t);
+        Quad(a00, a10, b10, b00, Vector3.Left, t);
+        Quad(a01, b01, b11, a11, Vector3.Right, t);
+        Quad(a00, b00, b01, a01, Vector3.Down, t);
+        Quad(a10, a11, b11, b10, Vector3.Up, t);
+    }
+
+    /// <summary>Rectangular loft along Y, for grips and magazines; <paramref name="z0"/>/<paramref name="z1"/> tilt it.</summary>
+    public void LoftY(float y0, float y1, Vector2 h0, Vector2 h1, float z0, float z1, Transform3D t)
+    {
+        float ax0 = -h0.X, ax1 = h0.X, az0 = z0 - h0.Y, az1 = z0 + h0.Y;
+        float bx0 = -h1.X, bx1 = h1.X, bz0 = z1 - h1.Y, bz1 = z1 + h1.Y;
+        var a00 = new Vector3(ax0, y0, az0); var a01 = new Vector3(ax1, y0, az0);
+        var a10 = new Vector3(ax0, y0, az1); var a11 = new Vector3(ax1, y0, az1);
+        var b00 = new Vector3(bx0, y1, bz0); var b01 = new Vector3(bx1, y1, bz0);
+        var b10 = new Vector3(bx0, y1, bz1); var b11 = new Vector3(bx1, y1, bz1);
+        Quad(a00, a01, a11, a10, Vector3.Down, t);
+        Quad(b00, b10, b11, b01, Vector3.Up, t);
+        Quad(a00, a10, b10, b00, Vector3.Left, t);
+        Quad(a01, b01, b11, a11, Vector3.Right, t);
+        Quad(a00, b00, b01, a01, Vector3.Back, t);
+        Quad(a10, a11, b11, b10, Vector3.Forward, t);
+    }
+
+    /// <summary>Flat-shaded elliptical tube along Z (octagonal handguards, suppressors, screws, barrel nuts).</summary>
+    public void FacetTubeZ(float z0, float z1, float r0, float r1, int seg, float sx, float sy, Transform3D t)
+    {
+        seg = Mathf.Max(3, seg);
+        float slope = (r0 - r1) / Mathf.Max(0.0001f, z1 - z0);
+        for (int i = 0; i < seg; i++)
+        {
+            float a0 = i / (float)seg * Mathf.Tau, a1 = (i + 1) / (float)seg * Mathf.Tau, am = (a0 + a1) * 0.5f;
+            var n = new Vector3(Mathf.Cos(am) / sx, Mathf.Sin(am) / sy, slope).Normalized();
+            var p0 = new Vector3(Mathf.Cos(a0) * r0 * sx, Mathf.Sin(a0) * r0 * sy, z0);
+            var p1 = new Vector3(Mathf.Cos(a0) * r1 * sx, Mathf.Sin(a0) * r1 * sy, z1);
+            var p2 = new Vector3(Mathf.Cos(a1) * r1 * sx, Mathf.Sin(a1) * r1 * sy, z1);
+            var p3 = new Vector3(Mathf.Cos(a1) * r0 * sx, Mathf.Sin(a1) * r0 * sy, z0);
+            Quad(p0, p1, p2, p3, n, t);
+        }
+        foreach (var (z, r, dir) in new[] { (z0, r0, -1f), (z1, r1, 1f) })
+        {
+            var c = new Vector3(0, 0, z);
+            for (int i = 0; i < seg; i++)
+            {
+                float a0 = i / (float)seg * Mathf.Tau, a1 = (i + 1) / (float)seg * Mathf.Tau;
+                var p0 = new Vector3(Mathf.Cos(a0) * r * sx, Mathf.Sin(a0) * r * sy, z);
+                var p1 = new Vector3(Mathf.Cos(a1) * r * sx, Mathf.Sin(a1) * r * sy, z);
+                Add(new[] { c, p0, p1 }, new[] { new Vector3(0, 0, dir), new Vector3(0, 0, dir), new Vector3(0, 0, dir) },
+                    new[] { 0, 1, 2 }, t);
+            }
+        }
+    }
+
+    void Quad(Vector3 a, Vector3 b, Vector3 c, Vector3 d, Vector3 n, Transform3D t) =>
+        Add(new[] { a, b, c, d }, new[] { n, n, n, n }, new[] { 0, 1, 2, 0, 2, 3 }, t);
+
     /// <summary>Superellipsoid ("rounded box") with half extents <paramref name="h"/>; e≈0.3 boxy, 1 = ellipsoid.</summary>
     public void RoundBox(Vector3 h, float e, Transform3D t, int lat = 10, int lon = 16)
     {

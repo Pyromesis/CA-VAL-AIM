@@ -21,6 +21,7 @@ obj/
 .idea/
 *.DotSettings.user
 mono_crash.*.json
+__pycache__/
 
 # ---- Release / export output ----
 dist/

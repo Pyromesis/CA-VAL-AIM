@@ -88,6 +88,15 @@ public sealed class BotBrain
 
     bool headVisible;
 
+    /// <summary>
+    /// Line-of-sight rays are the most expensive part of a bot tick on a real map (17k collision boxes);
+    /// re-trace at ~30 Hz and reuse the answer between checks. Reaction times are ≥120 ms, so a 33 ms
+    /// cache is invisible in play.
+    /// </summary>
+    const float SightInterval = 1f / 30f;
+    float lastSightCheck = -1f;
+    bool losCached;
+
     bool CanSee(IGame g)
     {
         var eye = Body.Head;
@@ -116,8 +125,14 @@ public sealed class BotBrain
             alertUntil = -99f;
             return;
         }
-        bool los = CanSee(g);
         float now = g.Now;
+        if (now < lastSightCheck) { lastSightCheck = -1f; losCached = false; } // session clock restarted
+        if (now - lastSightCheck >= SightInterval)
+        {
+            lastSightCheck = now;
+            losCached = CanSee(g);
+        }
+        bool los = losCached;
 
         if (los && !hadLos) OnLosGained(g, now);
         else if (!los && hadLos)

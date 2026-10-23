@@ -15,11 +15,13 @@ Get the latest version from **[GitHub Releases](https://github.com/Pyromesis/Val
 
 | File | For |
 |---|---|
-| `ValTraining-1.16.1-Setup.exe` | **Recommended.** Installs for your Windows user (no admin rights needed), with Start menu shortcuts and an uninstaller. Includes the full map set. |
-| `ValTraining-1.16.1-Portable.zip` | No installation: unzip anywhere and run `ValTrainer.exe`. Includes the full map set. |
+| `ValTraining-<version>-Setup.exe` | **The one download.** Installs for your Windows user (no admin rights needed), with Start menu shortcuts and an uninstaller. Includes the full map set. |
 
-The release packages are large (about 2 GB) because they bundle the optional extracted map geometry in `maps/`. The Git
-repository does not contain those binaries; the app still runs without them and falls back to the blockout maps.
+The release also carries an `SHA256SUMS.txt` with the installer's SHA-256; the in-app updater verifies every download
+against it. The installer is large (about 2 GB) because it bundles the optional extracted map geometry in `maps/`. The
+Git repository does not contain those binaries; the app still runs without them and falls back to the blockout maps.
+A portable (unzip-and-run) copy is no longer published as a release download, but you can still build one from this
+repository with `tools/build-release.ps1` (see [CONTRIBUTING.md](CONTRIBUTING.md)).
 
 The executable keeps the `ValTrainer.exe` filename for save-file and update compatibility. The installer and the app
 display the product name **ValTraining**.
@@ -177,7 +179,7 @@ This project is a modified version of ValTrainer. The original copyright notice 
 All 3D models, textures, skies and recorded sounds are CC0 (public domain), except the official VALORANT map minimaps
 and the optional extracted map geometry in `maps/` (© Riot Games, not CC0; see
 [`ValTrainerGodot/CREDITS.md`](ValTrainerGodot/CREDITS.md)). The Godot Engine and the bundled .NET runtime are
-MIT-licensed. CC0 and MIT are compatible with the GPL; the installer and portable zip include their license notices in
+MIT-licensed. CC0 and MIT are compatible with the GPL; the installer includes its license notices in
 `THIRD-PARTY-NOTICES.txt`.
 
 ValTraining is fan-made and is not endorsed by or affiliated with Riot Games. VALORANT and its agent and map names are

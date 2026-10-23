@@ -91,7 +91,7 @@ static class VmTest
 
     public static void Attach(Viewmodel vm)
     {
-        if (View != null) AddGrid(vm);
+        if (View != null && CmdLine.Has("--vmgrid")) AddGrid(vm);
         if (Hand != null) AddHand(vm);
     }
 

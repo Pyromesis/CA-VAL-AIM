@@ -57,32 +57,54 @@ public partial class SettingsScreen : ScreenBase
         // below ~480 the label + 250-wide selector side by side would cut labels off, so stack them.
         float vw = GetViewportRect().Size.X;
         stacked = ((vw - 140 * k) / 3.05f - 54 * k) / k < 480;
-        var root = Margins(VBox(18 * k), 48 * k, 30 * k, 48 * k, 34 * k);
+        var root = Margins(VBox(18 * k), 44 * k, 24 * k, 44 * k, 24 * k);
         root.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         AddChild(root);
         var col = (VBoxContainer)root.GetChild(0);
 
         var head = HBox(16 * k);
-        var title = VBox(2 * k);
+        var title = VBox(3 * k);
         title.SizeFlagsHorizontal = SizeFlags.ExpandFill;
-        title.AddChild(Lbl("SETTINGS", UiTheme.Display, 64, UiTheme.Text));
+        // NV-OPS header: signal-diamond kicker above the title, short accent rail below the caption
+        title.AddChild(new DrawBox
+        {
+            CustomMinimumSize = new Vector2(0, 9 * k),
+            OnDraw = d =>
+            {
+                float kk = K;
+                Gfx.Diamond(d, new Vector2(4 * kk, d.Size.Y / 2), 3 * kk, 3 * kk, UiTheme.Accent);
+                d.DrawRect(new Rect2(12 * kk, d.Size.Y / 2 - 0.5f, MathF.Min(46 * kk, MathF.Max(0, d.Size.X - 24 * kk)), 1), new Color(UiTheme.Text, 0.25f));
+            },
+        });
+        title.AddChild(Lbl("SETTINGS", UiTheme.Display, 46, UiTheme.Text));
         var sub = Lbl(page == Page.General ? "CHANGES APPLY IMMEDIATELY AND ARE SAVED · ANYTHING LEFT ON \"VALORANT\" FOLLOWS YOUR GAME"
-            : "VERSION · UPDATES · FOLDERS · OPEN-SOURCE LICENSES", UiTheme.HudWide, 15, UiTheme.Dim);
+            : "VERSION · UPDATES · FOLDERS · OPEN-SOURCE LICENSES", UiTheme.HudWide, 12.5f, UiTheme.Faint);
         sub.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis; // never pushes the tabs / BACK off screen
         sub.ClipText = true;
         title.AddChild(sub);
+        title.AddChild(new DrawBox
+        {
+            CustomMinimumSize = new Vector2(56 * k, 2.5f * k),
+            OnDraw = d =>
+            {
+                float kk = K;
+                float solid = MathF.Max(1f, Math.Min(44 * kk, d.Size.X - 12 * kk));
+                d.DrawRect(new Rect2(0, 0, solid, d.Size.Y), UiTheme.Accent);
+                Gfx.HGradient(d, new Rect2(solid, 0, 12 * kk, d.Size.Y), new Color(UiTheme.Accent, 0.5f), new Color(UiTheme.Accent, 0f));
+            },
+        });
         head.AddChild(title);
         var tabs = HBox(6 * k);
         tabs.SizeFlagsVertical = SizeFlags.ShrinkCenter;
         foreach (var (pg, name) in new[] { (Page.General, "GENERAL"), (Page.About, "ABOUT") })
         {
-            var b = new VButton { Kind = VButton.Look.Select, K = k, Label = name, FontPx = 18, Selected = page == pg, CustomMinimumSize = new Vector2(150 * k, 46 * k) };
+            var b = new VButton { Kind = VButton.Look.Select, K = k, Label = name, FontPx = 15, Selected = page == pg, CustomMinimumSize = new Vector2(132 * k, 40 * k) };
             b.Pressed += () => { if (page != pg) { page = pg; Rebuild(); } };
             tabs.AddChild(b);
         }
         head.AddChild(tabs);
         head.AddChild(Spacer(10 * k, 0));
-        var back = Btn("BACK", VButton.Look.Primary, Main.I.ShowMenu, 180, 52, 22);
+        var back = Btn("BACK", VButton.Look.Secondary, Main.I.ShowMenu, 132, 42, 16);
         back.SizeFlagsVertical = SizeFlags.ShrinkCenter;
         head.AddChild(back);
         col.AddChild(head);
@@ -128,7 +150,7 @@ public partial class SettingsScreen : ScreenBase
         return v;
     }
 
-    void RefreshAll()
+    public void RefreshAll()
     {
         foreach (var r in refreshers) r();
     }
@@ -373,7 +395,13 @@ public partial class SettingsScreen : ScreenBase
         d.OnDraw = b =>
         {
             var r = new Rect2(0, 6 * k, b.Size.X, b.Size.Y - 12 * k);
-            Gfx.Plate(b, r, 10 * k, new Color(1, 1, 1, 0.03f), new Color(UiTheme.Text, 0.08f));
+            // angular summary card in the shared plate language: TL/BR cuts, accent tick, top highlight
+            Gfx.PlateEx(b, r, 9 * k, true, false, false, true, new Color(1, 1, 1, 0.03f), new Color(UiTheme.Text, 0.10f), 1f);
+            b.DrawRect(new Rect2(r.Position.X, r.Position.Y + 9 * k, 2.2f * k, r.Size.Y - 9 * k), new Color(UiTheme.Accent, 0.65f));
+            b.DrawRect(new Rect2(r.Position.X + 11 * k, r.Position.Y + 1.2f * k, Mathf.Max(0, r.Size.X - 30 * k), 1), new Color(1, 1, 1, 0.07f));
+            float dt = Time.GetTicksMsec() / 1000f;
+            float dp = (2.2f + 0.9f * Gfx.Wave(dt, 0.7f)) * k;
+            Gfx.Diamond(b, new Vector2(r.End.X - 10 * k, r.Position.Y + 9 * k), dp, dp, new Color(UiTheme.Teal, 0.8f));
             float sens = App.Sens;
             (string L, string V)[] items =
             {
@@ -1167,12 +1195,22 @@ public partial class ValueField : BaseButton
     {
         float k = K, a = Disabled ? 0.45f : 1f;
         var r = new Rect2(Vector2.Zero, Size);
-        DrawRect(r, new Color(0.04f, 0.07f, 0.1f, 0.8f).Lerp(new Color(1, 1, 1, 0.08f), hover));
-        DrawRect(new Rect2(0, r.Size.Y - 1, r.Size.X, 1), new Color(UiTheme.Text, 0.25f * a));
+        float cut = 7 * k;
+        // angular plate; hover lifts the fill and leans the border toward the accent
+        Gfx.PlateEx(this, r, cut, true, false, false, true,
+            new Color(1, 1, 1, (0.03f + 0.055f * hover) * a),
+            UiTheme.Fade(UiTheme.LineStrong.Lerp(UiTheme.Accent, hover * 0.65f), a), 1);
+        // left accent tick (starting under the top-left cut), brighter with the pointer
+        DrawRect(new Rect2(0, cut, 2.2f * k, Mathf.Max(0, r.Size.Y - cut)), UiTheme.Fade(UiTheme.Accent, (0.45f + 0.55f * hover) * a));
+        // inner top highlight
+        DrawRect(new Rect2(cut + 2 * k, 1.2f * k, Mathf.Max(0, r.Size.X - cut - 14 * k), 1), new Color(1, 1, 1, (0.06f + 0.04f * hover) * a));
         if (Bar != null)
         {
             float f = Mathf.Clamp(Bar(), 0, 1);
-            DrawRect(new Rect2(0, r.Size.Y - 3 * k, r.Size.X * f, 3 * k), UiTheme.Accent);
+            float fw = (r.Size.X - 12 * k) * f;
+            DrawRect(new Rect2(0, r.Size.Y - 2.6f * k, Mathf.Max(0, fw - 16 * k), 2.6f * k), UiTheme.Fade(UiTheme.Accent, a));
+            Gfx.HGradient(this, new Rect2(Mathf.Max(0, fw - 16 * k), r.Size.Y - 2.6f * k, Mathf.Min(16 * k, Mathf.Max(0f, fw - 0f)), 2.6f * k),
+                UiTheme.Fade(UiTheme.Accent, a), new Color(UiTheme.Accent, 0f));
         }
         string v = Value();
         int fs = UiTheme.Fs(15, k);
@@ -1188,8 +1226,9 @@ public partial class ValueField : BaseButton
         if (sw is { } c)
         {
             float s = 12 * k;
-            DrawRect(new Rect2(x, cy - s / 2, s, s), c);
-            DrawRect(new Rect2(x, cy - s / 2, s, s), new Color(1, 1, 1, 0.4f), false, 1f);
+            // color sample rendered as the UI's signal diamond instead of a square chip
+            Gfx.Diamond(this, new Vector2(x + s / 2, cy), s * 0.5f, s * 0.5f, c);
+            Gfx.DiamondLine(this, new Vector2(x + s / 2, cy), s * 0.5f + 1.5f * k, s * 0.5f + 1.5f * k, new Color(1, 1, 1, 0.4f * a), 1f);
         }
         else if (em >= -1) RankEmblem.Draw(this, new Vector2(x + 8 * k, cy), 9 * k, em, a);
         Gfx.TextFit(this, UiTheme.Body, v, x + extra, Gfx.Mid(cy, fs), fs, new Color(UiTheme.Text, a), maxW);

@@ -186,7 +186,7 @@ public static class MapArt
         if (info == null || tex == null) return false;
 
         var tint = new Color(0.94f, 0.97f, 1f, 0.96f * alpha);
-        Gfx.Plate(ci, rect, 10 * k, new Color(0.03f, 0.05f, 0.075f, 0.82f * alpha), new Color(UiTheme.Text, 0.18f * alpha));
+        Gfx.PlateEx(ci, rect, 10 * k, true, false, false, true, new Color(0.03f, 0.05f, 0.075f, 0.82f * alpha), new Color(UiTheme.Text, 0.18f * alpha), 1f);
         var inner = rect.Grow(-5 * k);
         var src = player
             ? Region(map.Key, inner.Size.X / Mathf.Max(1f, inner.Size.Y), 2.2f, map.StartFeet, map.Choke, eye)

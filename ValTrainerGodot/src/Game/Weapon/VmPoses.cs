@@ -28,7 +28,8 @@ public sealed record VmPose(
     /// <summary>Support hand cupping a handguard (fingers wrap up the far side, thumb along the near side).</summary>
     static readonly HandShape Cup = new(
         Index: new Finger(6, 45, 50, 30), Middle: new Finger(2, 50, 55, 30), Ring: new Finger(-2, 52, 55, 30), Little: new Finger(-6, 55, 55, 28),
-        ThumbDir: new Vector3(-0.94f, -0.12f, -0.31f), ThumbUp: new Vector3(-0.28f, -0.48f, 0.86f), ThumbCurl: new Vector3(2, 8, 5));
+        ThumbDir: new Vector3(-0.94f, -0.12f, -0.31f), ThumbUp: new Vector3(-0.28f, -0.48f, 0.86f), ThumbCurl: new Vector3(2, 8, 5),
+        ForearmLen: 0.34f);
 
     /// <summary>Support hand wrapping the trigger hand on a pistol (thumb forward along the frame).</summary>
     static readonly HandShape PistolSupport = new(
@@ -75,24 +76,24 @@ public sealed record VmPose(
 
     public static readonly VmPose Vandal = new(
         "res://assets/weapons/AssaultRifle_AK.tscn",
-        HipPos: new Vector3(0.225f, -0.19f, -0.36f), HipRot: new Vector3(-1.5f, -2.5f, -4f),
-        AdsPos: new Vector3(0f, -0.2066f, -0.24f), AdsRot: new Vector3(-7.05f, 0f, 0f),
+        HipPos: new Vector3(0.205f, -0.195f, -0.40f), HipRot: new Vector3(-1.5f, -2.5f, -4f),
+        AdsPos: new Vector3(0f, -0.212f, -0.24f), AdsRot: new Vector3(-7.05f, 0f, 0f),
         Grip: GripAt(new Vector3(0f, 0.01f, 0f), 25f, PistolGrip),
-        Support: CupAt(new Vector3(0f, 0.07f, -0.34f)),
+        Support: CupAt(new Vector3(0f, 0.038f, -0.335f)),
         Bolt: null,
-        Eject: new Vector3(0.018f, 0.105f, -0.1f),
-        MagWell: new Vector3(0f, 0.066f, -0.158f), MagHalf: new Vector3(0.012f, 0.095f, 0.028f), MagCurve: 26f,
+        Eject: new Vector3(0.030f, 0.072f, -0.070f),
+        MagWell: new Vector3(0f, 0.012f, -0.160f), MagHalf: new Vector3(0.016f, 0.095f, 0.027f), MagCurve: 18f,
         KickBack: 0.022f, KickPitch: 2.6f, KickFreq: 30f,
         FlashScale: 1f, Shells: true, ShellLen: 0.039f, Equip: 0.55f);
 
     public static readonly VmPose Phantom = Vandal with
     {
         Scene = "res://assets/weapons/AssaultRifle_M4.tscn",
-        AdsPos = new Vector3(0f, -0.206f, -0.24f), AdsRot = new Vector3(-10.8f, 0f, 0f),
+        AdsPos = new Vector3(0f, -0.212f, -0.24f), AdsRot = new Vector3(-7.05f, 0f, 0f),
         Grip = GripAt(new Vector3(0f, 0f, 0.01f), 30f, PistolGrip),
-        Support = CupAt(new Vector3(0f, 0.077f, -0.3f)),
-        Eject = new Vector3(0.02f, 0.11f, -0.07f),
-        MagWell = new Vector3(0f, 0.045f, -0.148f), MagHalf = new Vector3(0.012f, 0.078f, 0.02f), MagCurve = 6f,
+        Support = CupAt(new Vector3(0f, 0.038f, -0.330f)),
+        Eject = new Vector3(0.030f, 0.074f, -0.070f),
+        MagWell = new Vector3(0f, 0.012f, -0.150f), MagHalf = new Vector3(0.016f, 0.085f, 0.027f), MagCurve = 6f,
         KickBack = 0.018f, KickPitch = 2.1f, KickFreq = 32f, FlashScale = 0.85f, ShellLen = 0.045f,
     };
 

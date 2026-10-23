@@ -539,7 +539,8 @@ public partial class GameSession : Node3D, IGame
         // Weapon
         if (Gun != null && !Mode.Is2D) UpdateAds(dt); // aim / scope, raise and zoom (AdsSession.cs)
 
-        Mode.Update(dt);
+        // Dev profiling (--envtweak nobots): skip the drill's AI/tick entirely, not just its visuals.
+        if (!EnvDev.Has("nobots")) Mode.Update(dt);
 
         if (Gun != null && !Mode.Is2D)
         {
@@ -862,6 +863,8 @@ public partial class GameSession : Node3D, IGame
         Mover.Place(ref feet, solid); // onto the floor under the spawn (or falling from rest if there's none)
         feetY = feet.Y;
         View.Eye = feet + new Vector3(0, Mover.EyeHeight, 0);
+        if (Main.I.Dev && !Demo)
+            GD.Print($"[spawn] respawn feet={feet} eye={View.Eye} yaw={yaw} floor={Collision.Ground(feet, solid)}");
         View.Yaw = yaw;
         View.Pitch = Main.I.Dev && !Demo && DevCamPos is { Length: >= 5 } cpp ? cpp[4] : 0;
         View.RecoilPitch = View.RecoilYaw = 0;

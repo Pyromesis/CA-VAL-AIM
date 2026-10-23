@@ -66,6 +66,34 @@ public sealed class VmMaterials
                     return Make(bronze, 0.2f, 0.4f, 0.5f, 0.55f, 0.2f);
             }
         }
+        // CPU-authored Vandal / Phantom surfaces (ProceduralRifle). The accent keeps the colour authored in
+        // the mesh (crimson for the Vandal, teal for the Phantom) and gets a very faint self-light so it reads
+        // in the shadowed viewmodel.
+        if (k.StartsWith("gun", StringComparison.Ordinal))
+        {
+            switch (k)
+            {
+                case "gunbody":
+                    return Make(src, 0.30f, 0.42f, 0.55f, 0.65f, 0.35f, 120f);
+                case "gunmetal":
+                    return Make(src, 0.55f, 0.30f, 0.58f, 0.55f, 0.30f, 170f);
+                case "gunpoly":
+                    return Make(src, 0.0f, 0.55f, 0.45f, 0.60f, 0.32f, 150f);
+                case "gunmag":
+                    return Make(src, 0.05f, 0.52f, 0.45f, 0.60f, 0.28f, 150f);
+                case "gundark":
+                    return Make(src, 0.0f, 0.72f, 0.40f, 0.50f, 0.25f, 210f);
+                case "gunwhite":
+                    return Make(src, 0.0f, 0.58f, 0.40f, 0.60f, 0.30f, 190f);
+                case "gunaccent":
+                {
+                    var m = Make(src, 0.25f, 0.34f, 0.60f, 0.32f, 0.50f, 80f);
+                    m.SetShaderParameter("emission_color", src);
+                    m.SetShaderParameter("emission_energy", 0.07f);
+                    return m;
+                }
+            }
+        }
         return k switch
         {
             "glass" => Make(new Color(0.02f, 0.05f, 0.11f), 0.1f, 0.05f, 1.0f, 0f, 0.6f),

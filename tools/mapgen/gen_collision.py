@@ -183,7 +183,16 @@ def rasterise(grid, v0, v1, v2):
         return
     n = n / ln
 
-    if abs(n[1]) >= 0.55:
+    # Ramps and stairs are walkable even when their normal leans well away from up
+    # (a 40-50 degree ramp has n.y ~0.64-0.77, a steep 60 degree one 0.5). Treat every
+    # surface up to ~70 degrees as floor and let the 0.5 m grid turn it into steps the
+    # AABB collider can climb; only near-vertical triangles become walls.
+    # Only UP-facing triangles are floors.  Using abs(n[1]) here also turned every
+    # ceiling into a walkable slab, which let the reachability flood climb onto the
+    # B Short ceiling (-1.65) in Bind and walk under the real site floor (0.4)
+    # instead of taking the ramp.  Down-facing triangles are left out; headroom is
+    # already handled by the 1.8 m player height in the collision query.
+    if n[1] >= 0.35:
         # walkable surface: sample the XZ projection on a lattice
         s = cell * 0.75
         xs = np.arange(math.floor(min(v0[0], v1[0], v2[0]) / s) * s,
@@ -219,11 +228,13 @@ def rasterise(grid, v0, v1, v2):
         jj = np.floor(pz[m] / cell).astype(np.int64)
         for a, b, yy in zip(ii.tolist(), jj.tolist(), y.tolist()):
             grid.add_floor(a, b, yy)
-    elif abs(n[1]) <= 0.25:
-        # vertical(ish): footprint is a line in XZ, mark the cells it crosses
+    elif abs(n[1]) <= 0.3:
+        # vertical(ish): footprint is a line in XZ, mark the cells it crosses.
+        # Low railings, thin dividers and window frames are visible cover: dropping them
+        # is how players end up walking through walls. Only ignore tiny trim.
         y0 = float(min(v0[1], v1[1], v2[1]))
         y1 = float(max(v0[1], v1[1], v2[1]))
-        if y1 - y0 < 1.2 or area < 1.5:
+        if y1 - y0 < 0.6 or area < 0.4:
             return
         pts = np.stack([v0, v1, v2, v0])[:, [0, 2]]
         seen = set()
@@ -457,6 +468,15 @@ def generate(folder, cell=0.5, verbose=True):
         print(f"    clip={None if clip is None else [round(v,1) for v in clip]}")
     tris = 0
     for level in levels:
+        # Vista / Skybox levels are mostly painted backdrops hundreds of metres
+        # outside the playable map.  The clip already drops those, but some maps
+        # (Bind) also keep real walkable ramps in the Vista level, so allow it to be
+        # included explicitly instead of discarding the whole level.
+        if (re.search(r"(Vista|Skybox|Backdrop)", level, re.I)
+                and os.environ.get("MAPGEN_INCLUDE_VISTA", "0") != "1"):
+            if verbose:
+                print(f"    skip backdrop: {level}")
+            continue
         path = os.path.join(folder, level + ".glb")
         if not os.path.exists(path) or os.path.getsize(path) < 1024:
             if verbose:

@@ -9,6 +9,7 @@ public sealed class AppSettings
     public string? AccountId;          // null = Valorant's last used account
     public bool UseSensOverride;
     public float SensOverride = 0.4f;
+    public float ValorantSens;         // last sensitivity imported from VALORANT (0 = none yet): lets a CUSTOM copy follow it
     public int Dpi = 800;              // only used to show eDPI and cm/360
     public int EnemyColorOverride = -1;
     public int WindowModeOverride = -1;

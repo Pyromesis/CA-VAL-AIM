@@ -1,8 +1,8 @@
 name: Release
 
-# Push a tag like v1.2.0 (after tools\version.ps1 -Bump/-Set and a "release: v1.2.0" commit) to build the installer,
-# the portable zip and SHA256SUMS.txt and publish them as a GitHub Release. Versions with a '-' (1.2.0-beta.1) are
-# published as prereleases, which the in-app update check ignores.
+# Push a tag like v1.2.0 (after tools\version.ps1 -Bump/-Set and a "release: v1.2.0" commit) to build the installer
+# (Setup.exe, the release's single download) and SHA256SUMS.txt and publish them as a GitHub Release. Versions with
+# a '-' (1.2.0-beta.1) are published as prereleases, which the in-app update check ignores.
 #
 # Code signing (CONTRIBUTING.md, "Code signing"): when the repository variable SIGNPATH_ORGANIZATION_ID and the secret
 # SIGNPATH_API_TOKEN are set, SignPath signs both ValTrainer.exe files before they're packed into the zip and the
@@ -112,7 +112,7 @@ jobs:
         env:
           ISCC: ${{ steps.inno.outputs.iscc }}
         run: |
-          .\tools\build-release.ps1 -Godot $env:GODOT -Iscc $env:ISCC -OutDir dist
+          .\tools\build-release.ps1 -Godot $env:GODOT -Iscc $env:ISCC -OutDir dist -SkipPortable
           if ($LASTEXITCODE -ne 0) { throw "build-release.ps1 failed with exit code $LASTEXITCODE" }
 
       # ---- Signed release: app -> SignPath (both exes) -> zip + installer -> SignPath (Setup.exe) -> checksums.
@@ -177,7 +177,7 @@ jobs:
         env:
           ISCC: ${{ steps.inno.outputs.iscc }}
         run: |
-          .\tools\build-release.ps1 -Stage package -Iscc $env:ISCC -OutDir dist
+          .\tools\build-release.ps1 -Stage package -Iscc $env:ISCC -OutDir dist -SkipPortable
           if ($LASTEXITCODE -ne 0) { throw "build-release.ps1 -Stage package failed with exit code $LASTEXITCODE" }
 
       - name: Upload the unsigned installer for SignPath
@@ -231,27 +231,13 @@ jobs:
           VERSION: ${{ steps.ver.outputs.version }}
         run: |
           $ErrorActionPreference = 'Stop'
-          foreach ($f in "ValTraining-$env:VERSION-Setup.exe", "ValTraining-$env:VERSION-Portable.zip", "SHA256SUMS.txt") {
+          # The release ships one installer: Setup.exe and the checksums the in-app updater verifies against.
+          foreach ($f in "ValTraining-$env:VERSION-Setup.exe", "SHA256SUMS.txt") {
             if (-not (Test-Path "dist\$f")) { throw "dist\$f is missing" }
           }
           # Only the files directly in dist\ are published (not the dist\app folder of a signed build).
           Get-ChildItem dist -File | ForEach-Object { "{0,10:N1} MB  {1}" -f ($_.Length / 1MB), $_.Name }
           Get-Content dist\SHA256SUMS.txt
-          if ($env:SIGNPATH_ENABLED -eq 'true') {
-            # The exe inside the portable zip must be the signed one too.
-            Add-Type -AssemblyName System.IO.Compression.FileSystem
-            $zip = [IO.Compression.ZipFile]::OpenRead((Resolve-Path "dist\ValTraining-$env:VERSION-Portable.zip").Path)
-            try {
-              # Windows PowerShell's ZipFile writes '\' separators.
-              $e = $zip.Entries | Where-Object { ($_.FullName -replace '\\', '/') -eq "ValTraining-$env:VERSION/ValTrainer.exe" }
-              if (-not $e) { throw "ValTrainer.exe is missing from the portable zip" }
-              $tmp = Join-Path $env:RUNNER_TEMP 'zip-check.exe'
-              [IO.Compression.ZipFileExtensions]::ExtractToFile($e, $tmp, $true)
-            } finally { $zip.Dispose() }
-            $sig = Get-AuthenticodeSignature $tmp
-            if ($sig.Status -ne 'Valid') { throw "ValTrainer.exe in the portable zip: signature status $($sig.Status)" }
-            Write-Host "Portable zip: ValTrainer.exe signed by $($sig.SignerCertificate.Subject)"
-          }
 
       - name: Write the release notes
         shell: powershell
@@ -265,15 +251,15 @@ jobs:
           $footer = @"
 
           ---
-          **Download:** ``ValTraining-$env:VERSION-Setup.exe`` (installer, recommended) or ``ValTraining-$env:VERSION-Portable.zip`` (unzip and run, no install). Windows 10 (1607+) or 11, 64-bit.
+          **Download:** ``ValTraining-$env:VERSION-Setup.exe`` — one installer, nothing else: it installs for your Windows user (no admin rights), with Start menu shortcuts and an uninstaller. Windows 10 (1607+) or 11, 64-bit.
           ValTrainer isn't code-signed yet, so Windows SmartScreen may say "Windows protected your PC": click **More info** -> **Run anyway**. Check your download against ``SHA256SUMS.txt`` if you like.
           "@
           if ($env:SIGNPATH_ENABLED -eq 'true') {
             $footer = @"
 
           ---
-          **Download:** ``ValTraining-$env:VERSION-Setup.exe`` (installer, recommended) or ``ValTraining-$env:VERSION-Portable.zip`` (unzip and run, no install). Windows 10 (1607+) or 11, 64-bit.
-          The installer and ValTrainer.exe are code-signed. Free code signing provided by [SignPath.io](https://about.signpath.io/), certificate by [SignPath Foundation](https://signpath.org/). Check your download against ``SHA256SUMS.txt`` if you like.
+          **Download:** ``ValTraining-$env:VERSION-Setup.exe`` — one installer, nothing else: it installs for your Windows user (no admin rights), with Start menu shortcuts and an uninstaller. Windows 10 (1607+) or 11, 64-bit.
+          The installer is code-signed. Free code signing provided by [SignPath.io](https://about.signpath.io/), certificate by [SignPath Foundation](https://signpath.org/). Check your download against ``SHA256SUMS.txt`` if you like.
           "@
           }
           [IO.File]::WriteAllText("$env:RUNNER_TEMP\notes.md", $notes + "`n" + $footer,(New-Object Text.UTF8Encoding $false))

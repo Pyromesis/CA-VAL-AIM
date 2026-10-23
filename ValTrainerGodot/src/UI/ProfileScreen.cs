@@ -133,8 +133,12 @@ public partial class ProfileScreen : ScreenBase
     {
         float k = K;
         var r = new Rect2(Vector2.Zero, d.Size);
-        Gfx.Plate(d, r, 16 * k, new Color(0.07f, 0.11f, 0.15f, 0.84f), new Color(UiTheme.Text, 0.1f));
-        d.DrawRect(new Rect2(0, 0, 34 * k, 2 * k), UiTheme.Accent);
+        Gfx.PlateEx(d, r, 16 * k, true, false, false, true, new Color(0.07f, 0.11f, 0.15f, 0.84f), new Color(UiTheme.Text, 0.1f), 1.2f);
+        // top accent run with a fading tail and signalling diamonds at the two cut corners
+        d.DrawRect(new Rect2(16 * k, 0, 46 * k, 2 * k), UiTheme.Accent);
+        Gfx.HGradient(d, new Rect2(62 * k, 0, 34 * k, 2 * k), new Color(UiTheme.Accent, 0.5f), new Color(UiTheme.Accent, 0f));
+        Gfx.Diamond(d, new Vector2(0, 16 * k), 3.5f * k, 3.5f * k, UiTheme.Accent);
+        Gfx.Diamond(d, new Vector2(r.Size.X - 16 * k, r.Size.Y), 3.5f * k, 3.5f * k, new Color(UiTheme.Teal, 0.85f));
         bool ranked = CoachData.HasOverall(p);
         float t = p.OverallTier;
         var rc = ranked ? CoachRank.Col(t) : UiTheme.NoTier;

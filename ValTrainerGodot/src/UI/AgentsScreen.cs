@@ -419,8 +419,10 @@ public partial class AgentsScreen : ScreenBase
                 CustomMinimumSize = new Vector2(0, 68 * k),
                 OnDraw = d =>
                 {
-                    Gfx.Plate(d, new Rect2(Vector2.Zero, d.Size), 12 * k, new Color(0.07f, 0.11f, 0.15f, 0.6f), new Color(UiTheme.Text, 0.08f));
+                    Gfx.PlateEx(d, new Rect2(Vector2.Zero, d.Size), 12 * k, true, false, false, true,
+                        new Color(0.07f, 0.11f, 0.15f, 0.6f), new Color(UiTheme.Text, 0.10f), 1f);
                     int fs = UiTheme.Fs(15, k), ss = UiTheme.Fs(13.5f, k);
+                    Gfx.Diamond(d, new Vector2(0, 12 * k), 3f * k, 3f * k, new Color(UiTheme.Teal, 0.8f));
                     Gfx.TextFit(d, UiTheme.Body, $"No signature drill for {a.Name} yet.", 16 * k, Gfx.Mid(24 * k, fs), fs, UiTheme.Text, d.Size.X - 32 * k);
                     Gfx.TextFit(d, UiTheme.Body, $"The {a.Role.ToString().ToLowerInvariant()} drills below train the fights that {a.Name}'s utility sets up.",
                         16 * k, Gfx.Mid(48 * k, ss), ss, UiTheme.Dim, d.Size.X - 32 * k);

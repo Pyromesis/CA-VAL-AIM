@@ -33,6 +33,10 @@
   non-zero on any failure. Godot runs only while this script holds the machine-wide Godot slot (the named mutex
   "Global\ValTrainerGodotSlot", shared with tools\godot-run.ps1, gshot.ps1 and selftest.ps1): one Godot at a time.
 
+  Pass -SkipPortable to ship the installer only: it skips the "Windows Desktop" single-exe export, the portable zip
+  and its checksum line. SHA256SUMS.txt then covers just Setup.exe (what the in-app updater expects on releases that
+  don't publish a portable zip).
+
   Local code signing (optional): set SIGNTOOL_CERT_THUMBPRINT (SHA-1 thumbprint of a code-signing certificate in the
   Windows certificate store) and optionally SIGNTOOL_PATH (signtool.exe) and SIGNTOOL_TIMESTAMP_URL. Then the app stage
   signs both ValTrainer.exe files and the package stage signs Setup.exe and the uninstaller. Without it, signing is
@@ -75,6 +79,7 @@ param(
   [string]$AppDir = "",
   [string]$Iscc = "",
   [switch]$SkipInstaller,
+  [switch]$SkipPortable,
   [string]$WorkDir = "",
   [switch]$KeepWork
 )
@@ -269,10 +274,15 @@ function Invoke-AppStage {
       if (-not (Test-Path -LiteralPath $f)) { Fail "export output missing: $f" }
     }
 
-    Step "Exporting ""Windows Desktop"" (single exe) -> $outPort"
-    Invoke-Native $Godot @('--headless', '--path', $stage, '--export-release', 'Windows Desktop', $portExe) 'Godot export (Windows Desktop)'
-    if (-not (Test-Path -LiteralPath $portExe) -or (Get-Item -LiteralPath $portExe).Length -lt 50MB) { Fail "portable export missing or too small: $portExe" }
-    foreach ($exe in @($instExe, $portExe)) { Assert-ExeMetadata $exe }
+    if ($SkipPortable) {
+      Step "Skipping the portable single-exe export (-SkipPortable)"
+      Assert-ExeMetadata $instExe
+    } else {
+      Step "Exporting ""Windows Desktop"" (single exe) -> $outPort"
+      Invoke-Native $Godot @('--headless', '--path', $stage, '--export-release', 'Windows Desktop', $portExe) 'Godot export (Windows Desktop)'
+      if (-not (Test-Path -LiteralPath $portExe) -or (Get-Item -LiteralPath $portExe).Length -lt 50MB) { Fail "portable export missing or too small: $portExe" }
+      foreach ($exe in @($instExe, $portExe)) { Assert-ExeMetadata $exe }
+    }
 
     # ---------------------------------------------------------------- notices
     Step "Writing THIRD-PARTY-NOTICES.txt"
@@ -337,8 +347,12 @@ function Invoke-PackageStage {
   $outPort = Join-Path $AppDir 'portable'
   $portExe = Join-Path $outPort 'ValTrainer.exe'
   $instExe = Join-Path $outInst 'ValTrainer.exe'
-  $need = @($portExe, (Join-Path $outPort 'LICENSE.txt'), (Join-Path $outPort 'THIRD-PARTY-NOTICES.txt'),
-    (Join-Path $outPort 'data_ValTrainer_windows_x86_64\ValTrainer.dll'))
+  if ($SkipPortable -and $SkipInstaller) { Fail "-SkipPortable and -SkipInstaller together would package nothing" }
+  $need = @()
+  if (-not $SkipPortable) {
+    $need += @($portExe, (Join-Path $outPort 'LICENSE.txt'), (Join-Path $outPort 'THIRD-PARTY-NOTICES.txt'),
+      (Join-Path $outPort 'data_ValTrainer_windows_x86_64\ValTrainer.dll'))
+  }
   if (-not $SkipInstaller) {
     $need += @($instExe, (Join-Path $outInst 'ValTrainer.pck'), (Join-Path $outInst 'data_ValTrainer_windows_x86_64'),
       (Join-Path $outInst 'data_ValTrainer_windows_x86_64\ValTrainer.dll'),
@@ -347,13 +361,18 @@ function Invoke-PackageStage {
   foreach ($f in $need) {
     if (-not (Test-Path -LiteralPath $f)) { Fail "app folder incomplete: $f is missing (run -Stage app first, or pass -AppDir)" }
   }
-  $exes = @($portExe); if (-not $SkipInstaller) { $exes += $instExe }
+  $exes = @()
+  if (-not $SkipPortable) { $exes += $portExe }
+  if (-not $SkipInstaller) { $exes += $instExe }
   foreach ($exe in $exes) {
     Assert-ExeMetadata $exe
     Write-Host ("{0}: {1}" -f $exe, (Get-SignatureText $exe))
   }
 
   # ---------------------------------------------------------------- portable zip
+  if ($SkipPortable) {
+    Write-Host "Portable zip: skipped (-SkipPortable)"
+  } else {
   $zipName = "ValTraining-$Version-Portable.zip"
   $zipPath = Join-Path $OutDir $zipName
   Step "Packing $zipName"
@@ -393,6 +412,7 @@ License: GNU GPL v3 (LICENSE.txt). Third-party licenses: THIRD-PARTY-NOTICES.txt
   if (Test-Path -LiteralPath $zipPath) { Remove-Item -LiteralPath $zipPath -Force }
   Add-Type -AssemblyName System.IO.Compression.FileSystem
   [System.IO.Compression.ZipFile]::CreateFromDirectory($zipRoot, $zipPath, [System.IO.Compression.CompressionLevel]::Optimal, $true)
+  }
 
   # ---------------------------------------------------------------- installer
   $setupPath = Join-Path $OutDir "ValTraining-$Version-Setup.exe"
@@ -422,8 +442,8 @@ License: GNU GPL v3 (LICENSE.txt). Third-party licenses: THIRD-PARTY-NOTICES.txt
 # ==================================================================== checksums stage
 function Invoke-ChecksumsStage {
   $files = @((Join-Path $OutDir "ValTraining-$Version-Setup.exe"), (Join-Path $OutDir "ValTraining-$Version-Portable.zip"))
-  if ($Stage -eq 'checksums' -and -not (Test-Path -LiteralPath $files[1])) {
-    Fail "$($files[1]) not found (run -Stage package first)"
+  if ($Stage -eq 'checksums' -and -not (Test-Path -LiteralPath $files[0])) {
+    Fail "$($files[0]) not found (run -Stage package first)"
   }
   Step "Writing SHA256SUMS.txt"
   $lines = foreach ($f in $files) {

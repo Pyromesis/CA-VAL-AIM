@@ -505,8 +505,8 @@ public partial class CardFrame : MarginContainer
     public override void _Draw()
     {
         var r = new Rect2(Vector2.Zero, Size);
-        Gfx.Plate(this, r, 14 * K, Fill, new Color(UiTheme.Text, 0.09f));
-        DrawRect(new Rect2(0, 0, 4 * K, r.Size.Y - 14 * K), Strip);
+        Gfx.PlateEx(this, r, 14 * K, true, false, false, true, Fill, new Color(UiTheme.Text, 0.09f), 1f);
+        DrawRect(new Rect2(0, 14 * K, 4 * K, Mathf.Max(0, r.Size.Y - 14 * K)), Strip);
     }
 }
 
@@ -696,8 +696,8 @@ public partial class DrillTile : BaseButton
         var r = new Rect2(Vector2.Zero, Size);
         bool done = Runs >= Target;
         var fill = new Color(0.075f, 0.115f, 0.155f, 0.92f).Lerp(new Color(0.13f, 0.18f, 0.23f, 0.96f), hover);
-        Gfx.Plate(this, r, 12 * k, fill, new Color(UiTheme.Text, 0.08f + 0.3f * hover));
-        DrawRect(new Rect2(0, 0, 3 * k, r.Size.Y - 12 * k), done ? UiTheme.Good : new Color(UiTheme.Accent, 0.5f + 0.5f * hover));
+        Gfx.PlateEx(this, r, 12 * k, true, false, false, true, fill, new Color(UiTheme.Text, 0.08f + 0.3f * hover), 1f);
+        DrawRect(new Rect2(0, 12 * k, 3 * k, Mathf.Max(0, r.Size.Y - 12 * k)), done ? UiTheme.Good : new Color(UiTheme.Accent, 0.5f + 0.5f * hover));
         if (hover > 0.01f) Gfx.Brackets(this, r.Grow(3 * k), 8 * k * hover, new Color(UiTheme.Text, 0.8f * hover), Mathf.Max(1, 2 * k));
 
         int ns = UiTheme.Fs(23, k), ds = UiTheme.Fs(13, k), ps = UiTheme.Fs(22, k), ls = UiTheme.Fs(10.5f, k);

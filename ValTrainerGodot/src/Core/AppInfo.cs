@@ -1,10 +1,11 @@
+using System.Reflection;
 using Godot;
 
 namespace ValTrainer.Core;
 
 /// <summary>
-/// Who and what this build is: version (stamped on the executable at export, with
-/// <c>application/config/version</c> in project.godot as the fallback) and where it lives on GitHub.
+/// Who and what this build is: version (the highest of the assembly's informational version, the executable's file
+/// version and <c>application/config/version</c> in project.godot) and where it lives on GitHub.
 /// </summary>
 public static class AppInfo
 {
@@ -28,29 +29,45 @@ public static class AppInfo
     static string ReadVersion()
     {
         // The .NET assembly and the executable can be replaced without re-exporting the .pck (the updater does exactly
-        // that), so the version stamped on the executable wins: it always describes the build that is running.
+        // that), so take the highest version available: the assembly's informational version (stamped with -p:Version),
+        // the executable's file version (the exported build) and project.godot (the source tree / dev runs).
+        string best = "0.0.0";
+        void Consider(string? raw)
+        {
+            string? v = SemVer.Normalize(raw);
+            if (v != null && SemVer.Compare(v, best) > 0) best = v;
+        }
+
         try
         {
             string? exe = System.Environment.ProcessPath;
             if (!string.IsNullOrEmpty(exe) && File.Exists(exe))
             {
-                string? fv = System.Diagnostics.FileVersionInfo.GetVersionInfo(exe).FileVersion?.Trim();
-                if (!string.IsNullOrEmpty(fv))
+                // Only trust the app's own executable: in the Godot editor ProcessPath is the editor itself.
+                string name = Path.GetFileName(exe);
+                if (name.Equals("ValTrainer.exe", StringComparison.OrdinalIgnoreCase)
+                    || name.Equals("ValTraining.exe", StringComparison.OrdinalIgnoreCase))
                 {
-                    // "1.16.1.0" -> "1.16.1"
-                    var p = fv.Split('.');
-                    string v = p.Length == 4 && p[3] == "0" ? string.Join('.', p, 0, 3) : fv;
-                    if (SemVer.Normalize(v) != null) return SemVer.Normalize(v)!;
+                    string? fv = System.Diagnostics.FileVersionInfo.GetVersionInfo(exe).FileVersion?.Trim();
+                    if (!string.IsNullOrEmpty(fv))
+                    {
+                        // "1.16.1.0" -> "1.16.1"
+                        var p = fv.Split('.');
+                        Consider(p.Length == 4 && p[3] == "0" ? string.Join('.', p, 0, 3) : fv);
+                    }
                 }
             }
         }
         catch { }
         try
         {
-            var v = ProjectSettings.GetSetting("application/config/version", "").AsString().Trim();
-            return v.Length > 0 ? v : "0.0.0";
+            var info = typeof(AppInfo).Assembly
+                .GetCustomAttribute<System.Reflection.AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+            Consider(info);
         }
-        catch { return "0.0.0"; }
+        catch { }
+        try { Consider(ProjectSettings.GetSetting("application/config/version", "").AsString().Trim()); } catch { }
+        return best;
     }
 
     public static string RepoUrl => $"https://github.com/{GitHubRepo}";

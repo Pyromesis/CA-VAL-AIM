@@ -226,8 +226,12 @@ public partial class RewindScreen
         bool readingFile = recTask != null;
         float w = Mathf.Min(560 * k, sz.X - 40 * k), h = 168 * k;
         var card = new Rect2((sz.X - w) / 2, (sz.Y - h) / 2, w, h);
-        Gfx.Plate(over, card, 14 * k, new Color(0.035f, 0.06f, 0.085f, 0.94f * a), new Color(UiTheme.Text, 0.16f * a));
-        over.DrawRect(new Rect2(card.Position, new Vector2(48 * k, 3 * k)), new Color(UiTheme.Accent, a));
+        Gfx.PlateEx(over, card, 14 * k, true, false, false, true, new Color(0.035f, 0.06f, 0.085f, 0.94f * a), new Color(UiTheme.Text, 0.16f * a), 1.2f);
+        // accent run with a fading tail + cut-corner diamond (tiptoeing alpha for the fade)
+        over.DrawRect(new Rect2(card.Position.X + 14 * k, card.Position.Y, 40 * k, 3 * k), new Color(UiTheme.Accent, a));
+        Gfx.HGradient(over, new Rect2(card.Position.X + 54 * k, card.Position.Y, 34 * k, 3 * k),
+            new Color(UiTheme.Accent, 0.5f * a), new Color(UiTheme.Accent, 0f));
+        Gfx.Diamond(over, new Vector2(card.Position.X, card.Position.Y + 14 * k), 3.2f * k, 3.2f * k, new Color(UiTheme.Accent, a));
         float x = card.Position.X + 28 * k, right = card.End.X - 28 * k;
 
         // spinner + title

@@ -4,20 +4,32 @@ using ValTrainer.Core;
 
 namespace ValTrainer.UI;
 
-/// <summary>Valorant brand colors (#FF4655 / #0F1923 / #ECE8E1) and fonts (Windows' Bahnschrift ≈ DIN).</summary>
+/// <summary>
+/// ValTraining's visual system: a near-black slate canvas, soft raised cards, one red accent (VALORANT #FF4655) used
+/// only for primary actions and state, and DIN-like Bahnschrift for titles over Segoe UI for reading text.
+/// </summary>
 public static class UiTheme
 {
-    public static readonly Color Bg = Color.Color8(15, 25, 35);
-    public static readonly Color Panel = Color.Color8(24, 36, 48);
-    public static readonly Color Panel2 = Color.Color8(34, 48, 62);
-    public static readonly Color Border = Color.Color8(62, 78, 94);
+    public static readonly Color Bg = Color.Color8(9, 12, 17);
+    public static readonly Color Panel = Color.Color8(18, 24, 32);
+    public static readonly Color Panel2 = Color.Color8(25, 33, 43);
+    public static readonly Color Border = Color.Color8(70, 82, 96);
+    /// <summary>Hairline used between rows and sections.</summary>
+    public static readonly Color Line = new(1, 1, 1, 0.07f);
+    public static readonly Color LineStrong = new(1, 1, 1, 0.14f);
+    /// <summary>Raised card fill and its hover state.</summary>
+    public static readonly Color Card = Color.Color8(17, 23, 31);
+    public static readonly Color CardHover = Color.Color8(23, 31, 41);
     public static readonly Color Accent = Color.Color8(255, 70, 85);
     public static readonly Color AccentHover = Color.Color8(255, 105, 118);
-    public static readonly Color AccentDark = Color.Color8(190, 44, 58);
-    public static readonly Color Text = Color.Color8(236, 232, 225);
-    public static readonly Color Dim = Color.Color8(139, 151, 143);
-    public static readonly Color Faint = Color.Color8(92, 104, 112);
-    public static readonly Color Good = Color.Color8(80, 220, 160);
+    public static readonly Color AccentDark = Color.Color8(196, 46, 60);
+    /// <summary>Wash of the accent for selected rows and tags.</summary>
+    public static readonly Color AccentSoft = new(255 / 255f, 70 / 255f, 85 / 255f, 0.13f);
+    public static readonly Color Text = Color.Color8(244, 241, 235);
+    public static readonly Color TextSoft = Color.Color8(203, 208, 214);
+    public static readonly Color Dim = Color.Color8(154, 166, 178);
+    public static readonly Color Faint = Color.Color8(105, 115, 127);
+    public static readonly Color Good = Color.Color8(86, 220, 162);
     public static readonly Color Warn = Color.Color8(250, 196, 70);
     /// <summary>VALORANT's ally/team teal (top bar score box).</summary>
     public static readonly Color Teal = Color.Color8(56, 196, 164);
@@ -30,7 +42,8 @@ public static class UiTheme
     };
     public static readonly string[] EnemyColorNames = { "Red", "Yellow (Deuteranopia)", "Yellow (Protanopia)", "Purple (Tritanopia)" };
 
-    public static Font Body = null!;     // Segoe UI semibold — has every glyph (→ — …)
+    public static Font Body = null!;     // Segoe UI — has every glyph (→ — …)
+    public static Font BodySemi = null!; // Segoe UI semibold — emphasis, small labels
     public static Font Hud = null!;      // Bahnschrift — DIN-like HUD face
     public static Font Display = null!;  // Bahnschrift SemiBold Condensed — big numbers / titles
     /// <summary>Letter-spaced variants for small uppercase labels (VALORANT's tracked-out captions).</summary>
@@ -38,7 +51,14 @@ public static class UiTheme
 
     public static void Init()
     {
-        Body = Sys(new[] { "Segoe UI" }, 600);
+        Body = new SystemFont
+        {
+            FontNames = new[] { "Segoe UI Variable Text", "Segoe UI" },
+            FontWeight = 400,
+            Antialiasing = TextServer.FontAntialiasing.Gray,
+            GenerateMipmaps = true,
+        };
+        BodySemi = Sys(new[] { "Segoe UI Variable Text", "Segoe UI" }, 600);
         Hud = Sys(new[] { "Bahnschrift", "Segoe UI" }, 400);
         Display = Sys(new[] { "Bahnschrift SemiBold Condensed", "Bahnschrift", "Segoe UI" }, 700);
         HudWide = new FontVariation { BaseFont = Sys(new[] { "Bahnschrift SemiBold", "Bahnschrift", "Segoe UI" }, 600), SpacingGlyph = 2 };
@@ -74,6 +94,9 @@ public static class UiTheme
     };
     public static readonly Color NoTier = Color.Color8(100, 112, 122);
 
+    /// <summary>Multiplies a colour's alpha (the Color(Color, float) constructor REPLACES it, which is easy to misuse).</summary>
+    public static Color Fade(Color c, float mul) => new(c.R, c.G, c.B, c.A * mul);
+
     public static Color TierColor(int tier) => tier < 0 ? NoTier : TierCols[Math.Min(tier, TierCols.Length - 1)];
 
     // ---------------- sounds ----------------
@@ -99,8 +122,19 @@ public static class UiTheme
         th.SetFontSize("font_size", "TooltipLabel", Fs(15, k));
 
         float bw = Mathf.Max(4, 6 * k);
-        var track = new StyleBoxFlat { BgColor = new Color(1, 1, 1, 0.04f), ContentMarginLeft = bw / 2, ContentMarginRight = bw / 2 };
-        StyleBoxFlat Grab(Color c) => new() { BgColor = c, ContentMarginLeft = bw / 2, ContentMarginRight = bw / 2 };
+        var track = new StyleBoxFlat
+        {
+            BgColor = new Color(1, 1, 1, 0.035f),
+            ContentMarginLeft = bw / 2, ContentMarginRight = bw / 2,
+            CornerRadiusTopLeft = (int)(bw / 2), CornerRadiusTopRight = (int)(bw / 2),
+            CornerRadiusBottomLeft = (int)(bw / 2), CornerRadiusBottomRight = (int)(bw / 2),
+        };
+        StyleBoxFlat Grab(Color c) => new()
+        {
+            BgColor = c, ContentMarginLeft = bw / 2, ContentMarginRight = bw / 2,
+            CornerRadiusTopLeft = (int)(bw / 2), CornerRadiusTopRight = (int)(bw / 2),
+            CornerRadiusBottomLeft = (int)(bw / 2), CornerRadiusBottomRight = (int)(bw / 2),
+        };
         th.SetStylebox("scroll", "VScrollBar", track);
         th.SetStylebox("grabber", "VScrollBar", Grab(new Color(Text, 0.22f)));
         th.SetStylebox("grabber_highlight", "VScrollBar", Grab(new Color(Text, 0.45f)));
@@ -122,7 +156,7 @@ public static class Gfx
     /// <summary>Width of the visible (translated) string, so Spanish labels are measured at their real length.</summary>
     public static float TextW(Font f, string t, int size) => RawW(f, Loc.T(t), size);
 
-    static float RawW(Font f, string t, int size) => f.GetStringSize(t, HorizontalAlignment.Left, -1, size).X;
+    public static float RawW(Font f, string t, int size) => f.GetStringSize(t, HorizontalAlignment.Left, -1, size).X;
 
     /// <summary>Baseline that vertically centres capital letters on <paramref name="cy"/>.</summary>
     public static float Mid(float cy, int size) => cy + size * 0.36f;
@@ -171,13 +205,28 @@ public static class Gfx
             if (border.A > 0) ci.DrawRect(r, border, false, bw);
             return;
         }
+        PlateEx(ci, r, cut, false, true, true, false, fill, border, bw);
+    }
+
+    /// <summary>Angular plate with an independent top-left/right and bottom-left/right 45° cut per corner.</summary>
+    public static void PlateEx(CanvasItem ci, Rect2 r, float cut, bool tl, bool tr, bool bl, bool br,
+        Color fill, Color border, float bw = 1f)
+    {
         float x0 = r.Position.X, y0 = r.Position.Y, x1 = r.End.X, y1 = r.End.Y;
-        cut = Mathf.Min(cut, Mathf.Min(r.Size.X, r.Size.Y) * 0.45f);
-        Span<Vector2> p = stackalloc Vector2[7];
-        p[0] = new(x0, y0); p[1] = new(x1 - cut, y0); p[2] = new(x1, y0 + cut); p[3] = new(x1, y1);
-        p[4] = new(x0 + cut, y1); p[5] = new(x0, y1 - cut); p[6] = p[0];
-        if (fill.A > 0) ci.FillPoly(p[..6], fill);
-        if (border.A > 0) ci.Polyline(p, border, bw);
+        cut = Mathf.Clamp(cut, 0, Mathf.Min(r.Size.X, r.Size.Y) * 0.48f);
+        Span<Vector2> p = stackalloc Vector2[10];
+        int n = 0;
+        // walk clockwise from the top-left corner
+        p[n++] = tl ? new(x0, y0 + cut) : new(x0, y0);
+        if (tr) { p[n++] = new(x1 - cut, y0); p[n++] = new(x1, y0 + cut); } else p[n++] = new(x1, y0);
+        if (br) { p[n++] = new(x1, y1 - cut); p[n++] = new(x1 - cut, y1); } else p[n++] = new(x1, y1);
+        if (bl) { p[n++] = new(x0 + cut, y1); p[n++] = new(x0, y1 - cut); } else p[n++] = new(x0, y1);
+        if (fill.A > 0) ci.FillPoly(p[..n], fill);
+        if (border.A > 0)
+        {
+            p[n] = p[0];
+            ci.Polyline(p[..(n + 1)], border, bw, true);
+        }
     }
 
     /// <summary>Horizontal parallelogram (one slanted side) for the top score boxes.</summary>
@@ -242,6 +291,69 @@ public static class Gfx
         ci.Polyline(p, col, w, true);
     }
 
+    /// <summary>
+    /// Rounded panel/button: fill, optional 1px border and optional soft shadow. The outline is built as an
+    /// anti-aliased polygon, so it costs no allocations and never depends on mutable StyleBox state.
+    /// </summary>
+    public static void Round(CanvasItem ci, Rect2 r, float radius, Color fill, Color border = default, float bw = 0, float shadow = 0, Color? shadowColor = null)
+    {
+        if (r.Size.X < 2 || r.Size.Y < 2) return;
+        float rad = Mathf.Clamp(radius, 0, Mathf.Min(r.Size.X, r.Size.Y) / 2);
+        int seg = Math.Clamp((int)MathF.Ceiling(rad / 3f), 3, 8);
+        int n = rad < 0.6f ? 4 : 4 * (seg + 1);
+        Span<Vector2> p = stackalloc Vector2[40];
+        if (shadow > 0 && rad >= 0.6f)
+        {
+            var sc = shadowColor ?? new Color(0, 0, 0, 0.3f);
+            for (int l = 3; l >= 1; l--)
+            {
+                float g = shadow * (0.16f * l);
+                var sr = new Rect2(r.Position - new Vector2(g, g) + new Vector2(0, shadow * 0.34f), r.Size + new Vector2(g * 2, g * 2));
+                RoundPoints(sr, Mathf.Min(rad + g, Mathf.Min(sr.Size.X, sr.Size.Y) / 2), seg, p);
+                ci.FillPoly(p[..n], new Color(sc, sc.A * 0.2f));
+            }
+        }
+        RoundPoints(r, rad, seg, p);
+        if (fill.A > 0) ci.FillPoly(p[..n], fill);
+        if (bw > 0 && border.A > 0)
+        {
+            p[n] = p[0];
+            ci.Polyline(p[..(n + 1)], border, bw, true);
+        }
+    }
+
+    static void RoundPoints(Rect2 r, float rad, int seg, Span<Vector2> p)
+    {
+        float x0 = r.Position.X, y0 = r.Position.Y, x1 = r.End.X, y1 = r.End.Y;
+        if (rad < 0.6f)
+        {
+            p[0] = new(x0, y0); p[1] = new(x1, y0); p[2] = new(x1, y1); p[3] = new(x0, y1);
+            p[4] = p[0]; p[5] = p[1]; p[6] = p[2]; p[7] = p[3];
+            return;
+        }
+        int i = 0;
+        Arc(p, ref i, x0 + rad, y0 + rad, Mathf.Pi, Mathf.Pi * 1.5f, rad, seg);          // top-left
+        Arc(p, ref i, x1 - rad, y0 + rad, Mathf.Pi * 1.5f, Mathf.Pi * 2f, rad, seg);      // top-right
+        Arc(p, ref i, x1 - rad, y1 - rad, 0f, Mathf.Pi * 0.5f, rad, seg);                 // bottom-right
+        Arc(p, ref i, x0 + rad, y1 - rad, Mathf.Pi * 0.5f, Mathf.Pi, rad, seg);           // bottom-left
+    }
+
+    static void Arc(Span<Vector2> p, ref int i, float cx, float cy, float a0, float a1, float rad, int seg)
+    {
+        for (int s = 0; s <= seg; s++)
+        {
+            float a = a0 + (a1 - a0) * s / seg;
+            p[i++] = new Vector2(cx + MathF.Cos(a) * rad, cy + MathF.Sin(a) * rad);
+        }
+    }
+
+    /// <summary>Soft radial glow built from a few stacked translucent circles (background ambience).</summary>
+    public static void Glow(CanvasItem ci, Vector2 c, float radius, Color color, int steps = 8)
+    {
+        for (int i = steps; i >= 1; i--)
+            ci.DrawCircle(c, radius * i / steps, new Color(color, color.A / steps), true, -1, true);
+    }
+
     /// <summary>Vertical gradient rectangle.</summary>
     public static void VGradient(CanvasItem ci, Rect2 r, Color top, Color bottom)
     {
@@ -294,4 +406,14 @@ public static class Gfx
     }
 
     public static float EaseOut(float t) { t = Mathf.Clamp(t, 0, 1); return 1 - (1 - t) * (1 - t); }
+    public static float EaseInOut(float t)
+    {
+        t = Mathf.Clamp(t, 0, 1);
+        return t < 0.5f ? 2 * t * t : 1 - MathF.Pow(-2 * t + 2, 2) / 2;
+    }
+    public static float EaseOutQuart(float t) { t = Mathf.Clamp(t, 0, 1); return 1 - MathF.Pow(1 - t, 4); }
+    public static float EaseOutExpo(float t) { t = Mathf.Clamp(t, 0, 1); return t >= 1 ? 1 : 1 - MathF.Pow(2, -10 * t); }
+    public static float EaseOutCubic(float t) { t = Mathf.Clamp(t, 0, 1); return 1 - MathF.Pow(1 - t, 3); }
+    /// <summary>0..1 ping-pong wave (sine), for breathing glows.</summary>
+    public static float Wave(float t, float hz = 0.6f) => 0.5f + 0.5f * MathF.Sin(t * MathF.Tau * hz);
 }

@@ -24,6 +24,8 @@ public partial class Main : Node
     public ValorantProfile Valorant = new();
 
     Node? screen;
+    /// <summary>A drill owns the screen: full frame cap. Menus stay at 60 to keep the GPU/CPU idle.</summary>
+    bool inGame;
 
     /// <summary>Automation/dev mode (--dev): windowed 1600×900, never captures the mouse or pauses on focus loss,
     /// so test runs don't take over the desktop. Also accepts --tier N and --map key overrides (not saved).</summary>
@@ -103,6 +105,19 @@ public partial class Main : Node
             // Dev tool (works with --headless): the resolved VALORANT keybinds (defaults + BackupKeybinds.json overrides).
             GD.Print($"[keybinds] {(Valorant.Found ? "imported account" : "no account: VALORANT defaults")}");
             foreach (var line in Valorant.Binds.Dump().Split('\n')) GD.Print("[keybinds] " + line);
+            GetTree().Quit();
+            return;
+        }
+        if (Dev && args.Contains("--profile-dump"))
+        {
+            // Dev tool (works with --headless): what the VALORANT import actually produced.
+            GD.Print($"[profile] account {Valorant.AccountId ?? "-"} ({Valorant.Status}); {Valorant.Source}");
+            GD.Print($"[profile] dir {Paths.ValorantConfigDir}");
+            GD.Print($"[profile] sensitivity {Valorant.Sensitivity} fromFile={Valorant.SensFromFile} custom={Settings.UseSensOverride} override={Settings.SensOverride} last={Settings.ValorantSens} effective={Sens}");
+            var xh = Valorant.Crosshair;
+            GD.Print($"[profile] crosshair '{xh.Name}' advanced={xh.UseAdvancedOptions} note={Valorant.CrosshairNote ?? "-"}");
+            GD.Print($"[profile] primary color={xh.Primary.Color.ToHtml()} outline={xh.Primary.HasOutline} dot={xh.Primary.CenterDot} " +
+                     $"inner={xh.Primary.Inner.Show} outer={xh.Primary.Outer.Show}");
             GetTree().Quit();
             return;
         }
@@ -194,11 +209,59 @@ public partial class Main : Node
         Settings.AutoQualityReason = reason;
     }
 
+    // VALORANT rewrites its config when the game closes or applies a settings change; while ValTrainer sits in a menu,
+    // pick those writes up so the sens and the crosshair the drills use are the ones the player sees in-game.
+    long valorantStamp;
+    double valorantPoll;
+
+    /// <summary>Newest write time of every file <see cref="Reimport"/> reads (0 when there is none).</summary>
+    long ValorantStamp()
+    {
+        long t = 0;
+        void Add(string? f)
+        {
+            try { if (f != null && File.Exists(f)) t = Math.Max(t, File.GetLastWriteTimeUtc(f).Ticks); } catch { }
+        }
+        try
+        {
+            foreach (var a in Accounts)
+            {
+                Add(Path.Combine(a.Folder, "Windows", "RiotUserSettings.ini"));
+                Add(Path.Combine(a.Folder, "WindowsClient", "GameUserSettings.ini"));
+                Add(Path.Combine(a.Folder, "WindowsClient", "BackupKeybinds.json"));
+            }
+            if (Paths.ValorantConfigDir is { } root)
+            {
+                Add(Path.Combine(root, "WindowsClient", "GameUserSettings.ini"));
+                Add(Path.Combine(root, "WindowsClient", "RiotLocalMachine.ini"));
+            }
+        }
+        catch { }
+        return t;
+    }
+
     public void Reimport()
     {
+        float before = Settings.ValorantSens;
         Accounts = ValorantImporter.FindAccounts();
         var acc = Accounts.FirstOrDefault(a => a.Id == Settings.AccountId) ?? Accounts.FirstOrDefault();
         Valorant = ValorantImporter.Load(acc);
+        valorantStamp = ValorantStamp();
+        bool dirty = false;
+        // A CUSTOM sensitivity that still equals the previous import was copied from VALORANT (the source toggle and the
+        // Sens Lab do that): follow the new value instead of freezing the copy at whatever the game had at that moment.
+        if (Settings.UseSensOverride && before > 0 && MathF.Abs(Settings.SensOverride - before) <= 0.0005f && Valorant.Sensitivity != before)
+        {
+            Settings.SensOverride = Valorant.Sensitivity;
+            dirty = true;
+        }
+        if (Valorant.Found && Valorant.Sensitivity > 0 && Valorant.Sensitivity != before)
+        {
+            Settings.ValorantSens = Valorant.Sensitivity;
+            dirty = true;
+        }
+        if (dirty) Settings.Save();
+        if (screen is ValTrainer.UI.SettingsScreen ss) ss.RefreshAll();
     }
 
     void SetScreen(Node n)
@@ -206,6 +269,8 @@ public partial class Main : Node
         screen?.QueueFree();
         screen = n;
         AddChild(n);
+        inGame = n is GameSession;
+        ApplyFps();
     }
 
     /// <summary>Tier in effect (dev override or the saved setting).</summary>
@@ -260,8 +325,21 @@ public partial class Main : Node
     public void ApplyFps()
     {
         if (Dev) { Engine.MaxFps = 0; DisplayServer.WindowSetVsyncMode(DisplayServer.VSyncMode.Disabled); return; } // benchmarkable
-        Engine.MaxFps = Math.Max(0, FpsCap);
+        int cap = FpsCap;
+        // Valorant's "unlimited" (FrameRateLimit=0) means "as fast as the monitor": following the refresh
+        // rate instead of an uncapped loop is what stops the app from pinning CPU/GPU on menus.
+        if (cap <= 0) cap = ScreenRefresh();
+        // The menu has no gameplay to smooth: 60 is plenty and leaves the GPU idle between drills.
+        if (!inGame) cap = Math.Min(cap, 60);
+        Engine.MaxFps = Math.Max(1, cap);
         DisplayServer.WindowSetVsyncMode(VSync ? DisplayServer.VSyncMode.Enabled : DisplayServer.VSyncMode.Disabled);
+    }
+
+    /// <summary>Monitor refresh rate (fallback 144 when the display server can't report it).</summary>
+    int ScreenRefresh()
+    {
+        float hz = DisplayServer.ScreenGetRefreshRate(Monitor);
+        return hz > 1f && hz < 1000f ? Mathf.RoundToInt(hz) : 144;
     }
 
     /// <summary>Mirrors Valorant's display mode, resolution and monitor (overridable in Settings).</summary>
@@ -298,6 +376,17 @@ public partial class Main : Node
         SingleInstance.Poll(); // a second launch asked this copy to come to the front (no-op unless this copy holds the lock)
         UpdateCheck.Poll(); // picks up the background update check's answer (cheap when idle)
         Updater.Poll();     // background update download / install (cheap when idle)
+        // VALORANT's settings files are only rewritten when the game saves; check them while in a menu (never mid-drill).
+        valorantPoll += delta;
+        if (valorantPoll >= 2)
+        {
+            valorantPoll = 0;
+            if (screen is ValTrainer.UI.MenuScreen or ValTrainer.UI.SettingsScreen && ValorantStamp() != valorantStamp)
+            {
+                Reimport();
+                Log.Info($"VALORANT settings changed on disk: re-imported (sens {Valorant.Sensitivity}, custom {Settings.UseSensOverride} {Settings.SensOverride}, crosshair '{Valorant.Crosshair.Name}')");
+            }
+        }
         // Dev runs log FPS so automated checks can read performance from stdout.
         if (!Dev) return;
         if (throwTest > 0)

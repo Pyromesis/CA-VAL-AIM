@@ -30,6 +30,9 @@ public abstract class MapMode : MovementMode
         MapSpot = key == "random" ? MapSpots.All[Random.Shared.Next(MapSpots.All.Length)] : MapSpots.ByKey(key);
         SpawnFeet = SafeFeet(MapSpot.StartFeet, MapSpot.Solid);
         SpawnYaw = MapSpot.StartYaw;
+        if (Main.I?.Dev == true)
+            GD.Print($"[spawn] {MapSpot.Key} authored={MapSpot.StartFeet} safe={SpawnFeet} yaw={SpawnYaw} " +
+                     $"ground={Collision.Ground(SpawnFeet, MapSpot.Solid)} overlap={Collision.Overlaps(SpawnFeet, MapSpot.Solid)}");
     }
 
     /// <summary>

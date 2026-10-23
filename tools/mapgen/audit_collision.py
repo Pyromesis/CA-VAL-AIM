@@ -95,11 +95,16 @@ def flood(world, start, max_nodes=400000):
         y = y_at[(cx, cz)]
         for dx, dz in ((1, 0), (-1, 0), (0, 1), (0, -1)):
             n = (cx + dx, cz + dz)
-            if n in y_at: continue
             wx, wz = n[0] * CELL, n[1] * CELL
             g = world.ground(wx, wz, y + 0.35)
             if g < y - DROP or g > y + RISE: continue
             if world.blocked(wx, wz, g): continue
+            # A cell can be reachable at several heights (stairs, ramps, stacked
+            # floors).  Keep the highest one: if a later path reaches it higher,
+            # re-queue so the upper route is explored too.  Without this the
+            # flood reaches the foot of a staircase first and never climbs it.
+            if n in y_at and g <= y_at[n] + 1e-6:
+                continue
             y_at[n] = g
             queue.append(n)
         if len(y_at) > max_nodes:

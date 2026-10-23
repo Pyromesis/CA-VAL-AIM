@@ -371,7 +371,7 @@ public partial class Hud : Control
     {
         float cx = size.X / 2, bh = 74 * k, by = size.Y - 30 * k - bh, bw = 300 * k;
         var r = new Rect2(cx - 140 * k - bw, by, bw, bh);
-        Gfx.Plate(this, r, 12 * k, UiTheme.Plate, new Color(UiTheme.Text, 0.08f));
+        Gfx.PlateEx(this, r, 12 * k, true, false, false, true, UiTheme.Plate, new Color(UiTheme.Text, 0.09f), 1f);
         float hp = Mathf.Max(0, s.Player.Hp), sh = Mathf.Max(0, s.Player.Shield);
         bool low = hp < 30;
 
@@ -401,7 +401,7 @@ public partial class Hud : Control
         var gun = s.Gun!;
         float cx = size.X / 2, bh = 74 * k, by = size.Y - 30 * k - bh, bw = 300 * k;
         var r = new Rect2(cx + 140 * k, by, bw, bh);
-        Gfx.Plate(this, r, 12 * k, UiTheme.Plate, new Color(UiTheme.Text, 0.08f));
+        Gfx.PlateEx(this, r, 12 * k, true, false, false, true, UiTheme.Plate, new Color(UiTheme.Text, 0.09f), 1f);
         bool low = gun.Ammo <= Math.Max(1, gun.Def.Mag / 5);
         int as_ = UiTheme.Fs(66, k), rs = UiTheme.Fs(26, k), ns = UiTheme.Fs(12, k);
         string ammo = cAmmo.Get(gun.Ammo, v => v.ToString(Inv));
@@ -676,12 +676,39 @@ public partial class Hud : Control
         return b;
     }
 
-    static void Dimmer(CanvasItem ci, Vector2 size, float k, float a)
+    static void Dimmer(CanvasItem ci, Vector2 size, float k, float a, float t = 0f)
     {
-        ci.DrawRect(new Rect2(Vector2.Zero, size), new Color(0.03f, 0.05f, 0.07f, a));
-        var line = new Color(1, 1, 1, 0.018f);
-        float step = 46 * k;
-        for (float x = -size.Y; x < size.X; x += step) ci.DrawLine(new Vector2(x, size.Y), new Vector2(x + size.Y * 0.58f, 0), line, 1f);
+        ci.DrawRect(new Rect2(Vector2.Zero, size), new Color(0.02f, 0.03f, 0.05f, a));
+        // vignette: gradient bands pressing in the top and bottom edges
+        float m = Mathf.Min(size.Y * 0.34f, 190 * k);
+        var edge = new Color(0, 0, 0, Mathf.Clamp(a - 0.32f, 0, 0.6f));
+        Span<Vector2> q = stackalloc Vector2[4];
+        Span<Color> c = stackalloc Color[4];
+        q[0] = new(0, 0); q[1] = new(size.X, 0); q[2] = new(size.X, m); q[3] = new(0, m);
+        c[0] = new Color(0, 0, 0, 0); c[1] = c[0]; c[2] = edge; c[3] = c[2];
+        ci.GradPoly(q, c);
+        q[0] = new(0, size.Y - m); q[1] = new(size.X, size.Y - m); q[2] = new(size.X, size.Y); q[3] = new(0, size.Y);
+        c[0] = edge; c[1] = c[0]; c[2] = new Color(0, 0, 0, 0); c[3] = c[2];
+        ci.GradPoly(q, c);
+        // hairline hatch in both diagonals
+        var line = new Color(1, 1, 1, 0.011f);
+        float step = 62 * k;
+        for (float x = -size.Y; x < size.X; x += step)
+            ci.DrawLine(new Vector2(x, size.Y), new Vector2(x + size.Y * 0.58f, 0), line, 1f);
+        var line2 = new Color(1, 1, 1, 0.006f);
+        for (float x = 0; x < size.X + size.Y; x += step * 1.7f)
+            ci.DrawLine(new Vector2(x, 0), new Vector2(x - size.Y * 0.58f, size.Y), line2, 1f);
+        // a slow accent light bundle sweeping across at 45°
+        if (t > 0)
+        {
+            float cx = Mathf.Lerp(-size.Y * 0.6f, size.X + size.Y * 0.3f, (t * 0.05f) % 1f);
+            for (int i = 0; i < 13; i++)
+            {
+                float fall = 1f - MathF.Abs(i - 6f) / 7f;
+                ci.DrawLine(new Vector2(cx + (i - 6) * 16 * k, size.Y + 12), new Vector2(cx + (i - 6) * 16 * k + size.Y * 0.58f, -12),
+                    new Color(UiTheme.Accent, 0.018f * fall), 1.5f);
+            }
+        }
     }
 
     // ---------------- pause ----------------
@@ -858,29 +885,128 @@ public partial class Hud : Control
         string pauseSub = $"{m.Name.ToUpperInvariant()} · {pauseTier.Name.ToUpperInvariant()}";
         overlay!.OnDraw = d =>
         {
-            Dimmer(d, size, k, 0.78f);
+            float t = RealNow - overlayAt;
+            float pulse = Gfx.Wave(RealNow, 0.5f);
+            Dimmer(d, size, k, 0.78f, RealNow);
+
             var pr = panel;
-            Gfx.Plate(d, pr, 22 * k, new Color(0.06f, 0.1f, 0.14f, 0.96f), new Color(UiTheme.Text, 0.14f));
-            d.DrawRect(new Rect2(pr.Position, new Vector2(48 * k, 3 * k)), UiTheme.Accent);
-            float cx = pr.GetCenter().X;
-            int ts = UiTheme.Fs(76, k), ss = UiTheme.Fs(14, k);
-            Gfx.TextC(d, UiTheme.Display, "PAUSED", cx, pr.Position.Y + 84 * k, ts, UiTheme.Text);
-            Gfx.TextC(d, UiTheme.HudWide, pauseSub, cx, pr.Position.Y + 116 * k, ss, UiTheme.Dim);
-            d.DrawRect(new Rect2(bx, pr.Position.Y + 140 * k, pr.Size.X - 104 * k, 1), new Color(UiTheme.Text, 0.1f));
-            d.DrawRect(new Rect2(rightX - 22 * k, pr.Position.Y + 158 * k, 1, 368 * k), new Color(UiTheme.Text, 0.08f));
+            float x0 = pr.Position.X, y0 = pr.Position.Y, x1 = pr.End.X, y1 = pr.End.Y, cx = pr.GetCenter().X;
+            float cut = 26 * k;
+
+            // marching dashes for the edges (declared early, used by header + divider)
+            void RunX(float ex, float ey, float len, Color c, float h, float speed)
+            {
+                float db = 62 * k, span = len + db;
+                float xx = ((RealNow * speed * k) % span) - db;
+                for (int i = 0; i < 9; i++)
+                {
+                    float fall = 1f - MathF.Abs(i - 4f) / 5f;
+                    d.DrawRect(new Rect2(ex + xx + (i - 4) * 9 * k, ey, 3 * k, h), new Color(c, c.A * fall * 0.85f));
+                }
+            }
+
+            // ---- plate: glow halo, 45° cuts, inner hairline ----
+            for (int i = 0; i < 2; i++)
+            {
+                float e = (9 + i * 10 + pulse * 3) * k;
+                Gfx.PlateEx(d, new Rect2(x0 - e, y0 - e, pr.Size.X + e * 2, pr.Size.Y + e * 2), cut + e,
+                    true, false, false, true, new Color(0, 0, 0, 0), new Color(UiTheme.Accent, 0.05f / (i + 1)), 1f);
+            }
+            Gfx.PlateEx(d, pr, cut, true, false, false, true,
+                new Color(0.05f, 0.09f, 0.13f, 0.97f), new Color(UiTheme.Text, 0.14f + 0.06f * pulse), 1.5f);
+            Gfx.PlateEx(d, new Rect2(x0 + 4 * k, y0 + 4 * k, pr.Size.X - 8 * k, pr.Size.Y - 8 * k), cut - 4 * k,
+                true, false, false, true, new Color(0, 0, 0, 0), new Color(UiTheme.Accent, 0.11f), 1f);
+            float dp = (3f + 1.6f * pulse) * k;
+            Gfx.Diamond(d, new Vector2(x0, y0 + cut), dp, dp, UiTheme.Accent);
+            Gfx.Diamond(d, new Vector2(x1 - cut, y1), dp, dp, UiTheme.Teal);
+            float bb = 9 * k + pulse * 2.5f * k; // breathing outer brackets
+            Gfx.Brackets(d, new Rect2(x0 - bb, y0 - bb, pr.Size.X + bb * 2, pr.Size.Y + bb * 2),
+                (15 + 3 * pulse) * k, new Color(UiTheme.Text, 0.28f + 0.14f * pulse), 2 * k);
+
+            // breathing accent bar along the top edge with a fading tail; teal echo at the bottom right
+            float abw = (110 + 60 * pulse) * k;
+            d.DrawRect(new Rect2(x0 + cut, y0, abw, 3 * k), UiTheme.Accent);
+            Span<Vector2> tq = stackalloc Vector2[4];
+            Span<Color> tc = stackalloc Color[4];
+            tq[0] = new(x0 + cut + abw, y0);
+            tq[1] = tq[0] + new Vector2(80 * k, 0);
+            tq[2] = tq[1] + new Vector2(0, 3 * k);
+            tq[3] = tq[0] + new Vector2(0, 3 * k);
+            tc[0] = new Color(UiTheme.Accent, 0.4f); tc[3] = tc[0];
+            tc[1] = new Color(0, 0, 0, 0); tc[2] = tc[1];
+            d.GradPoly(tq, tc);
+            d.DrawRect(new Rect2(x1 - cut - 80 * k, y1 - 3 * k, 80 * k, 3 * k), new Color(UiTheme.Teal, 0.7f));
+
+            // slow scan shimmer drifting inside the plate
+            float scanY = y0 + ((RealNow * 42 * k) % pr.Size.Y);
+            float band = MathF.Min(36 * k, scanY - y0 - 2 * k);
+            if (band > 0)
+            {
+                Span<Vector2> sq = stackalloc Vector2[4];
+                Span<Color> sc = stackalloc Color[4];
+                sq[0] = new(x0 + 3 * k, scanY - band);
+                sq[1] = new(x1 - 3 * k, scanY - band);
+                sq[2] = sq[1] + new Vector2(0, band);
+                sq[3] = sq[0] + new Vector2(0, band);
+                sc[0] = new Color(0, 0, 0, 0); sc[1] = sc[0];
+                sc[2] = new Color(UiTheme.Accent, 0.03f); sc[3] = sc[2];
+                d.GradPoly(sq, sc);
+            }
+            d.DrawRect(new Rect2(x0 + 3 * k, scanY, pr.Size.X - 6 * k, 1.5f), new Color(UiTheme.Accent, 0.09f));
+
+            // ---- header ----
+            int ts = UiTheme.Fs(76, k), ss = UiTheme.Fs(14, k), ks = UiTheme.Fs(12, k), ls = UiTheme.Fs(11, k);
+            float kw = Gfx.TextC(d, UiTheme.HudWide, "// SYSTEM HOLD", cx, y0 + 40 * k, ks, new Color(UiTheme.Teal, 0.7f + 0.3f * pulse));
+            float kickCy = y0 + 40 * k - ks * 0.36f;
+            Gfx.Diamond(d, new Vector2(cx - kw / 2 - 14 * k, kickCy), 2.6f * k, 2.6f * k, new Color(UiTheme.Teal, 0.8f));
+            Gfx.Diamond(d, new Vector2(cx + kw / 2 + 14 * k, kickCy), 2.6f * k, 2.6f * k, new Color(UiTheme.Teal, 0.8f));
+            float ty = y0 + 84 * k + (1f - Gfx.EaseOutExpo(MathF.Min(t / 0.45f, 1f))) * 16 * k;
+            Gfx.TextC(d, UiTheme.Display, "PAUSED", cx, ty + 5 * k, ts, new Color(UiTheme.Accent, 0.35f));
+            Gfx.TextC(d, UiTheme.Display, "PAUSED", cx, ty, ts, UiTheme.Text);
+            float tw = Gfx.RawW(UiTheme.Display, Loc.T("PAUSED"), ts);
+            float tCy = ty - ts * 0.36f;
+            float tgap = tw / 2 + 30 * k + pulse * 5 * k;
+            Gfx.Chevron(d, new Vector2(cx - tgap, tCy), 18 * k, 1, new Color(UiTheme.Accent, 0.4f + 0.4f * pulse), 4 * k);
+            Gfx.Chevron(d, new Vector2(cx + tgap, tCy), 18 * k, -1, new Color(UiTheme.Accent, 0.4f + 0.4f * pulse), 4 * k);
+            float sw = Gfx.TextC(d, UiTheme.HudWide, pauseSub, cx, y0 + 116 * k, ss, UiTheme.Dim);
+            Gfx.Diamond(d, new Vector2(cx - sw / 2 - 12 * k, y0 + 116 * k - ss * 0.36f), 2.8f * k, 2.8f * k, new Color(UiTheme.Accent, 0.7f));
+            Gfx.Diamond(d, new Vector2(cx + sw / 2 + 12 * k, y0 + 116 * k - ss * 0.36f), 2.8f * k, 2.8f * k, new Color(UiTheme.Accent, 0.7f));
+
+            // header divider: accent fading to the right + marching dashes
+            float dy = y0 + 140 * k;
+            Span<Vector2> dq = stackalloc Vector2[4];
+            Span<Color> dc = stackalloc Color[4];
+            dq[0] = new(bx, dy); dq[1] = new(x1 - 52 * k, dy);
+            dq[2] = dq[1] + new Vector2(0, 1.4f); dq[3] = dq[0] + new Vector2(0, 1.4f);
+            dc[0] = new Color(UiTheme.Accent, 0.4f + 0.25f * pulse); dc[3] = dc[0];
+            dc[1] = new Color(UiTheme.Text, 0.09f); dc[2] = dc[1];
+            d.GradPoly(dq, dc);
+            Gfx.Diamond(d, new Vector2(bx - 10 * k, dy), 3.5f * k, 3.5f * k, UiTheme.Accent);
+            RunX(bx + 6 * k, dy - 2.5f * k, x1 - 58 * k - bx, new Color(UiTheme.Text, 0.3f), 5 * k, 55);
+
+            // column divider with teal end diamonds
+            float vx = rightX - 22 * k;
+            d.DrawRect(new Rect2(vx, y0 + 158 * k, 1, 368 * k), new Color(UiTheme.Text, 0.09f));
+            Gfx.Diamond(d, new Vector2(vx, y0 + 158 * k), 3 * k, 3 * k, new Color(UiTheme.Teal, 0.85f));
+            Gfx.Diamond(d, new Vector2(vx, y0 + 526 * k), 3 * k, 3 * k, new Color(UiTheme.Teal, 0.85f));
 
             // left: sensitivity quick adjust
             float sens = app.Sens;
-            int vsz = UiTheme.Fs(30, k), ls = UiTheme.Fs(11, k);
-            Gfx.TextC(d, UiTheme.HudWide, "SENSITIVITY", bx + bw / 2, py + 374 * k, ls, UiTheme.Dim);
-            d.DrawRect(new Rect2(bx + ab + 8 * k, sensY, bw - 2 * ab - 16 * k, ab), new Color(0.03f, 0.06f, 0.09f, 0.9f));
+            int vsz = UiTheme.Fs(30, k), ns = UiTheme.Fs(11, k);
+            float shw = Gfx.TextC(d, UiTheme.HudWide, "SENSITIVITY", bx + bw / 2, py + 374 * k, ls, UiTheme.Dim);
+            float shCy = py + 374 * k - ls * 0.36f;
+            float rail = MathF.Max(0f, bw / 2 - shw / 2 - 10 * k);
+            d.DrawRect(new Rect2(bx, shCy - 0.5f, rail, 1), new Color(UiTheme.Text, 0.14f));
+            d.DrawRect(new Rect2(bx + bw - rail, shCy - 0.5f, rail, 1), new Color(UiTheme.Text, 0.14f));
+            var sbox = new Rect2(bx + ab + 8 * k, sensY, bw - 2 * ab - 16 * k, ab);
+            Gfx.PlateEx(d, sbox, 9 * k, false, false, false, true, new Color(0.03f, 0.06f, 0.09f, 0.92f), new Color(UiTheme.Text, 0.17f), 1f);
+            d.DrawRect(new Rect2(sbox.Position.X, sbox.Position.Y, 2.5f * k, sbox.Size.Y), UiTheme.Accent);
             if (sensEdit != null && IsInstanceValid(sensEdit))
             {
                 if (!sensEdit.HasFocus() && sensEdit.Text != sens.ToString("0.000", Inv)) sensEdit.Text = sens.ToString("0.000", Inv);
                 sensEdit.AddThemeColorOverride("font_color", st.UseSensOverride ? UiTheme.Warn : UiTheme.Text);
             }
             else Gfx.TextC(d, UiTheme.Display, sens.ToString("0.000", Inv), bx + bw / 2, Gfx.Mid(sensY + ab / 2, vsz), vsz, st.UseSensOverride ? UiTheme.Warn : UiTheme.Text);
-            int ns = UiTheme.Fs(11, k);
             string note = st.UseSensOverride
                 ? $"CUSTOM · {PlayerView.Cm360(sens, st.Dpi):0.0} CM/360"
                 : $"FROM VALORANT · {PlayerView.Cm360(sens, st.Dpi):0.0} CM/360";
@@ -890,8 +1016,13 @@ public partial class Hud : Control
             int hs = UiTheme.Fs(12, k);
             void Head(string text, float yy)
             {
-                d.DrawRect(new Rect2(rightX, yy - 4 * k, 5 * k, 5 * k), UiTheme.Accent);
-                Gfx.Text(d, UiTheme.HudWide, text, rightX + 12 * k, yy, hs, UiTheme.Dim);
+                float hp = Gfx.Wave(RealNow + yy * 0.021f, 0.55f);
+                float cy = yy - hs * 0.36f;
+                Gfx.Diamond(d, new Vector2(rightX + 3 * k, cy), (2.8f + 1.4f * hp) * k, (2.8f + 1.4f * hp) * k, UiTheme.Accent);
+                Gfx.Text(d, UiTheme.HudWide, text, rightX + 14 * k, yy, hs, UiTheme.Dim);
+                float hw = Gfx.TextW(UiTheme.HudWide, text, hs);
+                float rail2 = MathF.Max(0f, rightW - hw - 26 * k);
+                d.DrawRect(new Rect2(rightX + 14 * k + hw + 10 * k, cy - 0.5f, rail2, 1), new Color(UiTheme.Text, 0.10f));
             }
             Head("AUDIO", py + 172 * k);
             Gfx.Text(d, UiTheme.HudWide, "MASTER VOLUME", rightX, py + 194 * k, UiTheme.Fs(10, k), UiTheme.Faint);
@@ -902,7 +1033,12 @@ public partial class Hud : Control
             Gfx.Text(d, UiTheme.HudWide, "FPS CAP", rightX, Gfx.Mid(fpsY + 16 * k, hs), hs, UiTheme.Dim);
             Gfx.Text(d, UiTheme.HudWide, "VSYNC AND FPS CAP APPLY IMMEDIATELY", rightX, py + 492 * k, UiTheme.Fs(10, k), UiTheme.Faint);
 
-            Gfx.TextC(d, UiTheme.HudWide, "ESC — RESUME", cx, pr.End.Y - 26 * k, ls, UiTheme.Faint);
+            string esc = "ESC — RESUME";
+            float ea = 0.45f + 0.4f * Gfx.Wave(RealNow, 0.9f);
+            float ew = Gfx.TextC(d, UiTheme.HudWide, esc, cx, y1 - 26 * k, ls, new Color(UiTheme.Text, ea));
+            float ec = y1 - 26 * k - ls * 0.36f;
+            Gfx.Chevron(d, new Vector2(cx - ew / 2 - 14 * k, ec), 10 * k, 1, new Color(UiTheme.Accent, 0.45f + 0.4f * pulse), 2.5f * k);
+            Gfx.Chevron(d, new Vector2(cx + ew / 2 + 14 * k, ec), 10 * k, -1, new Color(UiTheme.Accent, 0.45f + 0.4f * pulse), 2.5f * k);
         };
     }
 
@@ -1013,53 +1149,147 @@ public partial class Hud : Control
         overlay!.OnDraw = d =>
         {
             float t = RealNow - overlayAt;
-            Dimmer(d, size, k, 0.86f);
+            Dimmer(d, size, k, 0.86f, RealNow);
             var pr = panel;
-            Gfx.Plate(d, pr, 26 * k, new Color(0.06f, 0.1f, 0.14f, 0.97f), new Color(UiTheme.Text, 0.14f));
-            d.DrawRect(new Rect2(pr.Position, new Vector2(60 * k, 3 * k)), UiTheme.Accent);
             float x0 = pr.Position.X + 44 * k, x1 = pr.End.X - 44 * k, y = pr.Position.Y;
+            float p0 = pr.Position.X, p1 = pr.End.X, py1 = pr.End.Y;
+            float cut = 26 * k, pulse = Gfx.Wave(RealNow, 0.5f);
 
-            // header
-            int hs = UiTheme.Fs(13, k), ts = UiTheme.Fs(46, k);
-            var tag = new Rect2(x0, y + 34 * k, Gfx.TextW(UiTheme.HudWide, "RESULTS", hs) + 18 * k, 22 * k);
-            d.DrawRect(tag, UiTheme.Accent);
-            Gfx.Text(d, UiTheme.HudWide, "RESULTS", tag.Position.X + 9 * k, Gfx.Mid(tag.GetCenter().Y, hs), hs, UiTheme.Text);
-            Gfx.Text(d, UiTheme.Display, modeName, x0, y + 100 * k, ts, UiTheme.Text);
-            // tier chip (right)
+            // marching dash runs sliding along hairlines (same language the pause plate uses)
+            void RunX(float ex, float ey, float len, Color c, float h, float speed)
+            {
+                float db = 62 * k, span = len + db;
+                float xx = ((RealNow * speed * k) % span) - db;
+                for (int i = 0; i < 9; i++)
+                {
+                    float fall = 1f - MathF.Abs(i - 4f) / 5f;
+                    d.DrawRect(new Rect2(ex + xx + (i - 4) * 9 * k, ey, 3 * k, h), new Color(c, c.A * fall * 0.85f));
+                }
+            }
+
+            // ---- plate: halo glow, per-corner cuts, inner hairline, breathing outer brackets ----
+            for (int i = 0; i < 2; i++)
+            {
+                float e = (7 + i * 10 + pulse * 3) * k;
+                Gfx.PlateEx(d, new Rect2(p0 - e, pr.Position.Y - e, pr.Size.X + e * 2, pr.Size.Y + e * 2), cut + e,
+                    true, false, false, true, new Color(0, 0, 0, 0), new Color(UiTheme.Accent, 0.05f / (i + 1)), 1f);
+            }
+            Gfx.PlateEx(d, pr, cut, true, false, false, true,
+                new Color(0.05f, 0.09f, 0.13f, 0.97f), new Color(UiTheme.Text, 0.14f + 0.06f * pulse), 1.5f);
+            Gfx.PlateEx(d, new Rect2(p0 + 4 * k, pr.Position.Y + 4 * k, pr.Size.X - 8 * k, pr.Size.Y - 8 * k), cut - 4 * k,
+                true, false, false, true, new Color(0, 0, 0, 0), new Color(UiTheme.Accent, 0.11f), 1f);
+            float dp = (3f + 1.6f * pulse) * k;
+            Gfx.Diamond(d, new Vector2(p0, pr.Position.Y + cut), dp, dp, UiTheme.Accent);
+            Gfx.Diamond(d, new Vector2(p1 - cut, py1), dp, dp, UiTheme.Teal);
+            float bb = 9 * k + pulse * 2.5f * k;
+            Gfx.Brackets(d, new Rect2(p0 - bb, pr.Position.Y - bb, pr.Size.X + bb * 2, pr.Size.Y + bb * 2),
+                (15 + 3 * pulse) * k, new Color(UiTheme.Text, 0.28f + 0.14f * pulse), 2 * k);
+            // accent run along the top edge with a fading tail; teal echo at the bottom right
+            float abw = (110 + 60 * pulse) * k;
+            d.DrawRect(new Rect2(p0 + cut, pr.Position.Y, abw, 3 * k), UiTheme.Accent);
+            Span<Vector2> abq = stackalloc Vector2[4];
+            Span<Color> abc = stackalloc Color[4];
+            abq[0] = new(p0 + cut + abw, pr.Position.Y);
+            abq[1] = abq[0] + new Vector2(80 * k, 0);
+            abq[2] = abq[1] + new Vector2(0, 3 * k);
+            abq[3] = abq[0] + new Vector2(0, 3 * k);
+            abc[0] = new Color(UiTheme.Accent, 0.4f); abc[3] = abc[0];
+            abc[1] = new Color(0, 0, 0, 0); abc[2] = abc[1];
+            d.GradPoly(abq, abc);
+            d.DrawRect(new Rect2(p1 - cut - 80 * k, py1 - 3 * k, 80 * k, 3 * k), new Color(UiTheme.Teal, 0.7f));
+            // slow scan shimmer drifting inside the plate
+            float scanY = pr.Position.Y + ((RealNow * 36 * k) % pr.Size.Y);
+            float band = MathF.Min(34 * k, scanY - pr.Position.Y - 2 * k);
+            if (band > 0)
+            {
+                Span<Vector2> sq = stackalloc Vector2[4];
+                Span<Color> sc = stackalloc Color[4];
+                sq[0] = new(p0 + 3 * k, scanY - band);
+                sq[1] = new(p1 - 3 * k, scanY - band);
+                sq[2] = sq[1] + new Vector2(0, band);
+                sq[3] = sq[0] + new Vector2(0, band);
+                sc[0] = new Color(0, 0, 0, 0); sc[1] = sc[0];
+                sc[2] = new Color(UiTheme.Accent, 0.025f); sc[3] = sc[2];
+                d.GradPoly(sq, sc);
+            }
+            d.DrawRect(new Rect2(p0 + 3 * k, scanY, pr.Size.X - 6 * k, 1.5f), new Color(UiTheme.Accent, 0.08f));
+
+            // ---- header: kicker, big mode name sliding in on an accent rail, tier read-out on the right ----
+            int hs = UiTheme.Fs(13, k), ks = UiTheme.Fs(12, k), ts = UiTheme.Fs(46, k);
+            float entry = Gfx.EaseOutExpo(Mathf.Clamp(t / 0.5f, 0, 1));
+            float move = (1f - entry) * 22 * k;
+            float kkw = Gfx.TextW(UiTheme.HudWide, "// RESULTS", ks);
+            Gfx.Text(d, UiTheme.HudWide, "// RESULTS", x0, y + 38 * k, ks, new Color(UiTheme.Teal, 0.75f + 0.25f * pulse));
+            Gfx.Diamond(d, new Vector2(x0 + kkw + 10 * k, y + 38 * k - ks * 0.36f), 2.4f * k, 2.4f * k, new Color(UiTheme.Teal, 0.7f));
+            Gfx.Text(d, UiTheme.Display, modeName, x0 + move, y + 100 * k, ts, new Color(UiTheme.Text, 0.35f + 0.65f * entry));
+            float uW = 90f * k * entry;
+            if (uW > 1)
+            {
+                d.DrawRect(new Rect2(x0, y + 128 * k, uW, 2 * k), UiTheme.Accent);
+                Span<Vector2> uq = stackalloc Vector2[4];
+                Span<Color> uc = stackalloc Color[4];
+                uq[0] = new(x0 + uW, y + 128 * k);
+                uq[1] = uq[0] + new Vector2(46 * k, 0);
+                uq[2] = uq[1] + new Vector2(0, 2 * k);
+                uq[3] = uq[0] + new Vector2(0, 2 * k);
+                uc[0] = new Color(UiTheme.Accent, 0.45f * entry); uc[3] = uc[0];
+                uc[1] = new Color(0, 0, 0, 0); uc[2] = uc[1];
+                d.GradPoly(uq, uc);
+            }
+            // tier chip (right): read-out over an emblem, with a hairline rail tying it to the frame
             if (showScore)
             {
             float tw = Gfx.TextW(UiTheme.HudWide, tl, hs);
-            Gfx.Text(d, UiTheme.HudWide, "PLAYED AT", x1 - tw, y + 50 * k, UiTheme.Fs(11, k), UiTheme.Faint);
-            Gfx.TextR(d, UiTheme.HudWide, tl, x1, y + 72 * k, hs, UiTheme.TierColor(tierId));
-            RankEmblem.Draw(d, new Vector2(x1 - tw - 22 * k, y + 66 * k), 12 * k, tierId);
+            var tc2 = UiTheme.TierColor(tierId);
+            float ta = entry;
+            Gfx.Text(d, UiTheme.HudWide, "PLAYED AT", x1 - tw, y + 50 * k, UiTheme.Fs(11, k), new Color(UiTheme.Faint, ta));
+            Gfx.TextR(d, UiTheme.HudWide, tl, x1, y + 72 * k, hs, new Color(tc2, ta));
+            RankEmblem.Draw(d, new Vector2(x1 - tw - 22 * k, y + 66 * k), 12 * k, tierId, ta);
             }
-            if (subUp != null) Gfx.TextR(d, UiTheme.HudWide, subUp, x1, y + 96 * k, UiTheme.Fs(11, k), UiTheme.Dim);
-            d.DrawRect(new Rect2(x0, y + 120 * k, x1 - x0, 1), new Color(UiTheme.Text, 0.1f));
+            if (subUp != null) Gfx.TextR(d, UiTheme.HudWide, subUp, x1, y + 96 * k, UiTheme.Fs(11, k), new Color(UiTheme.Dim, entry));
+            // header divider: accent fading right + marching dashes
+            float dy = y + 120 * k;
+            Span<Vector2> dvq = stackalloc Vector2[4];
+            Span<Color> dvc = stackalloc Color[4];
+            dvq[0] = new(p0 + 4 * k, dy); dvq[1] = new(p1 - 4 * k, dy);
+            dvq[2] = dvq[1] + new Vector2(0, 1.4f); dvq[3] = dvq[0] + new Vector2(0, 1.4f);
+            dvc[0] = new Color(UiTheme.Accent, 0.35f); dvc[3] = dvc[0];
+            dvc[1] = new Color(UiTheme.Text, 0.09f); dvc[2] = dvc[1];
+            d.GradPoly(dvq, dvc);
+            Gfx.Diamond(d, new Vector2(x0 - 10 * k, dy), 3.5f * k, 3.5f * k, UiTheme.Accent);
+            RunX(x0 + 4 * k, dy - 2 * k, p1 - x0 - 16 * k, new Color(UiTheme.Text, 0.26f), 4 * k, 48);
 
             // score block (left)
             float sy = y + 120 * k;
             if (showScore)
             {
-            int ls = UiTheme.Fs(13, k), ss = UiTheme.Fs(140, k);
-            Gfx.Text(d, UiTheme.HudWide, "SCORE", x0, sy + 40 * k, ls, UiTheme.Dim);
+            int ls = UiTheme.Fs(13, k), ss = UiTheme.Fs(140, k), ps = UiTheme.Fs(15, k);
+            float ex = pr.Position.X + pr.Size.X * 0.73f;
+            float hcy = sy + 40 * k - ls * 0.36f;
+            Gfx.Diamond(d, new Vector2(x0 + 3 * k, hcy), (2.8f + 1.4f * pulse) * k, (2.8f + 1.4f * pulse) * k, UiTheme.Accent);
+            Gfx.Text(d, UiTheme.HudWide, "SCORE", x0 + 14 * k, sy + 40 * k, ls, UiTheme.Dim);
+            float hw = Gfx.TextW(UiTheme.HudWide, "SCORE", ls);
+            float rail = MathF.Max(0f, ex - 44 * k - (x0 + 14 * k + hw + 10 * k));
+            d.DrawRect(new Rect2(x0 + 14 * k + hw + 10 * k, hcy - 0.5f, rail, 1), new Color(UiTheme.Text, 0.10f));
             float countT = Mathf.Clamp(t / 0.6f, 0, 1);
             string shown = countT >= 1 ? scoreText : Loc.Score((int)(score * Gfx.EaseOut(countT)));
-            Gfx.Text(d, UiTheme.Display, shown, x0 - 4 * k, sy + 170 * k, ss, UiTheme.Text);
-            int ps = UiTheme.Fs(15, k);
+            Gfx.Text(d, UiTheme.Display, shown, x0 - 4 * k, sy + 170 * k, ss, new Color(UiTheme.Text, entry));
             if (pb || first)
             {
                 var cr = new Rect2(x0, sy + 202 * k, Gfx.TextW(UiTheme.HudWide, chip, ps) + 22 * k, 30 * k);
                 float glow = pb ? 0.5f + 0.5f * Mathf.Sin(t * 5f) : 0f;
-                d.DrawRect(cr, new Color(UiTheme.Good, 0.16f + 0.1f * glow));
-                d.DrawRect(cr, UiTheme.Good, false, 1f);
+                if (pb) Gfx.PlateEx(d, cr.Grow(5 * k), 12 * k, true, false, false, true,
+                    new Color(0, 0, 0, 0), new Color(UiTheme.Good, 0.10f + 0.08f * glow), 1f);
+                Gfx.PlateEx(d, cr, 8 * k, true, false, false, true,
+                    new Color(UiTheme.Good, 0.16f + 0.1f * glow), UiTheme.Good, 1f);
                 Gfx.Text(d, UiTheme.HudWide, chip, cr.Position.X + 11 * k, Gfx.Mid(cr.GetCenter().Y, ps), ps, UiTheme.Good);
                 if (pb) Gfx.Text(d, UiTheme.Body, prevText, cr.End.X + 14 * k, Gfx.Mid(cr.GetCenter().Y, ps), ps, UiTheme.Dim);
             }
             else Gfx.Text(d, UiTheme.Body, prevText,
                 x0, Gfx.Mid(sy + 217 * k, ps + 2), ps + 2, UiTheme.Dim);
 
-            // rank emblem block (right)
-            float ex = pr.Position.X + pr.Size.X * 0.73f, ey = sy + 90 * k, er = 54 * k;
+            // rank emblem block (right): pulse halo + pop-in emblem
+            float ey = sy + 90 * k, er = 54 * k;
             float pop = Gfx.EaseOutBack(Mathf.Clamp((t - 0.15f) / 0.45f, 0, 1));
             var tc = UiTheme.TierColor(badge);
             if (pop > 0.01f)
@@ -1067,6 +1297,15 @@ public partial class Hud : Control
                 float ring = 0.5f + 0.5f * Mathf.Sin(t * 2.4f);
                 d.DrawCircle(new Vector2(ex, ey), er * 1.35f, new Color(tc, 0.06f + 0.04f * ring));
                 d.DrawArc(new Vector2(ex, ey), er * 1.35f, 0, Mathf.Tau, 64, new Color(tc, 0.35f), Mathf.Max(1, 2 * k), true);
+                // four signal ticks orbiting the halo at 45° steps, fading with the pulse
+                for (int i = 0; i < 4; i++)
+                {
+                    float ang = Mathf.Tau * i / 4f + Mathf.Pi / 4f;
+                    var dir = new Vector2(MathF.Cos(ang), MathF.Sin(ang));
+                    var tcol = new Color(UiTheme.Text, 0.14f + 0.12f * ring);
+                    d.DrawLine(new Vector2(ex, ey) + dir * (er * 1.35f + 8 * k),
+                        new Vector2(ex, ey) + dir * (er * 1.35f + (16 + 4 * pulse) * k), tcol, 1.5f);
+                }
                 d.DrawSetTransform(new Vector2(ex, ey), 0, new Vector2(pop, pop));
                 RankEmblem.Draw(d, Vector2.Zero, er, badge);
                 d.DrawSetTransformMatrix(Transform2D.Identity);
@@ -1078,29 +1317,55 @@ public partial class Hud : Control
             Gfx.TextC(d, UiTheme.Body, badgeRanks, ex, ty + 82 * k, UiTheme.Fs(15, k), UiTheme.Dim);
             }
 
-            // result lines
+            // result lines: divider + staggered rows sliding in from the left
             float ly = sy + scoreH;
-            d.DrawRect(new Rect2(x0, ly - 10 * k, x1 - x0, 1), new Color(UiTheme.Text, 0.1f));
+            float ldy = ly - 10 * k;
+            Span<Vector2> lq = stackalloc Vector2[4];
+            Span<Color> lc = stackalloc Color[4];
+            lq[0] = new(x0, ldy); lq[1] = new(x1, ldy);
+            lq[2] = lq[1] + new Vector2(0, 1.4f); lq[3] = lq[0] + new Vector2(0, 1.4f);
+            lc[0] = new Color(UiTheme.Accent, 0.40f + 0.2f * pulse); lc[3] = lc[0];
+            lc[1] = new Color(0.0f, 0.0f, 0.0f, 0f); lc[2] = lc[1];
+            d.GradPoly(lq, lc);
+            RunX(x0 + 6 * k, ldy - 2 * k, x1 - x0 - 12 * k, new Color(UiTheme.Text, 0.24f), 4 * k, 42);
             int rs = UiTheme.Fs(18, k);
             float colW = twoCol ? (x1 - x0 - 40 * k) / 2 : x1 - x0;
+            if (twoCol)
+            {
+                float vx = x0 + colW + 20 * k;
+                d.DrawRect(new Rect2(vx, ly + 2 * k, 1, lineRows * 40 * k - 4 * k), new Color(UiTheme.Text, 0.09f));
+                Gfx.Diamond(d, new Vector2(vx, ly + 2 * k), 2.6f * k, 2.6f * k, new Color(UiTheme.Teal, 0.8f));
+                Gfx.Diamond(d, new Vector2(vx, ly + lineRows * 40 * k - 2 * k), 2.6f * k, 2.6f * k, new Color(UiTheme.Teal, 0.8f));
+            }
             for (int i = 0; i < resultLines.Count; i++)
             {
                 int ci = twoCol ? i / lineRows : 0, ri = twoCol ? i % lineRows : i;
-                float lx = x0 + ci * (colW + 40 * k), lyy = ly + ri * 40 * k + 20 * k;
-                if (ri % 2 == 0) d.DrawRect(new Rect2(lx, lyy - 20 * k, colW, 40 * k), new Color(1, 1, 1, 0.025f));
+                float lx0 = x0 + ci * (colW + 40 * k), lyy = ly + ri * 40 * k + 20 * k;
+                float ra = Gfx.EaseOutExpo(Mathf.Clamp((t - 0.25f - i * 0.045f) / 0.35f, 0, 1));
+                float lx = lx0 + (1f - ra) * 12 * k;
+                if (ri % 2 == 0) d.DrawRect(new Rect2(lx0, lyy - 20 * k, colW, 40 * k), new Color(1, 1, 1, 0.025f * ra));
                 var (label, value) = resultLines[i];
                 value = Loc.Numeric(value);
                 float vw = Mathf.Min(Gfx.TextW(UiTheme.Body, value, rs), colW * 0.6f);
-                Gfx.TextFit(d, UiTheme.Body, label, lx + 12 * k, Gfx.Mid(lyy, rs), rs, UiTheme.Dim, colW - vw - 36 * k);
-                Gfx.TextFit(d, UiTheme.Body, value, lx + colW - 12 * k - colW * 0.6f, Gfx.Mid(lyy, rs), rs, UiTheme.Text, colW * 0.6f, HorizontalAlignment.Right);
+                Gfx.TextFit(d, UiTheme.Body, label, lx + 12 * k, Gfx.Mid(lyy, rs), rs, new Color(UiTheme.Dim, ra), colW - vw - 36 * k);
+                Gfx.TextFit(d, UiTheme.Body, value, lx + colW - 12 * k - colW * 0.6f, Gfx.Mid(lyy, rs), rs, new Color(UiTheme.Text, ra), colW * 0.6f, HorizontalAlignment.Right);
             }
 
             if (showSens && sens is { } sf)
             {
                 float st = sensTop;
-                d.DrawRect(new Rect2(x0, st - 10 * k, x1 - x0, 1), new Color(UiTheme.Text, 0.1f));
+                float sdy = st - 10 * k;
+                Span<Vector2> sdq = stackalloc Vector2[4];
+                Span<Color> sdc = stackalloc Color[4];
+                sdq[0] = new(x0, sdy); sdq[1] = new(x1, sdy);
+                sdq[2] = sdq[1] + new Vector2(0, 1.4f); sdq[3] = sdq[0] + new Vector2(0, 1.4f);
+                sdc[0] = new Color(UiTheme.Teal, 0.35f); sdc[3] = sdc[0];
+                sdc[1] = new Color(UiTheme.Text, 0.09f); sdc[2] = sdc[1];
+                d.GradPoly(sdq, sdc);
+                Gfx.Diamond(d, new Vector2(x0 - 10 * k, sdy), 3 * k, 3 * k, UiTheme.Teal);
                 int cap = UiTheme.Fs(12, k), body = UiTheme.Fs(14, k);
-                Gfx.Text(d, UiTheme.HudWide, "SENSITIVITY LAB", x0, Gfx.Mid(st + 8 * k, cap), cap, UiTheme.Dim);
+                Gfx.Diamond(d, new Vector2(x0 + 3 * k, st + 8 * k), (2.6f + 1.2f * pulse) * k, (2.6f + 1.2f * pulse) * k, UiTheme.Accent);
+                Gfx.Text(d, UiTheme.HudWide, "SENSITIVITY LAB", x0 + 14 * k, Gfx.Mid(st + 8 * k, cap), cap, UiTheme.Dim);
                 float cy = st + 32 * k;
                 var vc = SensLabText.VerdictColor(sf.Verdict);
                 float cw = CoachDraw.Chip(d, SensLabText.Verdict(sf), x0, cy, k, vc, filled: true);
@@ -1114,8 +1379,25 @@ public partial class Hud : Control
             if (rl != null)
             {
                 var rp = rpanel;
-                Gfx.Plate(d, rp, 26 * k, new Color(0.06f, 0.1f, 0.14f, 0.97f), new Color(UiTheme.Text, 0.14f));
-                d.DrawRect(new Rect2(rp.Position, new Vector2(60 * k, 3 * k)), UiTheme.Accent);
+                float rp0 = rp.Position.X, rp1x = rp.End.X, rpy1 = rp.End.Y, rcut = 22 * k;
+                Gfx.PlateEx(d, rp, rcut, true, false, false, true,
+                    new Color(0.05f, 0.09f, 0.13f, 0.97f), new Color(UiTheme.Text, 0.14f + 0.06f * pulse), 1.5f);
+                Gfx.PlateEx(d, new Rect2(rp0 + 3 * k, rp.Position.Y + 3 * k, rp.Size.X - 6 * k, rp.Size.Y - 6 * k), rcut - 3 * k,
+                    true, false, false, true, new Color(0, 0, 0, 0), new Color(UiTheme.Teal, 0.10f), 1f);
+                float rbw = (60 + 34 * pulse) * k;
+                d.DrawRect(new Rect2(rp0 + rcut, rp.Position.Y, rbw, 3 * k), UiTheme.Accent);
+                Span<Vector2> tq2 = stackalloc Vector2[4];
+                Span<Color> tc2b = stackalloc Color[4];
+                tq2[0] = new(rp0 + rcut + rbw, rp.Position.Y);
+                tq2[1] = tq2[0] + new Vector2(56 * k, 0);
+                tq2[2] = tq2[1] + new Vector2(0, 3 * k);
+                tq2[3] = tq2[0] + new Vector2(0, 3 * k);
+                tc2b[0] = new Color(UiTheme.Accent, 0.4f); tc2b[3] = tc2b[0];
+                tc2b[1] = new Color(0, 0, 0, 0); tc2b[2] = tc2b[1];
+                d.GradPoly(tq2, tc2b);
+                d.DrawRect(new Rect2(rp1x - rcut - 56 * k, rpy1 - 3 * k, 56 * k, 3 * k), new Color(UiTheme.Teal, 0.7f));
+                Gfx.Diamond(d, new Vector2(rp0, rp.Position.Y + rcut), (2.6f + 1.2f * pulse) * k, (2.6f + 1.2f * pulse) * k, UiTheme.Accent);
+                Gfx.Diamond(d, new Vector2(rp1x - rcut, rpy1), (2.6f + 1.2f * pulse) * k, (2.6f + 1.2f * pulse) * k, UiTheme.Teal);
                 foreach (var op in rl.Ops) op(d, rp.Position);
             }
         };

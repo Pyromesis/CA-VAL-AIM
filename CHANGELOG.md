@@ -2,7 +2,7 @@
 
 ## [Unreleased]
 
-## [1.16.2] - 2026-10-21
+## [1.16.2] - 2026-10-23
 
 ### Added
 
@@ -23,6 +23,8 @@
   outside the playable volume is dropped, which also takes Fracture from 41k boxes to 20k.
 - Drill spawns and authored enemy positions snap onto the real collision floor at runtime, so a
   spot authored a few decimetres off the art no longer drops the player out of the map.
+- Bind's painted vista/backdrop level no longer loads inside the playable map, where its sand dunes
+  covered Hookah and B site. The sky supplies the horizon and the floor is visible again.
 
 ### Known issues
 

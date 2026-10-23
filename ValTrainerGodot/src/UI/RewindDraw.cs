@@ -321,8 +321,12 @@ public partial class RewindScreen
     void PaintSide()
     {
         var sp = side;
-        Gfx.Plate(view, sp, 18 * k, new Color(0.04f, 0.07f, 0.1f, 0.95f), new Color(UiTheme.Text, 0.12f));
-        view.DrawRect(new Rect2(sp.Position, new Vector2(48 * k, 3 * k)), UiTheme.Accent);
+        Gfx.PlateEx(view, sp, 18 * k, true, false, false, true, new Color(0.04f, 0.07f, 0.1f, 0.95f), new Color(UiTheme.Text, 0.12f), 1.2f);
+        // top accent run with a fading tail + cut-corner diamond
+        view.DrawRect(new Rect2(sp.Position.X + 18 * k, sp.Position.Y, 40 * k, 3 * k), UiTheme.Accent);
+        Gfx.HGradient(view, new Rect2(sp.Position.X + 58 * k, sp.Position.Y, 34 * k, 3 * k),
+            new Color(UiTheme.Accent, 0.5f), new Color(UiTheme.Accent, 0f));
+        Gfx.Diamond(view, new Vector2(sp.Position.X, sp.Position.Y + 18 * k), 3.6f * k, 3.6f * k, UiTheme.Accent);
         var inner = sp.Grow(-22 * k);
         float x = inner.Position.X, w = inner.Size.X, y = inner.Position.Y + 4 * k;
         int cs = UiTheme.Fs(12, k), bs = UiTheme.Fs(15, k);

@@ -26,6 +26,7 @@ public partial class Viewmodel : Node3D
     readonly VmMaterials mats = new();
     Node3D pivot = null!, gun = null!;
     Node3D? muzzle;
+    Node3D? detachableMag;
     MeshInstance3D gripHand = null!, supportHand = null!, spareMag = null!;
     MuzzleFlash flash = null!;
     readonly List<ShaderMaterial> gunMats = new();
@@ -152,10 +153,15 @@ public partial class Viewmodel : Node3D
 
         pivot = new Node3D { Name = "Pivot" };
         AddChild(pivot);
-        gun = GD.Load<PackedScene>(pose.Scene).Instantiate<Node3D>();
+        // The two rifles are CPU-authored here (detailed silhouette + separate magazine); the other guns keep
+        // their imported scenes. No new pck assets are needed, so a DLL-only update ships the new models.
+        gun = kind is WeaponKind.Vandal or WeaponKind.Phantom
+            ? ProceduralRifle.Build(kind)
+            : GD.Load<PackedScene>(pose.Scene).Instantiate<Node3D>();
         gun.Name = "Gun";
         pivot.AddChild(gun);
         muzzle = gun.GetNodeOrNull<Node3D>("Muzzle");
+        detachableMag = gun.GetNodeOrNull<Node3D>("Magazine");
         modelMeshes.AddRange(FindMeshes(gun)); // the gun model only (hands, magazine and flash are added below)
 
         // Re-material the gun (flat FBX colours → metal / polymer).
@@ -181,10 +187,10 @@ public partial class Viewmodel : Node3D
         }
 
         // Gloves + sleeves.
-        var glove = mats.Make(new Color(0.05f, 0.052f, 0.058f), 0f, 0.8f, 0.4f, 0.7f, 0.25f, 420f);
-        var pad = mats.Make(new Color(0.13f, 0.135f, 0.14f), 0.1f, 0.5f, 0.5f, 0.4f, 0.2f, 200f);
-        var sleeve = mats.Make(new Color(0.085f, 0.1f, 0.125f), 0f, 0.85f, 0.35f, 0.6f, 0.2f, 260f);
-        var accent = mats.Make(new Color(0.55f, 0.13f, 0.12f), 0f, 0.6f, 0.5f, 0.3f, 0.15f, 200f);
+        var glove = mats.Make(new Color(0.140f, 0.145f, 0.155f), 0f, 0.76f, 0.4f, 0.7f, 0.34f, 420f);
+        var pad = mats.Make(new Color(0.235f, 0.240f, 0.250f), 0.05f, 0.5f, 0.5f, 0.4f, 0.28f, 200f);
+        var sleeve = mats.Make(new Color(0.160f, 0.175f, 0.205f), 0f, 0.80f, 0.35f, 0.6f, 0.28f, 260f);
+        var accent = mats.Make(new Color(0.62f, 0.14f, 0.13f), 0f, 0.6f, 0.5f, 0.3f, 0.18f, 200f);
         var se = pose.Support.ElbowLocal;
         gripHand = new MeshInstance3D { Name = "GripHand", Mesh = VmHands.Build(pose.Grip.Shape, left, pose.Grip.ElbowLocal, glove, pad, sleeve, accent) };
         supportHand = new MeshInstance3D { Name = "SupportHand", Mesh = VmHands.Build(pose.Support.Shape, !left, new Vector3(-se.X, se.Y, se.Z), glove, pad, sleeve, accent) };
@@ -401,6 +407,13 @@ public partial class Viewmodel : Node3D
     void SetMagHidden(bool hide)
     {
         magHidden = hide;
+        // The procedural rifles carry the magazine as its own node. Hide that instead of clipping a world-space
+        // box, so the receiver and trigger guard never get punched out during a reload.
+        if (detachableMag != null)
+        {
+            detachableMag.Visible = !hide;
+            return;
+        }
         foreach (var m in gunMats) m.SetShaderParameter("clip_on", hide ? 1f : 0f);
     }
 

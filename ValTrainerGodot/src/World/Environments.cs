@@ -118,17 +118,19 @@ public static class Environments
         foreach (Node n in root.GetChildren())
         {
             if (n is not WorldEnvironment { Environment: { } env }) continue;
-            env.AmbientLightEnergy = Mathf.Max(env.AmbientLightEnergy, 1.45f);
+            // Flat palette materials have no texture albedo, so the blockout-grade boost that made the
+            // textured art readable now only washes every surface out.
+            env.AmbientLightEnergy = Mathf.Min(env.AmbientLightEnergy, 0.8f);
             env.ReflectedLightSource = Godot.Environment.ReflectionSource.Sky;
-            env.TonemapExposure = Mathf.Max(env.TonemapExposure, 1.12f);
-            env.FogDensity *= 0.65f;
+            env.TonemapExposure = Mathf.Min(env.TonemapExposure, 1f);
+            env.FogDensity *= 0.8f;
         }
 
         var fill = new DirectionalLight3D
         {
             Name = "RealMapFill",
             LightColor = new Color(0.82f, 0.9f, 1f),
-            LightEnergy = 0.6f,
+            LightEnergy = 0.35f,
             LightAngularDistance = 25f,
             ShadowEnabled = false,
             RotationDegrees = new Vector3(-48, 155, 0),
