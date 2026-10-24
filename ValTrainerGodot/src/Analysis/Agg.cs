@@ -24,6 +24,7 @@ static class Agg
         "spray.n", "spray.delay_n",
         "react.n", "react.early",
         "flash.n", "flash.turn_n",
+        "pick.n", "pick.nearest",
     };
 
     /// <summary>Weight (sample-count) key of each averaged metric. Unlisted averages use the family's count key.</summary>
@@ -52,12 +53,13 @@ static class Agg
         ["move.moving_shot_pct"] = "move.shots", ["move.early_shot_pct"] = "move.shots",
         ["spray.delay_ms"] = "spray.delay_n",
         ["flash.turn_ms"] = "flash.turn_n",
+        ["pick.extra_deg"] = "pick.n",
     };
 
     static readonly Dictionary<string, string> FamilyCount = new()
     {
         ["flick"] = "flick.n", ["head"] = "head.n_first", ["speed"] = "speed.n", ["track"] = "track.secs", ["xhair"] = "xhair.n",
-        ["move"] = "move.shots", ["spray"] = "spray.n", ["react"] = "react.n", ["flash"] = "flash.n", ["run"] = "run.secs",
+        ["move"] = "move.shots", ["spray"] = "spray.n", ["react"] = "react.n", ["flash"] = "flash.n", ["run"] = "run.secs", ["pick"] = "pick.n",
     };
 
     static string Family(string key) { int i = key.IndexOf('.'); return i < 0 ? key : key[..i]; }
@@ -85,6 +87,7 @@ static class Agg
         Ratio(m, "move.moving_shot_pct", "move.moving", "move.shots", 100);
         Ratio(m, "move.early_shot_pct", "move.early", "move.shots", 100);
         Ratio(m, "move.counter_pct", "move.counter", "move.stops", 100);
+        Ratio(m, "pick.nearest_pct", "pick.nearest", "pick.n", 100);
     }
 
     static void Ratio(Dictionary<string, float> m, string key, string num, string den, float scale)

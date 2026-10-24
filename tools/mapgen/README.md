@@ -1,8 +1,55 @@
-# Map collision pipeline
+# Map pipeline
 
 The real maps are extracted Valorant art (`maps/<key>/*.glb` + `manifest.json`) shipped
 next to the executable. The runtime only collides with the AABB boxes in
 `maps/<key>/collision.json`, so that file decides whether a map is walkable at all.
+
+## Full rebuild (all 13 maps, every sublevel)
+
+Since 1.17 every map is extracted whole (every art sublevel, all sites) and the drills are
+generated from it. From the installed game to a `maps/` folder:
+
+```
+# 1. Extract: one JSON of mesh instances per level + one GLB per mesh (tools/mappipe, CUE4Parse)
+MapPipe --map Foxtrot --out work/Foxtrot --usmap <mappings.usmap> --key <pak AES key> --levels Art_A,Art_B,...
+MapPipe --map Foxtrot --out work/x --usmap ... --key ... --levels Gameplay --actors work/Foxtrot_actors
+# 2. Compose one GLB per level, then bake each material's real colour and drop the textures
+python compose_map.py --source work/Foxtrot --out out/breeze --levels Art_A,Art_B,...
+python flatten_glb.py out/breeze
+# 3. Manifest (frame origin) + collision over the whole map (clip = official callouts + 16 m)
+python build_maps.py out api_maps.json breeze          # api_maps.json = saved https://valorant-api.com/v1/maps
+# 4. Drill: route, choke, defenders, plants, retakes, smokes, flashes -> MapSpots.<Map>.cs
+python author_spots.py out/breeze api_maps.json MapSpots.Breeze.cs --json breeze.json
+# 5. Check against the official minimap
+python render_plan.py out/breeze api_maps.json breeze.png --minimap breeze-minimap.png --points breeze.json
+python api_callouts.py api_maps.json Foxtrot <origin>  # callouts + MapArt calibration in the game frame
+```
+
+Map tokens: Ascent, Duality (Bind), Foxtrot (Breeze), Triad (Haven), Port (Icebox), Bonsai
+(Split), Canyon (Fracture), Jam (Lotus), Pitt (Pearl), Infinity (Abyss), Juliett (Sunset),
+Plummet (Summit), Rook (Corrode).
+
+### Axes: the mirroring fix
+
+Unreal is left-handed, glTF right-handed. CUE4Parse writes mesh vertices as `(x, z, y)` (a
+reflection, correct), but `compose_map.py` used to place the instances with `(x, z, -y)` (a
+rotation). The composed world therefore came out mirrored east-west, and every piece was
+mirrored again inside it, which tore gaps between neighbouring pieces and left buildings
+reversed. Overlaying the geometry on the official minimap through valorant-api.com's
+transform shows it at once: with `(x, z, y)` the walls sit exactly on the minimap's lines.
+The game frame is now `(uy, uz, -ux) / 100 + origin` (north = -Z), the same orientation as
+the minimap, so `MapArt` uses the official minimaps with an exact calibration. Bind's
+hand-authored drill was flipped with `MapSpot.Mirrored()`; Ascent's old Blender export was
+already correct and keeps its frame.
+
+### Colour
+
+`flatten_glb.py` stores the alpha-weighted mean of each material's albedo texture in
+`extras.vt_color`; `GltfStrip.cs` renders the surface in that colour (one shared material per
+palette class and 5-bit colour). Maps keep their real look at no texture cost, and the level
+GLBs shrink from ~450 MB to ~120 MB per map.
+
+### History
 
 `collision.json` was historically produced by an ad-hoc script that only covered part
 of the art. The symptom is easy to spot: on Lotus, Pearl, Sunset and Corrode the spawn

@@ -85,6 +85,7 @@ public partial class ProfileScreen : ScreenBase
             TooltipText = "An aim-only estimate: ValTrainer rates your mechanics (aim, movement, flash dodging).\nYour in-game rank also depends on game sense, comms and utility.",
         });
         left.AddChild(SkillsPanel(p));
+        if (Plan(p) is { Count: > 0 } plan) right.AddChild(PlanPanel(plan));
         right.AddChild(ProblemsPanel(p));
         right.AddChild(SensPanel(p));
     }
@@ -253,7 +254,11 @@ public partial class ProfileScreen : ScreenBase
         h.AddChild(rows);
         int i = 0;
         foreach (var s in Enum.GetValues<Skill>())
-            rows.AddChild(new SkillRow { Skill = s, Rating = p.Skills.FirstOrDefault(r => r.Skill == s), K = k, Stripe = i++ % 2 == 0 });
+            rows.AddChild(new SkillRow
+            {
+                Skill = s, Rating = p.Skills.FirstOrDefault(r => r.Skill == s), K = k, Stripe = i++ % 2 == 0,
+                Trend = p.Trend.TryGetValue(s, out var tr) ? tr : null, TrendSpan = p.TrendSpan,
+            });
         return panel;
     }
 
@@ -279,6 +284,48 @@ public partial class ProfileScreen : ScreenBase
         if (ly > d.Size.Y - 4 * k) return;
         string legend = CoachData.HasOverall(p) ? "dashed ring = your overall rank" : "centre = Iron · rim = Radiant";
         Gfx.TextC(d, UiTheme.Body, legend, d.Size.X / 2, ly, ls, UiTheme.Faint);
+    }
+
+    // ---------------- today's plan ----------------
+
+    /// <summary>Today's plan: one drill for each of the most important problems (no drill twice), up to three.</summary>
+    static List<(string Drill, Diagnosis D)> Plan(SkillProfile p)
+    {
+        var plan = new List<(string Drill, Diagnosis D)>();
+        foreach (var d in p.Problems)
+        {
+            var key = (d.Drills ?? Array.Empty<string>()).Where(CoachData.HasDrill).FirstOrDefault(k => plan.All(x => x.Drill != k));
+            if (key != null) plan.Add((key, d));
+            if (plan.Count == 3) break;
+        }
+        return plan;
+    }
+
+    /// <summary>The plan as a row of drill buttons, in order; each starts its drill with that problem as the coach focus.</summary>
+    Control PlanPanel(List<(string Drill, Diagnosis D)> plan)
+    {
+        float k = K;
+        var panel = new VPanel
+        {
+            Title = "TODAY'S PLAN",
+            Caption = Loc.Spanish ? "un ejercicio por problema, el más importante primero · pasa el ratón para ver qué entrena"
+                : "one drill per problem, most important first · hover to see what it trains",
+            K = k,
+        };
+        var row = HBox(10 * k);
+        panel.AddChild(row);
+        int n = 1;
+        foreach (var (key, d) in plan)
+        {
+            string name = $"{n++} · {CoachData.DrillName(key).ToUpperInvariant()}";
+            float w = Gfx.TextW(UiTheme.Display, name, UiTheme.Fs(18, k)) / k + 60;
+            var b = Btn(name, n == 2 ? VButton.Look.Primary : VButton.Look.Secondary, () => CoachData.StartDrill(key, CoachData.FocusFrom(d)),
+                Mathf.Max(150, w), 46, 18);
+            b.TooltipText = (Loc.Spanish ? "Entrena: " : "Works on: ") + d.Title;
+            b.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+            row.AddChild(b);
+        }
+        return panel;
     }
 
     // ---------------- problems & strengths ----------------

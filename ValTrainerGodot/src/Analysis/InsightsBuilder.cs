@@ -326,6 +326,11 @@ static partial class InsightsBuilder
                     if (e.A > 80 && e.A < 1500 && e.A > reactLimit)
                         c.Add(e.T - e.A / 1000f - Pre, e.T + Post, "SLOW_REACT", F($"Reacted in {e.A:0} ms"));
                     break;
+                case "target_pick":
+                    // Assess TARGET_ORDER: the flick that went to a farther target (the window covers that whole flick).
+                    if (e.A >= 0 && e.B >= 0 && !RunAnalysis.NearestPick(e.A, e.B))
+                        c.Add(e.T - 0.7f, e.T + Post, "TARGET_ORDER", F($"Went {e.A:0}° to a target while one was {e.B:0}° away"));
+                    break;
                 case "flash":
                     if (e.A >= 0 && e.B >= 0 && e.B > bandF + 100)
                         c.Add(e.T - e.B / 1000f - 0.5f, e.T + 0.6f, "FLASH_SLOW", F($"Turned away {e.B:0} ms after the cue"));

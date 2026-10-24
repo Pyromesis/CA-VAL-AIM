@@ -311,6 +311,7 @@ public abstract partial class TacticalMode : MapMode
     }
 
     public override AimFocus? Focus => Live && !G.Player.Dead ? NearestHead(Bots.Where(b => b.Alive).Select(b => b.Body)) : null;
+    public override IEnumerable<Vector3> GuideTargets => Live && !G.Player.Dead ? Bots.Where(b => b.Alive).Select(b => b.Feet) : Array.Empty<Vector3>();
 
     protected int AliveBots => Bots.Count(b => b.Alive);
 

@@ -6,11 +6,12 @@ public static partial class MapSpots
 {
     /// <summary>
     /// Bind, B Short / Hookah into B Site, on the extracted Valorant art.
-    /// The map is shifted so BombDestination_B is at the origin: +X runs along the
-    /// attacker side (B Long / B Short), +Z points from B Hall toward Hookah, Y is up.
-    /// Attackers come up B Short, enter Hookah, climb to the window platform and drop
-    /// through the window onto the site. Elevator sits mid-site, Hall behind the site
-    /// to the north, Elbow west, Garden and B Long south.
+    /// The map is shifted so BombDestination_B is at the origin, Y is up. The spots below were authored on the
+    /// old extraction, which came out mirrored east-west (see tools/mapgen/compose_map.py); <see cref="MapSpot.Mirrored"/>
+    /// flips them onto the corrected map (manifest origin_x negated), so in game +X is east like on the minimap:
+    /// attackers come up B Short, enter Hookah (south-east of the site), climb to the window platform and drop
+    /// through the window onto the site. Elevator sits mid-site, Hall behind the site to the north, Elbow west,
+    /// Garden and B Long south-west.
     /// </summary>
     public static readonly MapSpot Bind = new MapSpot
     {
@@ -19,7 +20,8 @@ public static partial class MapSpots
         StartFeet = V(-6.08f, 0.6f, 30.81f), StartYaw = 11, Choke = V(-6.08f, 1.9f, 30.81f),
         RealMapFolder = "maps/bind",
         Palette = new MapPalette(C(178, 150, 112), C(222, 190, 142), C(178, 98, 62), C(170, 124, 82), C(44, 128, 134), C(165, 195, 220)),
-        Boxes = Array.Empty<BoxDef>(),
+        // Only used when the external real-map files are absent: a floor at site level so the drills still run.
+        Boxes = new[] { B(-80f, -0.1f, -80f, 80f, 0.6f, 80f, Surf.Floor) },
         Enemies = new[]
         {
             E("Under Window", -5.0f, 0.60f, 27.5f, Stance.Crouch),
@@ -49,5 +51,5 @@ public static partial class MapSpots
         },
         PlantSpots = new[] { V(5.0f, 0.60f, 0.0f), V(2.0f, 0.05f, -3.0f), V(-2.0f, 0.60f, -5.0f) },
         RetakeEntries = new[] { V(-36.2f, -1.65f, -31.9f), V(0.3f, -1.60f, -12.0f), V(6.8f, 0.60f, 27.6f) },
-    };
+    }.Mirrored();
 }

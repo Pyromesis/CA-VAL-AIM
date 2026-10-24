@@ -175,6 +175,7 @@ public partial class Hud : Control
             if (s.State == GameSession.St.Countdown) DrawBriefing(size, k, mapSpot);
             else if (s.State == GameSession.St.Running) DrawMinimap(size, k, mapSpot);
         }
+        if (!m.Is2D && s.State == GameSession.St.Running && s.GuideMode >= 1) DrawGuide(size, k, m);
         if (!m.Is2D)
         {
             if (m.ShowScore) DrawVitals(size, k);
@@ -187,6 +188,61 @@ public partial class Hud : Control
         if (m.KillBanner.Time > 0 && m.KillBanner.Count > 0) DrawKillBanner(size, k, m.KillBanner.Count, m.KillBanner.Time);
         if (s.State == GameSession.St.Countdown) DrawCountdown(size, k, m);
         if (focus != null && (s.State == GameSession.St.Countdown || (s.State == GameSession.St.Running && s.Now < 2f))) DrawFocus(size, k, focus);
+    }
+
+    readonly Cache cGuide = new();
+
+    /// <summary>
+    /// Guide line (Settings → Guide line, GuideSession.cs): the straight crosshair path to the target the drill is focused on
+    /// (always the one nearest the crosshair), with a ring around it and the flick distance in degrees. A target off screen
+    /// or behind you gets an arrow on the screen edge instead. It stays faint and stops short of the target so it never
+    /// hides what you are aiming at.
+    /// </summary>
+    void DrawGuide(Vector2 size, float k, TrainingMode m)
+    {
+        if (m.Focus is not { } f) return;
+        var cam = GetViewport()?.GetCamera3D();
+        if (cam == null) return;
+        var c = size / 2;
+        var col = UiTheme.Teal;
+        bool behind = cam.IsPositionBehind(f.Point);
+        var p = cam.UnprojectPosition(f.Point);
+        if (behind) p = c + (c - p) * 64f; // the projection of a point behind the camera is mirrored through the centre
+        var bounds = new Rect2(Vector2.Zero, size).Grow(-44 * k);
+        if (behind || !bounds.HasPoint(p))
+        {
+            var dir = (p - c).Normalized();
+            if (!dir.IsFinite() || dir == Vector2.Zero) return;
+            // Where the ray from the centre leaves the inset screen rectangle.
+            float tx = dir.X > 0 ? (bounds.End.X - c.X) / dir.X : dir.X < 0 ? (bounds.Position.X - c.X) / dir.X : float.MaxValue;
+            float ty = dir.Y > 0 ? (bounds.End.Y - c.Y) / dir.Y : dir.Y < 0 ? (bounds.Position.Y - c.Y) / dir.Y : float.MaxValue;
+            var at = c + dir * Mathf.Min(tx, ty);
+            var side = new Vector2(-dir.Y, dir.X);
+            float a = 0.55f + 0.3f * Mathf.Sin(RealNow * 6f);
+            DrawColoredPolygon(new[] { at + dir * 16 * k, at - dir * 6 * k + side * 13 * k, at - dir * 6 * k - side * 13 * k },
+                new Color(col, a));
+            return;
+        }
+        // Target radius on screen: project a point one radius to the side of its centre.
+        var edge = cam.UnprojectPosition(f.Point + cam.GlobalBasis.X * Mathf.Max(0.02f, f.Radius));
+        float rpx = Mathf.Max(5 * k, edge.DistanceTo(p));
+        float dist = c.DistanceTo(p);
+        float ring = rpx + 4 * k;
+        var lineCol = new Color(col, 0.55f);
+        if (dist > ring + 18 * k)
+        {
+            var dir = (p - c) / dist;
+            DrawDashedLine(c + dir * 16 * k, p - dir * ring, lineCol, Mathf.Max(1.5f, 2f * k), 9 * k, true, true);
+        }
+        DrawArc(p, ring, 0, Mathf.Tau, 40, new Color(col, dist <= ring ? 0.35f : 0.75f), Mathf.Max(1.5f, 2f * k), true);
+        if (dist > ring + 40 * k)
+        {
+            // Angular distance from the crosshair (the length of the flick the line describes).
+            var eye = cam.GlobalPosition;
+            float deg = Mathf.RadToDeg((-cam.GlobalBasis.Z).AngleTo((f.Point - eye).Normalized()));
+            int fs = UiTheme.Fs(13, k);
+            TL(UiTheme.HudWide, cGuide.Get((long)MathF.Round(deg), v => $"{v}°"), p.X + ring + 5 * k, p.Y - ring * 0.4f, fs, new Color(UiTheme.Text, 0.8f));
+        }
     }
 
     /// <summary>"COACH FOCUS" plate: the problem this run should work on and its first fix cue (fades out after the start).</summary>
@@ -588,6 +644,13 @@ public partial class Hud : Control
         TC(UiTheme.Display, nameUpper, c.X, c.Y + r + 54 * k, ns, UiTheme.Text);
         TC(UiTheme.Body, m.Description, c.X, c.Y + r + 82 * k, ds, UiTheme.Dim);
         if (m.MadeBy is { } by) TC(UiTheme.HudWide, $"MADE BY THE COMMUNITY · @{by}", c.X, c.Y + r + 110 * k, ls, UiTheme.Good);
+        if (s.CanSwapRifle && s.Weapon is { } gun)
+        {
+            string other = gun.Kind == WeaponKind.Phantom ? "VANDAL" : "PHANTOM";
+            string key = Main.I.Valorant.Binds.Short(GameAction.EquipPrimary);
+            string hint = Loc.Spanish ? $"{gun.Name.ToUpperInvariant()} · {key} PARA CAMBIAR A {other}" : $"{gun.Name.ToUpperInvariant()} · {key} TO SWITCH TO {other}";
+            TC(UiTheme.HudWide, hint, c.X, c.Y + r + (m.MadeBy != null ? 136 : 110) * k, ls, UiTheme.Teal);
+        }
     }
 
     // ---- outlined text (readable over bright scenes, like VALORANT's shadowed HUD text) ----

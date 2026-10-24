@@ -40,6 +40,8 @@ public static class MapAssets
             catch { }
         }
 
+        // Dev-only "--maps-dir <dir>": a folder holding maps/<key>/ (e.g. a freshly built map set) is searched first.
+        if (Core.CmdLine.DevAfter("--maps-dir") is { Length: > 0 } dev) Add(dev);
         try { Add(ProjectSettings.GlobalizePath("res://")); } catch { }
         try { Add(ProjectSettings.GlobalizePath("res://assets")); } catch { }
         Add(OS.GetExecutablePath().GetBaseDir());

@@ -37,6 +37,11 @@ public sealed class SkillProfile
     public List<string> Strengths = new();
     public SensAdvice? Sens;
     public SensLabData? SensLab;
+    /// <summary>Per-skill change of the rating (tiers; 0.5 ≈ one rank) between the older and the newer runs, only for skills
+    /// rated in both (see <see cref="Coach.Trends"/>). Empty until there is enough history.</summary>
+    public Dictionary<Skill, float> Trend = new();
+    /// <summary>What the trend compares: "week" (the last 7 days vs before) or "runs" (newer half vs older half).</summary>
+    public string TrendSpan = "";
     public int RunsAnalyzed;
     public DateTime Updated = DateTime.Now;
 }
@@ -120,7 +125,43 @@ public static class Coach
         };
         p.Sens = SensAdvisor.Advise(runs, currentSens, dpi, a.RefTier, finder);
         p.SensLab = SensLab.Build(runs, currentSens, dpi, a.RefTier);
+        (p.Trend, p.TrendSpan) = Trends(runs.Select(r => (r.When, r.M)).ToList(), tierGuess);
         return p;
+    }
+
+    /// <summary>
+    /// Is each skill getting better? Rates the older runs and the newer runs separately and returns the difference
+    /// (newer − older, in tiers). The split is the last 7 days against everything before when both sides have at least
+    /// 6 runs; otherwise, from 16 runs on, the newer half against the older half. A skill needs a rating with at least
+    /// low-medium confidence (0.3) on both sides to get a trend.
+    /// </summary>
+    internal static (Dictionary<Skill, float> Trend, string Span) Trends(List<(DateTime When, Dictionary<string, float> M)> runs, int tierGuess)
+    {
+        var trend = new Dictionary<Skill, float>();
+        if (runs.Count < 12) return (trend, "");
+        var now = DateTime.Now;
+        var ordered = runs.OrderBy(r => r.When).ToList();
+        var cut = now.AddDays(-7);
+        var older = ordered.Where(r => r.When < cut).ToList();
+        var newer = ordered.Where(r => r.When >= cut).ToList();
+        string span = "week";
+        if (older.Count < 6 || newer.Count < 6)
+        {
+            if (ordered.Count < 16) return (trend, "");
+            older = ordered.Take(ordered.Count / 2).ToList();
+            newer = ordered.Skip(ordered.Count / 2).ToList();
+            span = "runs";
+        }
+        // Each side is rated as of its own newest run, so the recency weighting doesn't fade the older side away.
+        var aOld = Assess.Run(Agg.Aggregate(older, older[^1].When), runLevel: false, tierPlayed: tierGuess);
+        var aNew = Assess.Run(Agg.Aggregate(newer, newer[^1].When), runLevel: false, tierPlayed: tierGuess);
+        foreach (var (skill, rn) in aNew.Ratings)
+        {
+            if (!aOld.Ratings.TryGetValue(skill, out var ro)) continue;
+            if (rn.Tier < -0.9f || ro.Tier < -0.9f || rn.Confidence < 0.3f || ro.Confidence < 0.3f) continue;
+            trend[skill] = rn.Tier - ro.Tier;
+        }
+        return (trend, trend.Count > 0 ? span : "");
     }
 
     const string SensFinderKey = "sensfinder", CrosshairFinderKey = "xhairfinder";

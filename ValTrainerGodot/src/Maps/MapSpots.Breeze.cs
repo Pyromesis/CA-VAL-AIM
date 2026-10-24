@@ -5,6 +5,7 @@ namespace ValTrainer.Maps;
 public static partial class MapSpots
 {
     /// <summary>
+    /// Fallback for installs without the extracted map (maps/breeze/), see <see cref="Real"/>.
     /// Breeze, A Lobby → A Main (the Chop Shop) → A Site, true scale, current layout (the January 2026 rework: one A Main
     /// through the shop, the diagonal Yellow container at back site, the back-site wall cutout, Halls closed). Walls are traced
     /// from the official minimap through the valorant-api.com transform (1 px = 13.95 cm); heights follow reference screenshots.
@@ -15,7 +16,7 @@ public static partial class MapSpots
     /// with the spawn passage running under its deck. Cut-offs (Lobby → attacker spawn, Mid, defender spawn, the Bridge's
     /// west end) are sealed with walls. Diagonal walls and the Yellow container are 0.5 m saw-tooth steps.
     /// </summary>
-    public static readonly MapSpot Breeze = new MapSpot
+    public static readonly MapSpot BreezeBlockout = new MapSpot
     {
         Key = "breeze", Map = "Breeze", Name = "A Main → A Site",
         Drill = "Push A Lobby up the Chop Shop into A Main and out onto A Site: clear Boxes, Shrimp, Pool, Crab, Back Site, Yellow, Under Bridge, Bridge (high), Ramp and Mid Doors",

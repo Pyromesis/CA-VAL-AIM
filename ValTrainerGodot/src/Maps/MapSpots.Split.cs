@@ -5,6 +5,7 @@ namespace ValTrainer.Maps;
 public static partial class MapSpots
 {
     /// <summary>
+    /// Fallback for installs without the extracted map (maps/split/), see <see cref="Real"/>.
     /// Split, A Main → A Site, true scale (post-6.0 layout). Walls are traced from the official minimap through the
     /// valorant-api.com transform (1 unit = 1 cm); heights follow the in-game callout markers and reference screenshots.
     /// Authored directly in the game's own (unmirrored) frame, so no Mirrored(): origin = the A Main exit,
@@ -14,7 +15,7 @@ public static partial class MapSpots
     /// Rafters ledge and the Heaven window bay 4.0 m; Heaven / A Tower 4.8 m, reached by A Ramps from A Main.
     /// Diagonal walls (the sloped back-site wall, the A Main corner, the Heaven wedge) are 1 m saw-tooth steps.
     /// </summary>
-    public static readonly MapSpot Split = new MapSpot
+    public static readonly MapSpot SplitBlockout = new MapSpot
     {
         Key = "split", Map = "Split", Name = "A Main → A Site",
         Drill = "Exit A Main (Ramps up to Heaven on your left) and clear Hell, Rafters, Heaven, Elbow, Screens, then the site below: Default, Terminal, Back Site, A Back",

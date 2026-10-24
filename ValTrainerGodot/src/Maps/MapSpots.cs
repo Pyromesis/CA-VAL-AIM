@@ -3,9 +3,9 @@ using Godot;
 namespace ValTrainer.Maps;
 
 /// <summary>
-/// True-scale blockouts of four iconic attack routes (one partial file per map), traced from the official
-/// minimaps and callout coordinates (valorant-api.com). Each file says whether it is authored in the final
-/// in-game frame or in Unreal's mirrored frame (then flipped once with <see cref="MapSpot.Mirrored"/>).
+/// One site-attack drill per map (one partial file per map). Every map plays on its full extracted geometry
+/// (<c>maps/&lt;key&gt;/</c>, see <see cref="World.RealMap"/>); Breeze, Haven, Icebox and Split also keep the true-scale
+/// blockout they were traced as, used only when that folder is missing (<see cref="Real"/>).
 /// </summary>
 public static partial class MapSpots
 {
@@ -20,9 +20,12 @@ public static partial class MapSpots
     static MapSpot[]? all;
     public static MapSpot[] All => all ??= new[]
     {
-        Ascent, Bind, Breeze, Haven, Icebox, Split, Fracture, Abyss, Lotus,
-        Sunset, Pearl, Summit, Corrode,
+        Ascent, Bind, Real(Breeze, BreezeBlockout), Real(Haven, HavenBlockout), Real(Icebox, IceboxBlockout), Real(Split, SplitBlockout),
+        Fracture, Abyss, Lotus, Sunset, Pearl, Summit, Corrode,
     };
+
+    /// <summary>The drill on the extracted map when its art is installed, else the traced blockout of the same map.</summary>
+    static MapSpot Real(MapSpot real, MapSpot blockout) => World.RealMap.HasArt(real.RealMapFolder) ? real : blockout;
 
     public static MapSpot ByKey(string? key) => All.FirstOrDefault(m => m.Key == key) ?? Ascent;
 }

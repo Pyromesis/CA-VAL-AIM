@@ -481,6 +481,13 @@ public partial class SettingsScreen : ScreenBase
             note: () => $"Bots react in ~{Difficulty.Get(St.Tier).Bot.ReactMs:0} ms"));
         v.AddChild(Segmented("Viewmodel (first-person gun)", new[] { "OFF", "ON" }, () => St.ViewModel ? 1 : 0, i => St.ViewModel = i == 1,
             note: () => "Applies on next drill"));
+        v.AddChild(Segmented("Guide line", new[] { "OFF", "LINE", "LINE + ROUTE" }, () => Math.Clamp(St.GuideLine, 0, 2), i => St.GuideLine = i,
+            note: () => St.GuideLine switch
+            {
+                0 => "No guide",
+                1 => "A line from the crosshair to the nearest target",
+                _ => "Aim line, plus the shortest route to the nearest enemy on map drills",
+            }));
         v.AddChild(Segmented("Weapon hand", new[] { "RIGHT", "LEFT" }, () => St.LeftHandedWeapon ? 1 : 0, i => St.LeftHandedWeapon = i == 1,
             note: () => Main.I.Valorant.Found
                 ? $"Applies on next drill · VALORANT uses {(Main.I.Valorant.LeftHanded ? "left" : "right")}"

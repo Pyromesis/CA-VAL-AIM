@@ -5,6 +5,7 @@ namespace ValTrainer.Maps;
 public static partial class MapSpots
 {
     /// <summary>
+    /// Fallback for installs without the extracted map (maps/icebox/), see <see cref="Real"/>.
     /// Icebox, B Main (Green) → B Site, at true scale. Walls traced from the official minimap (valorant-api.com,
     /// 1 px = 0.136 m; within ~0.4 m of its wall lines) and placed with its own transform; heights from the callout
     /// elevations (B ground 0, B Hall +4.0, Kitchen +3.8, Tube +3.6, Hut +3.5) and reference screenshots.
@@ -18,7 +19,7 @@ public static partial class MapSpots
     /// Hut yard, which leads back to Back B under the walkway. Cut-offs where the real map goes on (Garage, Mid,
     /// Tube toward Mid, the defender-spawn side of the Hut) are sealed.
     /// </summary>
-    public static readonly MapSpot Icebox = new MapSpot
+    public static readonly MapSpot IceboxBlockout = new MapSpot
     {
         Key = "icebox", Map = "Icebox", Name = "B Main → B Site",
         Drill = "Come out of Garage into Green, push up to Yellow and clear Yellow, Back Yellow, B Site, the cubby under Top Site, Top Site, Bridge, Hall, Default, Snowman, Back B and Orange",

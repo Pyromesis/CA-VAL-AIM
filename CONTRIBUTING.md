@@ -54,6 +54,7 @@ Useful dev flags:
 | `--lang es` | Spanish UI for this run. |
 | `--map <name>` | Starts a map directly (dev). |
 | `--rifle vandal\|phantom` | Selects the primary rifle for this run. |
+| `--maps-dir <dir>` | Also looks for `maps/<key>/` (and the minimaps) in `<dir>`: test a freshly built map set (`tools/mapgen`). |
 | `--print-licenses <file>` | Writes the third-party notices and exits. |
 
 Run `tools\selftest.ps1` for the automated checks. The test tools and dev flags are documented in

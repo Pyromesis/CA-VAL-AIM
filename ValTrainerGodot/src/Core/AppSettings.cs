@@ -24,6 +24,7 @@ public sealed class AppSettings
     public string Language = "en";     // UI language: "en" or "es"
     public int PrimaryRifle;           // rifle drills: 0 = Vandal, 1 = Phantom
     public int AmmoMode = -1;          // -1 = the drill's default, 0 = real magazines/reserve, 1 = infinite
+    public int GuideLine = 2;          // guide to the nearest target: 0 = off, 1 = aim line, 2 = aim line + route on map drills (GuideSession)
     public float Volume = 0.5f;
     public bool Outlines = true;      // enemy outline + fresnel (Valorant: "Hide outlines and fresnel" off)
     public string TargetStyle = "valorant"; // aim-drill targets: "valorant" = dark body + enemy-colour outline/fresnel, "classic" = solid enemy-colour sphere

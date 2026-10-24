@@ -77,6 +77,9 @@ public abstract class TrainingMode
 
     /// <summary>What the player should be aiming at right now (recorded every frame for the aim coach).</summary>
     public virtual AimFocus? Focus => null;
+    /// <summary>Feet of the enemies still to be found (map drills): the guide draws the walk to the nearest one while none
+    /// is in sight (Settings → Guide line, <see cref="GameSession"/>.GuideSession.cs).</summary>
+    public virtual IEnumerable<Vector3> GuideTargets => Array.Empty<Vector3>();
     /// <summary>Zone the last bullet hit (set by modes in OnBullet; None = miss).</summary>
     public HitZone LastShotZone = HitZone.None;
     protected static int IdOf(object o) => System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(o);

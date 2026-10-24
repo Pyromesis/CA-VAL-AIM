@@ -11,9 +11,9 @@ namespace ValTrainer.Modes;
 /// <summary>
 /// Sound Lock ("sound"): a footsteps drill on a real map. You hold a site-level defender spot; the drill finds the corners
 /// enemies can appear from around you (where hidden floor meets floor you can see, on the navigation grid) and the hidden
-/// routes leading to them. Each rep one or more attackers run a route out of sight â€” their footsteps are positional
+/// routes leading to them. Each rep one or more attackers run a route out of sight — their footsteps are positional
 /// (<see cref="FootstepFx"/>: running audible to ~40 m with VALORANT's flat curve, walking silent, muffled through walls,
-/// per-surface) â€” then peek you from that corner. Pre-aim where they'll appear: you're scored on the crosshair error at
+/// per-surface) — then peek you from that corner. Pre-aim where they'll appear: you're scored on the crosshair error at
 /// the first frame they're visible (bot_seen), the time to your first hit, and the kill. Higher tiers: more attackers,
 /// jiggles before the swing, and fakes (run loud toward one corner, then walk silently to another).
 /// </summary>
@@ -25,7 +25,7 @@ public sealed class SoundLockMode : MapMode
     public override string Category => "Utility";
     public override float Duration => 90f;
     public override string SimKind => "bot";
-    public override string? Subtitle => $"{MapSpot.Map} â€” {MapSpot.Name} Â· {spotName}";
+    public override string? Subtitle => $"{MapSpot.Map} — {MapSpot.Name} · {spotName}";
     public override AimFocus? Focus => NearestHead(walkers.Where(w => w.Alive).Select(w => w.Body));
 
     sealed class Entrance
@@ -125,7 +125,7 @@ public sealed class SoundLockMode : MapMode
             bool see = !Collision.Blocked(eye, Eye(p), G.Solid) && !Collision.Blocked(eye, p + new Vector3(0, 1.0f, 0), G.Solid);
             vis[i] = (sbyte)(see ? 2 : 1);
         }
-        // Corners: hidden nodes next to a visible one, 6â€“30 m away.
+        // Corners: hidden nodes next to a visible one, 6–30 m away.
         var corners = new List<(int Hidden, int Seen, float Yaw, float Dist)>();
         for (int i = 0; i < n; i++)
         {
@@ -141,7 +141,7 @@ public sealed class SoundLockMode : MapMode
                 break;
             }
         }
-        // Cluster by direction (12Â° bins), keep corners backed by a real hidden corridor.
+        // Cluster by direction (12° bins), keep corners backed by a real hidden corridor.
         var bins = corners.GroupBy(c => (int)Mathf.Floor((c.Yaw + 180f) / 12f)).OrderByDescending(g => g.Count()).ToList();
         var chosen = new List<Entrance>();
         foreach (var bin in bins)
@@ -287,7 +287,7 @@ public sealed class SoundLockMode : MapMode
             else if (fake)
             {
                 // No hidden way between the corners: a teammate runs loud toward this corner and stops (the fake) while
-                // this one walks â€” silently â€” to another corner and peeks it a moment after the noise stops.
+                // this one walks — silently — to another corner and peeks it a moment after the noise stops.
                 var other = order[1];
                 int r2 = Rng.Next(other.Paths.Count);
                 var decoy = w;
@@ -307,7 +307,7 @@ public sealed class SoundLockMode : MapMode
             delay += R(0.6f, 2.2f);
         }
         ph = Ph.Live; phT = 0; lastSwingAt = -1f;
-        Log($"rep {reps}: {string.Join(", ", walkers.Select(w => $"#{w.Ent.Index}{(w.Decoy ? " (loud decoy)" : w.Silent ? " (silent walk)" : "")}{(w.FakeTo != null ? $"â†’fakeâ†’#{w.FakeTo.Index}" : "")}{(w.Jiggles > 0 ? $" jiggleÃ—{w.Jiggles}" : "")}"))}");
+        Log($"rep {reps}: {string.Join(", ", walkers.Select(w => $"#{w.Ent.Index}{(w.Decoy ? " (loud decoy)" : w.Silent ? " (silent walk)" : "")}{(w.FakeTo != null ? $"→fake→#{w.FakeTo.Index}" : "")}{(w.Jiggles > 0 ? $" jiggle×{w.Jiggles}" : "")}"))}");
     }
 
     Walker MakeWalker(Entrance ent, int route, float startAt)
@@ -376,7 +376,7 @@ public sealed class SoundLockMode : MapMode
         if (w.Fake) { fakes++; if (w.Err <= 10f) fakesRead++; }
         Score += (int)Mathf.Max(0, 60 - 6 * w.Err);
         Event("sound_seen", w.Err, w.Fake ? 1 : 0);
-        Log($"seen #{w.Ent.Index} err {w.Err:0.0}Â° (pitch {w.PitchErr:+0.0;-0.0}) {(w.Fake ? "after a fake" : "")}");
+        Log($"seen #{w.Ent.Index} err {w.Err:0.0}° (pitch {w.PitchErr:+0.0;-0.0}) {(w.Fake ? "after a fake" : "")}");
     }
 
     void Move(Walker w, float dt)
@@ -509,9 +509,9 @@ public sealed class SoundLockMode : MapMode
         if (seen.Count > 0)
         {
             var w = seen[0];
-            string r = w.Hit ? $" Â· first hit {(reacts.Count > 0 ? reacts[^1] : 0):0} ms" : "";
-            lastLine = $"Pre-aim error {w.Err:0.0}Â°{r}";
-            G.Banner(cleared ? $"{w.Err:0.0}Â° OFF{r.ToUpperInvariant()}" : "THEY GOT AWAY", cleared ? (w.Err <= 10f ? UiTheme.Good : UiTheme.Warn) : UiTheme.Dim);
+            string r = w.Hit ? $" · first hit {(reacts.Count > 0 ? reacts[^1] : 0):0} ms" : "";
+            lastLine = $"Pre-aim error {w.Err:0.0}°{r}";
+            G.Banner(cleared ? $"{w.Err:0.0}° OFF{r.ToUpperInvariant()}" : "THEY GOT AWAY", cleared ? (w.Err <= 10f ? UiTheme.Good : UiTheme.Warn) : UiTheme.Dim);
         }
         Event(cleared ? "round_won" : "round_lost");
         foreach (var w in walkers) w.Brain.Enabled = false;
@@ -541,7 +541,7 @@ public sealed class SoundLockMode : MapMode
             wk.Hit = true;
             float ms = (Now - wk.SeenAt) * 1000f;
             reacts.Add(ms);
-            Event("sound_react", ms); // sight â†’ first hit: not comparable with the Reaction Test benchmarks
+            Event("sound_react", ms); // sight → first hit: not comparable with the Reaction Test benchmarks
             Score += (int)Mathf.Max(0, (700 - ms) / 5);
         }
         Score += zone == HitZone.Head ? 50 : 15;
@@ -553,23 +553,23 @@ public sealed class SoundLockMode : MapMode
 
     public override IEnumerable<string> HudLines()
     {
-        yield return $"Rep {Math.Max(1, reps)} Â· on the angle {locked}/{errs.Count}";
-        if (ph == Ph.Live && walkers.All(w => !w.Seen)) yield return "Listen â€” where will they come from?";
+        yield return $"Rep {Math.Max(1, reps)} · on the angle {locked}/{errs.Count}";
+        if (ph == Ph.Live && walkers.All(w => !w.Seen)) yield return "Listen — where will they come from?";
         if (lastLine.Length > 0) yield return lastLine;
         if (ents.Count == 0) yield return "No usable corners on this map spot";
     }
 
     public override IEnumerable<(string Label, string Value)> ResultLines()
     {
-        yield return ("Map", $"{MapSpot.Map} Â· {spotName} ({ents.Count} corners)");
+        yield return ("Map", $"{MapSpot.Map} · {spotName} ({ents.Count} corners)");
         yield return ("Peeks", $"{errs.Count} seen in {reps} reps");
         if (errs.Count > 0)
         {
-            yield return ("Pre-aim error", $"{Median(errs):0.0}Â° median");
-            yield return ("On the angle (â‰¤ 10Â°)", $"{100f * locked / errs.Count:0}% of peeks");
+            yield return ("Pre-aim error", $"{Median(errs):0.0}° median");
+            yield return ("On the angle (≤ 10°)", $"{100f * locked / errs.Count:0}% of peeks");
         }
         if (fakes > 0) yield return ("Fakes read", $"{fakesRead} of {fakes}");
-        if (reacts.Count > 0) yield return ("First sight â†’ first hit", $"{Median(reacts):0} ms median");
+        if (reacts.Count > 0) yield return ("First sight → first hit", $"{Median(reacts):0} ms median");
         yield return ("Kills / deaths", $"{Kills} / {Deaths}");
         if (Hits > 0) yield return ("Headshot %", $"{100f * HeadHits / Hits:0}%");
         yield return ("Accuracy", $"{Accuracy * 100:0.0}%");

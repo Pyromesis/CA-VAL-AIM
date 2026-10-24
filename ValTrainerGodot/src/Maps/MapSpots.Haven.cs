@@ -5,6 +5,7 @@ namespace ValTrainer.Maps;
 public static partial class MapSpots
 {
     /// <summary>
+    /// Fallback for installs without the extracted map (maps/haven/), see <see cref="Real"/>.
     /// Haven, C Lobby → C Long → C Site, at true scale. Walls and props were traced from the official minimap
     /// (valorant-api.com, 1 px = 0.13 m) and placed with its own transform; heights follow in-game screenshots.
     /// Authored directly in the final frame (no mirroring): Z = along C Long (attackers walk −Z, the Long exit
@@ -12,7 +13,7 @@ public static partial class MapSpots
     /// Cut-offs where the real map continues (Link → B / defender spawn, Garage doors → Mid, Lobby → attacker
     /// spawn) are sealed with walls.
     /// </summary>
-    public static readonly MapSpot Haven = new MapSpot
+    public static readonly MapSpot HavenBlockout = new MapSpot
     {
         Key = "haven", Map = "Haven", Name = "C Long → C Site",
         Drill = "C Long into C Site: check Cubby, then clear Close right, Close left, Default, Plat, Logs, Back site, Connector, Garage, C Link and C Window",

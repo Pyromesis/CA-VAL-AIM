@@ -612,7 +612,7 @@ public partial class MenuScreen : ScreenBase
     /// <summary>The last played drill's display name (falls back to the raw mode key).</summary>
     string LastModeLabel()
     {
-        if (summary.LastMode.Length == 0) return "";
+        if (string.IsNullOrEmpty(summary.LastMode)) return ""; // default summary (no runs yet): null
         foreach (var (_, info) in modes)
             if (info.Key == summary.LastMode) return info.Name;
         return summary.LastMode;

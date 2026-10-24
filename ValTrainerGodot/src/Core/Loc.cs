@@ -1363,6 +1363,25 @@ public static class Loc
             "Cada ejercicio decide (puntería: infinita; bots: recargas)",
         ["Magazines and reserve run out"] = "Los cargadores y la reserva se acaban",
         ["No reloading, unlimited reserve"] = "Sin recargar, reserva ilimitada",
+        ["Guide line"] = "Línea guía",
+        ["YOU DIED"] = "HAS MUERTO",
+        ["YOU DIED — they hit first"] = "HAS MUERTO: dispararon primero",
+        ["TODAY'S PLAN"] = "PLAN DE HOY",
+        ["Skipped the nearest target"] = "Te saltaste el objetivo más cercano",
+        ["Every extra degree is flick time and flick error (Fitts' law). Players who scan for the target closest to the crosshair keep every flick short and clear multi-target fights faster."] =
+            "Cada grado de más es tiempo y error de flick (ley de Fitts). Quien busca el objetivo más cercano a la mira mantiene cortos todos los flicks y resuelve antes las peleas contra varios.",
+        ["Before each flick, find the target closest to your crosshair and go there first."] =
+            "Antes de cada flick, busca el objetivo más cercano a tu mira y ve primero a por él.",
+        ["Turn on Settings → Guide line: it always points at the nearest target. Follow it until the habit sticks, then turn it off."] =
+            "Activa Ajustes → Línea guía: siempre apunta al objetivo más cercano. Síguela hasta coger el hábito y luego desactívala.",
+        ["Clear groups in a loop that keeps the flicks short instead of zig-zagging across the grid."] =
+            "Limpia los grupos en un recorrido que mantenga cortos los flicks en vez de zigzaguear por la cuadrícula.",
+        ["LINE"] = "LÍNEA",
+        ["LINE + ROUTE"] = "LÍNEA + RUTA",
+        ["No guide"] = "Sin guía",
+        ["A line from the crosshair to the nearest target"] = "Una línea desde la mira hasta el objetivo más cercano",
+        ["Aim line, plus the shortest route to the nearest enemy on map drills"] =
+            "Línea de apuntado y, en los mapas, la ruta más corta hasta el enemigo más cercano",
         ["APPLIES NEXT DRILL"] = "SE APLICA AL SIGUIENTE EJERCICIO",
         ["Fullscreen"] = "Completa",
         ["Windowed Fullscreen"] = "Sin bordes",

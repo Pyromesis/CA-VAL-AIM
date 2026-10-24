@@ -2,6 +2,48 @@
 
 ## [Unreleased]
 
+## [1.17.0] - 2026-10-24
+
+### Added
+
+- **All 13 maps are complete.** Every map is now extracted whole: every art sublevel, all sites (A, B and C),
+  mid, both spawns and every connector, instead of the A side only. Breeze, Haven, Icebox and Split, which were
+  hand-traced blockouts, now play on the real geometry too; the blockouts stay as the fallback for installs
+  without the `maps/` folder.
+- **Real map colours.** Each surface takes the colour of its real material, measured by the extractor from the game's
+  own textures and layer tints, instead of a dozen generic greys, so every map has its own look. Per-placement
+  material overrides are applied too (Bind's B site floor is sand, not the engine's grey grid). The level files are
+  smaller than before.
+- **Nothing in the maps is transparent any more**: glass, fences and foliage render solid.
+- **Guide line** (Settings → Gameplay → Guide line, on by default): a line from the crosshair to the nearest
+  target with its flick distance, an edge arrow when it is off screen, and on map drills a route on the floor
+  along the shortest walk to the nearest enemy while none is in sight. Off / Line / Line + Route.
+- **Vandal ↔ Phantom in the drill.** On every rifle drill, *Equip primary* (1) swaps the rifle during the countdown
+  (or any time in free play) and keeps it as your primary rifle. The countdown shows which rifle you hold.
+- **Coach: target order.** Gridshot records which target you go for next; the coach flags skipping the nearest
+  one (`TARGET_ORDER`, with fixes, drills and Rewind moments) and praises a clean order.
+- **Coach: skill trends.** Each skill shows whether it is improving or dropping (this week against before, or
+  newer runs against older ones); the tooltip gives the change in ranks.
+- **Coach: today's plan.** One drill per top problem, most important first, each started with that problem as
+  the coach focus.
+- Map tooling in the repository: `tools/mappipe` (extractor; the pak key is passed with `--key`),
+  `compose_map.py`, `flatten_glb.py`, `build_maps.py`, `author_spots.py`, `render_plan.py`, `api_callouts.py`,
+  `map_points.py`. See `tools/mapgen/README.md`.
+
+### Fixed
+
+- **Maps were mirrored.** The extraction placed every piece with a rotation where Unreal → glTF needs a
+  reflection, so the maps came out mirrored east-west and each piece was mirrored again in place, tearing gaps
+  between neighbouring pieces. The maps now match the real game and the official minimaps.
+- The minimap and briefing use the official minimaps with an exact calibration (valorant-api.com transform), so
+  markers sit where they are in the 3D map.
+- Map drills on Lotus, Pearl, Sunset, Summit, Abyss, Corrode and Fracture were generated from a partial map and
+  placed defenders at the entrance or out of sight. All map drills (except the hand-authored Ascent and Bind) are
+  now generated from the full collision: the route is the real walk from attacker spawn, defenders hold covered
+  cells that see the entrance or the site, and plants, retakes, smokes and flashes follow.
+- Garbled characters ("â€”") in map drill subtitles and texts.
+- The main menu threw while building its record panel for a new player with no runs yet.
+
 ## [1.16.2] - 2026-10-23
 
 ### Added

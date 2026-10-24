@@ -21,7 +21,7 @@ public abstract class MapMode : MovementMode
     public override MapSpot? Map => MapSpot;
     public override Vector3 StartFeet => SpawnFeet;
     public override float StartYaw => SpawnYaw;
-    public override string? Subtitle => $"{MapSpot.Map} â€” {MapSpot.Name}";
+    public override string? Subtitle => $"{MapSpot.Map} — {MapSpot.Name}";
 
     /// <summary>Choose the map before the session builds the world (called from the constructor path).</summary>
     protected MapMode()
@@ -89,6 +89,8 @@ public abstract class MapMode : MovementMode
 public sealed class SiteClearMode : MapMode
 {
     public override AimFocus? Focus => between > 0 ? null : NearestHead(defenders.Select(d => d.Body));
+    public override IEnumerable<Vector3> GuideTargets => between > 0 ? Array.Empty<Vector3>()
+        : defenders.Where(d => GodotObject.IsInstanceValid(d.Body) && !d.Body.Dead).Select(d => d.Body.Feet);
 
     public override string Key => "siteclear";
     public override string Name => "Site Clear";
@@ -209,7 +211,7 @@ public sealed class FlashDodgeMode : MapMode
 
     public override string Key => "flashmap";
     public override string Name => "Flash Dodge";
-    public override string Description => "Hold a real angle. Hear the flash, turn it off-screen (60â€“90Â°+), swing back, win the duel. Shoot Gekko's Dizzy before she spits.";
+    public override string Description => "Hold a real angle. Hear the flash, turn it off-screen (60–90°+), swing back, win the duel. Shoot Gekko's Dizzy before she spits.";
     public override string Category => "Utility";
 
     enum St { Hold, Thrown, Dizzy, Swing, After }
@@ -225,7 +227,7 @@ public sealed class FlashDodgeMode : MapMode
     readonly List<float> turnMs = new();
     string lastAgent = "";
 
-    // Gekko's Dizzy (DizzySpec): flight â†’ forming â†’ active hover; a lock-on, then one plasma blast at you
+    // Gekko's Dizzy (DizzySpec): flight → forming → active hover; a lock-on, then one plasma blast at you
     Vector3 dzPos, dzVel, boltFrom, boltTo;
     float dzT, lockAt = -1, boltT = -1, boltTravel;
     bool dzDead, dzFired, dzActive;
@@ -274,7 +276,7 @@ public sealed class FlashDodgeMode : MapMode
         bounceWindup = windupPlayed = false;
         switch (agent.Path)
         {
-            case FlashPath.Hawk: // Guiding Light flies at 18 m/s, auto-pops at the end of its 2 s flight; recast â†’ 0.3 s
+            case FlashPath.Hawk: // Guiding Light flies at 18 m/s, auto-pops at the end of its 2 s flight; recast → 0.3 s
                 land = Mathf.Clamp(dist / agent.Speed, 0.45f, 2f); flight = land + agent.Fuse; break;
             case FlashPath.Bounce: // Blindside is invisible until its first bounce, then pops 0.6 s later
                 land = Mathf.Clamp(dist / agent.Speed, 0.12f, 0.8f); flight = land + agent.Fuse; break;
@@ -353,10 +355,10 @@ public sealed class FlashDodgeMode : MapMode
         if (Main.I.Dev) Log.Info($"[flash] pop {lastAgent} at {stateT:0.00} s (land {land:0.00}, bounce windup {bounceWindup}): {grade} {sec:0.00} s");
         switch (grade)
         {
-            case BlindGrade.Flashed: flashed++; Score -= 40; G.Banner($"FLASHED {sec:0.0}s Â· {lastAgent}", UiTheme.Accent); break;
-            case BlindGrade.Partial: partial++; Score += 10; G.Banner($"Partial {sec:0.0}s Â· {lastAgent}", UiTheme.Warn); break;
+            case BlindGrade.Flashed: flashed++; Score -= 40; G.Banner($"FLASHED {sec:0.0}s · {lastAgent}", UiTheme.Accent); break;
+            case BlindGrade.Partial: partial++; Score += 10; G.Banner($"Partial {sec:0.0}s · {lastAgent}", UiTheme.Warn); break;
             case BlindGrade.NoLineOfSight: flashes--; G.Banner("Flash was blocked", UiTheme.Dim); break;
-            default: dodged++; Score += 50; G.Banner($"Dodged Â· {lastAgent}", UiTheme.Good); break;
+            default: dodged++; Score += 50; G.Banner($"Dodged · {lastAgent}", UiTheme.Good); break;
         }
         StartSwing();
     }
@@ -370,7 +372,7 @@ public sealed class FlashDodgeMode : MapMode
         Event("flash", 0, -1);
         dodged++; rosesShot++; Score += 60;
         lastAgent = $"{agent.Agent} {agent.Ability}";
-        G.Banner($"Shot the Arc Rose Â· {lastAgent}", UiTheme.Good);
+        G.Banner($"Shot the Arc Rose · {lastAgent}", UiTheme.Good);
         StartSwing();
     }
 
@@ -456,7 +458,7 @@ public sealed class FlashDodgeMode : MapMode
         G.Sound("dizzy_bubble", 0.7f);
         Event("dizzy", 2);
         flashed++; dizzyHit++; Score -= 40;
-        G.Banner("DIZZY'D 2.0s Â· Gekko Dizzy", UiTheme.Accent);
+        G.Banner("DIZZY'D 2.0s · Gekko Dizzy", UiTheme.Accent);
         if (Main.I.Dev) Log.Info($"[flash] Dizzy hit you (fired at {dzT - boltTravel:0.00} s after the throw)");
         StartSwing();
     }
@@ -475,14 +477,14 @@ public sealed class FlashDodgeMode : MapMode
     {
         Event("dizzy", 0, shot);
         dodged++; Score += points;
-        G.Banner($"{banner} Â· Gekko Dizzy", UiTheme.Good);
+        G.Banner($"{banner} · Gekko Dizzy", UiTheme.Good);
         if (Main.I.Dev) Log.Info($"[flash] Dizzy: {banner} (t {dzT:0.00} s)");
         StartSwing();
     }
 
     // ---------------- the entry ----------------
 
-    /// <summary>Attacker starts hidden behind the choke, walks start â†’ choke â†’ a clear swing spot, pre-aiming you.</summary>
+    /// <summary>Attacker starts hidden behind the choke, walks start → choke → a clear swing spot, pre-aiming you.</summary>
     void StartSwing()
     {
         var toPlayer = new Vector3(SpawnFeet.X - MapSpot.Choke.X, 0, SpawnFeet.Z - MapSpot.Choke.Z).Normalized();
@@ -579,7 +581,7 @@ public sealed class FlashDodgeMode : MapMode
                 if (stateT > 10f)
                 {
                     // The entry happened but nobody won the duel in time (or the attacker never got a sight line).
-                    G.Banner(brain is { FirstSeenAt: >= 0 } ? "Too slow â€” the entry survived" : "They didn't swing", UiTheme.Dim);
+                    G.Banner(brain is { FirstSeenAt: >= 0 } ? "Too slow — the entry survived" : "They didn't swing", UiTheme.Dim);
                     if (brain is { FirstSeenAt: >= 0 }) losses++;
                     st = St.After; stateT = 0;
                 }
@@ -638,7 +640,7 @@ public sealed class FlashDodgeMode : MapMode
 
     public override IEnumerable<string> HudLines()
     {
-        if (st == St.Hold) yield return "Hold the angle â€” listen for the flash";
+        if (st == St.Hold) yield return "Hold the angle — listen for the flash";
         if (st == St.Dizzy && !dzDead && !dzFired) yield return "Gekko's Dizzy: shoot her or get out of her sight";
     }
 

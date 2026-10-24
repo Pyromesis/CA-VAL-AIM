@@ -46,9 +46,10 @@ All 13 standard maps are selectable:
 
 **Ascent · Bind · Breeze · Fracture · Haven · Icebox · Lotus · Pearl · Split · Sunset · Summit · Abyss · Corrode**
 
-The release includes real extracted geometry, textures and collision for **Ascent, Fracture, Lotus, Sunset, Pearl,
-Summit, Abyss and Corrode**. The remaining maps use the trainer's true-scale blockout geometry. Map minimaps are used in
-the picker, the countdown briefing and the in-game minimap.
+The release includes the real extracted geometry and collision of **all 13 maps, complete** (every site, mid and both
+spawns), in the real game's orientation and colours. Breeze, Haven, Icebox and Split keep their true-scale blockouts
+only as a fallback for installs without the `maps/` folder. The official minimaps, calibrated to the 3D maps, are used
+in the picker, the countdown briefing and the in-game minimap.
 
 ## What it copies from VALORANT
 
@@ -99,6 +100,8 @@ tier.
   that plateaus, side-locked horizontal drift, growing spread, and recovery of about 0.375 s after one tap and about
   1.3 s after a full spray.
 - **Phantom:** 11 rounds/s, 30-round magazine, damage falloff.
+- **Switching rifles:** pick Vandal or Phantom in Settings, or press *Equip primary* (1) during a drill's countdown
+  (any time in free play) to swap; every rifle drill uses your choice.
 - **Operator:** 2.5× scope, bolt action.
 - **Movement:** running adds 6° of inaccuracy and walking 3°. You are accurate below 27.5% of run speed, which is what
   makes counter-strafing work.
@@ -119,6 +122,12 @@ Real-time Godot Forward+ rendering:
 On the first start ValTraining picks a preset for your PC (Low on integrated, virtual or software GPUs). Change it any
 time in Settings.
 
+## Guide line
+
+Settings → Gameplay → **Guide line** (on by default): while a drill runs, a dashed line goes from your crosshair to the
+nearest target with the flick distance in degrees (an arrow on the screen edge when it is behind you), and on map drills
+a ribbon on the floor shows the shortest walk to the nearest enemy while none is in sight. Off / Line / Line + Route.
+
 ## Aim coach
 
 Every run records your mouse input, crosshair path, shots and events to `%APPDATA%\ValTrainer\telemetry` (the 80 most
@@ -129,6 +138,9 @@ recent runs are kept). The coach analyses them:
 - **Problems** sorted by importance, each with your numbers, why it happens, how to fix it and drills to practise.
 - **Run review:** the results screen adds a short review of that run: a summary, the top problems with fixes and what
   went well.
+- **Target order:** in Gridshot the coach checks whether you go for the target nearest your crosshair.
+- **Trends and today's plan:** each skill shows whether it is improving or dropping, and the coach suggests one
+  drill per top problem.
 - **Sens Finder:** a blind A/B test of about 13 minutes. It narrows down to the sensitivity you score best with and ends
   with a recommended VALORANT sens, eDPI and cm/360, plus a button to use it in ValTraining. VALORANT itself is never
   changed.

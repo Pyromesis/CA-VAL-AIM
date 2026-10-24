@@ -578,8 +578,13 @@ public partial class SkillRow : BaseButton
     public SkillRating? Rating;
     public float K = 1f;
     public bool Stripe;
+    /// <summary>Rating change, newer runs − older runs, in tiers (null = no trend yet); see <see cref="Coach.Trends"/>.</summary>
+    public float? Trend;
+    public string TrendSpan = "";
     float hover;
     bool Rated => CoachRank.Rated(Rating);
+    /// <summary>A quarter of a rank (0.12 tiers) either way counts as steady.</summary>
+    int TrendDir => Trend is not { } t || !Rated ? 0 : t >= 0.12f ? 1 : t <= -0.12f ? -1 : 0;
 
     public SkillRow()
     {
@@ -594,6 +599,19 @@ public partial class SkillRow : BaseButton
         string rated = Rated
             ? $"{CoachRank.Name(Rating!.Tier)} · {CoachRank.Confidence(Rating.Confidence).ToLowerInvariant()} confidence ({Rating.Samples} samples)"
             : "Not rated yet" + (drill != null ? $" — click to play {CoachData.DrillName(drill)}" : "");
+        if (Trend is { } tr && Rated)
+        {
+            string since = TrendSpan == "week"
+                ? (Loc.Spanish ? "frente a antes de esta semana" : "compared with before this week")
+                : (Loc.Spanish ? "frente a tus partidas anteriores" : "compared with your earlier runs");
+            string how = TrendDir switch
+            {
+                1 => Loc.Spanish ? "mejorando" : "improving",
+                -1 => Loc.Spanish ? "empeorando" : "dropping",
+                _ => Loc.Spanish ? "estable" : "steady",
+            };
+            rated += $"\n{how} {since} ({(tr >= 0 ? "+" : "")}{tr / 0.5f:0.0} {(Loc.Spanish ? "rangos" : "ranks")})";
+        }
         TooltipText = $"{CoachSkills.Name(Skill)}: {CoachSkills.About(Skill)}\n{rated}";
         if (!Rated && drill != null)
         {
@@ -622,6 +640,17 @@ public partial class SkillRow : BaseButton
         float rw = Gfx.TextR(this, UiTheme.Display, rank, w - pad, Gfx.Mid(top, rs), rs, Rated ? rc : UiTheme.Faint);
         float bars = 0;
         if (Rated) bars = CoachDraw.ConfBars(this, new Vector2(w - pad - rw - 26 * k, top), k, Rating!.Confidence) + 10 * k;
+        if (TrendDir != 0)
+        {
+            // Trend arrow left of the confidence bars: up = improving (green), down = dropping (amber).
+            float ax = w - pad - rw - bars - 30 * k, ay = top;
+            var tc = TrendDir > 0 ? UiTheme.Good : UiTheme.Warn;
+            float h = 6 * k, hw = 6 * k;
+            DrawColoredPolygon(TrendDir > 0
+                ? new[] { new Vector2(ax, ay - h), new Vector2(ax + hw, ay + h), new Vector2(ax - hw, ay + h) }
+                : new[] { new Vector2(ax, ay + h), new Vector2(ax - hw, ay - h), new Vector2(ax + hw, ay - h) }, tc);
+            bars += 22 * k;
+        }
         Gfx.TextFit(this, UiTheme.Display, CoachSkills.Name(Skill), pad, Gfx.Mid(top, ns), ns, Rated ? UiTheme.Text : UiTheme.Dim,
             w - pad * 2 - rw - bars - 20 * k);
 

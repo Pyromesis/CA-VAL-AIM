@@ -280,6 +280,7 @@ public partial class GameSession : Node3D, IGame
 
         World = new Node3D { Name = "ModeWorld" };
         AddChild(World);
+        ResetGuide();
         Effects.Root = World;
         Effects.Prewarm();
         if (Mode is BotMode) BotCharacter.Prewarm(World, Enemy, Main.I.Settings.Outlines, Mode.StartFeet + new Vector3(0, -3f, -4f));
@@ -377,10 +378,26 @@ public partial class GameSession : Node3D, IGame
         int ads = binds.Match(e, GameAction.AltFire);
         if (ads != 0) OnAdsButton(ads > 0, wheel, binds);
 
+        if (binds.Pressed(e, GameAction.EquipPrimary) && CanSwapRifle) SwapRifle();
         if (binds.Pressed(e, GameAction.Reload) && State == St.Running && Gun != null && !Mode.EffectiveInfiniteAmmo)
             Gun.StartReload(Mode.EffectiveInfiniteReserve);
         // Wheel notches have no hold: queue the jump (key / mouse-button jumps are polled by the Mover).
         if (wheel && State == St.Running && binds.Pressed(e, GameAction.Jump)) Mover.QueueJump();
+    }
+
+    /// <summary>Equip primary swaps Vandal ↔ Phantom on rifle drills: during the countdown (a run is played with one gun,
+    /// so its stats stay comparable) or any time in free play. The choice is kept as the primary rifle (Settings).</summary>
+    public bool CanSwapRifle => !Demo && Mode.RifleSelectable && weaponDef?.Kind is WeaponKind.Vandal or WeaponKind.Phantom
+        && (State == St.Countdown || (FreePlay && State == St.Running));
+
+    void SwapRifle()
+    {
+        var next = weaponDef!.Kind == WeaponKind.Vandal ? WeaponKind.Phantom : WeaponKind.Vandal;
+        Main.I.Settings.PrimaryRifle = next == WeaponKind.Phantom ? 1 : 0;
+        Main.I.Settings.Save();
+        SwitchWeapon(next);
+        Telemetry.Weapon = next.ToString();
+        Banner(next == WeaponKind.Phantom ? "PHANTOM" : "VANDAL", UiTheme.Teal);
     }
 
     void OnAdsButton(bool pressed, bool wheel, Keybinds binds)
@@ -448,6 +465,7 @@ public partial class GameSession : Node3D, IGame
         if (Main.I.Dev && !Demo) DevKeybindTick(); // --keybind-test (KeybindTest.cs)
 
         UpdateCamera();
+        UpdateGuide(); // the guide's route to the nearest enemy (GuideSession.cs)
         UpdateAdsVisuals(); // crosshair mode, scope, sight outline, viewmodel aim pose (AdsSession.cs)
         if (Main.I.Dev && DevShot is { Length: > 0 } shotPath && !devShotDone)
         {

@@ -107,6 +107,7 @@ public static class RewindData
         "SPRAY_VERT" => "Spray drifting up",
         "SPRAY_HORIZ" => "Spray drifting sideways",
         "FLASH_SLOW" => "Late flash turns",
+        "TARGET_ORDER" => "Skipped the nearest target",
         _ => Pretty(code),
     };
 

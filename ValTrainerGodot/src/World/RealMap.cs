@@ -6,12 +6,12 @@ namespace ValTrainer.World;
 
 /// <summary>
 /// Loads the art GLBs of an extracted map at runtime. They are extracted from the installed game with
-/// CUE4Parse, converted through Blender and kept outside the distribution.
+/// tools/mappipe (CUE4Parse), composed per level by tools/mapgen/compose_map.py and kept outside the distribution.
 ///
-/// Blender's glTF export is Y-up with <c>(x, z, -y)</c> world axes. Ascent uses its original hard-coded
-/// frame; every newer map carries a <c>manifest.json</c> with the same proper 90° Y rotation and the
-/// translation that puts its A Main callout at the game origin. The collision file is already in that
-/// final frame.
+/// The GLBs are Y-up glTF with Unreal (x, y, z) stored as (x, z, y). Every map carries a <c>manifest.json</c>; the
+/// art node is turned 90° about Y and moved by the manifest origin, so an Unreal point lands at
+/// <c>(uy, uz, -ux) / 100 + origin</c>: a true (unmirrored) top view, north at -Z, like the official minimap. The
+/// origin puts the drilled site's plant point near the game origin. The collision file is already in that final frame.
 ///
 /// The geometry is loaded through <see cref="GltfStrip"/>, which drops every texture and collapses the
 /// Unreal material set to flat colours: an aim trainer needs the map shape, not its art detail.
@@ -237,6 +237,7 @@ public static class RealMap
             // Fallback when the GLB could not be rewritten: strip its textures and clamp Unreal's
             // metallic=1/roughness=1 (which renders black on the low preset).
             bm.VertexColorUseAsAlbedo = false;
+            bm.Transparency = BaseMaterial3D.TransparencyEnum.Disabled; // nothing see-through in a map
             bm.AlbedoTexture = null;
             bm.NormalEnabled = false;
             bm.OrmTexture = null;

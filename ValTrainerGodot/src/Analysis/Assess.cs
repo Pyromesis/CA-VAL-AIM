@@ -48,6 +48,7 @@ static class Assess
         "stops" => "paradas",
         "sprays" => "sprays",
         "flashes" => "flashes",
+        "picks" => "elecciones",
         "direction changes" => "cambios de dirección",
         "s of tracking" => "segundos de tracking",
         _ => unit,
@@ -485,6 +486,24 @@ static class Assess
                 unit: "flicks");
         }
 
+        // TARGET_ORDER (Gridshot): the next flick should go to the target nearest the crosshair.
+        float pickN = N(m, "pick.n"), nearPct = V(m, "pick.nearest_pct"), extra = V(m, "pick.extra_deg");
+        if (nearPct < 70 && extra >= 3f)
+            Add("TARGET_ORDER", Skill.Flicking, nearPct < 50 ? 2 : 1, pickN, 40,
+                S("Target order: you skip the nearest target", "Orden de objetivos: te saltas el más cercano"),
+                F2($"{100 - nearPct:0}% of your picks went to a farther target, adding {extra:0.0}° of flick per target on average",
+                    $"El {100 - nearPct:0}% de tus elecciones fueron a un objetivo más lejano, sumando {extra:0.0}° de flick por objetivo de media"),
+                "Every extra degree is flick time and flick error (Fitts' law). Players who scan for the target closest to the crosshair keep every flick short and clear multi-target fights faster.",
+                new[]
+                {
+                    "Before each flick, find the target closest to your crosshair and go there first.",
+                    "Turn on Settings → Guide line: it always points at the nearest target. Follow it until the habit sticks, then turn it off.",
+                    "Clear groups in a loop that keeps the flicks short instead of zig-zagging across the grid.",
+                },
+                new[] { "gridshot", "switch" },
+                F2($"{100 - nearPct:0}% of your picks skipped the nearest target", $"el {100 - nearPct:0}% de tus elecciones se saltaron el objetivo más cercano"),
+                unit: "picks");
+
         // SLOW_START
         float onset = V(m, "flick.onset_ms"), react = V(m, "react.ms");
         bool haveReact = !float.IsNaN(react) && N(m, "react.n") >= 5;
@@ -822,6 +841,10 @@ static class Assess
         if (V(m, "xhair.pitch_deg") is var xp && MathF.Abs(xp) < 0.6f && N(m, "xhair.n") >= 5)
             Pos(F2($"Crosshair at head height: enemies appear within {MathF.Abs(xp):0.0}° vertically.",
                 $"Mira a la altura de la cabeza: los enemigos aparecen a {MathF.Abs(xp):0.0}° en vertical."), 0.3f);
+        float near = V(m, "pick.nearest_pct");
+        if (near >= 85 && N(m, "pick.n") >= 15)
+            Pos(F2($"Smart target order: {near:0}% of your picks went to the nearest target.",
+                $"Buen orden de objetivos: el {near:0}% de tus elecciones fueron al objetivo más cercano."), 0.25f);
         a.Strengths.Sort((x, y) => y.Score.CompareTo(x.Score));
         _ = o;
     }

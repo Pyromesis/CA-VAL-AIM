@@ -9,12 +9,12 @@ namespace ValTrainer.Modes;
 /// <summary>
 /// VALORANT-style free-for-all Deathmatch against bots at the player's tier, on one of the true-scale map areas.
 /// Rules (Riot support "FFA Deathmatch" + the official VALORANT wiki): first to the kill target or most kills when time
-/// runs out (VALORANT: 40 kills / 9 min for 14 players â€” scaled here to 30 kills / 5 min for 3â€“6 bots), 1.5 s respawn at
+/// runs out (VALORANT: 40 kills / 9 min for 14 players — scaled here to 30 kills / 5 min for 3–6 bots), 1.5 s respawn at
 /// a random spot free of enemies, brief spawn protection that ends when you fire, heavy armour every life
 /// (100 HP + 50 shield), every kill reloads your gun, every death drops a health pack (10 s, full HP + armour), and
 /// respawning briefly reveals where the enemies are. Bots roam the map on a nav grid (<see cref="BotNav"/>), hunt your
 /// last known position (gunfire, damage, the respawn reveal), hold angles, and fight you with the tier's duel model
-/// (<see cref="BotBrain"/>) â€” and each other.
+/// (<see cref="BotBrain"/>) — and each other.
 /// <para>Warm-up / routines: <c>new DeathmatchMode(durationSeconds: 180)</c> or <c>DeathmatchMode.Create(180)</c>; the kill
 /// target scales with the length (1 kill per 10 s) unless given. A session <c>DurationOverride</c> is honoured too.</para>
 /// </summary>
@@ -51,7 +51,7 @@ public sealed partial class DeathmatchMode : MapMode
     public override float Duration => duration;
     public override WeaponKind Weapon => weapon;
     public override bool Done => winner != null;
-    public override string? Subtitle => $"{MapSpot.Map} â€” Deathmatch Â· first to {killTarget}";
+    public override string? Subtitle => $"{MapSpot.Map} — Deathmatch · first to {killTarget}";
     public int KillTarget => killTarget;
 
     // ---------------- state ----------------
@@ -85,13 +85,13 @@ public sealed partial class DeathmatchMode : MapMode
         // First spawn: you at the map's attacker start, bots away from you and out of sight.
         foreach (var b in bots) SpawnLife(b, SpawnFeet);
         if (DevLog)
-            GD.Print($"[dm] map {MapSpot.Key} tier {Tier}: nav {nav.Count} nodes ({nav.Area:0} mÂ², built {nav.BuildMs:0} ms), " +
+            GD.Print($"[dm] map {MapSpot.Key} tier {Tier}: nav {nav.Count} nodes ({nav.Area:0} m², built {nav.BuildMs:0} ms), " +
                      $"{spawnPool.Length} spawn spots, {n} bots, first to {killTarget}, setup {sw.Elapsed.TotalMilliseconds:0} ms");
     }
 
     int BotCount()
     {
-        // ~250 mÂ² of floor per bot: 4â€“6 on Ascent / Haven / Split; Bind's Hookahâ†’B area is tiny (â‰ˆ370 mÂ²) and gets 3.
+        // ~250 m² of floor per bot: 4–6 on Ascent / Haven / Split; Bind's Hookah→B area is tiny (≈370 m²) and gets 3.
         int byArea = Math.Clamp((int)Mathf.Round(nav.Area / 250f), 3, 6);
         return Tier <= 1 ? Math.Min(byArea, 5) : byArea;
     }
@@ -148,7 +148,7 @@ public sealed partial class DeathmatchMode : MapMode
         foreach (var b in bots) b.SetSkill(skill);
         float left = G.RunLength - Now;
         string when = Mathf.Abs(G.EaseLastSeconds - 60f) < 8f ? "LAST MINUTE" : $"LAST {Mathf.Round(G.EaseLastSeconds)} SECONDS";
-        G.Banner($"{when} Â· FINISH STRONG", UiTheme.Good);
+        G.Banner($"{when} · FINISH STRONG", UiTheme.Good);
         G.Sound("go", 0.6f);
         Log.Info($"[dm] finisher: bots eased to tier {Math.Max(0, Tier - 1)}{(Tier == 0 ? " (slower Rookie)" : "")} at {Now:0.0}s, {left:0} s left " +
                  $"(react {skill.ReactMs:0} ms, first-shot hit {skill.PHit1:0.00})");
@@ -156,7 +156,7 @@ public sealed partial class DeathmatchMode : MapMode
 
     // ---------------- spawning ----------------
 
-    /// <summary>Random open spot that no living enemy can see, â‰¥10 m from all of them (prefers 12â€“28 m: "close to the action").</summary>
+    /// <summary>Random open spot that no living enemy can see, ≥10 m from all of them (prefers 12–28 m: "close to the action").</summary>
     Vector3 PickSpawn(List<Vector3> enemyEyes, out float yaw)
     {
         Vector3 best = nav.Pos[spawnPool[Rng.Next(spawnPool.Length)]];
@@ -268,7 +268,7 @@ public sealed partial class DeathmatchMode : MapMode
             if (headshot) headKills++;
             // VALORANT DM: every kill reloads your gun.
             if (G is GameSession s && s.Gun != null) { s.Gun.Ammo = s.Gun.Def.Mag; s.Gun.ReloadLeft = 0; }
-            AddFeed($"You killed {victim.Name}{(headshot ? " Â· headshot" : "")}");
+            AddFeed($"You killed {victim.Name}{(headshot ? " · headshot" : "")}");
         }
         else
         {
@@ -331,11 +331,11 @@ public sealed partial class DeathmatchMode : MapMode
             var head = b.Body!.Head;
             if (!G.LineOfSight(eye, head)) continue;
             visible.Add(b);
-            // A new engagement: first sight after â‰¥2.5 s unseen. Crosshair placement is graded only for enemies in front.
+            // A new engagement: first sight after ≥2.5 s unseen. Crosshair placement is graded only for enemies in front.
             if (Now - b.SeenByPlayerAt > 2.5f)
             {
                 b.Body.SpawnTime = Now; // time-to-kill counts from first sight
-                SeenEvent(head); // graded only within SeenMaxDeg (60Â°) of the crosshair
+                SeenEvent(head); // graded only within SeenMaxDeg (60°) of the crosshair
             }
             b.SeenByPlayerAt = Now;
         }
@@ -356,6 +356,8 @@ public sealed partial class DeathmatchMode : MapMode
         }
     }
 
+    public override IEnumerable<Vector3> GuideTargets => bots.Where(b => b.Alive).Select(b => b.Body!.Feet);
+
     // ---------------- HUD ----------------
 
     float KD => Deaths == 0 ? Kills : (float)Kills / Deaths;
@@ -366,7 +368,7 @@ public sealed partial class DeathmatchMode : MapMode
         var top = bots.OrderByDescending(b => b.Kills).FirstOrDefault();
         if (top != null) yield return top.Kills > Kills ? $"Leader: {top.Name} ({top.Kills})" : top.Kills == Kills ? $"Tied for the lead ({Kills})" : $"You lead by {Kills - top.Kills}";
         if (PlayerAlive && Now < G.Player.ProtectedUntil) yield return "Spawn protection";
-        if (eased) yield return "Finish strong Â· bots are easier now";
+        if (eased) yield return "Finish strong · bots are easier now";
         for (int i = feed.Count - 1, n = 0; i >= 0 && n < 4; i--)
             if (Now - feed[i].T < 5f) { yield return feed[i].Text; n++; }
     }
@@ -402,7 +404,7 @@ public sealed partial class DeathmatchMode : MapMode
     {
         yield return ("Map", $"{MapSpot.Map} {MapSpot.Name}");
         yield return ("Kills / deaths", $"{Kills} / {Deaths}  (K/D {KD:0.00})");
-        yield return ("Placement", winner == "You" ? $"1st of {bots.Count + 1} â€” first to {killTarget}" : $"{Ordinal(Placement)} of {bots.Count + 1}" + (winner != null ? $" ({winner} reached {killTarget})" : ""));
+        yield return ("Placement", winner == "You" ? $"1st of {bots.Count + 1} — first to {killTarget}" : $"{Ordinal(Placement)} of {bots.Count + 1}" + (winner != null ? $" ({winner} reached {killTarget})" : ""));
         if (Hits > 0) yield return ("Headshot %", $"{100f * HeadHits / Hits:0}%  ({headKills} headshot kills)");
         yield return ("Accuracy", $"{Accuracy * 100:0.0}%  ({Hits}/{Shots})");
         if (KillTimes.Count > 0) yield return ("Avg time to kill", $"{KillTimes.Average():0} ms from first sight");

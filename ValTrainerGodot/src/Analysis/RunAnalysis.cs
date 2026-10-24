@@ -51,6 +51,7 @@ static class RunAnalysis
         if (t.Mode == "spray_transfer") foreach (var k in new[] { "spray.h", "spray.delay_n", "spray.delay_ms" }) m.Remove(k); // the drag between agents isn't spray error: vertical only
         Reaction(t, m);
         Flash(t, m);
+        Picks(t, m);
         Agg.Derive(m);
         return Clean(m);
     }
@@ -121,6 +122,23 @@ static class RunAnalysis
     {
         foreach (var k in m.Where(kv => !float.IsFinite(kv.Value)).Select(kv => kv.Key).ToList()) m.Remove(k);
         return m;
+    }
+
+    // =====================================================================================================
+    // Target order (Gridshot): after each hit, did the next flick go to the target nearest the crosshair?
+    // =====================================================================================================
+
+    /// <summary>A pick counts as "nearest" when the chosen target was at most 1.5° or 15% farther than the nearest one
+    /// (two targets at almost the same distance are an equally good choice).</summary>
+    internal static bool NearestPick(float chosen, float nearest) => chosen <= nearest + Math.Max(1.5f, 0.15f * nearest);
+
+    static void Picks(RunTelemetry t, Dictionary<string, float> m)
+    {
+        var picks = t.Events.Where(e => e.Kind == "target_pick" && e.A >= 0 && e.B >= 0).ToList();
+        if (picks.Count == 0) return;
+        m["pick.n"] = picks.Count;
+        m["pick.nearest"] = picks.Count(e => NearestPick(e.A, e.B));
+        m["pick.extra_deg"] = picks.Average(e => Math.Max(0f, e.A - e.B));
     }
 
     // =====================================================================================================

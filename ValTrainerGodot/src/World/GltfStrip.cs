@@ -12,7 +12,9 @@ namespace ValTrainer.World;
 /// 2252 images). An aim trainer only needs the shape, so this pass:
 ///
 /// <list type="bullet">
-/// <item>replaces every material with one of a handful of flat-colour palette materials;</item>
+/// <item>replaces every material with a flat-colour material: the colour baked into the material's
+/// <c>extras.vt_color</c> by <c>tools/mapgen/flatten_glb.py</c> (the mean of its real albedo texture), or one of a
+/// handful of palette colours guessed from the material name for GLBs without it;</item>
 /// <item>removes the image/texture/sampler tables, so Godot never decodes or uploads a map texture;</item>
 /// <item>drops UVs, tangents and vertex colours, which no palette material uses.</item>
 /// </list>
@@ -32,7 +34,8 @@ static class GltfStrip
 
     sealed record Entry(string Name, Color Color, float Roughness, float Alpha = 1f, bool TwoSided = false, float Emission = 0f);
 
-    // Indexed by P. Keep the order in sync with the enum.
+    // Indexed by P. Keep the order in sync with the enum. Every entry is opaque: see-through glass, fences and leaves
+    // read as holes in the map (players asked for nothing transparent), so they render solid and double-sided.
     static readonly Entry[] Palette =
     {
         new("VT_Floor", new Color(0.33f, 0.32f, 0.30f), 0.92f),
@@ -40,9 +43,9 @@ static class GltfStrip
         new("VT_Stone", new Color(0.40f, 0.38f, 0.35f), 0.90f),
         new("VT_Wood", new Color(0.29f, 0.20f, 0.12f), 0.85f),
         new("VT_Metal", new Color(0.22f, 0.25f, 0.28f), 0.60f),
-        new("VT_Foliage", new Color(0.15f, 0.28f, 0.12f), 0.95f, 0.78f, true),
-        new("VT_Glass", new Color(0.42f, 0.56f, 0.66f), 0.10f, 0.30f, true),
-        new("VT_Fence", new Color(0.20f, 0.22f, 0.23f), 0.70f, 0.45f, true),
+        new("VT_Foliage", new Color(0.15f, 0.28f, 0.12f), 0.95f, 1f, true),
+        new("VT_Glass", new Color(0.30f, 0.38f, 0.44f), 0.15f, 1f, true),
+        new("VT_Fence", new Color(0.20f, 0.22f, 0.23f), 0.70f, 1f, true),
         new("VT_Light", new Color(1.00f, 0.92f, 0.74f), 0.80f, 1f, false, 0.35f),
         new("VT_Accent", new Color(0.55f, 0.29f, 0.13f), 0.80f),
         new("VT_Dark", new Color(0.11f, 0.12f, 0.13f), 0.80f),
@@ -53,18 +56,41 @@ static class GltfStrip
     static readonly Dictionary<string, Entry> byName = Palette.ToDictionary(e => e.Name, StringComparer.Ordinal);
     static readonly Dictionary<string, StandardMaterial3D> cache = new(StringComparer.Ordinal);
 
-    public static bool IsPaletteName(string name) => byName.ContainsKey(name);
+    public static bool IsPaletteName(string name) => byName.ContainsKey(name) || TryTinted(name, out _, out _);
 
-    /// <summary>Shared Godot material for a palette name (one resource for the whole map set).</summary>
+    /// <summary>Prefix of a palette class tinted with a material's real colour: <c>VT_C{class}_{rrggbb}</c>.</summary>
+    const string TintPrefix = "VT_C";
+
+    static string TintedName(P cls, Color c) =>
+        $"{TintPrefix}{(int)cls}_{(int)MathF.Round(c.R * 255):x2}{(int)MathF.Round(c.G * 255):x2}{(int)MathF.Round(c.B * 255):x2}";
+
+    static bool TryTinted(string name, out Entry entry, out Color color)
+    {
+        entry = Palette[(int)P.Wall];
+        color = default;
+        if (!name.StartsWith(TintPrefix, StringComparison.Ordinal)) return false;
+        int us = name.IndexOf('_', TintPrefix.Length);
+        if (us < 0 || name.Length != us + 7) return false;
+        if (!int.TryParse(name.AsSpan(TintPrefix.Length, us - TintPrefix.Length), out int cls) || cls < 0 || cls >= Palette.Length) return false;
+        if (!int.TryParse(name.AsSpan(us + 1), System.Globalization.NumberStyles.HexNumber, null, out int rgb)) return false;
+        entry = Palette[cls];
+        color = Color.Color8((byte)(rgb >> 16), (byte)(rgb >> 8), (byte)rgb);
+        return true;
+    }
+
+    /// <summary>Shared Godot material for a palette name (one resource per name for the whole map set).</summary>
     public static StandardMaterial3D? Material(string name)
     {
-        if (!byName.TryGetValue(name, out Entry? e)) return null;
         if (cache.TryGetValue(name, out var cached)) return cached;
+        Color albedo;
+        if (byName.TryGetValue(name, out Entry? e)) albedo = e.Color;
+        else if (TryTinted(name, out e, out albedo)) { }
+        else return null;
         bool transparent = e.Alpha < 1f;
         var m = new StandardMaterial3D
         {
             ResourceName = name,
-            AlbedoColor = new Color(e.Color.R, e.Color.G, e.Color.B, e.Alpha),
+            AlbedoColor = new Color(albedo.R, albedo.G, albedo.B, e.Alpha),
             Roughness = e.Roughness,
             Metallic = 0f,
             // The Unreal export writes gameplay data into COLOR_0 (mostly black); it is not albedo.
@@ -76,7 +102,7 @@ static class GltfStrip
         if (e.Emission > 0f)
         {
             m.EmissionEnabled = true;
-            m.Emission = new Color(e.Color.R, e.Color.G, e.Color.B);
+            m.Emission = new Color(albedo.R, albedo.G, albedo.B);
             m.EmissionEnergyMultiplier = e.Emission;
         }
         return cache[name] = m;
@@ -170,6 +196,15 @@ static class GltfStrip
         static int? Length(JsonObject view) => view["byteLength"] is JsonValue v && v.TryGetValue(out int x) ? x : null;
     }
 
+    /// <summary>The sRGB colour flatten_glb.py baked into a material (<c>extras.vt_color</c>), or null.</summary>
+    static Color? RealColor(JsonNode? material)
+    {
+        if (material?["extras"]?["vt_color"] is not JsonArray { Count: >= 3 } c) return null;
+        float Ch(int i) => c[i] is JsonValue v && v.TryGetValue(out double d) ? Math.Clamp((float)d, 0f, 1f) : float.NaN;
+        float r = Ch(0), g = Ch(1), b = Ch(2);
+        return float.IsNaN(r) || float.IsNaN(g) || float.IsNaN(b) ? null : new Color(r, g, b);
+    }
+
     /// <summary>Returns a rewritten GLB, or null when the file cannot be parsed (the caller loads it as-is).</summary>
     public static byte[]? Prepare(string path)
     {
@@ -199,6 +234,9 @@ static class GltfStrip
             if (JsonNode.Parse(json) is not JsonObject root) return null;
 
             var map = new int[0];
+            // Real colours (flatten_glb.py): one extra material per palette class and colour, after the palette.
+            var tinted = new List<(P Cls, Color Color)>();
+            var tintIndex = new Dictionary<string, int>(StringComparer.Ordinal);
             if (root["materials"] is JsonArray oldMats)
             {
                 map = new int[oldMats.Count];
@@ -206,7 +244,19 @@ static class GltfStrip
                 {
                     string name = oldMats[i]?["name"]?.ToString() ?? "";
                     string alpha = oldMats[i]?["alphaMode"]?.ToString() ?? "OPAQUE";
-                    map[i] = (int)Classify(name, alpha);
+                    P cls = Classify(name, alpha);
+                    map[i] = (int)cls;
+                    if (cls is P.Skip or P.Collision || RealColor(oldMats[i]) is not Color real) continue;
+                    // 5 bits per channel: thousands of Unreal materials collapse to a few hundred shared ones.
+                    var q = new Color(MathF.Round(real.R * 31f) / 31f, MathF.Round(real.G * 31f) / 31f, MathF.Round(real.B * 31f) / 31f);
+                    string tn = TintedName(cls, q);
+                    if (!tintIndex.TryGetValue(tn, out int ti))
+                    {
+                        ti = Palette.Length + tinted.Count;
+                        tintIndex[tn] = ti;
+                        tinted.Add((cls, q));
+                    }
+                    map[i] = ti;
                 }
             }
 
@@ -267,6 +317,23 @@ static class GltfStrip
                 if (e.TwoSided) m["doubleSided"] = true;
                 if (e.Emission > 0f)
                     m["emissiveFactor"] = new JsonArray { e.Color.R, e.Color.G, e.Color.B };
+                palette.Add(m);
+            }
+            foreach (var (cls, color) in tinted)
+            {
+                Entry e = Palette[(int)cls];
+                var m = new JsonObject
+                {
+                    ["name"] = TintedName(cls, color),
+                    ["pbrMetallicRoughness"] = new JsonObject
+                    {
+                        ["baseColorFactor"] = new JsonArray { color.R, color.G, color.B, e.Alpha },
+                        ["metallicFactor"] = 0,
+                        ["roughnessFactor"] = e.Roughness,
+                    },
+                };
+                if (e.Alpha < 1f) m["alphaMode"] = "BLEND";
+                if (e.TwoSided) m["doubleSided"] = true;
                 palette.Add(m);
             }
             root["materials"] = palette;

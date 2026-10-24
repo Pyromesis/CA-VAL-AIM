@@ -32,6 +32,9 @@ public sealed class GridshotMode : TrainingMode
     readonly int[] active = new int[3];
     readonly Target?[] targets = new Target?[3];
     float radius, spacing, lastHit;
+    // Target choice (coach "target order"): each target's distance from the crosshair when the previous one was hit.
+    readonly float[] pickAngle = new float[3];
+    float pickNearest = -1;
 
     Vector3 Cell(int i) => new((i % 3 - 1) * spacing, PlayerView.EyeHeight + (1 - i / 3) * spacing, -9f);
 
@@ -79,6 +82,7 @@ public sealed class GridshotMode : TrainingMode
         Score += 100;
         KillTimes.Add((Now - lastHit) * 1000f);
         Event("target_hit", ids[best], KillTimes[^1]);
+        if (pickNearest >= 0) Event("target_pick", pickAngle[best], pickNearest); // the one you went for vs the nearest one
         lastHit = Now;
         G.Sound("body");
         int old = active[best], n;
@@ -89,6 +93,13 @@ public sealed class GridshotMode : TrainingMode
         ids[best] = nextId++;
         Event("target_spawn", ids[best], AngleFromCrosshair(targets[best]!.GlobalPosition));
         targets[best]!.Hit();
+        // The next choice starts now: remember how far each target is from the crosshair.
+        pickNearest = float.MaxValue;
+        for (int k = 0; k < 3; k++)
+        {
+            pickAngle[k] = AngleFromCrosshair(targets[k]!.GlobalPosition);
+            pickNearest = Mathf.Min(pickNearest, pickAngle[k]);
+        }
         return bestD;
     }
 
