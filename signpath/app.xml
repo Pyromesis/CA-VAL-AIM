@@ -4,9 +4,9 @@
   Paste it into SignPath: Project ValTrainer > Artifact configurations > app > Edit.
 
   The artifact is the GitHub workflow artifact "unsigned-app" uploaded by .github/workflows/release.yml: a zip with
-    portable/ValTrainer.exe    "Windows Desktop" export (self-contained, the game is in its "pck" PE section)
-    installer/ValTrainer.exe   "Windows Installer" export (ValTrainer.pck and the .NET folder stay next to it)
-  Both are signed with Authenticode, but only if their version resource says product name "ValTrainer" and the
+    portable/CA-VAL-AIM.exe    "Windows Desktop" export (self-contained, the game is in its "pck" PE section)
+    installer/CA-VAL-AIM.exe   "Windows Installer" export (CA-VAL-AIM.pck and the .NET folder stay next to it)
+  Both are signed with Authenticode, but only if their version resource says product name "CA-VAL-AIM" and the
   product version the workflow passes as the "version" parameter (x.y.z.0, from project.godot).
 -->
 <artifact-configuration xmlns="http://signpath.io/artifact-configuration/v1">
@@ -14,10 +14,10 @@
     <parameter name="version" required="true" />
   </parameters>
   <zip-file>
-    <pe-file path="portable/ValTrainer.exe" product-name="ValTrainer" product-version="${version}">
+    <pe-file path="portable/CA-VAL-AIM.exe" product-name="CA-VAL-AIM" product-version="${version}">
       <authenticode-sign />
     </pe-file>
-    <pe-file path="installer/ValTrainer.exe" product-name="ValTrainer" product-version="${version}">
+    <pe-file path="installer/CA-VAL-AIM.exe" product-name="CA-VAL-AIM" product-version="${version}">
       <authenticode-sign />
     </pe-file>
   </zip-file>

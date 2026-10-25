@@ -226,7 +226,9 @@ public sealed partial class AnchorMode
                     m.Log($"{Name} blocked by {wall.A.Ability}");
                 }
             }
-            feet.Y = Collision.Ground(feet, G.Solid);
+            float ground = Collision.Ground(feet, G.Solid);
+            if (float.IsFinite(ground)) feet.Y = ground;
+            else { feet = before; v = Vector3.Zero; } // no floor under that step (a hole in the collision): don't fall into NaN
             vel = v;
             b.Feet = feet;
             b.Velocity = vel;

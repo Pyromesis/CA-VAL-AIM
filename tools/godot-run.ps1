@@ -46,7 +46,7 @@ try {
     }
     foreach ($id in $ids) {
       $proc = $all | Where-Object { [int]$_.ProcessId -eq $id }
-      if ($id -eq $p.Id -or ($proc -and $proc.Name -match '^(Godot|ValTrainer)')) { Stop-Process -Id $id -Force -ErrorAction SilentlyContinue }
+      if ($id -eq $p.Id -or ($proc -and $proc.Name -match '^(Godot|ValTrainer|CA-VAL-AIM)')) { Stop-Process -Id $id -Force -ErrorAction SilentlyContinue }
     }
     Start-Sleep -Milliseconds 400
     "[godot-run] stopped after {0:0.0}s" -f $limit

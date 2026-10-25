@@ -52,6 +52,11 @@ public partial class StatsScreen : ScreenBase
         title.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         head.AddChild(title);
         summary = new DrawBox { OnDraw = DrawSummary };
+        var react = Btn(Loc.Spanish ? "TIEMPOS DE REACCIÓN" : "REACTION TIMES", VButton.Look.Secondary, Main.I.ShowReactionStats, 230, 52, 16);
+        react.SizeFlagsVertical = SizeFlags.ShrinkCenter;
+        react.TooltipText = Loc.Spanish ? "Tus tiempos de reacción por categoría: visual, auditiva, periférica, elección y flick"
+                                        : "Your reaction times by category: visual, audio, peripheral, choice and flick";
+        head.AddChild(react);
         var back = Btn("BACK", VButton.Look.Primary, Main.I.ShowMenu, 180, 52, 22);
         back.SizeFlagsVertical = SizeFlags.ShrinkCenter;
         head.AddChild(back);
@@ -66,8 +71,10 @@ public partial class StatsScreen : ScreenBase
         {
             summary.CustomMinimumSize = new Vector2(420 * k, 90 * k);
             // Put the summary before the back button, matching the wide header order.
+            head.RemoveChild(react);
             head.RemoveChild(back);
             head.AddChild(summary);
+            head.AddChild(react);
             head.AddChild(back);
         }
 

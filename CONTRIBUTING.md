@@ -1,10 +1,10 @@
-# Contributing to ValTraining
+# Contributing to CA-VAL-AIM
 
-Thanks for helping! Bug reports, drill ideas, tuning data and code are welcome.
+CA-VAL-AIM was called ValTraining up to 1.17.0. Thanks for helping! Bug reports, drill ideas, tuning data and code are welcome.
 
 ## Project rules
 
-1. **Never touch the game.** ValTraining reads VALORANT's config files (`%LOCALAPPDATA%\VALORANT\Saved\Config`)
+1. **Never touch the game.** CA-VAL-AIM reads VALORANT's config files (`%LOCALAPPDATA%\VALORANT\Saved\Config`)
    read-only. It never reads or writes VALORANT's memory, never injects anything, never automates or simulates input for
    the game and never interacts with the VALORANT process.
 2. **Keep the repository free of Riot assets.** Do not commit extracted map geometry, minimaps, art, models, textures,
@@ -39,7 +39,7 @@ dotnet build ValTrainerGodot\ValTrainer.csproj           # compile the C# code
 & $env:GODOT -e --path ValTrainerGodot                   # or open the editor
 ```
 
-Godot's own options go **before** `--`; ValTraining's options go **after** it:
+Godot's own options go **before** `--`; CA-VAL-AIM's options go **after** it:
 
 ```powershell
 & $env:GODOT --path ValTrainerGodot -- --dev --mode flick --tier 2
@@ -86,9 +86,21 @@ Releases are built on Windows and published manually:
 4. Build `ValTraining-<version>-Setup.exe` with Inno Setup and `ValTraining-<version>-Portable.zip` from the same stage.
 5. Generate `SHA256SUMS.txt` and publish a GitHub Release with the two packages and the checksums.
 
-The installer and portable zip use the `ValTraining-<version>-...` filenames; the in-app updater also accepts the older
-`ValTrainer-<version>-...` names. The product name shown in the app and installer is **ValTraining**; the executable
-keeps the `ValTrainer.exe` filename for save-file and update compatibility.
+**Names after the rename (1.18.0).** The product name in the app, the installer and the exe's version resource is
+**CA-VAL-AIM**, and the executable is `CA-VAL-AIM.exe` (`CA-VAL-AIM.pck` next to it). Some names stay on purpose:
+
+- **Release files keep the `ValTraining-<version>-...` prefix** (`UpdateAssets.ReleasePrefix` in
+  `src/Core/UpdateCheck.cs`, `$AssetPrefix` in `tools/build-release.ps1`, `AssetPrefix` in `installer/ValTrainer.iss`).
+  ValTraining 1.16.1–1.17.0 only download files named `ValTraining-...` or `ValTrainer-...`, so a `CA-VAL-AIM-...`
+  file would never reach them. 1.18.0 and later accept all three prefixes (`UpdateAssets.Prefixes`); switch the prefix
+  only once most players run 1.18.0 or newer.
+- **The data folders don't move:** `%APPDATA%\ValTrainer` (settings, stats, telemetry) and
+  `%APPDATA%\Godot\app_userdata\ValTrainer` (logs, shader cache; `config/custom_user_dir_name` in `project.godot`).
+- **Internal names don't change:** the C# namespace and assembly `ValTrainer` (hence `data_ValTrainer_windows_x86_64`),
+  the installer's `AppId` GUID, the `installer/ValTrainer.iss` file name and the GitHub repository `Pyromesis/ValTraining`.
+- The installer removes the old `ValTrainer.exe` / `ValTrainer.pck` and the old ValTraining shortcuts when it upgrades
+  an older install, and waits for either exe to exit. The app recognises all of its past exe names
+  (`AppInfo.ExeNames`) when it reads its own version or unpacks a portable update.
 
 ## Code signing
 

@@ -426,7 +426,7 @@ public static partial class Updater
                     if (st.File != null) keep.Add(st.File);
                     bool portable = Kind == InstallKind.Portable;
                     string asset = UpdateCheck.LatestAssets?.AssetName(st.Version, portable)
-                                   ?? $"ValTraining-{st.Version}-{(portable ? "Portable.zip" : "Setup.exe")}";
+                                   ?? $"{UpdateAssets.ReleasePrefix}-{st.Version}-{(portable ? "Portable.zip" : "Setup.exe")}";
                     keep.Add(asset + ".part");
                 }
             }

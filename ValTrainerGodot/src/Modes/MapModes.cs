@@ -1,4 +1,4 @@
-﻿using Godot;
+using Godot;
 using ValTrainer.Core;
 using ValTrainer.Game;
 using ValTrainer.Game.Bots;
@@ -28,7 +28,7 @@ public abstract class MapMode : MovementMode
     {
         var key = Main.I?.MapKey ?? "random";
         MapSpot = key == "random" ? MapSpots.All[Random.Shared.Next(MapSpots.All.Length)] : MapSpots.ByKey(key);
-        SpawnFeet = SafeFeet(MapSpot.StartFeet, MapSpot.Solid);
+        SpawnFeet = SafeFeet(MapSpot.StartFeet, MapSpot.Solid, MapSpot);
         SpawnYaw = MapSpot.StartYaw;
         if (Main.I?.Dev == true)
             GD.Print($"[spawn] {MapSpot.Key} authored={MapSpot.StartFeet} safe={SpawnFeet} yaw={SpawnYaw} " +
@@ -38,25 +38,15 @@ public abstract class MapMode : MovementMode
     /// <summary>
     /// Puts the spawn on the actual floor and out of any geometry. The spot coordinates are authored
     /// against the collision file, so a regenerated (or slightly different) collision would otherwise
-    /// drop the player inside a wall or half a metre above the ground.
+    /// drop the player inside a wall, under the floor or half a metre above the ground (<see cref="SpawnSafety"/>).
     /// </summary>
-    static Vector3 SafeFeet(Vector3 feet, IReadOnlyList<Box> world)
-    {
-        float g = Collision.Ground(feet, world);
-        if (float.IsFinite(g) && g >= feet.Y - MovementTuning.SnapDown) feet = new Vector3(feet.X, g, feet.Z);
-        if (!Collision.Overlaps(feet, world)) return feet;
-        for (int ring = 1; ring <= 8; ring++)
-            for (int k = 0; k < 8; k++)
-            {
-                float a = k * Mathf.Pi / 4f;
-                var p = new Vector3(feet.X + Mathf.Cos(a) * 0.5f * ring, feet.Y, feet.Z + Mathf.Sin(a) * 0.5f * ring);
-                float pg = Collision.Ground(p, world);
-                if (!float.IsFinite(pg) || pg < feet.Y - MovementTuning.SnapDown) continue;
-                p = new Vector3(p.X, pg, p.Z);
-                if (!Collision.Overlaps(p, world)) return p;
-            }
-        return feet;
-    }
+    internal static Vector3 SafeFeet(Vector3 feet, IReadOnlyList<Box> world, MapSpot? spot = null) =>
+        SpawnSafety.Resolve(feet, world, out _, spot != null ? PlayableTest(spot) : null);
+
+    /// <summary>The minimap "inside the map" test for a map on its real art (null for blockouts, whose frame the minimap
+    /// calibration doesn't describe).</summary>
+    internal static Func<Vector3, int>? PlayableTest(MapSpot spot) =>
+        World.RealMap.HasArt(spot.RealMapFolder) ? p => UI.MapArt.Playable(spot.Key, p) : null;
 
     protected static Vector3 EyeOf(EnemySpot e) => e.Feet + new Vector3(0, PlayerView.EyeHeight - (e.Stance == Stance.Crouch ? 0.5f : 0f), 0);
 
@@ -70,19 +60,11 @@ public abstract class MapMode : MovementMode
 
     /// <summary>
     /// Drops an authored feet position onto the collision floor when it is within a jump of it. Enemy
-    /// spots are hand-placed against the collision file; a regenerated file can leave one floating or
-    /// knee-deep in a slab, which makes the duel feel wrong (a sunken bot is briefly unhittable).
+    /// spots are hand-placed against the collision file; a regenerated file can leave one floating,
+    /// knee-deep in a slab or inside a wall, which makes the duel feel wrong (a sunken bot is briefly unhittable).
+    /// The floor nearest the authored height wins (not simply the highest box top, which put bots on crates).
     /// </summary>
-    protected static Vector3 StandOnFloor(Vector3 feet, IReadOnlyList<Box> world)
-    {
-        float best = float.NegativeInfinity;
-        foreach (var b in world)
-            if (b.Max.Y <= feet.Y + 1.2f && b.Max.Y >= feet.Y - 1.2f &&
-                feet.X > b.Min.X - 0.2f && feet.X < b.Max.X + 0.2f &&
-                feet.Z > b.Min.Z - 0.2f && feet.Z < b.Max.Z + 0.2f)
-                best = Mathf.Max(best, b.Max.Y);
-        return float.IsFinite(best) ? new Vector3(feet.X, best, feet.Z) : feet;
-    }
+    protected internal static Vector3 StandOnFloor(Vector3 feet, IReadOnlyList<Box> world) => SpawnSafety.Resolve(feet, world);
 }
 
 /// <summary>Attack a site: defenders hold real angles and shoot back. HP carries through the round.</summary>

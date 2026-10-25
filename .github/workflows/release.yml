@@ -5,7 +5,7 @@ name: Release
 # a '-' (1.2.0-beta.1) are published as prereleases, which the in-app update check ignores.
 #
 # Code signing (CONTRIBUTING.md, "Code signing"): when the repository variable SIGNPATH_ORGANIZATION_ID and the secret
-# SIGNPATH_API_TOKEN are set, SignPath signs both ValTrainer.exe files before they're packed into the zip and the
+# SIGNPATH_API_TOKEN are set, SignPath signs both CA-VAL-AIM.exe files before they're packed into the zip and the
 # installer, then Setup.exe. Each signing request waits for a manual approval in SignPath. Without them the release
 # is built unsigned in one go, exactly as before.
 on:
@@ -48,10 +48,10 @@ jobs:
             throw "Tag $env:TAG doesn't match the app version $v in project.godot. Run tools\version.ps1 -Set <x.y.z> (or -Bump), commit, then tag v<x.y.z>."
           }
           $pre = if ($v.Contains('-')) { 'true' } else { 'false' }
-          # x.y.z.0: the product version of both ValTrainer.exe files and Setup.exe (SignPath checks it).
+          # x.y.z.0: the product version of both CA-VAL-AIM.exe files and Setup.exe (SignPath checks it).
           $fileVersion = (($v -split '[-+]')[0]) + '.0'
           [IO.File]::AppendAllText($env:GITHUB_OUTPUT, "version=$v`nprerelease=$pre`nfile_version=$fileVersion`n")
-          Write-Host "Releasing ValTrainer $v (prerelease: $pre)"
+          Write-Host "Releasing CA-VAL-AIM $v (prerelease: $pre)"
 
       - name: Set up .NET 8
         uses: actions/setup-dotnet@v4
@@ -116,14 +116,14 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "build-release.ps1 failed with exit code $LASTEXITCODE" }
 
       # ---- Signed release: app -> SignPath (both exes) -> zip + installer -> SignPath (Setup.exe) -> checksums.
-      - name: Build the app (both ValTrainer.exe files)
+      - name: Build the app (both CA-VAL-AIM.exe files)
         if: env.SIGNPATH_ENABLED == 'true'
         shell: powershell
         run: |
           .\tools\build-release.ps1 -Stage app -Godot $env:GODOT -OutDir dist
           if ($LASTEXITCODE -ne 0) { throw "build-release.ps1 -Stage app failed with exit code $LASTEXITCODE" }
 
-      # The artifact holds portable/ValTrainer.exe and installer/ValTrainer.exe (relative to dist/app, their common
+      # The artifact holds portable/CA-VAL-AIM.exe and installer/CA-VAL-AIM.exe (relative to dist/app, their common
       # folder): the layout signpath/app.xml expects.
       - name: Upload the unsigned exes for SignPath
         id: upload-app
@@ -132,8 +132,8 @@ jobs:
         with:
           name: unsigned-app
           path: |
-            dist/app/portable/ValTrainer.exe
-            dist/app/installer/ValTrainer.exe
+            dist/app/portable/CA-VAL-AIM.exe
+            dist/app/installer/CA-VAL-AIM.exe
           if-no-files-found: error
           retention-days: 1
 
@@ -151,7 +151,7 @@ jobs:
           # Waits for the manual approval in SignPath (the default is 10 minutes).
           wait-for-completion-timeout-in-seconds: 3600
           output-artifact-directory: ${{ runner.temp }}/signed-app
-          # signpath/app.xml only signs files with product name ValTrainer and this product version.
+          # signpath/app.xml only signs files with product name CA-VAL-AIM and this product version.
           parameters: |
             version: ${{ toJSON(steps.ver.outputs.file_version) }}
 
@@ -162,7 +162,7 @@ jobs:
           SIGNED: ${{ runner.temp }}/signed-app
         run: |
           $ErrorActionPreference = 'Stop'
-          foreach ($rel in 'portable\ValTrainer.exe', 'installer\ValTrainer.exe') {
+          foreach ($rel in 'portable\CA-VAL-AIM.exe', 'installer\CA-VAL-AIM.exe') {
             $src = Join-Path $env:SIGNED $rel
             if (-not (Test-Path $src)) { throw "SignPath returned no $rel" }
             $sig = Get-AuthenticodeSignature $src
@@ -215,6 +215,7 @@ jobs:
           VERSION: ${{ steps.ver.outputs.version }}
         run: |
           $ErrorActionPreference = 'Stop'
+          # Keeps the ValTraining- prefix: 1.16.1-1.17.0 only auto-update from files with that name (UpdateAssets.ReleasePrefix).
           $name = "ValTraining-$env:VERSION-Setup.exe"
           $src = Join-Path $env:SIGNED $name
           if (-not (Test-Path $src)) { throw "SignPath returned no $name" }
@@ -252,7 +253,7 @@ jobs:
 
           ---
           **Download:** ``ValTraining-$env:VERSION-Setup.exe`` — one installer, nothing else: it installs for your Windows user (no admin rights), with Start menu shortcuts and an uninstaller. Windows 10 (1607+) or 11, 64-bit.
-          ValTrainer isn't code-signed yet, so Windows SmartScreen may say "Windows protected your PC": click **More info** -> **Run anyway**. Check your download against ``SHA256SUMS.txt`` if you like.
+          CA-VAL-AIM isn't code-signed yet, so Windows SmartScreen may say "Windows protected your PC": click **More info** -> **Run anyway**. Check your download against ``SHA256SUMS.txt`` if you like.
           "@
           if ($env:SIGNPATH_ENABLED -eq 'true') {
             $footer = @"
@@ -285,7 +286,7 @@ jobs:
             if ($LASTEXITCODE -ne 0) { throw "gh release upload failed" }
             gh release edit $env:TAG --notes-file "$env:RUNNER_TEMP\notes.md"
           } else {
-            $a = @("release", "create", $env:TAG, "--verify-tag", "--title", "ValTraining $env:TAG", "--notes-file", "$env:RUNNER_TEMP\notes.md")
+            $a = @("release", "create", $env:TAG, "--verify-tag", "--title", "CA-VAL-AIM $env:TAG", "--notes-file", "$env:RUNNER_TEMP\notes.md")
             if ($env:PRERELEASE -eq 'true') { $a += "--prerelease" }
             gh @a @files
           }

@@ -47,6 +47,9 @@ public abstract class TrainingMode
     public bool EffectiveInfiniteReserve => AmmoOverride switch { 1 => true, 0 => false, _ => InfiniteReserve };
 
     static int AmmoOverride => Main.I is { } app ? app.Settings.AmmoMode : -1;
+    /// <summary>A tier this drill always plays at, whatever the menu's tier (Deathmatch with a chosen bot difficulty).
+    /// A routine's session TierOverride still wins.</summary>
+    public virtual int? PreferredTier => null;
     public virtual bool Movement => false;
     /// <summary>2D-only drill (reaction test): no world, no weapon.</summary>
     public virtual bool Is2D => false;
@@ -67,7 +70,7 @@ public abstract class TrainingMode
     public virtual IEnumerable<Box> ExtraSolids => Array.Empty<Box>();
 
     protected IGame G = null!;
-    protected int Tier => G?.Tier ?? Main.I.Tier; // ExtraSolids/Map can be read before Begin()
+    protected int Tier => G?.Tier ?? PreferredTier ?? Main.I.Tier; // ExtraSolids/Map can be read before Begin()
     /// <summary>The session's adaptive staircase when this drill supports it (null = a normal fixed-tier run).</summary>
     protected Staircase? Adapt => SupportsAdaptive ? G?.Adaptive : null;
     protected Random Rng => G.Rng;
@@ -157,6 +160,10 @@ public abstract class TrainingMode
         float lv = a.Threshold >= 0 ? a.Threshold : a.Level;
         return ($"Level at {a.TargetHitRate * 100:0}% hits", $"{Difficulty.LevelName(lv)} ({lv:0.0}) · {a.HitRate * 100:0}% of {a.Trials}");
     }
+
+    /// <summary>Numbers this drill adds to its run record (<see cref="RunRecord.Metrics"/>), e.g. the reaction tests'
+    /// per-category statistics; stored with the coach's metrics and read back by the stats screens.</summary>
+    public virtual IEnumerable<(string Key, float Value)> ExtraMetrics() => Array.Empty<(string, float)>();
 
     /// <summary>Extra buttons on the results screen (e.g. the sens finder's "Use this sens").</summary>
     public virtual IEnumerable<(string Label, Action Act)> ResultButtons() => Array.Empty<(string, Action)>();

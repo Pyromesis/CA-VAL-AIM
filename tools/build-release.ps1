@@ -1,30 +1,30 @@
 <#
 .SYNOPSIS
-  Builds a ValTraining release: the installer, the portable zip and their SHA-256 sums.
+  Builds a CA-VAL-AIM release: the installer, the portable zip and their SHA-256 sums.
 
 .DESCRIPTION
   Output (in -OutDir, default dist\ in the repo root):
     ValTraining-<version>-Setup.exe      Inno Setup installer (per-user, no admin prompt)
-    ValTraining-<version>-Portable.zip   the portable folder (ValTrainer.exe + data folder + maps) with LICENSE.txt, THIRD-PARTY-NOTICES.txt and README.txt
+    ValTraining-<version>-Portable.zip   the portable folder (CA-VAL-AIM.exe + data folder + maps) with LICENSE.txt, THIRD-PARTY-NOTICES.txt and README.txt
     SHA256SUMS.txt                      "<sha256>  <file>" lines (sha256sum -c compatible)
 
   Stages (-Stage). Without -Stage the script runs all three in one go, as it always did:
     app        1. Version from ValTrainerGodot\project.godot (tools\version.ps1).
                2. Copies the Godot project to a private work folder - the tracked tree is never modified - adds the
                   repo's CHANGELOG.md (the in-game "What's new" reads res://CHANGELOG.md) and stamps the Windows
-                  file/product version (x.y.z.0) into the copy's export presets (product name: ValTraining).
+                  file/product version (x.y.z.0) into the copy's export presets (product name: CA-VAL-AIM).
                3. Imports assets, builds the C# project, exports the "Windows Installer" preset (folder: exe + pck +
                   .NET data folder) and the "Windows Desktop" preset (one self-contained exe).
-               4. THIRD-PARTY-NOTICES.txt: ValTraining (GPL-3.0), Godot and its third-party components (printed by the
+               4. THIRD-PARTY-NOTICES.txt: CA-VAL-AIM (GPL-3.0), Godot and its third-party components (printed by the
                   exported game itself, so they match the shipped engine), the .NET runtime's license and notices,
                   CC0 asset credits.
-               5. Optional local code signing of both ValTrainer.exe files (signtool, see below).
+               5. Optional local code signing of both CA-VAL-AIM.exe files (signtool, see below).
                Writes the app folder (-AppDir, default <OutDir>\app; in the one-shot build a temp folder):
-                 portable\   ValTrainer.exe (self-contained), LICENSE.txt, THIRD-PARTY-NOTICES.txt
-                 installer\  ValTrainer.exe, ValTrainer.pck, data_ValTrainer_windows_x86_64\, LICENSE.txt,
+                 portable\   CA-VAL-AIM.exe (self-contained), LICENSE.txt, THIRD-PARTY-NOTICES.txt
+                 installer\  CA-VAL-AIM.exe, CA-VAL-AIM.pck, data_ValTrainer_windows_x86_64\, LICENSE.txt,
                              THIRD-PARTY-NOTICES.txt
     package    The portable zip and the installer (Inno Setup 6) from the app folder (-AppDir), which may have been
-               signed in between (the release workflow signs both ValTrainer.exe files with SignPath). Checks that
+               signed in between (the release workflow signs both CA-VAL-AIM.exe files with SignPath). Checks that
                both exes carry this version.
     checksums  SHA256SUMS.txt over the final Setup.exe and Portable.zip in -OutDir (run it after Setup.exe is signed).
 
@@ -39,7 +39,7 @@
 
   Local code signing (optional): set SIGNTOOL_CERT_THUMBPRINT (SHA-1 thumbprint of a code-signing certificate in the
   Windows certificate store) and optionally SIGNTOOL_PATH (signtool.exe) and SIGNTOOL_TIMESTAMP_URL. Then the app stage
-  signs both ValTrainer.exe files and the package stage signs Setup.exe and the uninstaller. Without it, signing is
+  signs both CA-VAL-AIM.exe files and the package stage signs Setup.exe and the uninstaller. Without it, signing is
   skipped. (Release builds are signed by SignPath in .github\workflows\release.yml instead; see CONTRIBUTING.md.)
 
 .PARAMETER Stage
@@ -66,7 +66,7 @@
   pwsh tools\build-release.ps1 -Godot C:\godot\Godot_v4.7.2-stable_mono_win64_console.exe -Iscc "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
 .EXAMPLE
   tools\build-release.ps1 -Stage app          # dist\app\portable + dist\app\installer
-  # ... sign dist\app\portable\ValTrainer.exe and dist\app\installer\ValTrainer.exe ...
+  # ... sign dist\app\portable\CA-VAL-AIM.exe and dist\app\installer\CA-VAL-AIM.exe ...
   tools\build-release.ps1 -Stage package      # dist\ValTraining-<version>-Portable.zip + -Setup.exe from dist\app
   # ... sign dist\ValTraining-<version>-Setup.exe ...
   tools\build-release.ps1 -Stage checksums    # dist\SHA256SUMS.txt
@@ -89,6 +89,13 @@ $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 
 $Repo = Split-Path -Parent $PSScriptRoot
+# Product name (exe version resource, installer, notices) and executable name since 1.18.0 (formerly ValTraining /
+# ValTrainer.exe). The release files keep the ValTraining- prefix: 1.16.1-1.17.0 only download files with that prefix, so a
+# CA-VAL-AIM-... file would break their automatic update (see UpdateAssets.ReleasePrefix in the app).
+$ProductName = 'CA-VAL-AIM'
+$ExeName = 'CA-VAL-AIM.exe'
+$PckName = 'CA-VAL-AIM.pck'
+$AssetPrefix = 'ValTraining'
 $Proj = Join-Path $Repo 'ValTrainerGodot'
 $sw = [System.Diagnostics.Stopwatch]::StartNew()
 $DoApp = $Stage -eq 'all' -or $Stage -eq 'app'
@@ -207,7 +214,7 @@ function Assert-ExeMetadata([string]$exe) {
   $vi = (Get-Item -LiteralPath $exe).VersionInfo
   if ($vi.FileVersion -ne $FileVersion) { Fail "$exe has file version '$($vi.FileVersion)', expected $FileVersion" }
   if ($vi.ProductVersion -ne $FileVersion) { Fail "$exe has product version '$($vi.ProductVersion)', expected $FileVersion" }
-  if ($vi.ProductName -notin @('ValTraining', 'ValTrainer')) { Fail "$exe has product name '$($vi.ProductName)', expected ValTraining" }
+  if ($vi.ProductName -ne $ProductName) { Fail "$exe has product name '$($vi.ProductName)', expected $ProductName" }
 }
 
 function Get-SignatureText([string]$file) {
@@ -244,16 +251,16 @@ function Invoke-AppStage {
 
   # Windows file/product version: Godot falls back to config/version when these are empty, but only for purely
   # numeric versions (1.1.0-beta.1 would become 1.0.0.0), so stamp x.y.z.0 into the private copy's presets.
-  # The product name comes from the presets too; it must stay "ValTraining" (SignPath checks it before signing).
+  # The product name comes from the presets too; it must be $ProductName (SignPath checks it before signing).
   $presets = Join-Path $stage 'export_presets.cfg'
   $p = [System.IO.File]::ReadAllText($presets)
   $p = [regex]::Replace($p, '(?m)^application/(file_version|product_version)=".*"', ('application/$1="' + $FileVersion + '"'))
-  $p = [regex]::Replace($p, '(?m)^application/product_name=".*"', 'application/product_name="ValTraining"')
+  $p = [regex]::Replace($p, '(?m)^application/product_name=".*"', ('application/product_name="' + $ProductName + '"'))
   Write-Utf8 $presets $p
 
   # ---------------------------------------------------------------- import, build, export (in the Godot slot)
-  $instExe = Join-Path $outInst 'ValTrainer.exe'
-  $portExe = Join-Path $outPort 'ValTrainer.exe'
+  $instExe = Join-Path $outInst $ExeName
+  $portExe = Join-Path $outPort $ExeName
   $dataDir = Join-Path $outInst 'data_ValTrainer_windows_x86_64'
   $engineNotices = Join-Path $work 'licenses-from-game.txt'
   $slot = Enter-GodotSlot
@@ -270,7 +277,7 @@ function Invoke-AppStage {
 
     Step "Exporting ""Windows Installer"" -> $outInst"
     Invoke-Native $Godot @('--headless', '--path', $stage, '--export-release', 'Windows Installer', $instExe) 'Godot export (Windows Installer)'
-    foreach ($f in @($instExe, (Join-Path $outInst 'ValTrainer.pck'), $dataDir)) {
+    foreach ($f in @($instExe, (Join-Path $outInst $PckName), $dataDir)) {
       if (-not (Test-Path -LiteralPath $f)) { Fail "export output missing: $f" }
     }
 
@@ -309,9 +316,9 @@ function Invoke-AppStage {
 
   $sep = '=' * 64
   $notices = New-Object System.Text.StringBuilder
-  [void]$notices.Append("ValTraining $Version - third-party notices`r`n")
+  [void]$notices.Append("$ProductName $Version - third-party notices`r`n")
   [void]$notices.Append("Generated by tools\build-release.ps1. Also shown in the game: Settings > About > Licenses.`r`n`r`n")
-  [void]$notices.Append("ValTrainer is free software under the GNU General Public License v3 (LICENSE.txt). It is built with the`r`n")
+  [void]$notices.Append("$ProductName (formerly ValTraining / ValTrainer) is free software under the GNU General Public License v3 (LICENSE.txt). It is built with the`r`n")
   [void]$notices.Append("Godot Engine (MIT) and runs on the .NET runtime (MIT); their licenses and the notices of the components`r`n")
   [void]$notices.Append("they include follow, then the credits for the CC0 models, textures and sounds.`r`n`r`n")
   [void]$notices.Append([System.IO.File]::ReadAllText($engineNotices).TrimEnd())
@@ -332,9 +339,9 @@ function Invoke-AppStage {
   if ($env:SIGNTOOL_CERT_THUMBPRINT) {
     $signtool = Find-SignTool
     $ts = Get-TimestampUrl
-    Step "Signing ValTrainer.exe (installer and portable builds)"
+    Step "Signing $ExeName (installer and portable builds)"
     foreach ($exe in @($instExe, $portExe)) {
-      Invoke-Native $signtool @('sign', '/sha1', $env:SIGNTOOL_CERT_THUMBPRINT, '/fd', 'sha256', '/tr', $ts, '/td', 'sha256', '/d', 'ValTraining', $exe) "signtool ($exe)"
+      Invoke-Native $signtool @('sign', '/sha1', $env:SIGNTOOL_CERT_THUMBPRINT, '/fd', 'sha256', '/tr', $ts, '/td', 'sha256', '/d', $ProductName, $exe) "signtool ($exe)"
     }
   } else {
     Write-Host "Code signing: skipped (SIGNTOOL_CERT_THUMBPRINT not set)"
@@ -345,8 +352,8 @@ function Invoke-AppStage {
 function Invoke-PackageStage {
   $outInst = Join-Path $AppDir 'installer'
   $outPort = Join-Path $AppDir 'portable'
-  $portExe = Join-Path $outPort 'ValTrainer.exe'
-  $instExe = Join-Path $outInst 'ValTrainer.exe'
+  $portExe = Join-Path $outPort $ExeName
+  $instExe = Join-Path $outInst $ExeName
   if ($SkipPortable -and $SkipInstaller) { Fail "-SkipPortable and -SkipInstaller together would package nothing" }
   $need = @()
   if (-not $SkipPortable) {
@@ -354,7 +361,7 @@ function Invoke-PackageStage {
       (Join-Path $outPort 'data_ValTrainer_windows_x86_64\ValTrainer.dll'))
   }
   if (-not $SkipInstaller) {
-    $need += @($instExe, (Join-Path $outInst 'ValTrainer.pck'), (Join-Path $outInst 'data_ValTrainer_windows_x86_64'),
+    $need += @($instExe, (Join-Path $outInst $PckName), (Join-Path $outInst 'data_ValTrainer_windows_x86_64'),
       (Join-Path $outInst 'data_ValTrainer_windows_x86_64\ValTrainer.dll'),
       (Join-Path $outInst 'LICENSE.txt'), (Join-Path $outInst 'THIRD-PARTY-NOTICES.txt'))
   }
@@ -373,21 +380,21 @@ function Invoke-PackageStage {
   if ($SkipPortable) {
     Write-Host "Portable zip: skipped (-SkipPortable)"
   } else {
-  $zipName = "ValTraining-$Version-Portable.zip"
+  $zipName = "$AssetPrefix-$Version-Portable.zip"
   $zipPath = Join-Path $OutDir $zipName
   Step "Packing $zipName"
   $zipDir = Join-Path $work 'zip'
   if (Test-Path -LiteralPath $zipDir) { Remove-Item -LiteralPath $zipDir -Recurse -Force }
-  $zipRoot = Join-Path $zipDir "ValTraining-$Version"
+  $zipRoot = Join-Path $zipDir "$ProductName-$Version"
   New-Item -ItemType Directory -Force $zipRoot | Out-Null
   Copy-Item -Path (Join-Path $outPort '*') -Destination $zipRoot -Recurse -Force
   $readme = @"
-ValTraining $Version - portable version
+CA-VAL-AIM $Version - portable version
 ======================================
 
 Free, fan-made VALORANT-style aim trainer. Not affiliated with or endorsed by Riot Games.
 
-Run ValTrainer.exe - no installation needed. It reads your VALORANT settings (sensitivity, crosshair,
+Run CA-VAL-AIM.exe - no installation needed. It reads your VALORANT settings (sensitivity, crosshair,
 keybinds, display) from %LOCALAPPDATA%\VALORANT\Saved\Config and never changes them.
 
 Files it creates:
@@ -395,17 +402,17 @@ Files it creates:
   %APPDATA%\Godot\app_userdata\ValTrainer           logs (logs\godot.log) and shader cache
   %LOCALAPPDATA%\data_ValTrainer_windows_x86_64     .NET runtime, unpacked on first launch
   %LOCALAPPDATA%\ValTrainer\updates                 automatic updates while they download (removed after updating)
-To remove ValTraining completely, delete this folder and those four.
+To remove CA-VAL-AIM completely, delete this folder and those four.
 
 Updates: the UPDATE button in the menu checks GitHub on demand (also when automatic checks are off), downloads the
-new release, verifies it against SHA256SUMS.txt and replaces ValTrainer.exe in this folder when you restart it (the
-old exe is kept as ValTrainer.exe.old until the next start). With automatic updates on, ValTraining also checks at
+new release, verifies it against SHA256SUMS.txt and replaces CA-VAL-AIM.exe in this folder when you restart it (the
+old exe is kept as CA-VAL-AIM.exe.old until the next start). With automatic updates on, CA-VAL-AIM also checks at
 startup and every six hours; turn that off in Settings > About.
 
 Black screen or crash at startup? Start it with the OpenGL renderer:
-  ValTrainer.exe --rendering-method gl_compatibility
+  CA-VAL-AIM.exe --rendering-method gl_compatibility
 
-The installer version (ValTraining-$Version-Setup.exe) adds Start menu shortcuts and an uninstaller.
+The installer version ($AssetPrefix-$Version-Setup.exe) adds Start menu shortcuts and an uninstaller.
 License: GNU GPL v3 (LICENSE.txt). Third-party licenses: THIRD-PARTY-NOTICES.txt.
 "@
   Write-Utf8 (Join-Path $zipRoot 'README.txt') ($readme -replace "`r?`n", "`r`n") $true
@@ -415,7 +422,7 @@ License: GNU GPL v3 (LICENSE.txt). Third-party licenses: THIRD-PARTY-NOTICES.txt
   }
 
   # ---------------------------------------------------------------- installer
-  $setupPath = Join-Path $OutDir "ValTraining-$Version-Setup.exe"
+  $setupPath = Join-Path $OutDir "$AssetPrefix-$Version-Setup.exe"
   if (-not $SkipInstaller) {
     Step "Compiling $(Split-Path -Leaf $setupPath) (Inno Setup)"
     $signArgs = @()
@@ -423,7 +430,7 @@ License: GNU GPL v3 (LICENSE.txt). Third-party licenses: THIRD-PARTY-NOTICES.txt
       $signtool = Find-SignTool
       $ts = Get-TimestampUrl
       # Inno Setup signs Setup.exe and the uninstaller with this command ($q = quote, $f = file).
-      $signArgs = @('/DSIGN', ('/Ssigntool=$q' + $signtool + '$q sign /sha1 ' + $env:SIGNTOOL_CERT_THUMBPRINT + ' /fd sha256 /tr ' + $ts + ' /td sha256 /d $qValTraining Setup$q $f'))
+      $signArgs = @('/DSIGN', ('/Ssigntool=$q' + $signtool + '$q sign /sha1 ' + $env:SIGNTOOL_CERT_THUMBPRINT + ' /fd sha256 /tr ' + $ts + ' /td sha256 /d $q' + $ProductName + ' Setup$q $f'))
     }
     $ico = Join-Path $work 'ValTrainer.ico'
     New-Icon (Join-Path $Proj 'icon.png') $ico
@@ -431,7 +438,7 @@ License: GNU GPL v3 (LICENSE.txt). Third-party licenses: THIRD-PARTY-NOTICES.txt
     $ghRepo = if ($repoMatch.Success) { $repoMatch.Groups[1].Value } else { 'Pyromesis/ValTraining' }
     if (Test-Path -LiteralPath $setupPath) { Remove-Item -LiteralPath $setupPath -Force }
     $isccArgs = @('/Qp', "/DAppVersion=$Version", "/DAppFileVersion=$FileVersion", "/DSourceDir=$outInst", "/DIconFile=$ico",
-      "/DOutputDir=$OutDir", "/DGitHubRepo=$ghRepo") + $signArgs + @((Join-Path $Repo 'installer\ValTrainer.iss'))
+      "/DOutputDir=$OutDir", "/DGitHubRepo=$ghRepo", "/DAssetPrefix=$AssetPrefix") + $signArgs + @((Join-Path $Repo 'installer\ValTrainer.iss'))
     Invoke-Native $Iscc $isccArgs 'Inno Setup'
     if (-not (Test-Path -LiteralPath $setupPath)) { Fail "installer not produced: $setupPath" }
   } else {
@@ -441,7 +448,7 @@ License: GNU GPL v3 (LICENSE.txt). Third-party licenses: THIRD-PARTY-NOTICES.txt
 
 # ==================================================================== checksums stage
 function Invoke-ChecksumsStage {
-  $files = @((Join-Path $OutDir "ValTraining-$Version-Setup.exe"), (Join-Path $OutDir "ValTraining-$Version-Portable.zip"))
+  $files = @((Join-Path $OutDir "$AssetPrefix-$Version-Setup.exe"), (Join-Path $OutDir "$AssetPrefix-$Version-Portable.zip"))
   if ($Stage -eq 'checksums' -and -not (Test-Path -LiteralPath $files[0])) {
     Fail "$($files[0]) not found (run -Stage package first)"
   }
@@ -462,7 +469,7 @@ try {
   $numeric = ($Version -split '[-+]')[0]
   $FileVersion = "$numeric.0"          # Windows needs 4 numeric parts; prerelease tags can't go in there
   Write-Host ""
-  Write-Host "ValTraining $Version  (file version $FileVersion)  stage: $Stage" -ForegroundColor Green
+  Write-Host "$ProductName $Version  (file version $FileVersion)  stage: $Stage" -ForegroundColor Green
 
   if ($DoApp) {
     if (-not $Godot) { $Godot = $env:GODOT }
@@ -509,12 +516,12 @@ try {
   if ($DoChecksums) { Invoke-ChecksumsStage }
 
   Write-Host ""
-  Write-Host ("ValTraining {0} ({1}) built in {2:0} s:" -f $Version, $Stage, $sw.Elapsed.TotalSeconds) -ForegroundColor Green
+  Write-Host ("$ProductName {0} ({1}) built in {2:0} s:" -f $Version, $Stage, $sw.Elapsed.TotalSeconds) -ForegroundColor Green
   $show = @()
   if ($Stage -eq 'app') {
-    $show = @((Join-Path $AppDir 'portable\ValTrainer.exe'), (Join-Path $AppDir 'installer\ValTrainer.exe'))
+    $show = @((Join-Path $AppDir ('portable\' + $ExeName)), (Join-Path $AppDir ('installer\' + $ExeName)))
   } else {
-    $show = @((Join-Path $OutDir "ValTraining-$Version-Setup.exe"), (Join-Path $OutDir "ValTraining-$Version-Portable.zip"))
+    $show = @((Join-Path $OutDir "$AssetPrefix-$Version-Setup.exe"), (Join-Path $OutDir "$AssetPrefix-$Version-Portable.zip"))
     if ($DoChecksums) { $show += (Join-Path $OutDir 'SHA256SUMS.txt') }
   }
   foreach ($f in $show) {

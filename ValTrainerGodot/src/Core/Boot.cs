@@ -122,7 +122,7 @@ public static class Log
     {
         for (var x = e; x != null; x = x.InnerException)
             if (x is FileNotFoundException or FileLoadException or BadImageFormatException or TypeLoadException or MissingMethodException)
-                return $"some of ValTraining's files are missing or damaged ({x.GetType().Name}): reinstall it from {AppInfo.Website}";
+                return $"some of CA-VAL-AIM's files are missing or damaged ({x.GetType().Name}): reinstall it from {AppInfo.Website}";
         var m = e.Message?.Trim();
         return string.IsNullOrEmpty(m) ? e.GetType().Name : m;
     }

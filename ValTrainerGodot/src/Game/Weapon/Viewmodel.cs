@@ -149,14 +149,16 @@ public partial class Viewmodel : Node3D
         pose = VmPose.For(kind);
         lastFov = Main.I?.Settings?.ViewmodelFov ?? 70f;
         mats.SetFov(lastFov);
-        mats.Gold = actual != kind; // Chamber's custom guns: gold finish on the family model
+        mats.Gold = Weapons.IsAbilityGun(actual); // Chamber's custom guns: gold finish on the family model
 
         pivot = new Node3D { Name = "Pivot" };
         AddChild(pivot);
         // The two rifles are CPU-authored here (detailed silhouette + separate magazine); the other guns keep
         // their imported scenes. No new pck assets are needed, so a DLL-only update ships the new models.
-        gun = kind is WeaponKind.Vandal or WeaponKind.Phantom
-            ? ProceduralRifle.Build(kind)
+        // The rest of the arsenal: procedural, self-made models in the same gun space (ProceduralArsenal).
+        gun = actual is WeaponKind.Vandal or WeaponKind.Phantom
+            ? ProceduralRifle.Build(actual)
+            : ProceduralArsenal.Has(actual) ? ProceduralArsenal.Build(actual)
             : GD.Load<PackedScene>(pose.Scene).Instantiate<Node3D>();
         gun.Name = "Gun";
         pivot.AddChild(gun);

@@ -41,7 +41,7 @@ public static partial class ReplayFile
     };
     static readonly HashSet<string> None = new(StringComparer.OrdinalIgnoreCase)
     {
-        "reaction", "sensfinder", "xhairfinder", "crosshairfinder",
+        "reaction", "reactlab", "sensfinder", "xhairfinder", "crosshairfinder",
     };
 
     static partial void SupportCore(string modeKey, ref ReplaySupport result)

@@ -30,7 +30,7 @@ public partial class GameSession : Node3D, IGame
     public PlayerView View { get; } = new();
     public Mover Mover { get; private set; } = new();
     public PlayerState Player { get; } = new();
-    public int Tier => Math.Clamp(TierOverride ?? Main.I.Tier, 0, 4);
+    public int Tier => Math.Clamp(TierOverride ?? (Mode as TrainingMode)?.PreferredTier ?? Main.I.Tier, 0, 4);
     public Color Enemy => Main.I.EnemyColor;
     public Random Rng { get; } = new();
     public float Now { get; private set; }
@@ -298,6 +298,8 @@ public partial class GameSession : Node3D, IGame
             Weapon = chosenWeapon.ToString(), Map = Mode.Map?.Key ?? "range", When = DateTime.Now,
             ZoomSensMult = ZoomSensMultFor(Weapons.Get(chosenWeapon)),
         };
+        // The coach during the run (Analysis/LiveCoach): never in a preview; every drill with a gun or a reaction test.
+        Live = !Demo && Main.I.Settings.LiveCoach && Mode.Key is not ("sensfinder" or "xhairfinder") ? new Analysis.LiveCoach(Telemetry, Mode.Key, Mode.Movement) : null;
         replay = Demo || FreePlay ? null : StartReplay(extras); // before Begin: it spawns the first bots / targets
         Mode.Begin(this);
         if (Main.I.Dev && !Demo) DevAdsArgs(); // --force-ads (AdsSession.cs)
@@ -339,6 +341,7 @@ public partial class GameSession : Node3D, IGame
             {
                 // Raw counts (Godot uses Windows raw input while captured). ScreenRelative ignores stretch scaling.
                 View.Look(m.ScreenRelative, CurrentSens, ZoomSensMultFor(weaponDef));
+                StampMove(m.ScreenRelative); // reaction tests: movement onset (ReactionInput.cs)
                 frameDx += m.ScreenRelative.X;
                 frameDy += m.ScreenRelative.Y;
                 UpdateCamera();
@@ -370,7 +373,7 @@ public partial class GameSession : Node3D, IGame
         int fire = binds.Match(e, GameAction.Fire);
         if (fire > 0)
         {
-            if (!fireHeld) firePressedEdge = true;
+            if (!fireHeld) { firePressedEdge = true; StampFire(); }
             if (wheel) fireTap = true; else fireHeld = true; // a wheel notch is a one-frame trigger pull
         }
         else if (fire < 0) fireHeld = binds.IsDown(GameAction.Fire, real: true); // the other bind may still be held
@@ -568,11 +571,16 @@ public partial class GameSession : Node3D, IGame
             foreach (var (dir, accurate) in shots) Bullet(dir, accurate);
             if (shots.Count > 0)
             {
-                string snd = weaponDef!.Family switch { WeaponKind.Operator => "operator", WeaponKind.Phantom => "phantom", WeaponKind.Sheriff => "sheriff", _ => "vandal" };
-                Play2D(snd, 0.55f, 1f + ((float)Rng.NextDouble() - 0.5f) * 0.05f);
+                if (weaponDef!.Melee) Play2D("tick", 0.5f, 0.55f + (float)Rng.NextDouble() * 0.1f); // knife swing
+                else
+                {
+                    // Pitch follows the gun class a little, so the four CC0 gunshots read differently per weapon.
+                    float pitch = weaponDef.Class switch { WeaponClass.Smg => 1.12f, WeaponClass.Heavy => 0.9f, WeaponClass.Shotgun => 0.82f, _ => 1f };
+                    Play2D(Weapons.SoundOf(weaponDef.Kind), 0.55f, pitch * (1f + ((float)Rng.NextDouble() - 0.5f) * 0.05f));
+                }
                 if (weaponDef.Kind == WeaponKind.Operator) GetTree().CreateTimer(0.45).Timeout += () => Play2D("bolt", 0.7f);
             }
-            if (Gun.Reloading && !wasReloading) Play2D(weaponDef!.Kind == WeaponKind.Sheriff ? "reload_pistol" : "reload_rifle", 0.6f, weaponDef.Kind == WeaponKind.Operator ? 0.75f : 1f);
+            if (Gun.Reloading && !wasReloading) Play2D(weaponDef!.Family == WeaponKind.Sheriff ? "reload_pistol" : "reload_rifle", 0.6f, weaponDef.Family == WeaponKind.Operator ? 0.75f : 1f);
             wasReloading = Gun.Reloading;
             if (wasScoped && !Gun.Scoped && weaponDef!.Sniper) adsHeld = false;
         }
@@ -584,6 +592,7 @@ public partial class GameSession : Node3D, IGame
         fireTap = false;
 
         RecordFrame();
+        Live?.Tick(Now);
         if (Main.I.Dev && Adaptive != null && Mode.SupportsAdaptive && (int)(Now / 10f) != (int)((Now - dt) / 10f))
             Log.Info($"[adapt] t={Now:0} {Adaptive}"); // dev: the staircase every 10 s
         if ((Mode.Timed && Now >= RunDuration) || Mode.Done) Finish();
@@ -637,7 +646,9 @@ public partial class GameSession : Node3D, IGame
         Mode.LastShotZone = HitZone.None;
         var eye = View.Eye;
         float wall = Collision.FirstHit(eye, dir, solid, out int wi);
-        BulletWallDist = wall;
+        // The knife only reaches 2.5 m: modes clip their hits to BulletWallDist.
+        bool melee = weaponDef?.Melee == true;
+        BulletWallDist = melee ? Mathf.Min(wall, weaponDef!.Range) : wall;
         float hitMode = Mode.OnBullet(eye, dir, accurate);
         var shot = new ShotSample
         {
@@ -656,6 +667,7 @@ public partial class GameSession : Node3D, IGame
         }
         Telemetry.Shots.Add(shot);
         float end = Mathf.Min(Mathf.Min(hitMode, wall), 80f);
+        if (melee) { replay?.PlayerShot(Now, Telemetry.Shots.Count - 1, eye + dir * Mathf.Min(end, weaponDef!.Range), Vector3.Zero); return; }
         var muzzle = viewmodel?.MuzzleWorld ?? eye + dir * 0.6f;
         Effects.Tracer(muzzle, eye + dir * end);
         if (hitMode < wall && hitMode < 80f && Mode is not BotMode) Effects.BodyHit(eye + dir * hitMode, Enemy, false);
@@ -676,11 +688,41 @@ public partial class GameSession : Node3D, IGame
         Mover.Step(dt, View.Yaw, Main.I.Valorant, ref feet, solid);
         feetY = feet.Y;
         View.Eye = new Vector3(feet.X, feetY + Mover.EyeHeight, feet.Z);
-        // Safety net for a missed floor cell in a real map: never fall forever (which looks like
-        // flying through the world and can leave the camera outside the skybox).
-        if (Mode.Map != null && !Player.Dead && feet.Y < -40f)
-            DamagePlayer(999f, feet + new Vector3(0, 2, 0));
+        // Safety net for a hole in a real map's collision: never fall through the world. The body is put back on the
+        // last floor it stood on safely (no death, no lost round) as soon as it drops clearly below the map's underside
+        // or 20 m below that floor.
+        if (Mode.Map != null && !Player.Dead) GuardFall(feet, dt);
         OwnFootsteps(dt); // running footsteps (MovementSession.cs)
+    }
+
+    Vector3? lastSafeFeet;
+    float safeCheckT, mapBottom = float.NaN;
+    /// <summary>The live coach of this run (null when it is off, in previews and in the sens / crosshair finders).</summary>
+    public Analysis.LiveCoach? Live { get; private set; }
+
+    /// <summary>Times the fall guard put the player back on the map this run (dev logs, the coach ignores those seconds).</summary>
+    public int FallRescues { get; private set; }
+
+    void GuardFall(Vector3 feet, float dt)
+    {
+        if (float.IsNaN(mapBottom)) mapBottom = Collision.Bottom(solid);
+        if (Mover.Grounded)
+        {
+            if ((safeCheckT -= dt) <= 0f)
+            {
+                safeCheckT = 0.25f;
+                if (SpawnSafety.Standable(feet, solid, _ => -1)) lastSafeFeet = feet;
+            }
+            return;
+        }
+        float limit = Mathf.Min(mapBottom - 4f, (lastSafeFeet?.Y ?? feet.Y) - 20f);
+        if (feet.Y > limit) return;
+        var back = lastSafeFeet ?? SpawnSafety.Resolve(Mode.StartFeet, solid);
+        FallRescues++;
+        Log.Info($"[fall] {Mode.Key} {Mode.Map?.Key}: fell below the map at ({feet.X:0.0}, {feet.Y:0.0}, {feet.Z:0.0}); back to ({back.X:0.0}, {back.Y:0.0}, {back.Z:0.0})");
+        Mover.ResetMotion();
+        TeleportPlayer(back);
+        Banner("BACK ON THE MAP", UiTheme.Warn);
     }
 
     void UpdateCamera()
@@ -720,6 +762,11 @@ public partial class GameSession : Node3D, IGame
             Review = Coach.ReviewRun(Telemetry, Record.Metrics, Tier);
         }
         catch (Exception ex) { GD.PushWarning($"Coach failed: {ex.Message}"); }
+        foreach (var (key, value) in Mode.ExtraMetrics())
+        {
+            Record.Metrics ??= new();
+            Record.Metrics[key] = value;
+        }
         bool adaptive = Mode.SupportsAdaptive && Adaptive != null;
         if (adaptive)
         {
@@ -790,6 +837,12 @@ public partial class GameSession : Node3D, IGame
         b.Crouched = crouched;
         b.SpawnTime = Now;
         World.AddChild(b);
+        // Map bots stand on real floor too (an authored spot can sit inside a regenerated slab or wall).
+        if (Mode.Map != null && solid.Count > 0)
+        {
+            var safe = SpawnSafety.Resolve(feet, solid, out bool ok);
+            if (ok) feet = safe;
+        }
         b.Feet = feet;
         replay?.TrackBot(b, Now);
         return b;
@@ -878,6 +931,15 @@ public partial class GameSession : Node3D, IGame
         if (Main.I.Dev && !Demo && DevCamPos is { } cp) { feet = new Vector3(cp[0], cp[1], cp[2]); yaw = cp[3]; }
         Mover.ResetMotion();
         Mover.ResetBody();         // standing, no crouch-jump tuck
+        // On a map: onto real, open floor inside the playable area (never inside a wall or under the map, SpawnSafety).
+        if (Mode.Map is { } spot && !(Main.I.Dev && !Demo && DevCamPos != null))
+        {
+            var safe = SpawnSafety.Resolve(feet, solid, out bool ok, Modes.MapMode.PlayableTest(spot));
+            if (Main.I.Dev && !Demo && (safe.DistanceTo(feet) > 0.05f || !ok))
+                GD.Print($"[spawn] {spot.Key} {Mode.Key}: {(ok ? "moved" : "NO SAFE SPOT near")} ({feet.X:0.00},{feet.Y:0.00},{feet.Z:0.00}) -> ({safe.X:0.00},{safe.Y:0.00},{safe.Z:0.00})");
+            feet = safe;
+        }
+        lastSafeFeet = null;
         Mover.Place(ref feet, solid); // onto the floor under the spawn (or falling from rest if there's none)
         feetY = feet.Y;
         View.Eye = feet + new Vector3(0, Mover.EyeHeight, 0);

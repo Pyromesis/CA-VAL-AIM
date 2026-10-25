@@ -66,7 +66,7 @@ function Get-TreeIds([int]$root) {
     $ids += $next; $frontier = $next
   }
   # Only Godot / ValTrainer executables (conhost etc. exit on their own).
-  return @($ids | Where-Object { $byId.ContainsKey($_) -and $byId[$_].Name -match '^(Godot|ValTrainer)' })
+  return @($ids | Where-Object { $byId.ContainsKey($_) -and $byId[$_].Name -match '^(Godot|ValTrainer|CA-VAL-AIM)' })
 }
 # One Godot at a time on this PC: gshot, godot-run.ps1 and selftest.ps1 share this slot (several agents starting Godot
 # at once froze the PC). An abandoned slot (holder crashed) is simply taken over.
@@ -81,7 +81,7 @@ foreach ($t in $At) {
   # descendants (concurrent runs by other agents/tools are never captured or killed).
   $ids = Get-TreeIds $p.Id
   # Belt and braces: only a ValTrainer-titled window of a Godot/ValTrainer process from our own tree is ever captured.
-  $w = Get-Process -Id $ids -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne 0 -and $_.MainWindowTitle -match '^(ValTrainer|ValTraining)' } | Select-Object -First 1
+  $w = Get-Process -Id $ids -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne 0 -and $_.MainWindowTitle -match '^(CA-VAL-AIM|ValTrainer|ValTraining)' } | Select-Object -First 1
   if (-not $w) { "[$Name] no window at ${t}s"; continue }
   $h = $w.MainWindowHandle
   $r = New-Object W3+RECT; [W3]::GetWindowRect($h, [ref]$r) | Out-Null

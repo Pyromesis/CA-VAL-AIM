@@ -603,7 +603,7 @@ public sealed partial class SensFinderMode : TrainingMode
         if (!aborted && !KeepSens)
         {
             float r = rec;
-            yield return ($"Use {r.ToString("0.000", Inv)} in ValTrainer", () =>
+            yield return ($"Use {r.ToString("0.000", Inv)} in CA-VAL-AIM", () =>
             {
                 var s = Main.I.Settings;
                 s.UseSensOverride = true;

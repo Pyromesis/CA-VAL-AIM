@@ -532,6 +532,9 @@ public abstract partial class ScreenBase : Control
 
     protected virtual void Tick(float dt) { }
 
+    /// <summary>The shared animated shader backdrop behind the screen (the minimalist main menu draws its own).</summary>
+    protected virtual bool AnimatedBackdrop => true;
+
     protected void Rebuild()
     {
         foreach (var c in GetChildren())
@@ -542,7 +545,7 @@ public abstract partial class ScreenBase : Control
         builtFor = GetViewportRect().Size;
         K = UiTheme.Fit(builtFor);
         Theme = UiTheme.MakeTheme(K);
-        AddChild(new Backdrop());
+        if (AnimatedBackdrop) AddChild(new Backdrop());
         Build();
         Loc.Apply(this);
     }

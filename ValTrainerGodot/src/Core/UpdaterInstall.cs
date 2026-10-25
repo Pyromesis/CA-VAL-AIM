@@ -67,7 +67,7 @@ public static partial class Updater
         catch (Exception e)
         {
             Kind = InstallKind.Unknown;
-            return $"can't tell how ValTrainer was installed ({Log.Describe(e)})";
+            return $"can't tell how CA-VAL-AIM was installed ({Log.Describe(e)})";
         }
     }
 
@@ -205,7 +205,7 @@ public static partial class Updater
             foreach (var a in RelaunchArgs()) psi.ArgumentList.Add(a);
             Process.Start(psi)?.Dispose();
         }
-        catch (Exception e) { Log.Error($"Updater: couldn't restart ValTrainer ({Log.Describe(e)}); start it again by hand"); }
+        catch (Exception e) { Log.Error($"Updater: couldn't restart CA-VAL-AIM ({Log.Describe(e)}); start it again by hand"); }
     }
 
     /// <summary>This run's command line (engine and ValTrainer arguments, e.g. the "safe graphics" shortcut's

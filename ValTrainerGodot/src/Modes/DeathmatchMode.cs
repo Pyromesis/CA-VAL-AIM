@@ -1,4 +1,4 @@
-﻿using Godot;
+using Godot;
 using ValTrainer.Core;
 using ValTrainer.Game;
 using ValTrainer.Game.Bots;
@@ -7,16 +7,18 @@ using ValTrainer.UI;
 namespace ValTrainer.Modes;
 
 /// <summary>
-/// VALORANT-style free-for-all Deathmatch against bots at the player's tier, on one of the true-scale map areas.
+/// VALORANT-style free-for-all Deathmatch against bots on any of the 13 maps (the whole extracted map).
 /// Rules (Riot support "FFA Deathmatch" + the official VALORANT wiki): first to the kill target or most kills when time
-/// runs out (VALORANT: 40 kills / 9 min for 14 players — scaled here to 30 kills / 5 min for 3–6 bots), 1.5 s respawn at
-/// a random spot free of enemies, brief spawn protection that ends when you fire, heavy armour every life
-/// (100 HP + 50 shield), every kill reloads your gun, every death drops a health pack (10 s, full HP + armour), and
+/// runs out. From the menu it is a full 12-player lobby (you + 11 bots), first to 40 kills in 9 minutes like VALORANT,
+/// with the bot difficulty chosen there (<see cref="DmDifficulty"/>: Easy / Medium / Hard / Nightmare). 1.5 s respawn at
+/// a random spot inside the map and free of enemies, brief spawn protection that ends when you fire, heavy armour every
+/// life (100 HP + 50 shield), every kill reloads your gun, every death drops a health pack (10 s, full HP + armour), and
 /// respawning briefly reveals where the enemies are. Bots roam the map on a nav grid (<see cref="BotNav"/>), hunt your
-/// last known position (gunfire, damage, the respawn reveal), hold angles, and fight you with the tier's duel model
-/// (<see cref="BotBrain"/>) — and each other.
-/// <para>Warm-up / routines: <c>new DeathmatchMode(durationSeconds: 180)</c> or <c>DeathmatchMode.Create(180)</c>; the kill
-/// target scales with the length (1 kill per 10 s) unless given. A session <c>DurationOverride</c> is honoured too.</para>
+/// last known position (gunfire, damage, running footsteps, the respawn reveal), hold angles, and fight you with their
+/// difficulty's duel model (<see cref="BotBrain"/>) — and each other. Tab shows the scoreboard.
+/// <para>Warm-up / routines: <c>new DeathmatchMode(durationSeconds: 180)</c> or <c>DeathmatchMode.Create(180)</c>: a small
+/// lobby sized to the map at the session's tier; the kill target scales with the length. A session <c>DurationOverride</c>
+/// is honoured too.</para>
 /// </summary>
 public sealed partial class DeathmatchMode : MapMode
 {
@@ -27,6 +29,9 @@ public sealed partial class DeathmatchMode : MapMode
     readonly int? killTargetArg;
     readonly WeaponKind weapon;
     int killTarget;
+    /// <summary>Menu Deathmatch: the chosen bot difficulty and lobby size (null = routine: session tier, map-sized lobby).</summary>
+    readonly DmDifficulty? difficulty;
+    readonly int lobby;
 
     /// <param name="durationSeconds">Run length (default 5 min).</param>
     /// <param name="killTarget">Kills that end the match (0 = 1 per 10 s of run length, i.e. 30 for 5 min).</param>
@@ -39,6 +44,24 @@ public sealed partial class DeathmatchMode : MapMode
         this.killTarget = killTargetArg ?? KillsFor(duration);
     }
 
+    /// <summary>The menu's Deathmatch: a lobby of <paramref name="players"/> (you included) against bots of
+    /// <paramref name="difficulty"/>, VALORANT's first-to-40 scaled to the length.</summary>
+    public DeathmatchMode(DmDifficulty difficulty, int players, float minutes, WeaponKind weapon = WeaponKind.Vandal)
+        : this(Mathf.Clamp(minutes, 1f, 20f) * 60f, 0, weapon)
+    {
+        this.difficulty = difficulty;
+        lobby = Math.Clamp(players, DeathmatchRules.MinPlayers, DeathmatchRules.LobbyPlayers);
+        killTarget = DeathmatchRules.KillTarget(duration, lobby);
+    }
+
+    /// <summary>The menu's Deathmatch with the player's saved lobby settings.</summary>
+    public static DeathmatchMode FromSettings()
+    {
+        var st = Main.I?.Settings;
+        return st == null ? new DeathmatchMode()
+            : new DeathmatchMode(DeathmatchRules.FromSetting(st.DmDifficulty), st.DmPlayers, st.DmMinutes);
+    }
+
     /// <summary>Factory for routines (warm-up): a Deathmatch of <paramref name="seconds"/>.</summary>
     public static DeathmatchMode Create(float seconds, int killTarget = 0, WeaponKind weapon = WeaponKind.Vandal) => new(seconds, killTarget, weapon);
 
@@ -46,13 +69,20 @@ public sealed partial class DeathmatchMode : MapMode
 
     public override string Key => "deathmatch";
     public override string Name => "Deathmatch";
-    public override string Description => "Free-for-all against bots at your tier on a VALORANT map. They hunt you and shoot back; respawn and keep fighting.";
+    public override string Description => difficulty is { } d
+        ? $"VALORANT free-for-all: {lobby} players, first to {killTarget}. {DeathmatchRules.Name(d)} bots hunt you across the whole map."
+        : "Free-for-all against bots at your tier on a VALORANT map. They hunt you and shoot back; respawn and keep fighting.";
     public override bool Timed => true;
     public override float Duration => duration;
     public override WeaponKind Weapon => weapon;
     public override bool Done => winner != null;
-    public override string? Subtitle => $"{MapSpot.Map} — Deathmatch · first to {killTarget}";
+    public override int? PreferredTier => difficulty is { } d ? DeathmatchRules.Tier(d) : null;
+    public override string? Subtitle => difficulty is { } d
+        ? $"{MapSpot.Map} — Deathmatch · {lobby} players · {DeathmatchRules.Name(d)} · first to {killTarget}"
+        : $"{MapSpot.Map} — Deathmatch · first to {killTarget}";
     public int KillTarget => killTarget;
+    /// <summary>Behaviour level of the bots: the tier, 5 = Nightmare.</summary>
+    internal int AiLevel => difficulty is { } d ? DeathmatchRules.AiLevel(d) : Tier;
 
     // ---------------- state ----------------
 
@@ -76,10 +106,10 @@ public sealed partial class DeathmatchMode : MapMode
     {
         var sw = System.Diagnostics.Stopwatch.StartNew();
         nav = BotNav.For($"{MapSpot.Key}:{G.Solid.Count}", G.Solid, SpawnFeet);
-        if ((G as GameSession)?.DurationOverride is { } ov && killTargetArg == null) killTarget = KillsFor(ov);
-        // Spawn spots: open floor (all 8 neighbours walkable).
-        spawnPool = Enumerable.Range(0, nav.Count).Where(i => nav.Degree(i) == 8).ToArray();
-        if (spawnPool.Length < 20) spawnPool = Enumerable.Range(0, nav.Count).ToArray();
+        if ((G as GameSession)?.DurationOverride is { } ov && killTargetArg == null)
+            killTarget = difficulty != null ? DeathmatchRules.KillTarget(ov, lobby) : KillsFor(ov);
+        spawnPool = SpawnPool(nav, G.Solid, MapSpot, out var why);
+        if (DevLog) GD.Print($"[dm] spawn pool: {why}");
         int n = BotCount();
         for (int i = 0; i < n; i++) bots.Add(new Bot(this, i));
         // First spawn: you at the map's attacker start, bots away from you and out of sight.
@@ -89,9 +119,62 @@ public sealed partial class DeathmatchMode : MapMode
                      $"{spawnPool.Length} spawn spots, {n} bots, first to {killTarget}, setup {sw.Elapsed.TotalMilliseconds:0} ms");
     }
 
+    /// <summary>
+    /// Deathmatch spawn spots: nav nodes on open floor (all 8 neighbours walkable) that pass <see cref="SpawnSafety"/>
+    /// (standing room, head room) and lie inside the official minimap's playable area. The nav floods every floor reachable
+    /// from the attacker start, which on the extracted maps includes slabs under stairs, inside props and beyond the map's
+    /// edge: spawning there was the "under the map" bug. Falls back to looser sets only when a map has too few spots.
+    /// Shared with the dev spawn audit (<see cref="Maps.SpawnAudit"/>).
+    /// </summary>
+    internal static int[] SpawnPool(BotNav nav, IReadOnlyList<Box> solid, Maps.MapSpot spot, out string why)
+    {
+        var playable = PlayableTest(spot);
+        // Nodes the offline art check rejected (inside art geometry, under a floor, on an invisible slab):
+        // maps/<key>/spawn_exclude.json from tools/mapgen/audit_spawns.py --write-exclude.
+        var exclude = string.IsNullOrWhiteSpace(spot.RealMapFolder) ? Array.Empty<Vector3>()
+            : World.MapAssets.LoadPoints(spot.RealMapFolder + "/spawn_exclude.json");
+        var excludeCells = new HashSet<(int, int, int)>();
+        foreach (var e in exclude) excludeCells.Add(((int)MathF.Floor(e.X / 0.5f), (int)MathF.Floor(e.Y / 0.5f), (int)MathF.Floor(e.Z / 0.5f)));
+        bool Excluded(Vector3 p)
+        {
+            if (excludeCells.Count == 0) return false;
+            int cx = (int)MathF.Floor(p.X / 0.5f), cy = (int)MathF.Floor(p.Y / 0.5f), cz = (int)MathF.Floor(p.Z / 0.5f);
+            for (int dz = -1; dz <= 1; dz++)
+                for (int dy = -1; dy <= 1; dy++)
+                    for (int dx = -1; dx <= 1; dx++)
+                        if (excludeCells.Contains((cx + dx, cy + dy, cz + dz)) && exclude.Any(e => e.DistanceTo(p) < 0.35f)) return true;
+            return false;
+        }
+        int open = 0, standable = 0, inside = 0, stacked = 0, artRejected = 0;
+        var strict = new List<int>();
+        var loose = new List<int>();
+        for (int i = 0; i < nav.Count; i++)
+        {
+            if (nav.Degree(i) != 8) continue;
+            open++;
+            var p = nav.Pos[i];
+            if (!SpawnSafety.Standable(p, solid, _ => -1)) continue;
+            // Not under another walkable floor (the hidden ground under raised floors) and not in a crawl space.
+            if (nav.Stacked(i, 3.2f) || Collision.Ceiling(p, solid, p.Y + 0.05f) < p.Y + 2.2f) { stacked++; continue; }
+            if (Excluded(p)) { artRejected++; continue; }
+            standable++;
+            loose.Add(i);
+            if (playable != null && playable(p) == 0) continue;
+            inside++;
+            strict.Add(i);
+        }
+        why = $"{nav.Count} nav nodes, {open} open, {stacked} under another floor, {artRejected} rejected by the art check, {standable} standable, {inside} inside the minimap" +
+              (playable == null ? " (no minimap mask)" : "");
+        if (strict.Count >= 40) return strict.ToArray();
+        if (loose.Count >= 40) { why += " → using standable (mask too small)"; return loose.ToArray(); }
+        why += " → using every nav node";
+        return Enumerable.Range(0, nav.Count).ToArray();
+    }
+
     int BotCount()
     {
-        // ~250 m² of floor per bot: 4–6 on Ascent / Haven / Split; Bind's Hookah→B area is tiny (≈370 m²) and gets 3.
+        if (difficulty != null) return lobby - 1; // the menu's lobby: 11 bots in a full 12-player match
+        // Routines: ~250 m² of floor per bot, 3–6 (short warm-up deathmatches stay readable).
         int byArea = Math.Clamp((int)Mathf.Round(nav.Area / 250f), 3, 6);
         return Tier <= 1 ? Math.Min(byArea, 5) : byArea;
     }
@@ -137,7 +220,8 @@ public sealed partial class DeathmatchMode : MapMode
     bool eased;
 
     /// <summary>The bots' combat skill right now: the tier's, or one tier easier once the finisher started.</summary>
-    internal BotSkill BotSkillNow => eased ? Difficulty.EasedBot(Tier) : Difficulty.Get(Tier).Bot;
+    internal BotSkill BotSkillNow => eased ? Difficulty.EasedBot(Tier)
+        : difficulty is { } d ? DeathmatchRules.Skill(d) : Difficulty.Get(Tier).Bot;
 
     /// <summary>Last <see cref="IGame.EaseLastSeconds"/> of a routine's deathmatch: every bot (alive or respawning) fights
     /// one tier easier, so the player finishes the session on a run of wins. The Lock-In screen says so up front.</summary>
@@ -375,10 +459,13 @@ public sealed partial class DeathmatchMode : MapMode
 
     public override string? Prompt => G.Player.Dead && playerRespawnAt > 0 ? $"Respawning in {Mathf.Max(0, playerRespawnAt - Now):0.0}s" : null;
 
-    /// <summary>Respawn reveal: red markers around the crosshair toward every living enemy (fades over 2 s).</summary>
+    /// <summary>Respawn reveal: red markers around the crosshair toward every living enemy (fades over 2 s); Tab (VALORANT's
+    /// scoreboard key) shows the lobby's scoreboard.</summary>
     public override void Draw2D(CanvasItem canvas, Vector2 size)
     {
-        if (G == null || Now >= revealUntil || !PlayerAlive) return;
+        if (G == null) return;
+        if (Input.IsPhysicalKeyPressed(Godot.Key.Tab)) DrawScoreboard(canvas, size);
+        if (Now >= revealUntil || !PlayerAlive) return;
         float a = Mathf.Clamp((revealUntil - Now) / RevealTime, 0, 1);
         float k = size.Y / 1080f, rad = 150f * k;
         var c = size / 2;
@@ -396,6 +483,45 @@ public sealed partial class DeathmatchMode : MapMode
         }
     }
 
+    /// <summary>Scoreboard: every player of the lobby by kills (you highlighted), K / D and K/D, the kill target and time left.</summary>
+    void DrawScoreboard(CanvasItem c, Vector2 size)
+    {
+        float k = size.Y / 1080f;
+        var rows = bots.Select(b => (Name: b.Name, b.Kills, b.Deaths, You: false))
+            .Append((Name: "You", Kills, Deaths, You: true))
+            .OrderByDescending(r => r.Kills).ThenBy(r => r.Deaths).ToList();
+        float rowH = 34 * k, w = 560 * k, head = 64 * k;
+        float h = head + rows.Count * rowH + 16 * k;
+        var r0 = new Rect2((size.X - w) / 2, (size.Y - h) / 2, w, h);
+        c.DrawRect(r0, new Color(0.035f, 0.045f, 0.06f, 0.88f));
+        c.DrawRect(new Rect2(r0.Position, new Vector2(w, 2 * k)), UiTheme.Accent);
+        int ts = UiTheme.Fs(20, k), ls = UiTheme.Fs(12, k), vs = UiTheme.Fs(16, k);
+        Gfx.Text(c, UiTheme.DisplayWide, "DEATHMATCH", r0.Position.X + 22 * k, r0.Position.Y + 34 * k, ts, UiTheme.Text);
+        float left = Mathf.Max(0, G.RunLength - Now);
+        Gfx.TextR(c, UiTheme.HudWide, $"FIRST TO {killTarget}  ·  {(int)left / 60}:{(int)left % 60:00}", r0.End.X - 22 * k, r0.Position.Y + 32 * k, ls, UiTheme.Dim);
+        float cx1 = r0.End.X - 210 * k, cx2 = r0.End.X - 140 * k, cx3 = r0.End.X - 22 * k;
+        float y = r0.Position.Y + head;
+        Gfx.Text(c, UiTheme.HudWide, "PLAYER", r0.Position.X + 56 * k, y - 8 * k, ls, UiTheme.Faint);
+        Gfx.TextR(c, UiTheme.HudWide, "K", cx1, y - 8 * k, ls, UiTheme.Faint);
+        Gfx.TextR(c, UiTheme.HudWide, "D", cx2, y - 8 * k, ls, UiTheme.Faint);
+        Gfx.TextR(c, UiTheme.HudWide, "K/D", cx3, y - 8 * k, ls, UiTheme.Faint);
+        for (int i = 0; i < rows.Count; i++)
+        {
+            var row = rows[i];
+            float ry = y + i * rowH;
+            if (row.You) c.DrawRect(new Rect2(r0.Position.X + 8 * k, ry, w - 16 * k, rowH - 2 * k), new Color(UiTheme.Accent, 0.16f));
+            else if (i % 2 == 0) c.DrawRect(new Rect2(r0.Position.X + 8 * k, ry, w - 16 * k, rowH - 2 * k), new Color(1, 1, 1, 0.025f));
+            float cy = ry + rowH / 2;
+            var col = row.You ? UiTheme.Text : UiTheme.TextSoft;
+            Gfx.TextR(c, UiTheme.HudWide, (i + 1).ToString(), r0.Position.X + 40 * k, Gfx.Mid(cy, vs), vs, UiTheme.Faint);
+            Gfx.Text(c, UiTheme.BodySemi, row.You ? "You" : row.Name, r0.Position.X + 56 * k, Gfx.Mid(cy, vs), vs, col);
+            Gfx.TextR(c, UiTheme.Display, row.Kills.ToString(), cx1, Gfx.Mid(cy, vs), vs, col);
+            Gfx.TextR(c, UiTheme.Display, row.Deaths.ToString(), cx2, Gfx.Mid(cy, vs), vs, UiTheme.Dim);
+            float kd = row.Deaths == 0 ? row.Kills : (float)row.Kills / row.Deaths;
+            Gfx.TextR(c, UiTheme.Display, kd.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture), cx3, Gfx.Mid(cy, vs), vs, UiTheme.Dim);
+        }
+    }
+
     // ---------------- results ----------------
 
     int Placement => 1 + bots.Count(b => b.Kills > Kills);
@@ -403,6 +529,7 @@ public sealed partial class DeathmatchMode : MapMode
     public override IEnumerable<(string Label, string Value)> ResultLines()
     {
         yield return ("Map", $"{MapSpot.Map} {MapSpot.Name}");
+        if (difficulty is { } d) yield return ("Lobby", $"{bots.Count + 1} players · {DeathmatchRules.Name(d)} bots");
         yield return ("Kills / deaths", $"{Kills} / {Deaths}  (K/D {KD:0.00})");
         yield return ("Placement", winner == "You" ? $"1st of {bots.Count + 1} — first to {killTarget}" : $"{Ordinal(Placement)} of {bots.Count + 1}" + (winner != null ? $" ({winner} reached {killTarget})" : ""));
         if (Hits > 0) yield return ("Headshot %", $"{100f * HeadHits / Hits:0}%  ({headKills} headshot kills)");

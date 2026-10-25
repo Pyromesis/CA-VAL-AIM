@@ -1010,7 +1010,7 @@ public sealed partial class CrosshairFinderMode : TrainingMode
         // live VALORANT import (CrosshairCode.ApplyTab), so later changes to the other tabs in VALORANT still show.
         string tabName = CrosshairCode.TabName(tab switch { XfTab.Ads => CrosshairView.Mode.Ads, XfTab.Sniper => CrosshairView.Mode.Sniper, _ => CrosshairView.Mode.Primary });
         if (!keepCurrent && !aborted)
-            yield return ("Use in ValTrainer", () =>
+            yield return ("Use in CA-VAL-AIM", () =>
             {
                 var s = Main.I.Settings;
                 s.UseFinderCrosshair = true;

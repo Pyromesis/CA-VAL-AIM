@@ -57,7 +57,7 @@ public partial class Main : Node
         var startArgs = OS.GetCmdlineUserArgs().Concat(OS.GetCmdlineArgs()).ToArray();
         if ((!startArgs.Contains("--dev") || startArgs.Contains("--single-instance")) && !SingleInstance.Claim())
         {
-            Log.Info("ValTrainer is already running: brought that window to the front; quitting this copy");
+            Log.Info("CA-VAL-AIM is already running: brought that window to the front; quitting this copy");
             singleInstanceExit = true;
             GetTree().Quit();
             return;
@@ -70,7 +70,7 @@ public partial class Main : Node
         UiTheme.Init();
         Loc.SetLanguage(Settings.Language);
         if (!OS.GetCmdlineUserArgs().Concat(OS.GetCmdlineArgs()).Contains("--dev")) ApplyDisplay();
-        GetTree().Root.Title = "ValTraining";
+        GetTree().Root.Title = AppInfo.Name;
 
         var args = OS.GetCmdlineUserArgs().Concat(OS.GetCmdlineArgs()).ToArray();
         Dev = args.Contains("--dev");
@@ -79,6 +79,10 @@ public partial class Main : Node
             // Dev-only layout/QA overrides (never saved): --lang es, --rifle phantom, --ammo default|real|infinite.
             if (CmdLine.After("--lang") is { } devLang) Loc.SetLanguage(devLang);
             if (CmdLine.After("--rifle") is { } rifle) Settings.PrimaryRifle = rifle.Equals("phantom", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
+            // --dm-difficulty easy|medium|hard|nightmare, --dm-players N: the menu Deathmatch's lobby (not saved).
+            if (CmdLine.After("--dm-difficulty") is { } dmd)
+                Settings.DmDifficulty = dmd.ToLowerInvariant() switch { "easy" => 0, "hard" => 2, "nightmare" => 3, _ => 1 };
+            if (int.TryParse(CmdLine.After("--dm-players"), out int dmp)) Settings.DmPlayers = dmp;
             if (CmdLine.After("--ammo") is { } ammo)
                 Settings.AmmoMode = ammo.ToLowerInvariant() switch { "infinite" => 1, "real" => 0, _ => -1 };
         }
@@ -97,7 +101,7 @@ public partial class Main : Node
             return;
         }
         PickFirstRunQuality();
-        Log.Info($"ValTrainer {AppInfo.Version}; {SysInfo.Summary}; quality {Settings.Quality}{(Settings.AutoQualityReason != null ? $" (auto: {Settings.AutoQualityReason})" : "")}; " +
+        Log.Info($"CA-VAL-AIM {AppInfo.Version}; {SysInfo.Summary}; quality {Settings.Quality}{(Settings.AutoQualityReason != null ? $" (auto: {Settings.AutoQualityReason})" : "")}; " +
                  $"data {Paths.DataDir}{(Paths.DataDirProblem != null ? $" [{Paths.DataDirProblem}]" : "")}; " +
                  $"VALORANT {(Valorant.Found ? "imported" : Valorant.Status.ToString())}; logs {Paths.LogDir}");
         if (Dev && args.Contains("--keybind-dump"))
@@ -119,6 +123,13 @@ public partial class Main : Node
             GD.Print($"[profile] primary color={xh.Primary.Color.ToHtml()} outline={xh.Primary.HasOutline} dot={xh.Primary.CenterDot} " +
                      $"inner={xh.Primary.Inner.Show} outer={xh.Primary.Outer.Show}");
             GetTree().Quit();
+            return;
+        }
+        if (Dev && CmdLine.After("--spawn-dump") is { } spawnDump)
+        {
+            // Dev tool (works with --headless): every map's spawn points through the game's own spawn code, for
+            // tools/mapgen/audit_spawns.py (--spawn-maps a,b limits the maps).
+            GetTree().Quit(Maps.SpawnAudit.Run(spawnDump, CmdLine.After("--spawn-maps")));
             return;
         }
         if (Dev && args.Contains("--culture-test"))
@@ -170,7 +181,8 @@ public partial class Main : Node
         // A downloaded update is installed now, before the menu (never mid-drill): "Updating ValTrainer…", then the
         // installer / portable swap starts the new version and this one quits.
         bool updating = make == null && Updater.ShouldApplyAtStartup();
-        if (make != null) StartMode(make);
+        noTransitions = Dev && args.Contains("--no-transitions");
+        if (make != null) SetScreen(new GameSession(make)); // dev "--mode": straight in, as the automated checks expect
         else if (updating) SetScreen(new UpdatingScreen());
         else ShowMenu();
         if (updating) return;
@@ -180,6 +192,7 @@ public partial class Main : Node
             case "settings": Callable.From(ShowSettings).CallDeferred(); break;
             case "about": SettingsScreen.StartPage = SettingsScreen.Page.About; Callable.From(ShowSettings).CallDeferred(); break;
             case "stats": Callable.From(ShowStats).CallDeferred(); break;
+            case "reaction" or "reactions": Callable.From(ShowReactionStats).CallDeferred(); break;
             case "senslab" or "sens-lab": Callable.From(ShowSensLab).CallDeferred(); break;
             case "warmup" or "lockin": Callable.From(ShowLockIn).CallDeferred(); break;
             case "agents": Callable.From(ShowAgents).CallDeferred(); break; // + --agent jett, --agent-go routine|<drill> (AgentsScreen)
@@ -190,6 +203,27 @@ public partial class Main : Node
         // Dev-only: "--rewind-file run.vtt [--rewind-code CODE] [--rewind-at S]" opens the Rewind of a saved run.
         if (Dev && make == null && CmdLine.After("--rewind-file") is { } rf) Callable.From(() => RewindScreen.OpenDevFile(rf)).CallDeferred();
         Analysis.CoachWarmUp.Start(); // JIT the coach off the main thread before the first results screen
+        // Dev-only: "--screenshot <path prefix> --screenshot-at 3,5.5,9" saves the game's own frame (any screen, DPI-proof,
+        // works on a locked desktop) as <prefix>_<n>.png at those seconds after start, then quits after the last one.
+        if (Dev && CmdLine.After("--screenshot") is { } shotPrefix)
+        {
+            var times = (CmdLine.After("--screenshot-at") ?? "3").Split(',')
+                .Select(s => float.TryParse(s, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var v) ? v : -1)
+                .Where(v => v >= 0).OrderBy(v => v).ToList();
+            for (int n = 0; n < times.Count; n++)
+            {
+                int idx = n;
+                bool last = n == times.Count - 1;
+                GetTree().CreateTimer(times[n]).Timeout += () =>
+                {
+                    var img = GetViewport().GetTexture().GetImage();
+                    string path = $"{shotPrefix}_{idx}.png";
+                    img.SavePng(path);
+                    GD.Print($"[screenshot] t={times[idx]:0.0}s {path} ({screen?.GetType().Name})");
+                    if (last) GetTree().Quit();
+                };
+            }
+        }
     }
 
     static Vector2I? DevWindowSize(string? wxh)
@@ -266,12 +300,20 @@ public partial class Main : Node
 
     void SetScreen(Node n)
     {
+        // Crossfade: a still of the outgoing screen lies over the new one and fades out (UI/MinimalKit.cs ScreenFade), so
+        // a screen change never shows an empty or half-built frame. Not on the first screen, in headless runs, or when
+        // the dev flag --no-transitions asks for instant switches (pixel-exact screenshots).
+        Image? still = screen != null && IsInstanceValid(screen) && !noTransitions ? ScreenFade.Capture(GetViewport()) : null;
         screen?.QueueFree();
         screen = n;
         AddChild(n);
         inGame = n is GameSession;
         ApplyFps();
+        foreach (var c in GetChildren()) if (c is ScreenFade old) old.QueueFree();
+        if (still != null) AddChild(new ScreenFade(still));
     }
+
+    bool noTransitions;
 
     /// <summary>Tier in effect (dev override or the saved setting).</summary>
     public int Tier => TierOverride ?? Settings.Tier;
@@ -304,6 +346,8 @@ public partial class Main : Node
 
     public void ShowSettings() => SetScreen(new SettingsScreen());
     public void ShowStats() => SetScreen(new StatsScreen());
+    /// <summary>Reaction times by category (Stats → REACTION TIMES).</summary>
+    public void ShowReactionStats() => SetScreen(new ReactionStatsScreen());
     public void ShowProfile() => SetScreen(new ProfileScreen());
     public void ShowSensLab() => SetScreen(new SensLabScreen());
     /// <summary>The Lock-In setup screen (menu LOCK IN).</summary>
@@ -312,7 +356,8 @@ public partial class Main : Node
     public void ShowScreen(Node n) => SetScreen(n);
 
     /// <param name="freePlay">No clock, no score, nothing saved; the drill starts over when its time is up (<see cref="GameSession.FreePlay"/>).</param>
-    public void StartMode(Func<TrainingMode> make, bool freePlay = false) => SetScreen(new GameSession(make) { FreePlay = freePlay });
+    /// The drill is prepared on the loading screen first (its map's levels load there with a progress bar).
+    public void StartMode(Func<TrainingMode> make, bool freePlay = false) => SetScreen(new LoadingScreen(make, freePlay));
 
     public void Quit()
     {
@@ -420,6 +465,7 @@ public partial class Main : Node
     public override void _ExitTree()
     {
         MapArt.Clear();
+        World.RealMap.ClearPreloaded();
         if (I == this) Log.Info(BugReport.CleanExit);
     }
 

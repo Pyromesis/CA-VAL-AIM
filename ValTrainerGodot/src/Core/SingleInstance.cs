@@ -88,6 +88,6 @@ public static class SingleInstance
         showRequested = false;
         if (mode == DisplayServer.WindowMode.Minimized) DisplayServer.WindowSetMode(lastMode);
         DisplayServer.WindowMoveToForeground();
-        Log.Info("Another launch of ValTrainer: brought this window to the front");
+        Log.Info("Another launch of CA-VAL-AIM: brought this window to the front");
     }
 }

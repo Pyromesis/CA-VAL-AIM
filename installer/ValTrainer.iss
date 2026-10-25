@@ -1,4 +1,4 @@
-; ValTrainer - Inno Setup 6 script.
+; CA-VAL-AIM (formerly ValTraining / ValTrainer) - Inno Setup 6 script.
 ; Built by tools\build-release.ps1, which passes everything below with /D... (see its header). By hand:
 ;   ISCC.exe /DAppVersion=1.0.0 /DAppFileVersion=1.0.0.0 /DSourceDir=<"Windows Installer" export folder with
 ;            LICENSE.txt and THIRD-PARTY-NOTICES.txt added> /DIconFile=<ValTrainer.ico> /DOutputDir=<dist> installer\ValTrainer.iss
@@ -38,15 +38,22 @@
 
 ; Never change: identifies the installed app for upgrades and uninstall.
 #define AppGuid "8BC1A72E-9D6C-4649-AE20-032F14D7A1F5"
-#define AppExe "ValTrainer.exe"
+#define AppExe "CA-VAL-AIM.exe"
+; The executable's name up to 1.17.0. An update from those versions is started by the OLD app, so Setup must wait for
+; this exe to exit too (see PrepareToInstall) and then removes it ([InstallDelete]).
+#define LegacyExe "ValTrainer.exe"
+; Release file prefix: still "ValTraining" so that 1.16.1-1.17.0 find the update (UpdateAssets.ReleasePrefix in the app).
+#ifndef AssetPrefix
+  #define AssetPrefix "ValTraining"
+#endif
 
 [Setup]
 AppId={{{#AppGuid}}
-AppName=ValTraining
+AppName=CA-VAL-AIM
 AppVersion={#AppVersion}
-AppVerName=ValTraining {#AppVersion}
+AppVerName=CA-VAL-AIM {#AppVersion}
 AppPublisher=Pyromesis
-AppCopyright=Copyright (C) 2026 Pyromesis and contributors. Based on ValTrainer; see NOTICE. GPL-3.0-or-later.
+AppCopyright=Copyright (C) 2026 Pyromesis and contributors. Formerly ValTraining, based on ValTrainer; see NOTICE. GPL-3.0-or-later.
 #if HasRepo
 AppPublisherURL=https://github.com/{#GitHubRepo}
 AppSupportURL=https://github.com/{#GitHubRepo}/issues
@@ -59,16 +66,19 @@ VersionInfoProductVersion={#AppFileVersion}
 VersionInfoProductTextVersion={#AppFileVersion}
 VersionInfoTextVersion={#AppVersion}
 VersionInfoCompany=Pyromesis
-VersionInfoDescription=ValTraining Setup
-VersionInfoProductName=ValTraining
+VersionInfoDescription=CA-VAL-AIM Setup
+VersionInfoProductName=CA-VAL-AIM
 VersionInfoCopyright=Copyright (C) 2026 Pyromesis and contributors. GPL-3.0-or-later. See NOTICE.
 
-; Per-user by default: no UAC prompt, installs to %LOCALAPPDATA%\Programs\ValTraining.
+; Per-user by default: no UAC prompt. Upgrades keep the previous folder (UsePreviousAppDir); new installs go to
+; %LOCALAPPDATA%\Programs\CA-VAL-AIM.
 PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog commandline
-DefaultDirName={autopf}\ValTraining
-DefaultGroupName=ValTraining
+DefaultDirName={autopf}\CA-VAL-AIM
+DefaultGroupName=CA-VAL-AIM
 DisableProgramGroupPage=yes
+; The Start menu folder follows the rename (1.18.0) instead of reusing the old ValTraining folder.
+UsePreviousGroup=no
 UsePreviousAppDir=yes
 
 ; 64-bit Windows 10 1607+ (also runs on Windows 11 on ARM through x64 emulation).
@@ -84,16 +94,16 @@ WizardStyle=modern
 LicenseFile={#SourceDir}\LICENSE.txt
 SetupIconFile={#IconFile}
 UninstallDisplayIcon={app}\{#AppExe}
-UninstallDisplayName=ValTraining
+UninstallDisplayName=CA-VAL-AIM
 ShowLanguageDialog=no
 
 Compression=lzma2/max
 SolidCompression=yes
 LZMAUseSeparateProcess=yes
 OutputDir={#OutputDir}
-OutputBaseFilename=ValTraining-{#AppVersion}-Setup
+OutputBaseFilename={#AssetPrefix}-{#AppVersion}-Setup
 
-; Close a running ValTrainer (Restart Manager) before replacing its files.
+; Close a running CA-VAL-AIM (Restart Manager) before replacing its files.
 CloseApplications=yes
 ; One Setup at a time (e.g. an update started by the app and one started by hand).
 SetupMutex=ValTrainerSetup{#AppGuid}
@@ -119,6 +129,15 @@ Type: filesandordirs; Name: "{app}\data_ValTrainer_windows_x86_64"
 Type: files; Name: "{autoprograms}\ValTrainer\*"
 Type: dirifempty; Name: "{autoprograms}\ValTrainer"
 Type: files; Name: "{autodesktop}\ValTrainer.lnk"
+; Rename to CA-VAL-AIM (1.18.0): the old executable, its .pck and the ValTraining shortcuts.
+Type: files; Name: "{app}\{#LegacyExe}"
+Type: files; Name: "{app}\ValTrainer.pck"
+Type: files; Name: "{app}\ValTrainer.exe.old"
+Type: files; Name: "{autoprograms}\ValTraining.lnk"
+Type: files; Name: "{autoprograms}\ValTraining (safe graphics).lnk"
+Type: files; Name: "{autoprograms}\ValTraining\*"
+Type: dirifempty; Name: "{autoprograms}\ValTraining"
+Type: files; Name: "{autodesktop}\ValTraining.lnk"
 
 [Files]
 Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
@@ -132,12 +151,12 @@ Filename: "{app}\install.ini"; Section: "ValTrainer"; Key: "Mode"; String: "{cod
 Type: files; Name: "{app}\install.ini"
 
 [Icons]
-Name: "{group}\ValTraining"; Filename: "{app}\{#AppExe}"; WorkingDir: "{app}"; Comment: "Aim trainer with your own VALORANT settings"
-Name: "{group}\ValTraining (safe graphics)"; Filename: "{app}\{#AppExe}"; Parameters: "--rendering-method gl_compatibility"; WorkingDir: "{app}"; Comment: "Starts ValTraining with the OpenGL Compatibility renderer, for graphics drivers that crash or show a black screen"
-Name: "{autodesktop}\ValTraining"; Filename: "{app}\{#AppExe}"; WorkingDir: "{app}"; Tasks: desktopicon
+Name: "{group}\CA-VAL-AIM"; Filename: "{app}\{#AppExe}"; WorkingDir: "{app}"; Comment: "Aim trainer with your own VALORANT settings"
+Name: "{group}\CA-VAL-AIM (safe graphics)"; Filename: "{app}\{#AppExe}"; Parameters: "--rendering-method gl_compatibility"; WorkingDir: "{app}"; Comment: "Starts CA-VAL-AIM with the OpenGL Compatibility renderer, for graphics drivers that crash or show a black screen"
+Name: "{autodesktop}\CA-VAL-AIM"; Filename: "{app}\{#AppExe}"; WorkingDir: "{app}"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\{#AppExe}"; Description: "{cm:LaunchProgram,ValTraining}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\{#AppExe}"; Description: "{cm:LaunchProgram,CA-VAL-AIM}"; Flags: nowait postinstall skipifsilent
 ; In-app update (silent + /RELAUNCH): start the new version again, as the user (never elevated).
 Filename: "{app}\{#AppExe}"; Parameters: "{code:RelaunchParams}"; WorkingDir: "{app}"; Flags: nowait runasoriginaluser; Check: ShouldRelaunch
 
@@ -257,7 +276,7 @@ begin
   { Same or older version installed: Setup simply installs over it (settings and stats live elsewhere and are kept). }
   if (Old <> '') and (CompareVersions(Old, '{#AppVersion}') > 0) then
     Result := SuppressibleMsgBox(
-      'ValTraining ' + Old + ' is installed, which is newer than this setup (' + '{#AppVersion}' + ').' + #13#10#13#10 +
+      'CA-VAL-AIM ' + Old + ' is installed, which is newer than this setup (' + '{#AppVersion}' + ').' + #13#10#13#10 +
       'Replace it with the older version ' + '{#AppVersion}' + '? Your settings and stats are kept.',
       mbConfirmation, MB_YESNO or MB_DEFBUTTON2, IDYES) = IDYES;
 end;
@@ -357,13 +376,13 @@ begin
   if Silent then
   begin
     Result := WaitForExit(Exe, 90);
-    if not Result then Log('ValTraining is still running after 90 s: nothing was changed.');
+    if not Result then Log('CA-VAL-AIM is still running after 90 s: nothing was changed.');
     Exit;
   end;
   Result := WaitForExit(Exe, 3);
   while not Result do
   begin
-    if MsgBox('ValTraining is still running.' + #13#10#13#10 + 'Close it, then click Retry.',
+    if MsgBox('CA-VAL-AIM is still running.' + #13#10#13#10 + 'Close it, then click Retry.',
               mbError, MB_RETRYCANCEL) <> IDRETRY then Exit;
     Result := WaitForExit(Exe, 3);
   end;
@@ -372,13 +391,16 @@ end;
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 begin
   Result := '';
-  if not WaitUntilClosed(ExpandConstant('{app}\{#AppExe}'), WizardSilent) then
-    Result := 'ValTraining is still running. Close it and run Setup again.';
+  { Both names: an update from 1.17.0 or older is started by the old ValTrainer.exe. }
+  if not WaitUntilClosed(ExpandConstant('{app}\{#AppExe}'), WizardSilent)
+     or not WaitUntilClosed(ExpandConstant('{app}\{#LegacyExe}'), WizardSilent) then
+    Result := 'CA-VAL-AIM is still running. Close it and run Setup again.';
 end;
 
 function InitializeUninstall(): Boolean;
 begin
-  Result := WaitUntilClosed(ExpandConstant('{app}\{#AppExe}'), UninstallSilent);
+  Result := WaitUntilClosed(ExpandConstant('{app}\{#AppExe}'), UninstallSilent)
+            and WaitUntilClosed(ExpandConstant('{app}\{#LegacyExe}'), UninstallSilent);
 end;
 
 { ---------- uninstall: optionally remove the user's data ---------- }
@@ -394,7 +416,7 @@ begin
     DeleteUserData := False;
     if not UninstallSilent then
       DeleteUserData := MsgBox(
-        'Also delete your ValTraining settings, stats and recordings?' + #13#10#13#10 +
+        'Also delete your CA-VAL-AIM settings, stats and recordings?' + #13#10#13#10 +
         'This removes:' + #13#10 +
         '  ' + ExpandConstant('{userappdata}\ValTrainer') + #13#10 +
         '      settings, stats and recordings' + #13#10 +

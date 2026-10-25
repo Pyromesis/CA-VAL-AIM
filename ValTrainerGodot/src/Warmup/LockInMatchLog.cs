@@ -26,7 +26,7 @@ public static class LockInMatchLog
     public const double AskWithinHours = 6, MinGapMinutes = 20;
 
     public const string Question = "How did your first match after Lock-In go?";
-    public const string HandoffLine = "Next time you open ValTrainer it asks how your match went (optional).";
+    public const string HandoffLine = "Next time you open CA-VAL-AIM it asks how your match went (optional).";
 
     static readonly CultureInfo Inv = CultureInfo.InvariantCulture;
     /// <summary>When this run of the app started: a Lock-In that ended before it means the app was closed in between.</summary>

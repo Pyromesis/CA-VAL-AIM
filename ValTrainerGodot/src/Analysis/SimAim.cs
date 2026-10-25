@@ -119,7 +119,7 @@ public sealed class SimAim
         var args = OS.GetCmdlineUserArgs().Concat(OS.GetCmdlineArgs()).ToArray();
         int mi = Array.IndexOf(args, "--mode");
         mode = modeKey?.ToLowerInvariant() ?? (mi >= 0 && mi + 1 < args.Length ? args[mi + 1].ToLowerInvariant() : "");
-        trackMode = mode == "tracking";
+        trackMode = mode is "tracking" or "airtrack" or "reacttrack";
         sprayMode = mode is "spray_vandal" or "spray_phantom";
         transferMode = mode == "spray_transfer";
         gridMode = mode == "gridshot";

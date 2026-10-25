@@ -44,7 +44,7 @@ static class RunAnalysis
         m["run.secs"] = p.Ft[^1] - p.Ft[0];
         Flicks(p, m);
         SpeedTier(p, m);
-        if (t.Mode == "tracking") Tracking(p, m);
+        if (t.Mode is "tracking" or "airtrack" or "reacttrack") Tracking(p, m);
         Crosshair(p, m);
         Movement(p, m);
         if (t.Mode is "spray_vandal" or "spray_phantom" or "spray_transfer") Spray(p, m);

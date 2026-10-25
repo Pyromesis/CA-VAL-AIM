@@ -36,7 +36,16 @@ public partial class BotCharacter : Node3D
     /// <summary>Mute the built-in running footsteps (a mode plays its own, e.g. the defense drills' <c>FootstepFx</c>).</summary>
     public bool QuietSteps;
     /// <summary>Facing in the game's yaw convention (degrees; 0 = -Z, + = right).</summary>
-    public float FacingYaw { get => facing; set { facing = value; Rotation = new Vector3(0, Mathf.DegToRad(-value) + Mathf.Pi, 0); } }
+    public float FacingYaw
+    {
+        get => facing;
+        set
+        {
+            if (!float.IsFinite(value)) { ReportNonFinite("FacingYaw"); return; } // a NaN would poison the whole skeleton
+            facing = value;
+            Rotation = new Vector3(0, Mathf.DegToRad(-value) + Mathf.Pi, 0);
+        }
+    }
     public bool Crouched;
     /// <summary>False while a mode owns <see cref="Feet"/>.Y (jump peeks), which suppresses running footsteps.</summary>
     public bool Grounded = true;
@@ -46,7 +55,24 @@ public partial class BotCharacter : Node3D
 
     /// <summary>Head hitbox centre (world).</summary>
     public Vector3 Head => GlobalTransform * pts[PHead];
-    public Vector3 Feet { get => GlobalPosition; set => GlobalPosition = value; }
+    public Vector3 Feet
+    {
+        get => GlobalPosition;
+        set
+        {
+            if (!value.IsFinite()) { ReportNonFinite("Feet"); return; }
+            GlobalPosition = value;
+        }
+    }
+
+    static int nonFiniteReports;
+
+    /// <summary>A mode handed the bot a NaN / infinite value: keep the last good one and log where it came from (twice
+    /// per run at most).</summary>
+    static void ReportNonFinite(string what)
+    {
+        if (nonFiniteReports++ < 2) GD.PushWarning($"[bots] ignored a non-finite {what}: " + System.Environment.StackTrace);
+    }
     /// <summary>World position of the rifle's muzzle (falls back to the head).</summary>
     public Vector3 MuzzlePosition => muzzle != null && muzzle.IsInsideTree() ? muzzle.GlobalPosition : Head;
     /// <summary>Which of the 4 character looks this bot uses (see <see cref="BotAssets.Variants"/>).</summary>
@@ -376,6 +402,7 @@ public partial class BotCharacter : Node3D
         if (Dead && deathT < 0) Die(-GlobalBasis.Z); // fall backwards in place
 
         // --- locomotion state from velocity relative to facing (model space: +Z = forward, +X = character's left)
+        if (!Velocity.IsFinite()) { ReportNonFinite("Velocity"); Velocity = Vector3.Zero; }
         var hv = new Vector3(Velocity.X, 0, Velocity.Z);
         float speed = deathT >= 0 ? 0f : hv.Length();
         float targetYaw = 0f, dirSign = 1f;

@@ -237,7 +237,7 @@ public static class UpdateCheck
         try
         {
             using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
-            http.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", $"ValTrainer/{version}");
+            http.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", $"CA-VAL-AIM/{version}");
             http.DefaultRequestHeaders.TryAddWithoutValidation("Accept", "application/vnd.github+json");
             http.DefaultRequestHeaders.TryAddWithoutValidation("X-GitHub-Api-Version", "2022-11-28");
             using var resp = await http.GetAsync(api).ConfigureAwait(false);
@@ -276,11 +276,9 @@ public static class UpdateCheck
             string? dl = e.TryGetProperty("browser_download_url", out var d) ? d.GetString() : null;
             long size = e.TryGetProperty("size", out var s) && s.TryGetInt64(out var sz) ? sz : 0;
             if (name == null || dl == null || !UpdateAssets.Trusted(dl, repo, localSource)) continue;
-            // "ValTraining-" is the current name; "ValTrainer-" keeps releases made before the rebrand downloadable.
-            bool setup = name.Equals($"ValTraining-{version}-Setup.exe", StringComparison.OrdinalIgnoreCase)
-                         || name.Equals($"ValTrainer-{version}-Setup.exe", StringComparison.OrdinalIgnoreCase);
-            bool portable = name.Equals($"ValTraining-{version}-Portable.zip", StringComparison.OrdinalIgnoreCase)
-                            || name.Equals($"ValTrainer-{version}-Portable.zip", StringComparison.OrdinalIgnoreCase);
+            // Every release-asset prefix this app has ever used (CA-VAL-AIM-, ValTraining-, ValTrainer-): see UpdateAssets.Prefixes.
+            bool setup = UpdateAssets.Prefixes.Any(p => name.Equals($"{p}-{version}-Setup.exe", StringComparison.OrdinalIgnoreCase));
+            bool portable = UpdateAssets.Prefixes.Any(p => name.Equals($"{p}-{version}-Portable.zip", StringComparison.OrdinalIgnoreCase));
             if (setup) { a.SetupUrl = dl; a.SetupSize = size; a.SetupName = name; }
             else if (portable) { a.PortableUrl = dl; a.PortableSize = size; a.PortableName = name; }
             else if (name.Equals("SHA256SUMS.txt", StringComparison.OrdinalIgnoreCase)) a.SumsUrl = dl;
@@ -301,10 +299,20 @@ public sealed class UpdateAssets
     public string? PortableName;
     public string? SumsUrl;
 
-    /// <summary>File name of the release asset used for this copy (ValTraining-…, or the old ValTrainer-… name).</summary>
+    /// <summary>
+    /// Prefix of the release files ("&lt;prefix&gt;-&lt;version&gt;-Setup.exe"). It stays "ValTraining" after the rename to
+    /// CA-VAL-AIM on purpose: copies up to 1.17.0 only recognise the ValTraining- / ValTrainer- names, so a release named
+    /// CA-VAL-AIM-… would never reach them through the automatic updater. tools\build-release.ps1 and the release workflow
+    /// use the same prefix. Switch it once most players run 1.18.0 or later (which accept every name in <see cref="Prefixes"/>).
+    /// </summary>
+    public const string ReleasePrefix = "ValTraining";
+    /// <summary>Every prefix a release asset may carry: the new name first, then the two older ones.</summary>
+    public static readonly string[] Prefixes = { "CA-VAL-AIM", "ValTraining", "ValTrainer" };
+
+    /// <summary>File name of the release asset used for this copy (any of <see cref="Prefixes"/>).</summary>
     public string AssetName(string version, bool portable) =>
         (portable ? PortableName : SetupName) ??
-        $"ValTraining-{version}-{(portable ? "Portable.zip" : "Setup.exe")}";
+        $"{ReleasePrefix}-{version}-{(portable ? "Portable.zip" : "Setup.exe")}";
 
     /// <summary>https://github.com/&lt;repo&gt;/releases/download/… only (GitHub then redirects to its download host);
     /// a dev --update-source may also serve its files from its own scheme + host + port.</summary>

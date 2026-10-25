@@ -5,7 +5,7 @@ using ValTrainer.Core;
 namespace ValTrainer.UI;
 
 /// <summary>
-/// ValTraining's visual system: a near-black slate canvas, soft raised cards, one red accent (VALORANT #FF4655) used
+/// CA-VAL-AIM's visual system: a near-black slate canvas, soft raised cards, one red accent (VALORANT #FF4655) used
 /// only for primary actions and state, and DIN-like Bahnschrift for titles over Segoe UI for reading text.
 /// </summary>
 public static class UiTheme
@@ -48,6 +48,8 @@ public static class UiTheme
     public static Font Display = null!;  // Bahnschrift SemiBold Condensed — big numbers / titles
     /// <summary>Letter-spaced variants for small uppercase labels (VALORANT's tracked-out captions).</summary>
     public static Font HudWide = null!, DisplayWide = null!;
+    /// <summary>Light display face for the minimalist menu (Bahnschrift Light, Segoe UI Light fallback) and its tracked caps variant.</summary>
+    public static Font Light = null!, LightWide = null!;
 
     public static void Init()
     {
@@ -63,6 +65,8 @@ public static class UiTheme
         Display = Sys(new[] { "Bahnschrift SemiBold Condensed", "Bahnschrift", "Segoe UI" }, 700);
         HudWide = new FontVariation { BaseFont = Sys(new[] { "Bahnschrift SemiBold", "Bahnschrift", "Segoe UI" }, 600), SpacingGlyph = 2 };
         DisplayWide = new FontVariation { BaseFont = Display, SpacingGlyph = 2 };
+        Light = Sys(new[] { "Bahnschrift Light", "Bahnschrift", "Segoe UI Variable Display Light", "Segoe UI Light", "Segoe UI" }, 300);
+        LightWide = new FontVariation { BaseFont = Light, SpacingGlyph = 6 };
     }
 
     static Font Sys(string[] names, int weight) => new SystemFont

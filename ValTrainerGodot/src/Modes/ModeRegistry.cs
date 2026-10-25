@@ -21,7 +21,7 @@ public static class ModeRegistry
         () => new ReactionMode(),
         () => new SensFinderMode(),
         () => new CrosshairFinderMode(),
-        () => new DeathmatchMode(),
+        () => DeathmatchMode.FromSettings(),
         // v1.4.0
         () => new MicroshotMode(),
         () => new TargetSwitchMode(),
@@ -39,6 +39,15 @@ public static class ModeRegistry
         () => new SmokeExecuteMode(),
         () => new MobilityEntryMode(),
         () => new ChamberMode(),
+        // v1.18.0
+        () => new ArsenalMode(),
+        () => new AirTrackingMode(),
+        () => new ReactiveTrackingMode(),
+        () => new ReactionLabMode(ReactionCategory.Visual),
+        () => new ReactionLabMode(ReactionCategory.Audio),
+        () => new ReactionLabMode(ReactionCategory.Peripheral),
+        () => new ReactionLabMode(ReactionCategory.Choice),
+        () => new ReactionLabMode(ReactionCategory.Flick),
     };
 
     /// <summary>
@@ -54,6 +63,7 @@ public static class ModeRegistry
         ["mobility"] = a => new MobilityEntryMode(a),
         ["chamber"] = a => new ChamberMode(a),
         ["anchor"] = a => new AnchorMode(a),
+        [ReactionStats.Base] = a => new ReactionLabMode(a),
     };
 
     /// <summary>Factory for a mode key: "flick", or "base:argument" for drills in <see cref="WithArg"/> ("flashpeek" alone = default argument).</summary>

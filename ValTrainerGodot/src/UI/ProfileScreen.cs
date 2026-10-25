@@ -82,7 +82,7 @@ public partial class ProfileScreen : ScreenBase
         left.AddChild(new DrawBox
         {
             CustomMinimumSize = new Vector2(0, 250 * k), OnDraw = d => DrawRank(d, p), MouseFilter = MouseFilterEnum.Pass,
-            TooltipText = "An aim-only estimate: ValTrainer rates your mechanics (aim, movement, flash dodging).\nYour in-game rank also depends on game sense, comms and utility.",
+            TooltipText = "An aim-only estimate: CA-VAL-AIM rates your mechanics (aim, movement, flash dodging).\nYour in-game rank also depends on game sense, comms and utility.",
         });
         left.AddChild(SkillsPanel(p));
         if (Plan(p) is { Count: > 0 } plan) right.AddChild(PlanPanel(plan));
@@ -564,7 +564,7 @@ public partial class ProfileScreen : ScreenBase
         if (tight) finder.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         row.AddChild(finder);
         var lab = Btn("SENS LAB", VButton.Look.Secondary, Main.I.ShowSensLab, tight ? 0 : 160, 48, 19);
-        lab.TooltipText = "Overshoot, undershoot, tremor and tracking evidence accumulated per sensitivity. ValTrainer can't change Valorant's settings — set it in Valorant: Settings → General → Mouse → Sensitivity.";
+        lab.TooltipText = "Overshoot, undershoot, tremor and tracking evidence accumulated per sensitivity. CA-VAL-AIM can't change Valorant's settings — set it in Valorant: Settings → General → Mouse → Sensitivity.";
         if (tight) lab.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         row.AddChild(lab);
         return panel;
@@ -583,14 +583,14 @@ public partial class ProfileScreen : ScreenBase
         bool on = TryActive(a);
         b.Kind = on ? VButton.Look.Select : VButton.Look.Primary;
         b.Selected = on;
-        b.Label = on ? (Loc.Spanish ? "ACTIVA EN ValTraining" : "ACTIVE IN ValTraining") : (Loc.Spanish ? "PROBARLA EN ValTraining" : "TRY IT IN ValTraining");
+        b.Label = on ? (Loc.Spanish ? "ACTIVA EN CA-VAL-AIM" : "ACTIVE IN CA-VAL-AIM") : (Loc.Spanish ? "PROBARLA EN CA-VAL-AIM" : "TRY IT IN CA-VAL-AIM");
         b.Sub = on ? (Loc.Spanish ? "clic para volver" : "click to switch back") : null;
         b.TooltipText = on
-            ? (Loc.Spanish ? "ValTraining usa la sensibilidad recomendada. Haz clic para volver a la anterior."
-                : "ValTraining is using the recommended sens. Click to go back to your previous sens.")
+            ? (Loc.Spanish ? "CA-VAL-AIM usa la sensibilidad recomendada. Haz clic para volver a la anterior."
+                : "CA-VAL-AIM is using the recommended sens. Click to go back to your previous sens.")
             : (Loc.Spanish
-                ? $"Usa {Rounded(a.RecommendedSens).ToString("0.000", Inv)} en los ejercicios de ValTraining (tus ajustes de Valorant no cambian)"
-                : $"Use {Rounded(a.RecommendedSens).ToString("0.000", Inv)} in ValTraining's drills (your Valorant settings stay unchanged)");
+                ? $"Usa {Rounded(a.RecommendedSens).ToString("0.000", Inv)} en los ejercicios de CA-VAL-AIM (tus ajustes de Valorant no cambian)"
+                : $"Use {Rounded(a.RecommendedSens).ToString("0.000", Inv)} in CA-VAL-AIM's drills (your Valorant settings stay unchanged)");
         b.QueueRedraw();
     }
 
@@ -631,7 +631,7 @@ public partial class ProfileScreen : ScreenBase
             Gfx.Text(d, UiTheme.Body, Loc.Numeric($"{sens * dpi:0} eDPI · {cm:0.0} cm/360"), x, Gfx.Mid(100 * k, sub), sub, UiTheme.Dim);
         }
 
-        Block(0, has ? "CURRENT" : "CURRENT · " + (app.Settings.UseSensOverride ? "ValTraining" : "FROM VALORANT"), cur, curCm, UiTheme.Text);
+        Block(0, has ? "CURRENT" : "CURRENT · " + (app.Settings.UseSensOverride ? "CA-VAL-AIM" : "FROM VALORANT"), cur, curCm, UiTheme.Text);
         float colW = 190 * k, ax = colW + 46 * k, rx = colW + 104 * k;
         float? recCm = null;
         if (has)

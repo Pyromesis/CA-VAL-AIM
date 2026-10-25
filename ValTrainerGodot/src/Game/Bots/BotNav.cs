@@ -70,6 +70,7 @@ public sealed class BotNav
         var pos = new List<Vector3>();
         var col = new List<int>();
         var heights = new List<float>(8);
+        var near = new List<int>(256);
         const float fr = Collision.PlayerRadius - 0.05f;
         for (int iz = 0; iz < Nz; iz++)
             for (int ix = 0; ix < Nx; ix++)
@@ -77,8 +78,12 @@ public sealed class BotNav
                 float x = X0 + (ix + 0.5f) * Cell, z = Z0 + (iz + 0.5f) * Cell;
                 heights.Clear();
                 heights.Add(0f);
-                foreach (var b in world)
+                // Broadphase through the collision grid: the extracted maps have 10k–60k boxes, and testing every box for
+                // every 0.5 m column took ~23 s on Ascent (the Deathmatch froze at its start). Now well under a second.
+                Collision.Near(world, x - fr, z - fr, x + fr, z + fr, near);
+                foreach (int bi in near)
                 {
+                    var b = world[bi];
                     if (x + fr < b.Min.X || x - fr > b.Max.X || z + fr < b.Min.Z || z - fr > b.Max.Z) continue;
                     float y = b.Max.Y;
                     if (y > 30f || heights.Any(h => Mathf.Abs(h - y) < 0.01f)) continue;
@@ -162,6 +167,7 @@ public sealed class BotNav
         for (int i = 0; i < nCols; i++) cs2[i + 1] += cs2[i];
         colStart = cs2;
         colNodes = Enumerable.Range(0, Pos.Length).ToArray();
+        BuildRayBuckets();
         BuildMs = (float)sw.Elapsed.TotalMilliseconds;
     }
 
@@ -176,6 +182,23 @@ public sealed class BotNav
             if (d <= bd) { bd = d; best = colNodes[i]; }
         }
         return best;
+    }
+
+    /// <summary>Is there another walkable node in the same 0.5 m column between 0.5 m and <paramref name="maxRise"/> above
+    /// node <paramref name="n"/>? Such a node sits under another floor: on the extracted maps that is almost always the
+    /// hidden ground under a raised floor (Bind's Hookah), i.e. under the map.</summary>
+    public bool Stacked(int n, float maxRise)
+    {
+        var p = Pos[n];
+        int ix = (int)Mathf.Floor((p.X - X0) / Cell), iz = (int)Mathf.Floor((p.Z - Z0) / Cell);
+        if (ix < 0 || iz < 0 || ix >= Nx || iz >= Nz) return false;
+        int c = ix + iz * Nx;
+        for (int i = colStart[c]; i < colStart[c + 1]; i++)
+        {
+            float dy = Pos[colNodes[i]].Y - p.Y;
+            if (dy > 0.5f && dy <= maxRise) return true;
+        }
+        return false;
     }
 
     /// <summary>The node in the column under <paramref name="p"/> closest to its height (within <paramref name="maxDy"/>), or -1.</summary>
@@ -313,16 +336,60 @@ public sealed class BotNav
         return !HRayBlocked(c, dir, len) && !HRayBlocked(c + side, dir, len) && !HRayBlocked(c - side, dir, len);
     }
 
+    // Immutable XZ buckets over the boxes (thread-safe, unlike the collision grid's query stamps): paths are smoothed on
+    // worker threads, and scanning all of a real map's boxes for every knee-height ray made a path cost ~40 ms.
+    const float RayBucket = 4f;
+    int rbNx, rbNz;
+    float rbX0, rbZ0;
+    int[][] rayBuckets = Array.Empty<int[]>();
+
+    void BuildRayBuckets()
+    {
+        if (solid.Length == 0) return;
+        float x0 = float.MaxValue, z0 = float.MaxValue, x1 = float.MinValue, z1 = float.MinValue;
+        foreach (var b in solid) { x0 = Mathf.Min(x0, b.Min.X); z0 = Mathf.Min(z0, b.Min.Z); x1 = Mathf.Max(x1, b.Max.X); z1 = Mathf.Max(z1, b.Max.Z); }
+        rbX0 = x0; rbZ0 = z0;
+        rbNx = Math.Max(1, (int)Mathf.Ceil((x1 - x0) / RayBucket) + 1);
+        rbNz = Math.Max(1, (int)Mathf.Ceil((z1 - z0) / RayBucket) + 1);
+        if ((long)rbNx * rbNz > 1 << 18) { rbNx = rbNz = 0; return; } // degenerate world: linear scan
+        var lists = new List<int>[rbNx * rbNz];
+        for (int i = 0; i < solid.Length; i++)
+        {
+            var b = solid[i];
+            int ax = RbX(b.Min.X), bx = RbX(b.Max.X), az = RbZ(b.Min.Z), bz = RbZ(b.Max.Z);
+            for (int z = az; z <= bz; z++)
+                for (int x = ax; x <= bx; x++)
+                    (lists[x + z * rbNx] ??= new List<int>()).Add(i);
+        }
+        rayBuckets = lists.Select(l => l?.ToArray() ?? Array.Empty<int>()).ToArray();
+    }
+
+    int RbX(float x) => Math.Clamp((int)Mathf.Floor((x - rbX0) / RayBucket), 0, Math.Max(0, rbNx - 1));
+    int RbZ(float z) => Math.Clamp((int)Mathf.Floor((z - rbZ0) / RayBucket), 0, Math.Max(0, rbNz - 1));
+
     /// <summary>Horizontal ray vs the world with a cheap AABB reject (only boxes spanning the ray's height and its XZ extent).</summary>
     bool HRayBlocked(Vector3 o, Vector3 dir, float len)
     {
         float ex = o.X + dir.X * len, ez = o.Z + dir.Z * len;
         float minX = Mathf.Min(o.X, ex), maxX = Mathf.Max(o.X, ex), minZ = Mathf.Min(o.Z, ez), maxZ = Mathf.Max(o.Z, ez);
-        foreach (ref readonly var b in solid.AsSpan())
+        if (rbNx == 0)
         {
-            if (b.Max.Y < o.Y || b.Min.Y > o.Y || b.Max.X < minX || b.Min.X > maxX || b.Max.Z < minZ || b.Min.Z > maxZ) continue;
-            if (b.Ray(o, dir) < len) return true;
+            foreach (ref readonly var b in solid.AsSpan())
+            {
+                if (b.Max.Y < o.Y || b.Min.Y > o.Y || b.Max.X < minX || b.Min.X > maxX || b.Max.Z < minZ || b.Min.Z > maxZ) continue;
+                if (b.Ray(o, dir) < len) return true;
+            }
+            return false;
         }
+        int ax = RbX(minX), bx = RbX(maxX), az = RbZ(minZ), bz = RbZ(maxZ);
+        for (int z = az; z <= bz; z++)
+            for (int x = ax; x <= bx; x++)
+                foreach (int i in rayBuckets[x + z * rbNx])
+                {
+                    ref readonly var b = ref solid[i];
+                    if (b.Max.Y < o.Y || b.Min.Y > o.Y || b.Max.X < minX || b.Min.X > maxX || b.Max.Z < minZ || b.Min.Z > maxZ) continue;
+                    if (b.Ray(o, dir) < len) return true; // a box seen twice (in two buckets) just answers twice
+                }
         return false;
     }
 

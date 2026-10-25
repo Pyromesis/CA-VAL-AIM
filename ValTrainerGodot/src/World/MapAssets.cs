@@ -93,4 +93,56 @@ public static class MapAssets
             return null;
         }
     }
+
+    /// <summary>The "moves" of a <c>spawn_exclude.json</c>: authored spot (from), where SpawnSafety put it (at) and the
+    /// clean replacement (to). Missing or malformed: an empty list.</summary>
+    public static List<(Vector3 From, Vector3 At, Vector3 To)> LoadMoves(string relative)
+    {
+        var list = new List<(Vector3, Vector3, Vector3)>();
+        string? path = Find(relative);
+        if (path == null) return list;
+        try
+        {
+            using var doc = JsonDocument.Parse(File.ReadAllText(path));
+            if (!doc.RootElement.TryGetProperty("moves", out var arr) || arr.ValueKind != JsonValueKind.Array) return list;
+            static Vector3? V(JsonElement m, string k) =>
+                m.TryGetProperty(k, out var e) && e.ValueKind == JsonValueKind.Array && e.GetArrayLength() >= 3
+                && e[0].TryGetSingle(out float x) && e[1].TryGetSingle(out float y) && e[2].TryGetSingle(out float z)
+                && float.IsFinite(x) && float.IsFinite(y) && float.IsFinite(z) ? new Vector3(x, y, z) : null;
+            foreach (var m in arr.EnumerateArray())
+                if (V(m, "from") is { } f && V(m, "at") is { } a && V(m, "to") is { } t) list.Add((f, a, t));
+        }
+        catch (Exception ex) { GD.PushWarning($"[maps] could not read spot moves '{path}': {ex.Message}"); }
+        return list;
+    }
+
+    /// <summary>
+    /// Reads a point list <c>{ "points": [[x,y,z], ...] }</c> (metres, map frame), e.g. <c>spawn_exclude.json</c> written by
+    /// tools/mapgen/audit_spawns.py. Missing or malformed file: an empty array.
+    /// </summary>
+    public static Vector3[] LoadPoints(string relative)
+    {
+        string? path = Find(relative);
+        if (path == null) return Array.Empty<Vector3>();
+        try
+        {
+            using var doc = JsonDocument.Parse(File.ReadAllText(path));
+            if (!doc.RootElement.TryGetProperty("points", out var list) || list.ValueKind != JsonValueKind.Array)
+                return Array.Empty<Vector3>();
+            var pts = new List<Vector3>(list.GetArrayLength());
+            foreach (var e in list.EnumerateArray())
+            {
+                if (e.ValueKind != JsonValueKind.Array || e.GetArrayLength() < 3) continue;
+                if (e[0].TryGetSingle(out float x) && e[1].TryGetSingle(out float y) && e[2].TryGetSingle(out float z)
+                    && float.IsFinite(x) && float.IsFinite(y) && float.IsFinite(z))
+                    pts.Add(new Vector3(x, y, z));
+            }
+            return pts.ToArray();
+        }
+        catch (Exception ex)
+        {
+            GD.PushWarning($"[maps] could not read points '{path}': {ex.Message}");
+            return Array.Empty<Vector3>();
+        }
+    }
 }

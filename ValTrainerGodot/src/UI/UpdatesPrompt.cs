@@ -5,7 +5,7 @@ namespace ValTrainer.UI;
 
 /// <summary>
 /// Update checks are automatic (see <see cref="UpdateCheck"/> and <see cref="Updater"/>): at startup and every six
-/// hours ValTraining asks GitHub for the newest release, shows it in the menu and downloads it in the background. An
+/// hours CA-VAL-AIM asks GitHub for the newest release, shows it in the menu and downloads it in the background. An
 /// explicit "off" in Settings → About (or an old "NOT NOW" answer) is respected.
 /// <para>The old first-run opt-in panel is kept for UI tests only: <c>--updates-prompt</c> shows it on demand,
 /// <c>--updates-consent yes|no</c> sets the answer up front and <c>--updates-answer yes|no</c> presses one of its
@@ -77,7 +77,7 @@ public partial class UpdatesPromptPanel : Control
         var vs = GetViewportRect().Size;
         var panel = new VPanel
         {
-            Title = "UPDATES", Caption = $"ValTraining {AppInfo.Version}", K = k, Fill = new Color(0.07f, 0.11f, 0.15f, 0.97f),
+            Title = "UPDATES", Caption = $"CA-VAL-AIM {AppInfo.Version}", K = k, Fill = new Color(0.07f, 0.11f, 0.15f, 0.97f),
             CustomMinimumSize = new Vector2(Mathf.Min(780 * k, vs.X - 80 * k), 0),
         };
         center.AddChild(panel);
@@ -97,12 +97,12 @@ public partial class UpdatesPromptPanel : Control
                 Gfx.Text(b, UiTheme.Display, q2, Gfx.TextW(UiTheme.Display, q1, fs), y, fs, UiTheme.Accent);
             },
         });
-        col.AddChild(Text("ValTraining can keep itself up to date. If you turn this on, it will:", 16, UiTheme.Dim));
-        Bullet(col, "ask github.com for the latest ValTraining release, at startup and every 6 hours");
-        Bullet(col, "download a newer version in the background and install it when you restart ValTraining");
+        col.AddChild(Text("CA-VAL-AIM can keep itself up to date. If you turn this on, it will:", 16, UiTheme.Dim));
+        Bullet(col, "ask github.com for the latest CA-VAL-AIM release, at startup and every 6 hours");
+        Bullet(col, "download a newer version in the background and install it when you restart CA-VAL-AIM");
         Bullet(col, "send nothing about you: no settings, stats, recordings or IDs (GitHub sees an ordinary web request)");
         col.AddChild(new Control { CustomMinimumSize = new Vector2(0, 2 * k), MouseFilter = MouseFilterEnum.Ignore });
-        col.AddChild(Text("Until you say yes, ValTraining makes no network requests. You can change this any time in Settings → About, where CHECK NOW also checks once.", 14, UiTheme.Faint));
+        col.AddChild(Text("Until you say yes, CA-VAL-AIM makes no network requests. You can change this any time in Settings → About, where CHECK NOW also checks once.", 14, UiTheme.Faint));
         col.AddChild(new Control { CustomMinimumSize = new Vector2(0, 6 * k), MouseFilter = MouseFilterEnum.Ignore });
 
         var foot = new HBoxContainer();

@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace ValTrainer.Core;
@@ -24,6 +24,10 @@ public sealed class AppSettings
     public string Language = "en";     // UI language: "en" or "es"
     public int PrimaryRifle;           // rifle drills: 0 = Vandal, 1 = Phantom
     public int AmmoMode = -1;          // -1 = the drill's default, 0 = real magazines/reserve, 1 = infinite
+    public int DmDifficulty = 1;       // Deathmatch bots: 0 Easy, 1 Medium, 2 Hard, 3 Nightmare (DeathmatchRules)
+    public int DmPlayers = 12;         // Deathmatch lobby size including you (4..12)
+    public float DmMinutes = 9f;       // Deathmatch length in minutes (VALORANT: 9; first to 40 kills)
+    public bool LiveCoach = true;      // the coach's cues during a run (Analysis/LiveCoach)
     public int GuideLine = 2;          // guide to the nearest target: 0 = off, 1 = aim line, 2 = aim line + route on map drills (GuideSession)
     public float Volume = 0.5f;
     public bool Outlines = true;      // enemy outline + fresnel (Valorant: "Hide outlines and fresnel" off)
@@ -31,7 +35,7 @@ public sealed class AppSettings
     public bool ViewModel = true;      // first-person gun
     public bool LeftHandedWeapon;      // weapon hand: false = right (default), true = left (VALORANT's own setting is not used)
     public bool UseFinderCrosshair;    // crosshair: false = VALORANT's (imported), true = FinderCrosshairCode
-    public string? FinderCrosshairCode; // VALORANT profile code from the Crosshair Finder ("Use in ValTrainer") or pasted (Settings → Crosshair); VALORANT itself is never changed
+    public string? FinderCrosshairCode; // VALORANT profile code from the Crosshair Finder ("Use in CA-VAL-AIM") or pasted (Settings → Crosshair); VALORANT itself is never changed
     public string? FinderCrosshairTab;  // "primary" / "ads" / "sniper": only that tab of FinderCrosshairCode is used, on top of the live VALORANT import (Crosshair Finder); null = the whole code (a pasted code, results from before 1.6)
     public string? LastFinderCrosshairCode; // the latest Crosshair Finder result, kept so it can be copied any time (Settings → Crosshair)
 
@@ -47,7 +51,7 @@ public sealed class AppSettings
     public string? LastSeenVersion;    // version whose "What's new" was shown (or that was installed fresh)
 
     // ---- support reminders (see SupportPrompt) ----
-    public bool SupportReminders = true; // the "Support ValTrainer" panel may show on its own (first launch, then now and then)
+    public bool SupportReminders = true; // the "Support CA-VAL-AIM" panel may show on its own (first launch, then now and then)
     public long SupportLastShown;      // unix seconds (UTC) it last showed on its own, 0 = never
     public int SupportLaunches;        // launches since then
 

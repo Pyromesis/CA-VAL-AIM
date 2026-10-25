@@ -243,6 +243,39 @@ public static class Collision
         return true;
     }
 
+    /// <summary>Indices of every box whose XZ extent may overlap the rectangle [x0,x1]×[z0,z1] (broadphase only: the caller
+    /// still tests the exact extent). Main thread / one thread at a time (the grid's query stamps are shared).</summary>
+    public static void Near(IReadOnlyList<Box> world, float x0, float z0, float x1, float z1, List<int> result)
+    {
+        result.Clear();
+        var grid = Grid(world);
+        if (grid.Linear)
+        {
+            for (int i = 0; i < world.Count; i++) result.Add(i);
+            return;
+        }
+        int ix0 = grid.Ix(x0), ix1 = grid.Ix(x1), iz0 = grid.Iz(z0), iz1 = grid.Iz(z1);
+        int gen = grid.NextGeneration();
+        for (int iz = iz0; iz <= iz1; iz++)
+            for (int ix = ix0; ix <= ix1; ix++)
+            {
+                int cell = iz * grid.Nx + ix;
+                for (int k = grid.Start[cell]; k < grid.Start[cell + 1]; k++)
+                {
+                    int i = grid.Items[k];
+                    if (grid.Fresh(i, gen)) result.Add(i);
+                }
+            }
+    }
+
+    /// <summary>Lowest box bottom in the world (the map's underside). Falling far below it means the body left the map.</summary>
+    public static float Bottom(IReadOnlyList<Box> world)
+    {
+        float y = float.PositiveInfinity;
+        foreach (var b in world) y = Mathf.Min(y, b.Min.Y);
+        return float.IsFinite(y) ? y : 0f;
+    }
+
     /// <summary>Highest walkable surface under the player's footprint; -infinity when there is no floor.</summary>
     public static float Ground(Vector3 feet, IReadOnlyList<Box> world) => Ground(feet, world, StepHeight);
 

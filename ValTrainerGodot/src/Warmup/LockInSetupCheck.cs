@@ -151,7 +151,7 @@ public partial class LockInSetupCheck : VPanel
 
         // Neutral notes, never a "fix this".
         if (v.VSync) list.Add(new(Mark.Info, "", "VSync is on in VALORANT. It adds input delay; most players turn it off."));
-        else if (v.Reflex >= 1) list.Add(new(Mark.Info, "", "NVIDIA Reflex is on in VALORANT; ValTrainer can't use Reflex."));
+        else if (v.Reflex >= 1) list.Add(new(Mark.Info, "", "NVIDIA Reflex is on in VALORANT; CA-VAL-AIM can't use Reflex."));
         return list;
     }
 

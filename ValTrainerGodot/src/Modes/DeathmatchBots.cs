@@ -55,14 +55,18 @@ public sealed partial class DeathmatchMode
         IGame G => m.G;
         float Now => m.Now;
         Random Rng => m.Rng;
-        int Tier => m.Tier;
+        /// <summary>Behaviour level 0..4 (the tier's habits); Nightmare plays with Pro habits plus its own extras.</summary>
+        int Tier => Math.Min(m.AiLevel, 4);
+        bool Nightmare => m.AiLevel >= 5;
         float R(float a, float b) => a + (float)Rng.NextDouble() * (b - a);
 
         public Bot(DeathmatchMode mode, int index)
         {
             m = mode;
             Index = index;
-            Name = $"Bot {index + 1}";
+            // Agent callsigns, like a real lobby ("Jett killed Sova"); a 13th+ bot gets a number.
+            var roster = Agents.AgentRoster.All;
+            Name = index < roster.Length ? roster[(index * 7 + 3) % roster.Length].Name : $"Bot {index + 1}";
         }
 
         public bool Alive => Body != null && GodotObject.IsInstanceValid(Body) && !Body.Dead;
@@ -159,6 +163,8 @@ public sealed partial class DeathmatchMode
             }
             else UpdateFoe();
             bool fighting = fightPlayer || foe != null;
+            if (!fightPlayer) crouchDecided = false;
+            if (b.Crouched && Now >= crouchUntil) b.Crouched = false;
             if (!fighting && State == St.Fight)
             {
                 // Lost sight: Elite+ often keep holding the angle for a moment, others chase where you were.
@@ -172,12 +178,19 @@ public sealed partial class DeathmatchMode
             float speed = Mover.RunSpeed;
             if (fighting)
             {
-                if (Tier >= 3 && Now >= nextStrafeAt)
+                if (Tier >= 2 && Now >= nextStrafeAt)
                 {
-                    // A-D jiggle between bursts (brain holds fire while moving faster than ~1.5 m/s).
+                    // A-D jiggle between bursts (brain holds fire while moving faster than ~1.5 m/s): Medium now and then,
+                    // Hard and Nightmare all the time.
                     strafeSign = -strafeSign;
                     strafeUntil = Now + R(0.16f, 0.26f);
-                    nextStrafeAt = Now + R(0.7f, 1.5f);
+                    nextStrafeAt = Now + (Tier >= 3 ? R(0.7f, 1.5f) : R(1.6f, 3.2f));
+                }
+                // Hard+: crouch into the spray once the duel has started (smaller head, VALORANT's crouch spray).
+                if (fightPlayer && Tier >= 3 && !crouchDecided && brain.FirstSeenAt >= 0 && Now - brain.FirstSeenAt > 0.25f)
+                {
+                    crouchDecided = true;
+                    if (Rng.NextDouble() < (Nightmare ? 0.5 : 0.3)) { b.Crouched = true; crouchUntil = Now + R(0.6f, 1.1f); }
                 }
                 if (Now < strafeUntil)
                 {
@@ -211,7 +224,16 @@ public sealed partial class DeathmatchMode
             var v = vel;
             var before = feet;
             Collision.MoveAndSlide(ref feet, ref v, v * dt, G.Solid);
-            feet.Y = Collision.Ground(feet, G.Solid);
+            float ground = Collision.Ground(feet, G.Solid);
+            if (float.IsFinite(ground)) feet.Y = ground;
+            else
+            {
+                // Stepped over a hole in the collision (no floor under the footprint: Ground is -infinity, which used to
+                // turn the bot's position into NaN): stay where the floor was and plan a new route.
+                feet = before;
+                v = Vector3.Zero;
+                path = null;
+            }
             vel = v;
             b.Feet = feet;
             b.Velocity = vel;
@@ -246,10 +268,12 @@ public sealed partial class DeathmatchMode
                 stuckAt = Now; stuckPos = feet;
             }
 
+            HearFootsteps();
+
             if (Now >= rumorAt && m.PlayerAlive && Now - m.playerSpawnedAt > 4f) // never tip bots off to a fresh spawn
             {
                 // DM players drift toward the action: every few seconds a bot "hears" roughly where you are.
-                rumorAt = Now + Difficulty.T(Tier, 14f, 12f, 10f, 9f, 8f) * R(0.7f, 1.3f);
+                rumorAt = Now + (Nightmare ? 6.5f : Difficulty.T(Tier, 14f, 12f, 10f, 9f, 8f)) * R(0.7f, 1.3f);
                 if (State is St.Roam or St.Noise && Rng.NextDouble() < Difficulty.T(Tier, 0.45f, 0.55f, 0.65f, 0.7f, 0.75f))
                 {
                     lkp = m.PlayerFeet + new Vector3(R(-5, 5), 0, R(-5, 5));
@@ -257,6 +281,29 @@ public sealed partial class DeathmatchMode
                 }
             }
         }
+
+        /// <summary>
+        /// Running footsteps are audible (VALORANT: about 25 m); walking (shift), crouching and the air are silent. A bot
+        /// that hears you running and doesn't see you goes for the sound: Easy bots often miss it, Nightmare never does.
+        /// This is what makes shift-walking worth it in the Deathmatch, like in the real game.
+        /// </summary>
+        void HearFootsteps()
+        {
+            if (Now < footstepCheckAt || !m.PlayerAlive || brain!.SeesPlayer || State is St.Fight or St.Pack) return;
+            footstepCheckAt = Now + 0.5f;
+            var mv = G.Mover;
+            bool running = mv.Grounded && !mv.Crouching && mv.Speed > mv.WalkMax + 0.25f;
+            if (!running) return;
+            float d = Body!.Feet.DistanceTo(m.PlayerFeet);
+            if (d > FootstepRange) return;
+            double chance = Nightmare ? 1.0 : Difficulty.T(Tier, 0.25f, 0.4f, 0.6f, 0.8f, 0.9f);
+            if (Rng.NextDouble() > chance) return;
+            Hear(m.PlayerFeet, player: true);
+        }
+
+        const float FootstepRange = 25f;
+        float footstepCheckAt, crouchUntil;
+        bool crouchDecided;
 
         /// <summary>Drop the current path (and any search in flight) so the next frame plans a fresh one.</summary>
         void Replan() { path = null; pending = null; }
@@ -281,7 +328,7 @@ public sealed partial class DeathmatchMode
             var h = new Vector3(look.X, 0, look.Z);
             if (h.LengthSquared() < 1e-4f) return;
             float target = Mathf.RadToDeg(Mathf.Atan2(h.X, -h.Z));
-            float rate = Difficulty.T(Tier, 300f, 420f, 560f, 720f, 900f);
+            float rate = Nightmare ? 1100f : Difficulty.T(Tier, 300f, 420f, 560f, 720f, 900f);
             float diff = Mathf.Wrap(target - Body!.FacingYaw, -180f, 180f);
             Body.FacingYaw += Mathf.Clamp(diff, -rate * dt, rate * dt);
             var d = look.Normalized();

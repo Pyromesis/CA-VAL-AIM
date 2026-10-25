@@ -374,7 +374,7 @@ public static class BugReport
         if (why.Trim().Length > 0) sb.Append($"\nWhy: {why.Trim()}\n");
         if (IdeaCategories.FirstOrDefault(c => c.Key == category).Label is { } cat) sb.Append($"\nCategory: {cat}\n");
         if (contact.Trim().Length > 0) sb.Append($"Discord: {contact.Trim()}\n");
-        sb.Append($"ValTrainer {AppInfo.Version} ({InstallType()})\n");
+        sb.Append($"CA-VAL-AIM {AppInfo.Version} ({InstallType()})\n");
         return sb.ToString();
     }
 
@@ -402,7 +402,7 @@ public static class BugReport
     {
         var r = Redactor.Default;
         var sb = new StringBuilder();
-        sb.Append($"ValTrainer bug report: {r.Paths(f.Title.Trim())}\n\n");
+        sb.Append($"CA-VAL-AIM bug report: {r.Paths(f.Title.Trim())}\n\n");
         void Part(string head, string body)
         {
             if (body.Trim().Length > 0) sb.Append($"{head}\n{r.Paths(body.Trim())}\n\n");
@@ -747,8 +747,8 @@ public partial class BugReportPanel : Control
         panel.AddChild(col);
 
         col.AddChild(Text(idea
-            ? "Your idea is posted in #suggestions on the ValTrainer Discord, where other players can see it and react. Join the server to follow it: we reply in your post and mark it Added when an update adds it."
-            : "Your report is posted in #bug-reports on the ValTrainer Discord, where server members can see it. Join the server to follow it: we reply in your post and mark it Fixed when an update fixes it. Personal details like your Windows user name are removed.", 15, UiTheme.Dim));
+            ? "Your idea is posted in #suggestions on the CA-VAL-AIM Discord, where other players can see it and react. Join the server to follow it: we reply in your post and mark it Added when an update adds it."
+            : "Your report is posted in #bug-reports on the CA-VAL-AIM Discord, where server members can see it. Join the server to follow it: we reply in your post and mark it Fixed when an update fixes it. Personal details like your Windows user name are removed.", 15, UiTheme.Dim));
 
         var body = new HBoxContainer();
         body.AddThemeConstantOverride("separation", (int)(22 * k));
@@ -774,16 +774,16 @@ public partial class BugReportPanel : Control
         }
         if (!DryRun && !HasRelay && idea) send.Label = "COPY IDEA & OPEN DISCORD";
         send.TooltipText = DryRun ? "Dev run: prints the JSON to the log instead of sending it"
-            : idea ? (HasRelay ? "Posts your idea to #suggestions on the ValTrainer Discord"
+            : idea ? (HasRelay ? "Posts your idea to #suggestions on the CA-VAL-AIM Discord"
                 : "This build can't send ideas itself: copies it, then opens the Discord invite so you can paste it in #suggestions")
-            : HasRelay ? "Posts the report and the info on the right to #bug-reports on the ValTrainer Discord"
+            : HasRelay ? "Posts the report and the info on the right to #bug-reports on the CA-VAL-AIM Discord"
             : "This build can't send reports itself: copies the report, then opens the Discord invite so you can paste it in #bug-reports";
         foot.AddChild(send);
         var copy = copyBtn = Button(idea ? "COPY IDEA" : "COPY REPORT", VButton.Look.Secondary, 170, Copy);
         copy.TooltipText = idea ? "Copies your idea as text, to paste anywhere" : "Copies the report and the info on the right as text, to paste anywhere";
         foot.AddChild(copy);
         discord = Button("OPEN DISCORD", VButton.Look.Secondary, 170, () => OpenDiscord());
-        discord.TooltipText = "Opens the ValTrainer Discord invite in your browser";
+        discord.TooltipText = "Opens the CA-VAL-AIM Discord invite in your browser";
         discord.Visible = false;
         foot.AddChild(discord);
         // After SEND: the player's own post (they need to be in the server to see it).
@@ -793,7 +793,7 @@ public partial class BugReportPanel : Control
             if (Main.I.Dev) Log.Info($"Bug report: dev run, would open the post {postId}");
             else AppInfo.OpenDiscordPost(postId);
         });
-        myPost.TooltipText = $"Opens your {(idea ? "idea" : "report")} on the ValTrainer Discord (join the server first to see it)";
+        myPost.TooltipText = $"Opens your {(idea ? "idea" : "report")} on the CA-VAL-AIM Discord (join the server first to see it)";
         myPost.Visible = false;
         foot.AddChild(myPost);
         if (AppInfo.HasRepo && !idea)
@@ -847,7 +847,7 @@ public partial class BugReportPanel : Control
         titleEdit = Line("Short title, e.g. \"Drill with crouch-spamming bots\"", BugReport.TitleMax);
         Head(form, "SHORT TITLE", true, null, () => titleEdit.Text.Trim().Length, BugReport.TitleMin, BugReport.TitleMax);
         form.AddChild(titleEdit);
-        whatEdit = Area("What should ValTrainer have? A drill, a setting, a map spot…", BugReport.WhatMax, 124);
+        whatEdit = Area("What should CA-VAL-AIM have? A drill, a setting, a map spot…", BugReport.WhatMax, 124);
         Head(form, "WHAT'S YOUR IDEA?", true, null, () => whatEdit.Text.Trim().Length, BugReport.WhatMin, BugReport.WhatMax);
         form.AddChild(whatEdit);
         stepsEdit = Area("What would it help you practice or fix?", BugReport.StepsMax, 88);
@@ -870,7 +870,7 @@ public partial class BugReportPanel : Control
         contactEdit = Line("Your Discord username", BugReport.ContactMax);
         Head(form, "DISCORD USERNAME", false, "optional, so we can reply", () => contactEdit.Text.Trim().Length, 0, BugReport.ContactMax);
         form.AddChild(contactEdit);
-        form.AddChild(Text($"Sent with it: ValTrainer {AppInfo.Version} ({BugReport.InstallType()}). Nothing about your PC.", 13, UiTheme.Faint));
+        form.AddChild(Text($"Sent with it: CA-VAL-AIM {AppInfo.Version} ({BugReport.InstallType()}). Nothing about your PC.", 13, UiTheme.Faint));
     }
 
     /// <summary>Selects one category ("" = none); the picked button turns Primary.</summary>
@@ -935,7 +935,7 @@ public partial class BugReportPanel : Control
         {
             DisplayServer.ClipboardSet(CopyText());
             OpenDiscord();
-            Say($"Copied. Paste it in {Channel} on the ValTrainer Discord (Ctrl+V).", UiTheme.Good);
+            Say($"Copied. Paste it in {Channel} on the CA-VAL-AIM Discord (Ctrl+V).", UiTheme.Good);
             discord.Visible = true;
             return;
         }
@@ -1008,8 +1008,8 @@ public partial class BugReportPanel : Control
         myPost.Visible = postId != null;
         if (copyBtn != null) copyBtn.Visible = false; // sent: what matters now is following it on Discord
         if (ghBtn != null) ghBtn.Visible = false;
-        Say(idea ? "Sent, thanks! Join the ValTrainer Discord to follow it: we reply in your post, and it's marked Added when an update adds it."
-            : "Sent, thanks! Join the ValTrainer Discord to follow it: we reply in your post, and it's marked Fixed when an update fixes it.", UiTheme.Good);
+        Say(idea ? "Sent, thanks! Join the CA-VAL-AIM Discord to follow it: we reply in your post, and it's marked Added when an update adds it."
+            : "Sent, thanks! Join the CA-VAL-AIM Discord to follow it: we reply in your post, and it's marked Fixed when an update fixes it.", UiTheme.Good);
     }
 
     /// <summary>The new post's thread id from the relay's {"ok":true,"id":"..."}; null if missing or not numeric.</summary>
@@ -1052,7 +1052,7 @@ public partial class BugReportPanel : Control
     {
         DisplayServer.ClipboardSet(CopyText());
         copiedFlash = 4f;
-        Say(state is State.Failed ? $"Copied. Paste it in {Channel} on the ValTrainer Discord (Ctrl+V)." : "Copied. Paste it anywhere (Ctrl+V).", UiTheme.Good);
+        Say(state is State.Failed ? $"Copied. Paste it in {Channel} on the CA-VAL-AIM Discord (Ctrl+V)." : "Copied. Paste it anywhere (Ctrl+V).", UiTheme.Good);
     }
 
     void OpenDiscord()

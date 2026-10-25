@@ -185,6 +185,7 @@ public partial class Hud : Control
         }
         if (m.Prompt is { } p) DrawPrompt(size, k, Main.I.Valorant.Binds.Hint(p));
         if (s.BannerTime > 0 && s.BannerText.Length > 0) DrawBanner(size, k);
+        if (s.State == GameSession.St.Running && s.Live?.Current is { } tip) DrawLiveTip(size, k, tip);
         if (m.KillBanner.Time > 0 && m.KillBanner.Count > 0) DrawKillBanner(size, k, m.KillBanner.Count, m.KillBanner.Time);
         if (s.State == GameSession.St.Countdown) DrawCountdown(size, k, m);
         if (focus != null && (s.State == GameSession.St.Countdown || (s.State == GameSession.St.Running && s.Now < 2f))) DrawFocus(size, k, focus);
@@ -1111,6 +1112,9 @@ public partial class Hud : Control
     {
         var m = s.Mode;
         resultLines = m.ResultLines().ToList();
+        if (s.Live is { History.Count: > 0 } live)
+            resultLines.Add((Loc.Spanish ? "Coach en directo" : "Live coach",
+                string.Join(" · ", live.History.Where(h => !h.Positive).Select(h => h.Headline).Distinct().DefaultIfEmpty(live.History[^1].Headline))));
         var rec = s.Record;
         int prev = s.PrevBest;
         int tierId = s.Tier;
@@ -1489,7 +1493,7 @@ public partial class Hud : Control
         try { list = m.ResultButtons().Take(3).ToList(); }
         catch (Exception ex) { GD.PushWarning($"ResultButtons failed: {ex.Message}"); list = new(); }
         // Dev-only layout check of the extra-button row (--dev --fakecoach --fakebuttons).
-        if (list.Count == 0 && CoachData.Fake && DevFakeButtons) list.Add(("Use 0.190 in ValTrainer", () => { }));
+        if (list.Count == 0 && CoachData.Fake && DevFakeButtons) list.Add(("Use 0.190 in CA-VAL-AIM", () => { }));
         return list;
     }
 

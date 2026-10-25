@@ -2,6 +2,64 @@
 
 ## [Unreleased]
 
+## [1.18.0] - 2026-10-24
+
+### Added
+
+- **Reaction Lab**: five reaction tests (visual, audio, peripheral, choice / go-no-go, flick), each with its own
+  history and rank bands (typical human reaction times, not Riot data).
+- **Air Tracking** (a target that strafes and jumps with VALORANT's jump arc) and **Reactive Tracking** (a target that
+  reverses, stops and bursts; measures how fast you re-acquire).
+- **Arsenal Range**: every VALORANT weapon with its damage, fire rate and run speed; Q / E change gun, dummies at
+  10–50 m show the damage and time to kill. The weapon models are simple procedural placeholders made for this
+  project (no Riot assets).
+- **Deathmatch, VALORANT-style**: 12 players (you and 11 bots) by default, first to 40 or 9 minutes, Tab scoreboard,
+  bots with agent names, four bot difficulties. Hard and Nightmare bots jiggle-peek, hold angles and crouch-spray;
+  bots hear your running footsteps (walk with shift to stay quiet).
+- **Live coach** (Settings → Gameplay → Live coach, on by default): short cues during a run with the evidence and one
+  fix (crosshair too low / high, shooting while moving, long sprays, overshooting or stopping short, tracking, headshot
+  rate, anticipating the signal, dying while running), listed again on the results screen.
+- **Safe spawns**: every drill start, bot spot and Deathmatch spawn is checked against the collision (real floor under
+  the feet, no overlap, head room, inside the minimap's playable area) and moved to the nearest safe point otherwise.
+
+### Changed
+
+- **ValTraining is now CA-VAL-AIM.** The new name is used in the window title, the menu, the installer, the Start
+  menu shortcuts, the uninstaller entry and the executable (`CA-VAL-AIM.exe`, with `CA-VAL-AIM.pck`).
+- **Automatic updates keep working across the rename.** The release files keep the `ValTraining-<version>-Setup.exe`
+  name on purpose: ValTraining 1.16.1–1.17.0 only look for `ValTraining-…` (or `ValTrainer-…`) files, so they find
+  this release, download it and install it as usual. From this version the updater accepts `CA-VAL-AIM-…`,
+  `ValTraining-…` and `ValTrainer-…` release files, so the prefix can switch later without stranding anyone.
+- **Your data stays where it was.** Settings, stats and recordings stay in `%APPDATA%\ValTrainer`; logs and the shader
+  cache stay in `%APPDATA%\Godot\app_userdata\ValTrainer` (no shader recompile after the update). An update installs
+  into the existing folder, removes the old `ValTrainer.exe` / `ValTrainer.pck` and replaces the ValTraining shortcuts
+  with CA-VAL-AIM ones. New installs go to `%LOCALAPPDATA%\Programs\CA-VAL-AIM`. The GitHub repository is unchanged.
+- **A new, minimalist main menu.** A flat canvas with a lot of space, light display type, hairlines instead of panels
+  and one accent colour for the main action and the current choice. Everything arrives with a short staggered rise;
+  hover and keyboard focus ease in and out. The library lists every drill with its personal best at your tier, with
+  category tabs; the right column holds the difficulty, the map, the **Deathmatch lobby** (bot difficulty Easy /
+  Medium / Hard / Nightmare, 4–12 players, 3–15 minutes) and your imported setup. Rifle, ammo and language are in the
+  footer. *Again: <last drill>* replays your last drill in one click. The crosshair preview is in Settings.
+- **Loading screen with real progress.** Starting a map drill shows the map's name and a thin progress bar while its
+  level files load; the bar follows the actual work (collision, then each level read on a worker thread and built
+  one per frame, weighted by size). Esc cancels. Range drills go straight in.
+- **Smooth screen changes.** Every screen change crossfades from a still of the previous screen, so there is never an
+  empty or half-built frame, and the first-frame hitch of a drill happens behind the fade.
+- **Reaction times by category** (Stats → REACTION TIMES): last, best and recent average per Reaction Lab category
+  (visual, audio, peripheral, choice, flick), the trend, a rank band, the category's extra (false alarms, time to hit)
+  and the history of every run. Click a row to play it.
+
+### Fixed
+
+- **Live coach: overshoot / stopping short.** The cue now uses the same measure as the after-run coach (where the
+  first movement of each flick ends, along the flick) on the last 15 seconds, computed off the main thread, with the
+  after-run coach's thresholds. Before, it only looked at missed shots and almost never fired; mild undershooting,
+  which is normal, no longer triggers it.
+- **Deathmatch bots no longer break when they step over a hole in the collision.** The ground height there is
+  "no floor", which turned the bot's position into NaN (errors in the log, a bot that vanished). The bot now stays on
+  the floor and plans a new route; the same guard is in the site-defence attackers and the health packs, and bots
+  ignore any non-finite position or facing.
+
 ## [1.17.0] - 2026-10-24
 
 ### Added

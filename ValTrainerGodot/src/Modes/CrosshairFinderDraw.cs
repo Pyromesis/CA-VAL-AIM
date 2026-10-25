@@ -111,7 +111,7 @@ public sealed partial class CrosshairFinderMode
         {
             "Part 1 · Visibility: click the moment the crosshair appears over map and enemy backgrounds.",
             "Part 2 · Shape: pick up to 4 shapes (or dot sizes), then play short rounds with crosshair A and B: flick to heads, fine-tune on far heads, kill an agent. After each matchup, shoot the one that felt better (or SAME). Your aim decides; your taste breaks ties. The winner then faces your own crosshair.",
-            "ADS rounds are played aimed down sights with the Vandal, sniper rounds scoped in with the Operator. ValTrainer never changes VALORANT: you import the code yourself. Esc pauses; the round is then replayed.",
+            "ADS rounds are played aimed down sights with the Vandal, sniper rounds scoped in with the Operator. CA-VAL-AIM never changes VALORANT: you import the code yourself. Esc pauses; the round is then replayed.",
         };
         foreach (var l in paras) y = Wrap(c, UiTheme.Body, l, x, y, UiTheme.Fs(17, k), UiTheme.Dim, w, 25 * k) + 8 * k;
 
@@ -486,7 +486,7 @@ public sealed partial class CrosshairFinderMode
         Gfx.TextFit(c, UiTheme.Hud, code, codeBox.Position.X + 14 * k, Gfx.Mid(codeBox.GetCenter().Y, UiTheme.Fs(24, k)), UiTheme.Fs(24, k), UiTheme.Good, codeBox.Size.X - 28 * k);
         if (!keepCurrent) Gfx.TextFit(c, UiTheme.Body, ChangeNote, x0, by + 98 * k, UiTheme.Fs(18, k), UiTheme.Good, x1 - x0);
         string note = aborted ? abortWhy
-            : "VALORANT › Settings › Crosshair › Import Profile Code. Copy it with the button on the next screen; ValTrainer never changes VALORANT.";
+            : "VALORANT › Settings › Crosshair › Import Profile Code. Copy it with the button on the next screen; CA-VAL-AIM never changes VALORANT.";
         Gfx.TextFit(c, UiTheme.Body, note, x0, by + (keepCurrent ? 98 : 126) * k, UiTheme.Fs(17, k), aborted ? UiTheme.Warn : UiTheme.Text, x1 - x0);
         if (phaseT > 3f) Pulse(c, "CLICK TO CONTINUE", r.GetCenter().X, r.End.Y - 14 * k, k, 16);
     }

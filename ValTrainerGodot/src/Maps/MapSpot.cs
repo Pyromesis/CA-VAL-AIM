@@ -67,7 +67,11 @@ public sealed class MapSpot
         if (!string.IsNullOrWhiteSpace(RealMapFolder))
         {
             Box[]? real = MapAssets.LoadCollision(RealMapFolder + "/collision.json");
-            if (real is { Length: > 0 }) return real;
+            if (real is { Length: > 0 })
+            {
+                Game.SpawnSafety.SetMoves(real, MapAssets.LoadMoves(RealMapFolder + "/spawn_exclude.json"));
+                return real;
+            }
         }
         return Boxes.Select(b => b.Bounds).ToArray();
     }

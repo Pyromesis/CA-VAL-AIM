@@ -1,13 +1,15 @@
-ValTraining
+CA-VAL-AIM (formerly ValTraining)
 Copyright (C) 2026 Pyromesis and contributors
 
 This program is a modified version of ValTrainer, Copyright (C) 2026 ValTrainer
 contributors. The original work is licensed under the GNU General Public License,
 version 3 or later.
 
-Modifications for ValTraining (2026): rebranding, additional map geometry,
-collision and movement fixes, Vandal/Phantom weapon behaviour, sensitivity tools,
-Spanish UI and release packaging.
+Modifications for ValTraining / CA-VAL-AIM (2026): rebranding (ValTraining in
+1.16.1, CA-VAL-AIM in 1.18.0), additional map geometry, collision and movement
+fixes, Vandal/Phantom and full-arsenal weapon behaviour, sensitivity tools,
+reaction-time and tracking drills, deathmatch bots, a live coach, Spanish UI and
+release packaging.
 
 This program is free software: you can redistribute it and/or modify it under the
 terms of the GNU General Public License as published by the Free Software Foundation,
@@ -15,5 +17,6 @@ either version 3 of the License, or (at your option) any later version. See LICE
 
 The optional maps/ folder contains assets extracted from Riot Games' VALORANT for
 interoperability. Those assets are not covered by the GNU GPL and remain the
-property of Riot Games, Inc. ValTraining is not affiliated with or endorsed by Riot
+property of Riot Games, Inc. The weapon models are procedural placeholders made for
+this project, not Riot assets. CA-VAL-AIM is not affiliated with or endorsed by Riot
 Games. VALORANT is a trademark of Riot Games, Inc.

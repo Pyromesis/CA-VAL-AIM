@@ -9,7 +9,13 @@ namespace ValTrainer.Core;
 /// </summary>
 public static class AppInfo
 {
-    public const string Name = "ValTraining";
+    /// <summary>Product name shown everywhere (window title, menus, installer). Renamed from ValTraining in 1.18.0.</summary>
+    public const string Name = "CA-VAL-AIM";
+    /// <summary>The executable's file name since 1.18.0.</summary>
+    public const string ExeName = "CA-VAL-AIM.exe";
+    /// <summary>Every executable name this app has shipped under (newest first). The installer removes the old one; the
+    /// version check and the portable updater accept all of them.</summary>
+    public static readonly string[] ExeNames = { ExeName, "ValTraining.exe", "ValTrainer.exe" };
     public const string Publisher = "Pyromesis";
 
     /// <summary>"owner/repo" on GitHub. Update checks, the GitHub issue links and the installer's links stay off while this
@@ -45,8 +51,7 @@ public static class AppInfo
             {
                 // Only trust the app's own executable: in the Godot editor ProcessPath is the editor itself.
                 string name = Path.GetFileName(exe);
-                if (name.Equals("ValTrainer.exe", StringComparison.OrdinalIgnoreCase)
-                    || name.Equals("ValTraining.exe", StringComparison.OrdinalIgnoreCase))
+                if (ExeNames.Any(n => name.Equals(n, StringComparison.OrdinalIgnoreCase)))
                 {
                     string? fv = System.Diagnostics.FileVersionInfo.GetVersionInfo(exe).FileVersion?.Trim();
                     if (!string.IsNullOrEmpty(fv))

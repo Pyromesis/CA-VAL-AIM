@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """Generate ValTrainer collision.json from the extracted map GLBs.
 
 The shipped collision files were produced by a pipeline that only covered part of
@@ -142,6 +142,8 @@ class Grid:
         self.clip = clip                 # (minx, miny, minz, maxx, maxy, maxz) or None
         self.floors = defaultdict(set)   # (i,j) -> {quantised y}
         self.walls = defaultdict(list)   # (i,j) -> [(y0, y1)]
+        self.flat = defaultdict(set)     # (i,j) -> {y} of near-horizontal up-facing art (real floors, n.y >= 0.95)
+        self.ceilings = defaultdict(set) # (i,j) -> {y} of down-facing art (ceilings, undersides)
 
     def inside(self, x, y, z):
         c = self.clip
@@ -157,6 +159,12 @@ class Grid:
                 return
         self.floors[(i, j)].add(round(y / 0.05) * 0.05)
 
+    def add_flat(self, i, j, y):
+        self.flat[(i, j)].add(round(y / 0.05) * 0.05)
+
+    def add_ceiling(self, i, j, y):
+        self.ceilings[(i, j)].add(round(y / 0.05) * 0.05)
+
     def add_wall(self, i, j, y0, y1):
         if y1 - y0 < 0.4:
             return
@@ -170,6 +178,43 @@ class Grid:
             if y1 - y0 < 0.4:
                 return
         self.walls[(i, j)].append((y0, y1))
+
+
+def _lattice(grid, v0, v1, v2, area):
+    """(i, j, y) samples of a triangle's XZ projection on a 0.75-cell lattice (huge triangles are split)."""
+    cell = grid.cell
+    s = cell * 0.75
+    xs = np.arange(math.floor(min(v0[0], v1[0], v2[0]) / s) * s, max(v0[0], v1[0], v2[0]) + s, s)
+    zs = np.arange(math.floor(min(v0[2], v1[2], v2[2]) / s) * s, max(v0[2], v1[2], v2[2]) + s, s)
+    if len(xs) == 0 or len(zs) == 0:
+        return []
+    if len(xs) * len(zs) > 40000:
+        # Huge triangle (a terrain plate or a backdrop): split it in four and recurse
+        # instead of dropping it — dropping it is how whole floors go missing.
+        if area <= 4.0:
+            return []
+        m01 = (v0 + v1) * 0.5
+        m12 = (v1 + v2) * 0.5
+        m20 = (v2 + v0) * 0.5
+        out = []
+        for a, b, c in ((v0, m01, m20), (m01, v1, m12), (m20, m12, v2), (m01, m12, m20)):
+            out.extend(_lattice(grid, a, b, c, area / 4.0))
+        return out
+    gx, gz = np.meshgrid(xs, zs)
+    px, pz = gx.ravel(), gz.ravel()
+    d = (v1[2] - v2[2]) * (v0[0] - v2[0]) + (v2[0] - v1[0]) * (v0[2] - v2[2])
+    if abs(d) < 1e-9:
+        return []
+    w0 = ((v1[2] - v2[2]) * (px - v2[0]) + (v2[0] - v1[0]) * (pz - v2[2])) / d
+    w1 = ((v2[2] - v0[2]) * (px - v2[0]) + (v0[0] - v2[0]) * (pz - v2[2])) / d
+    w2 = 1.0 - w0 - w1
+    m = (w0 >= -1e-6) & (w1 >= -1e-6) & (w2 >= -1e-6)
+    if not m.any():
+        return []
+    y = w0[m] * v0[1] + w1[m] * v1[1] + w2[m] * v2[1]
+    ii = np.floor(px[m] / cell).astype(np.int64)
+    jj = np.floor(pz[m] / cell).astype(np.int64)
+    return list(zip(ii.tolist(), jj.tolist(), y.tolist()))
 
 
 def rasterise(grid, v0, v1, v2):
@@ -194,41 +239,19 @@ def rasterise(grid, v0, v1, v2):
     # already handled by the 1.8 m player height in the collision query.
     if n[1] >= 0.35:
         # walkable surface: sample the XZ projection on a lattice
-        s = cell * 0.75
-        xs = np.arange(math.floor(min(v0[0], v1[0], v2[0]) / s) * s,
-                       max(v0[0], v1[0], v2[0]) + s, s)
-        zs = np.arange(math.floor(min(v0[2], v1[2], v2[2]) / s) * s,
-                       max(v0[2], v1[2], v2[2]) + s, s)
-        if len(xs) == 0 or len(zs) == 0:
-            return
-        if len(xs) * len(zs) > 40000:
-            # Huge triangle (a terrain plate or a backdrop): split it in four and recurse
-            # instead of dropping it — dropping it is how whole floors go missing.
-            if area > 4.0:
-                m01 = (v0 + v1) * 0.5
-                m12 = (v1 + v2) * 0.5
-                m20 = (v2 + v0) * 0.5
-                for a, b, c in ((v0, m01, m20), (m01, v1, m12), (m20, m12, v2), (m01, m12, m20)):
-                    rasterise(grid, a, b, c)
-            return
-        gx, gz = np.meshgrid(xs, zs)
-        px, pz = gx.ravel(), gz.ravel()
-        # barycentric test in XZ
-        d = (v1[2] - v2[2]) * (v0[0] - v2[0]) + (v2[0] - v1[0]) * (v0[2] - v2[2])
-        if abs(d) < 1e-9:
-            return
-        w0 = ((v1[2] - v2[2]) * (px - v2[0]) + (v2[0] - v1[0]) * (pz - v2[2])) / d
-        w1 = ((v2[2] - v0[2]) * (px - v2[0]) + (v0[0] - v2[0]) * (pz - v2[2])) / d
-        w2 = 1.0 - w0 - w1
-        m = (w0 >= -1e-6) & (w1 >= -1e-6) & (w2 >= -1e-6)
-        if not m.any():
-            return
-        y = w0[m] * v0[1] + w1[m] * v1[1] + w2[m] * v2[1]
-        ii = np.floor(px[m] / cell).astype(np.int64)
-        jj = np.floor(pz[m] / cell).astype(np.int64)
-        for a, b, yy in zip(ii.tolist(), jj.tolist(), y.tolist()):
+        flat = n[1] >= 0.95
+        for a, b, yy in _lattice(grid, v0, v1, v2, area):
             grid.add_floor(a, b, yy)
-    elif abs(n[1]) <= 0.3:
+            if flat:
+                grid.add_flat(a, b, yy)
+        return
+    if n[1] <= -0.35:
+        # down-facing (a ceiling or the underside of a floor): no collision of its own, but it tells
+        # a real interior (floor, ceiling, floor above) from the hidden ground under a raised floor.
+        for a, b, yy in _lattice(grid, v0, v1, v2, area):
+            grid.add_ceiling(a, b, yy)
+        return
+    if abs(n[1]) <= 0.3:
         # vertical(ish): footprint is a line in XZ, mark the cells it crosses.
         # Low railings, thin dividers and window frames are visible cover: dropping them
         # is how players end up walking through walls. Only ignore tiny trim.
@@ -350,6 +373,52 @@ def merge_with_existing(new_boxes, old_boxes, floor_tol=0.35, wall_overlap=0.4, 
     return kept
 
 
+HIDE_MAX = 4.0      # a raised floor up to this high over hidden ground is sealed (Bind's Hookah: 2.1-3.5 m)
+
+
+def seal_hidden_floors(grid):
+    """Remove the hidden ground under raised floors and fill the space solid.
+
+    The extracted art keeps the terrain under raised floors (Bind: the alley ground continues 2-3.5 m
+    under Hookah's floor). Its up-facing triangles became walkable slabs, the raised floor above is
+    single-sided, so the player could walk (and was spawned) under the map, seeing the floor from below.
+    A floor sample is hidden when a near-horizontal art floor (n.y >= 0.95) lies 0.6..HIDE_MAX m above it
+    in the same cell with no down-facing art (a ceiling) in between: a real room under a floor always has
+    its ceiling modelled. The hidden sample is dropped and the gap becomes one solid box per merged
+    rectangle (bottom at the hidden ground, top 0.35 m under the raised floor's surface), which also walls
+    off the crawl space from the open ground around it. Returns the fill boxes.
+    """
+    c = grid.cell
+    hidden = defaultdict(set)   # (low_key, up_key) -> cells
+    removed = 0
+    for cell, ys in list(grid.floors.items()):
+        flat = grid.flat.get(cell)
+        if not flat:
+            continue
+        ceil = grid.ceilings.get(cell, ())
+        drop = []
+        for y in ys:
+            ups = [u for u in flat if y + 0.6 < u <= y + HIDE_MAX]
+            if not ups:
+                continue
+            up = min(ups)
+            if any(y + 0.05 < cy < up - 0.05 for cy in ceil):
+                continue
+            drop.append(y)
+            hidden[(round(y / 0.25) * 0.25, round(up / 0.25) * 0.25)].add(cell)
+        for y in drop:
+            ys.discard(y)
+            removed += 1
+    fills = []
+    for (lo, up), cells in hidden.items():
+        for (i, j, w, d) in greedy_rects(cells):
+            fills.append([round(i * c, 3), round(lo - 0.3, 3), round(j * c, 3),
+                          round((i + w) * c, 3), round(up - 0.35, 3), round((j + d) * c, 3)])
+    if os.environ.get("MAPGEN_DEBUG") or removed:
+        print(f"    hidden floors sealed: {removed} samples -> {len(fills)} fill boxes")
+    return fills
+
+
 def build_boxes(grid):
     """Two passes: thin floor slabs with their exact surface height, then wall prisms.
 
@@ -360,6 +429,7 @@ def build_boxes(grid):
     c = grid.cell
     thick = 0.3
     boxes = []
+    fills = seal_hidden_floors(grid) if os.environ.get("MAPGEN_SEAL_HIDDEN", "1") != "0" else []
 
     # --- floors: group cells by surface height (0.25 m) and merge in XZ
     qy = 0.25
@@ -376,6 +446,7 @@ def build_boxes(grid):
             boxes.append([round(i * c, 3), round(top - thick, 3), round(j * c, 3),
                           round((i + w) * c, 3), round(top, 3), round((j + d) * c, 3)])
     n_floor = len(boxes)
+    boxes.extend(fills)
 
     # --- walls: solid voxel columns, grown upward greedily per rectangle
     if os.environ.get("MAPGEN_WALLS", "1") == "0":

@@ -116,7 +116,7 @@ public partial class SettingsScreen : ScreenBase
         if (page == Page.About)
         {
             BuildAbout(cols);
-            col.AddChild(Lbl("Esc — back to menu   ·   ValTraining is free software (GPL-3.0)   ·   fan-made, not affiliated with or endorsed by Riot Games",
+            col.AddChild(Lbl("Esc — back to menu   ·   CA-VAL-AIM is free software (GPL-3.0)   ·   fan-made, not affiliated with or endorsed by Riot Games",
                 UiTheme.Body, 13, UiTheme.Faint));
         }
         else
@@ -224,11 +224,11 @@ public partial class SettingsScreen : ScreenBase
         v.AddChild(Segmented("Crosshair", new[] { "VALORANT", "CUSTOM" }, () => St.UseFinderCrosshair && CrosshairCode.Finder != null ? 1 : 0,
             i => St.UseFinderCrosshair = i == 1 && CrosshairCode.Finder != null,
             note: () => CrosshairCode.Finder is not { } f ? "Run the Crosshair Finder (Coach) or paste a code below for a second option"
-                : St.UseFinderCrosshair ? $"{f.Name} · ValTrainer only" : "Your imported VALORANT crosshair"));
+                : St.UseFinderCrosshair ? $"{f.Name} · CA-VAL-AIM only" : "Your imported VALORANT crosshair"));
         v.AddChild(NoteRow(() => !St.UseFinderCrosshair && App.Valorant.Found ? App.Valorant.CrosshairNote : null));
         v.AddChild(new CrosshairPreview { K = k, BoxHeight = 120, Backdrop = CrosshairBackdrop });
         v.AddChild(CrosshairHintRow());
-        v.AddChild(CodeRow("Code of the crosshair ValTrainer uses now", () => CrosshairCode.EffectiveCode));
+        v.AddChild(CodeRow("Code of the crosshair CA-VAL-AIM uses now", () => CrosshairCode.EffectiveCode));
         if (!string.IsNullOrWhiteSpace(St.LastFinderCrosshairCode))
             v.AddChild(CodeRow("Last Crosshair Finder result", () => St.LastFinderCrosshairCode ?? ""));
         v.AddChild(PasteRow());
@@ -488,6 +488,8 @@ public partial class SettingsScreen : ScreenBase
                 1 => "A line from the crosshair to the nearest target",
                 _ => "Aim line, plus the shortest route to the nearest enemy on map drills",
             }));
+        v.AddChild(Segmented("Live coach", new[] { "OFF", "ON" }, () => St.LiveCoach ? 1 : 0, i => St.LiveCoach = i == 1,
+            note: () => St.LiveCoach ? "Short cues during the run: what is going wrong and how to fix it" : "The coach only reviews the run at the end"));
         v.AddChild(Segmented("Weapon hand", new[] { "RIGHT", "LEFT" }, () => St.LeftHandedWeapon ? 1 : 0, i => St.LeftHandedWeapon = i == 1,
             note: () => Main.I.Valorant.Found
                 ? $"Applies on next drill · VALORANT uses {(Main.I.Valorant.LeftHanded ? "left" : "right")}"
@@ -591,7 +593,7 @@ public partial class SettingsScreen : ScreenBase
     void BuildAbout(HBoxContainer cols)
     {
         float k = K;
-        var v = Column(cols, "ValTraining", $"version {AppInfo.Version}", 1f);
+        var v = Column(cols, "CA-VAL-AIM", $"version {AppInfo.Version}", 1f);
 
         v.AddChild(new DrawBox
         {
@@ -644,7 +646,7 @@ public partial class SettingsScreen : ScreenBase
             },
             note: () => !AppInfo.HasRepo ? "Not available: this build has no GitHub page set"
                 : St.AutoUpdates ? "On by default: at startup and every 6 hours, asks GitHub whether a newer release is out (nothing about you is sent)"
-                : "Off: ValTraining makes no network requests. ON asks GitHub at startup and every 6 hours; CHECK NOW asks once"));
+                : "Off: CA-VAL-AIM makes no network requests. ON asks GitHub at startup and every 6 hours; CHECK NOW asks once"));
         var auto = Segmented("Download updates automatically", new[] { "OFF", "ON" }, () => St.AutoDownloadUpdates ? 1 : 0,
             i => { St.AutoDownloadUpdates = i == 1; Updater.SettingsChanged(); }, note: AutoUpdateNote);
         auto.Enabled = () => St.AutoUpdates && Updater.Status != Updater.State.Off;
@@ -679,7 +681,7 @@ public partial class SettingsScreen : ScreenBase
             bool ready = Updater.ReadyVersion != null;
             get.Visible = ready || (UpdateCheck.NewerAvailable && AppInfo.HasRepo && Updater.Status != Updater.State.Applying);
             get.Label = ready ? "RESTART TO UPDATE" : Loc.T("UPDATE TO") + " " + UpdateCheck.Latest;
-            get.TooltipText = ready ? "Installs the update and restarts ValTraining" + (Updater.NeedsElevation ? " (Windows asks for permission)" : "")
+            get.TooltipText = ready ? "Installs the update and restarts CA-VAL-AIM" + (Updater.NeedsElevation ? " (Windows asks for permission)" : "")
                 : "Downloads the installer, verifies it against SHA256SUMS.txt and offers to restart; opens the release page if this copy can't update itself";
             auto.Refresh();
             get.QueueRedraw();
@@ -740,7 +742,7 @@ public partial class SettingsScreen : ScreenBase
         {
             InstallKind.Portable => "Downloads new versions in the background; ValTrainer.exe is replaced when you restart",
             InstallKind.InstalledAdmin => "Downloads new versions in the background; RESTART TO UPDATE installs them (Windows asks for permission)",
-            _ => "Downloads new versions in the background; they install when you restart ValTrainer",
+            _ => "Downloads new versions in the background; they install when you restart CA-VAL-AIM",
         };
     }
 
@@ -760,7 +762,7 @@ public partial class SettingsScreen : ScreenBase
     (string, Color) CheckStatus() => UpdateCheck.Status switch
     {
         UpdateCheck.State.Checking => ("Checking GitHub…", UiTheme.Dim),
-        UpdateCheck.State.Available => ($"ValTraining {UpdateCheck.Latest} is available", UiTheme.Good),
+        UpdateCheck.State.Available => ($"CA-VAL-AIM {UpdateCheck.Latest} is available", UiTheme.Good),
         UpdateCheck.State.UpToDate => ("You have the latest version" + (St.LastUpdateCheck > 0 ? $" · checked {Ago(St.LastUpdateCheck)}" : ""), UiTheme.Dim),
         UpdateCheck.State.Failed => (string.IsNullOrWhiteSpace(UpdateCheck.Message) ? "Couldn't check for updates" : $"Couldn't check for updates: {UpdateCheck.Message}", UiTheme.Warn),
         UpdateCheck.State.Off => (UpdateCheck.Message ?? "Off", UiTheme.Faint),
@@ -777,7 +779,7 @@ public partial class SettingsScreen : ScreenBase
     }
 
     static string SystemInfoText() =>
-        $"ValTraining {AppInfo.Version}{(App.Dev ? " (dev)" : "")}\n" +
+        $"CA-VAL-AIM {AppInfo.Version}{(App.Dev ? " (dev)" : "")}\n" +
         $"Renderer: {SysInfo.Summary}\n" +
         $"Graphics quality: {Qualities[Math.Clamp(St.Quality, 0, 3)]}{(St.AutoQualityReason != null ? $" (auto: {St.AutoQualityReason})" : "")}\n" +
         $"VALORANT settings: {(App.Valorant.Found ? "imported" : App.Valorant.Status.ToString())}\n" +
@@ -910,7 +912,7 @@ public partial class SettingsScreen : ScreenBase
         row.AddChild(txt);
         var open = Btn("OPEN", VButton.Look.Secondary, () => AppInfo.OpenFolder(dir), 96, 36, 16);
         open.SizeFlagsVertical = SizeFlags.ShrinkCenter;
-        open.TooltipText = $"{dir}\nThese are ValTrainer recordings (.vtt run data + .vtr 3D replay), played back inside ValTrainer's Rewind — not video files.";
+        open.TooltipText = $"{dir}\nThese are CA-VAL-AIM recordings (.vtt run data + .vtr 3D replay), played back inside CA-VAL-AIM's Rewind — not video files.";
         row.AddChild(open);
         VButton? del = null;
         ulong armedAt = 0;
@@ -979,7 +981,7 @@ public partial class SettingsScreen : ScreenBase
         var buttons = new List<VButton>();
         foreach (var (part, name) in new[]
                  {
-                     (AboutLicenses.Part.ValTrainer, "ValTraining"), (AboutLicenses.Part.Godot, "GODOT"),
+                     (AboutLicenses.Part.ValTrainer, "CA-VAL-AIM"), (AboutLicenses.Part.Godot, "GODOT"),
                      (AboutLicenses.Part.GodotThirdParty, "ENGINE PARTS"), (AboutLicenses.Part.DotNet, ".NET"), (AboutLicenses.Part.Assets, "ASSETS"),
                  })
         {

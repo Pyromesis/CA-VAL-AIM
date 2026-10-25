@@ -1,13 +1,17 @@
 ; Engine configuration file.
-; ValTrainer — Godot 4 (.NET) edition.
+; CA-VAL-AIM (formerly ValTraining / ValTrainer) — Godot 4 (.NET) edition.
 
 config_version=5
 
 [application]
 
-config/name="ValTrainer"
+config/name="CA-VAL-AIM"
+; Logs, shader cache and user:// stay where every earlier version kept them (%APPDATA%/Godot/app_userdata/ValTrainer),
+; so renaming the app (1.18.0) doesn't lose the previous session's log or recompile every shader.
+config/use_custom_user_dir=true
+config/custom_user_dir_name="Godot/app_userdata/ValTrainer"
 config/description="Aim, movement and utility trainer that copies your Valorant settings."
-config/version="1.17.0"
+config/version="1.18.0"
 run/main_scene="res://Main.tscn"
 config/features=PackedStringArray("4.7", "C#", "Forward Plus")
 config/icon="res://icon.png"

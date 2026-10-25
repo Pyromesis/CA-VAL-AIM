@@ -103,7 +103,10 @@ public sealed class WeaponController
                 int guard = 0;
                 while (now >= nextShotAt && Ammo > 0 && guard++ < 4)
                 {
-                    shots.Add(FireOne(now, view, mover, rng, movementMode));
+                    var first = FireOne(now, view, mover, rng, movementMode);
+                    shots.Add(first);
+                    // Shotguns: the other pellets of the same shell, spread around the first one's direction.
+                    for (int pi = 1; pi < Def.Pellets; pi++) shots.Add((PlayerView.Spread(first.Item1, Def.PelletSpread, rng, uniform: true), first.Item2));
                     nextShotAt += interval;
                     if (!Def.Auto) { nextShotAt = now + interval; break; }
                 }
@@ -143,7 +146,7 @@ public sealed class WeaponController
     {
         float gap = now - lastShot;
         lastShot = now;
-        if (!bottomless) Ammo--;
+        if (!bottomless && !Def.Melee) Ammo--; // the knife never runs out
         sprayShots++;
 
         // Bullet goes where the (recoiled) view points, plus the error cone.

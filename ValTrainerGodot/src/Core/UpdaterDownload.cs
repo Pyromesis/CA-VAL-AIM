@@ -68,7 +68,7 @@ public static partial class Updater
                 AutomaticDecompression = DecompressionMethods.None,
             };
             var http = new HttpClient(h) { Timeout = timeout };
-            http.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", $"ValTrainer/{AppVersion} (updater)");
+            http.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", $"CA-VAL-AIM/{AppVersion} (updater)");
             return http;
         }
 
@@ -117,13 +117,15 @@ public static partial class Updater
             {
                 using (var zip = ZipFile.OpenRead(final))
                 {
+                    // CA-VAL-AIM.exe since 1.18.0; ValTrainer.exe in older zips.
                     var entry = zip.Entries
-                        .Where(e => e.Name.Equals("ValTrainer.exe", StringComparison.OrdinalIgnoreCase))
-                        .OrderBy(e => e.FullName.Length).FirstOrDefault()
-                        ?? throw new BadFileException($"{Asset} has no ValTrainer.exe");
+                        .Where(e => AppInfo.ExeNames.Any(n => e.Name.Equals(n, StringComparison.OrdinalIgnoreCase)))
+                        .OrderBy(e => Array.FindIndex(AppInfo.ExeNames, n => e.Name.Equals(n, StringComparison.OrdinalIgnoreCase)))
+                        .ThenBy(e => e.FullName.Length).FirstOrDefault()
+                        ?? throw new BadFileException($"{Asset} has no {AppInfo.ExeName}");
                     entry.ExtractToFile(tmp, overwrite: true);
                 }
-                if (!LooksLikeExe(tmp)) throw new BadFileException($"ValTrainer.exe in {Asset} isn't a Windows program");
+                if (!LooksLikeExe(tmp)) throw new BadFileException($"{AppInfo.ExeName} in {Asset} isn't a Windows program");
                 ReadySha256 = Sha256(tmp, ct);
                 File.Move(tmp, exe, overwrite: true);
             }

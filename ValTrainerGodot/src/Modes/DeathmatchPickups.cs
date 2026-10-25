@@ -20,7 +20,8 @@ public sealed partial class DeathmatchMode
     void DropPack(Vector3 feet)
     {
         var floor = feet;
-        floor.Y = Collision.Ground(feet + new Vector3(0, 0.3f, 0), G.Solid);
+        float gy = Collision.Ground(feet + new Vector3(0, 0.3f, 0), G.Solid);
+        if (float.IsFinite(gy)) floor.Y = gy; // else: drop it where the bot stood
         packMat ??= new StandardMaterial3D
         {
             ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded,

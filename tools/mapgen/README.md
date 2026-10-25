@@ -130,6 +130,29 @@ python audit_collision.py "C:\Users\<you>\AppData\Local\Programs\ValTrainer\maps
 then packaging that same `maps` folder. `collision.json.orig` is the file that shipped before
 the rerun — keep it, it is the only backup of the hand-tuned boxes.
 
+### Sealing and the spawn audit (1.18)
+
+`seal_map.py <installed maps> <out maps> [map ...] --dump spawns.json` patches a shipped
+`collision.json` additively (hidden ground under raised floors, walk-through art walls) into
+`<out>/<map>/` and keeps the shipped file as `collision.json.orig`. All 13 maps of the 1.18 set
+were sealed this way into the repository's (git-ignored) `dist-maps/maps`.
+
+Then the spawn audit, against the art:
+
+```
+Godot --headless --path ValTrainerGodot -- --dev --data-dir <tmp> --valorant-dir <tmp> --maps-dir dist-maps --spawn-dump spawns.json
+python audit_spawns.py dist-maps/maps spawns.json --full-pool --write-exclude --pairs 0
+```
+
+`--full-pool` judges every Deathmatch spawn-pool node (not a 3000-node sample); `--write-exclude`
+writes `maps/<map>/spawn_exclude.json`: the pool nodes the art check rejects (the game leaves them
+out of its spawn pool, `DeathmatchMode.SpawnPool`) and `moves` for authored drill spots (enemies,
+plants, retakes) that are inside art, under a floor or on an invisible slab, to the nearest clean
+point within 3 m (`SpawnSafety.Resolve` applies them). The file is merged across runs, because a dump
+made with it applied no longer lists the excluded nodes: delete it (or pass `--fresh-exclude`)
+whenever `collision.json` changes. Ship `spawn_exclude.json` next to `collision.json`. A last dump and
+`audit_spawns.py ... --full-pool` (without `--write-exclude`) must then report every pool node ok.
+
 ## Caveats
 
 * The art has no semantic mesh names (`StaticMeshComponent0.xxx`), so props cannot be

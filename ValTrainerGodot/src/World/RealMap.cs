@@ -156,38 +156,12 @@ public static class RealMap
                 continue;
             }
 
-            try
-            {
-                var doc = new GltfDocument();
-                var state = new GltfState();
-                byte[]? stripped = GltfStrip.Prepare(path);
-                Error err = stripped != null
-                    ? doc.AppendFromBuffer(stripped, Path.GetDirectoryName(path) + "/", state)
-                    : doc.AppendFromFile(path, state);
-                if (err != Error.Ok)
-                {
-                    GD.PushWarning($"[maps] glTF read failed ({err}): {path}");
-                    continue;
-                }
-
-                Node scene = doc.GenerateScene(state);
-                if (scene == null)
-                {
-                    GD.PushWarning($"[maps] glTF scene empty: {path}");
-                    continue;
-                }
-                scene.Name = part;
-                art.AddChild(scene);
-                loaded++;
-                bytes += new FileInfo(path).Length;
-
-                foreach (Node n in Walk(scene))
-                    if (n is MeshInstance3D mi) FixMaterials(mi);
-            }
-            catch (Exception ex)
-            {
-                GD.PushWarning($"[maps] glTF load failed: {path}: {ex.Message}");
-            }
+            // The loading screen (UI/LoadingScreen) may already have built this level; otherwise load it now.
+            Node? scene = TakePreloaded(folder, part) ?? LoadPart(path, part, GltfStrip.Prepare(path), stripTried: true);
+            if (scene == null) continue;
+            art.AddChild(scene);
+            loaded++;
+            try { bytes += new FileInfo(path).Length; } catch { }
         }
 
         if (loaded == 0)
@@ -199,6 +173,85 @@ public static class RealMap
         root.AddChild(art);
         GD.Print($"[maps] real {folder} loaded: {loaded}/{parts.Length} GLBs, {bytes / (1024 * 1024)} MB, {clock.ElapsedMilliseconds} ms");
         return true;
+    }
+
+    /// <summary>
+    /// Reads one level GLB into a scene with the palette materials applied. <paramref name="stripped"/> is
+    /// <see cref="GltfStrip.Prepare"/>'s output (pure C#, so the loading screen runs it on a worker thread); null with
+    /// <paramref name="stripTried"/> loads the original file. Main thread only. Null when the level can't be read.
+    /// </summary>
+    public static Node? LoadPart(string path, string part, byte[]? stripped, bool stripTried)
+    {
+        try
+        {
+            if (!stripTried) stripped = GltfStrip.Prepare(path);
+            var doc = new GltfDocument();
+            var state = new GltfState();
+            Error err = stripped != null
+                ? doc.AppendFromBuffer(stripped, Path.GetDirectoryName(path) + "/", state)
+                : doc.AppendFromFile(path, state);
+            if (err != Error.Ok)
+            {
+                GD.PushWarning($"[maps] glTF read failed ({err}): {path}");
+                return null;
+            }
+
+            Node scene = doc.GenerateScene(state);
+            if (scene == null)
+            {
+                GD.PushWarning($"[maps] glTF scene empty: {path}");
+                return null;
+            }
+            scene.Name = part;
+            foreach (Node n in Walk(scene))
+                if (n is MeshInstance3D mi) FixMaterials(mi);
+            return scene;
+        }
+        catch (Exception ex)
+        {
+            GD.PushWarning($"[maps] glTF load failed: {path}: {ex.Message}");
+            return null;
+        }
+    }
+
+    /// <summary>One level the loading screen has to read: its name, file and size (the progress weight).</summary>
+    public readonly record struct PartFile(string Part, string Path, long Bytes);
+
+    /// <summary>The playable levels of <paramref name="folder"/> that exist on disk (backdrops skipped), in build order.</summary>
+    public static List<PartFile> PartFiles(string? folder)
+    {
+        var list = new List<PartFile>();
+        if (string.IsNullOrWhiteSpace(folder) || !TryParts(folder, out string[] parts, out _)) return list;
+        foreach (string part in parts)
+        {
+            if (IsBackdrop(part)) continue;
+            if (MapAssets.Find($"{folder}/{part}.glb") is not { } path) continue;
+            long size = 0;
+            try { size = new FileInfo(path).Length; } catch { }
+            list.Add(new PartFile(part, path, Math.Max(1, size)));
+        }
+        return list;
+    }
+
+    // Levels the loading screen built ahead of the session, keyed "folder|part". Each is used once by TryBuild.
+    static readonly Dictionary<string, Node> preloaded = new(StringComparer.OrdinalIgnoreCase);
+
+    public static void StorePreloaded(string folder, string part, Node scene)
+    {
+        string key = folder + "|" + part;
+        if (preloaded.Remove(key, out var old) && GodotObject.IsInstanceValid(old)) old.Free();
+        preloaded[key] = scene;
+    }
+
+    static Node? TakePreloaded(string folder, string part) =>
+        preloaded.Remove(folder + "|" + part, out var n) && GodotObject.IsInstanceValid(n) ? n : null;
+
+    /// <summary>Frees levels that were preloaded but never used (the loading screen was cancelled).</summary>
+    public static void ClearPreloaded()
+    {
+        foreach (var n in preloaded.Values)
+            if (GodotObject.IsInstanceValid(n)) n.Free();
+        preloaded.Clear();
     }
 
     static IEnumerable<Node> Walk(Node n)

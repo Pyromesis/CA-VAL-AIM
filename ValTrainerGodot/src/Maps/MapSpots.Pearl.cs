@@ -45,6 +45,8 @@ public static partial class MapSpots
             new SmokeSpot("Default", V(-7.00f, -0.25f, 7.50f)),
         },
         PlantSpots = new[] { V(0.00f, 0.00f, 0.00f), V(-5.50f, 0.00f, 1.50f), V(-2.50f, 0.00f, 1.50f) },
-        RetakeEntries = new[] { V(-6.50f, 0.00f, -12.50f), V(-17.50f, 0.00f, 2.50f) },
+        // The second entry was (-17.5, 0, 2.5): no art floor under it (an invisible collision slab outside the minimap);
+        // moved 3.7 m to the nearest point the spawn audit accepts (tools/mapgen/audit_spawns.py, 1.18).
+        RetakeEntries = new[] { V(-6.50f, 0.00f, -12.50f), V(-14.25f, 0.00f, 0.75f) },
     };
 }

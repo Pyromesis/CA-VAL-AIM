@@ -6,8 +6,8 @@ namespace ValTrainer.Game;
 /// <summary>
 /// The numbers behind jumping, falling and ability movement (metres, seconds). VALORANT runs on Unreal Engine 4's
 /// character movement. Riot publishes no jump numbers, so the jump uses Unreal's stock jump height (JumpZVelocity
-/// 420 cm/s at 980 cm/s² = 0.90 m apex), which matches the documented spots where ~1 m boxes need a crouch-jump, with the
-/// trainer's existing gravity (unchanged falls), so a jump lasts 0.60 s. Crouch-jumps follow Unreal (the capsule shrinks
+/// 420 cm/s at 980 cm/s² = 0.90 m apex), which matches the documented spots where ~1 m boxes need a crouch-jump. The
+/// gravity is set so a jump lasts VALORANT's measured 0.71 s (see <see cref="Gravity"/>). Crouch-jumps follow Unreal (the capsule shrinks
 /// around its centre in the air). Weapon numbers are Riot's: airborne error per weapon (WeaponDef.AirErr: rifles 10°,
 /// Sheriff 7°, Operator 15°) and the patch 1.09 landing penalty (7° for 0.225 s). Fall damage per the official wiki.
 /// </summary>

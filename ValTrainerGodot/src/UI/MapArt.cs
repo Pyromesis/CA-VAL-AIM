@@ -90,6 +90,76 @@ public static class MapArt
         return LoadFile(key + ".png") ?? LoadFile(key + "-real.png");
     }
 
+    static readonly Dictionary<string, Image?> masks = new();
+    static readonly object maskLock = new();
+
+    /// <summary>
+    /// Is a world point inside the playable area drawn on the official minimap? The minimaps are transparent outside the
+    /// map, so their alpha is an exact "inside the map" mask in the game's frame (same calibration as the markers).
+    /// Returns 1 inside, 0 outside (or within <paramref name="margin"/> metres of the edge), -1 when the map has no
+    /// minimap or calibration (the caller must not reject anything then). Thread-safe after the first call per map.
+    /// </summary>
+    public static int Playable(string? key, Vector3 world, float margin = 0.6f)
+    {
+        if (key == null || At(key) is not { } info) return -1;
+        Image? img;
+        lock (maskLock)
+        {
+            if (!masks.TryGetValue(key, out img))
+            {
+                img = LoadImage(key + ".png");
+                if (img != null && img.IsCompressed()) img = null;
+                if (img != null && img.GetFormat() != Image.Format.Rgba8) img.Convert(Image.Format.Rgba8);
+                masks[key] = img;
+            }
+        }
+        if (img == null) return -1;
+        int w = img.GetWidth(), h = img.GetHeight();
+        bool Opaque(Vector3 p)
+        {
+            var px = info.WorldToPixel(p);
+            int x = (int)px.X, y = (int)px.Y;
+            if (x < 0 || y < 0 || x >= w || y >= h) return false;
+            return img.GetPixel(x, y).A > 0.5f;
+        }
+        if (!Opaque(world)) return 0;
+        if (margin > 0)
+            for (int i = 0; i < 8; i++)
+            {
+                float a = i * Mathf.Tau / 8f;
+                if (!Opaque(world + new Vector3(Mathf.Cos(a) * margin, 0, Mathf.Sin(a) * margin))) return 0;
+            }
+        return 1;
+    }
+
+    static Image? LoadImage(string file)
+    {
+        foreach (var root in Roots())
+        {
+            try
+            {
+                string path = Path.Combine(root, file);
+                if (!File.Exists(path)) continue;
+                var img = Image.LoadFromFile(path);
+                if (img != null && !img.IsEmpty()) return img;
+            }
+            catch { }
+        }
+        return null;
+    }
+
+    static List<string> Roots() => new()
+    {
+        (CmdLine.DevAfter("--maps-dir") ?? "") + "/maps",
+        ProjectSettings.GlobalizePath("res://assets/maps"),
+        ProjectSettings.GlobalizePath("res://maps"),
+        ProjectSettings.GlobalizePath("res://"),
+        OS.GetExecutablePath().GetBaseDir() + "/maps",
+        OS.GetExecutablePath().GetBaseDir() + "/assets/maps",
+        Directory.GetCurrentDirectory() + "/assets/maps",
+        Directory.GetCurrentDirectory() + "/maps",
+    };
+
     static Texture2D? LoadFile(string file)
     {
         var roots = new List<string>
