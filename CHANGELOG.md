@@ -25,7 +25,8 @@
 ### Changed
 
 - **ValTraining is now CA-VAL-AIM.** The new name is used in the window title, the menu, the installer, the Start
-  menu shortcuts, the uninstaller entry and the executable (`CA-VAL-AIM.exe`, with `CA-VAL-AIM.pck`).
+  menu shortcuts, the uninstaller entry, the executable (`CA-VAL-AIM.exe`, with `CA-VAL-AIM.pck`) and the GitHub
+  repository (`Pyromesis/CA-VAL-AIM`).
 - **Automatic updates keep working across the rename.** The release files keep the `ValTraining-<version>-Setup.exe`
   name on purpose: ValTraining 1.16.1–1.17.0 only look for `ValTraining-…` (or `ValTrainer-…`) files, so they find
   this release, download it and install it as usual. From this version the updater accepts `CA-VAL-AIM-…`,
@@ -33,7 +34,10 @@
 - **Your data stays where it was.** Settings, stats and recordings stay in `%APPDATA%\ValTrainer`; logs and the shader
   cache stay in `%APPDATA%\Godot\app_userdata\ValTrainer` (no shader recompile after the update). An update installs
   into the existing folder, removes the old `ValTrainer.exe` / `ValTrainer.pck` and replaces the ValTraining shortcuts
-  with CA-VAL-AIM ones. New installs go to `%LOCALAPPDATA%\Programs\CA-VAL-AIM`. The GitHub repository is unchanged.
+  with CA-VAL-AIM ones. New installs go to `%LOCALAPPDATA%\Programs\CA-VAL-AIM`.
+- **The GitHub repository is now `Pyromesis/CA-VAL-AIM`.** GitHub redirects the old `Pyromesis/ValTraining` URLs
+  (web and API), so bookmarks and issue links keep working. Copies up to 1.17.0 may show **OPEN DOWNLOAD** once instead
+  of updating themselves, because GitHub rewrites release download URLs after a rename.
 - **A new, minimalist main menu.** A flat canvas with a lot of space, light display type, hairlines instead of panels
   and one accent colour for the main action and the current choice. Everything arrives with a short staggered rise;
   hover and keyboard focus ease in and out. The library lists every drill with its personal best at your tier, with

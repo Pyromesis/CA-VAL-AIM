@@ -435,7 +435,7 @@ License: GNU GPL v3 (LICENSE.txt). Third-party licenses: THIRD-PARTY-NOTICES.txt
     $ico = Join-Path $work 'ValTrainer.ico'
     New-Icon (Join-Path $Proj 'icon.png') $ico
     $repoMatch = [regex]::Match([System.IO.File]::ReadAllText((Join-Path $Proj 'src\Core\AppInfo.cs')), 'GitHubRepo\s*=\s*"([^"]+)"')
-    $ghRepo = if ($repoMatch.Success) { $repoMatch.Groups[1].Value } else { 'Pyromesis/ValTraining' }
+    $ghRepo = if ($repoMatch.Success) { $repoMatch.Groups[1].Value } else { 'Pyromesis/CA-VAL-AIM' }
     if (Test-Path -LiteralPath $setupPath) { Remove-Item -LiteralPath $setupPath -Force }
     $isccArgs = @('/Qp', "/DAppVersion=$Version", "/DAppFileVersion=$FileVersion", "/DSourceDir=$outInst", "/DIconFile=$ico",
       "/DOutputDir=$OutDir", "/DGitHubRepo=$ghRepo", "/DAssetPrefix=$AssetPrefix") + $signArgs + @((Join-Path $Repo 'installer\ValTrainer.iss'))

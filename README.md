@@ -1,6 +1,6 @@
 # CA-VAL-AIM
 
-[![Latest release](https://img.shields.io/github/v/release/Pyromesis/ValTraining?label=download)](https://github.com/Pyromesis/ValTraining/releases/latest)
+[![Latest release](https://img.shields.io/github/v/release/Pyromesis/CA-VAL-AIM?label=download)](https://github.com/Pyromesis/CA-VAL-AIM/releases/latest)
 [![License: GPL-3.0-or-later](https://img.shields.io/badge/license-GPL--3.0--or--later-blue)](LICENSE)
 
 **A free aim, movement and utility trainer for VALORANT players.** CA-VAL-AIM imports your VALORANT sensitivity,
@@ -11,7 +11,7 @@ Windows 10/11 · free and open source · fan-made, not affiliated with Riot Game
 
 ## Download and install
 
-Get the latest version from **[GitHub Releases](https://github.com/Pyromesis/ValTraining/releases/latest)**:
+Get the latest version from **[GitHub Releases](https://github.com/Pyromesis/CA-VAL-AIM/releases/latest)**:
 
 | File | For |
 |---|---|
@@ -33,7 +33,7 @@ From 1.18.0 the app is called **CA-VAL-AIM**: window, menu, installer, Start men
 | Release downloads | `ValTraining-<version>-Setup.exe` | ValTraining 1.16.1–1.17.0 only recognise release files with this prefix; keeping it lets those copies update themselves to CA-VAL-AIM. The new app accepts `CA-VAL-AIM-`, `ValTraining-` and `ValTrainer-` files. |
 | Settings, stats, recordings | `%APPDATA%\ValTrainer` | Unchanged, so your data carries over. |
 | Logs and shader cache | `%APPDATA%\Godot\app_userdata\ValTrainer` | Unchanged, so the first start after the update doesn't recompile every shader. |
-| GitHub repository | `Pyromesis/ValTraining` | Unchanged; update checks and issue links keep working. |
+| GitHub repository | `Pyromesis/CA-VAL-AIM` | Renamed with the app (it was `Pyromesis/ValTraining`). GitHub redirects the old links, so bookmarks and issue links keep working. 1.16.1–1.17.0 may offer **OPEN DOWNLOAD** instead of an automatic update once, because GitHub rewrites release download URLs after a rename. |
 | Install folder | your existing folder | An update installs over the previous version (for example `%LOCALAPPDATA%\Programs\ValTraining`) and removes the old `ValTrainer.exe` and the old ValTraining shortcuts. New installs go to `%LOCALAPPDATA%\Programs\CA-VAL-AIM`. |
 
 **Updates:** CA-VAL-AIM updates itself. At startup and every 6 hours it asks GitHub for the newest release, shows it in
@@ -166,7 +166,7 @@ The ratings need data: play Head Flicks, Strafe Tracking, Peek Practice, Counter
 - The only network traffic is the update check to `api.github.com` (at startup and every 6 hours) and the download of a
   new release. Turn automatic updates off in Settings → About and CA-VAL-AIM never goes online on its own.
 - This build has no in-app bug-report relay and no Discord integration. Use the
-  [GitHub issue tracker](https://github.com/Pyromesis/ValTraining/issues) for bugs and feature requests.
+  [GitHub issue tracker](https://github.com/Pyromesis/CA-VAL-AIM/issues) for bugs and feature requests.
 
 ## Troubleshooting
 
@@ -178,7 +178,7 @@ The ratings need data: play Head Flicks, Strafe Tracking, Peek Practice, Counter
   `%APPDATA%\Godot\app_userdata\ValTrainer\logs`. Settings → About has buttons to open both and to copy your system info.
 - A damaged settings or stats file is kept as `*.corrupt` and the app starts fresh.
 - Numbers always use "." as the decimal point, regardless of Windows region settings.
-- Still stuck? [Open a GitHub issue](https://github.com/Pyromesis/ValTraining/issues/new/choose) and attach `godot.log`.
+- Still stuck? [Open a GitHub issue](https://github.com/Pyromesis/CA-VAL-AIM/issues/new/choose) and attach `godot.log`.
 
 ## Building from source
 

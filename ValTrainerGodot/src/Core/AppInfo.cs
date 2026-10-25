@@ -18,9 +18,13 @@ public static class AppInfo
     public static readonly string[] ExeNames = { ExeName, "ValTraining.exe", "ValTrainer.exe" };
     public const string Publisher = "Pyromesis";
 
-    /// <summary>"owner/repo" on GitHub. Update checks, the GitHub issue links and the installer's links stay off while this
-    /// still holds the "OWNER" placeholder (tools\build-release.ps1 reads it from here too).</summary>
-    public const string GitHubRepo = "Pyromesis/ValTraining";
+    /// <summary>"owner/repo" on GitHub, renamed with the app in 1.18.0. Update checks, the GitHub issue links and the
+    /// installer's links stay off while this still holds the "OWNER" placeholder (tools\build-release.ps1 reads it from
+    /// here too).</summary>
+    public const string GitHubRepo = "Pyromesis/CA-VAL-AIM";
+    /// <summary>The repository's name before 1.18.0. GitHub redirects its URLs, and <see cref="UpdateAssets.Trusted"/>
+    /// also accepts its release-asset paths, so assets published before the rename keep working.</summary>
+    public const string GitHubRepoLegacy = "Pyromesis/ValTraining";
 
     /// <summary>False while <see cref="GitHubRepo"/> is the placeholder: everything that would link there is hidden.</summary>
     public static bool HasRepo =>

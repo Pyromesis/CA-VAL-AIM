@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
   - name: Download the latest version
-    url: https://github.com/Pyromesis/ValTraining/releases/latest
+    url: https://github.com/Pyromesis/CA-VAL-AIM/releases/latest
     about: The installer, the portable zip and checksums.
   - name: Report a security problem privately
-    url: https://github.com/Pyromesis/ValTraining/security/advisories/new
+    url: https://github.com/Pyromesis/CA-VAL-AIM/security/advisories/new
     about: Please don't open a public issue for security problems (see SECURITY.md).

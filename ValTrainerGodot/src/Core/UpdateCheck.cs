@@ -315,10 +315,12 @@ public sealed class UpdateAssets
         $"{ReleasePrefix}-{version}-{(portable ? "Portable.zip" : "Setup.exe")}";
 
     /// <summary>https://github.com/&lt;repo&gt;/releases/download/… only (GitHub then redirects to its download host);
-    /// a dev --update-source may also serve its files from its own scheme + host + port.</summary>
+    /// the repository's pre-1.18.0 name is accepted too, and a dev --update-source may also serve its files from its own
+    /// scheme + host + port.</summary>
     public static bool Trusted(string url, string repo, string? localSource)
     {
         if (url.StartsWith($"https://github.com/{repo}/releases/download/", StringComparison.OrdinalIgnoreCase)) return true;
+        if (url.StartsWith($"https://github.com/{AppInfo.GitHubRepoLegacy}/releases/download/", StringComparison.OrdinalIgnoreCase)) return true;
         if (localSource == null || !Uri.TryCreate(localSource, UriKind.Absolute, out var src) || !Uri.TryCreate(url, UriKind.Absolute, out var u)) return false;
         return u.Scheme == src.Scheme && string.Equals(u.Host, src.Host, StringComparison.OrdinalIgnoreCase) && u.Port == src.Port;
     }

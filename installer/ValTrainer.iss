@@ -32,7 +32,7 @@
   #define OutputDir AddBackslash(SourcePath) + "..\dist"
 #endif
 #ifndef GitHubRepo
-  #define GitHubRepo "Pyromesis/ValTraining"
+  #define GitHubRepo "Pyromesis/CA-VAL-AIM"
 #endif
 #define HasRepo (Pos("OWNER", GitHubRepo) == 0 && Pos("/", GitHubRepo) > 0)
 

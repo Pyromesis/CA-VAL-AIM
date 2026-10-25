@@ -97,7 +97,11 @@ Releases are built on Windows and published manually:
 - **The data folders don't move:** `%APPDATA%\ValTrainer` (settings, stats, telemetry) and
   `%APPDATA%\Godot\app_userdata\ValTrainer` (logs, shader cache; `config/custom_user_dir_name` in `project.godot`).
 - **Internal names don't change:** the C# namespace and assembly `ValTrainer` (hence `data_ValTrainer_windows_x86_64`),
-  the installer's `AppId` GUID, the `installer/ValTrainer.iss` file name and the GitHub repository `Pyromesis/ValTraining`.
+  the installer's `AppId` GUID and the `installer/ValTrainer.iss` file name.
+- **The GitHub repository was renamed to `Pyromesis/CA-VAL-AIM`** (1.18.0). GitHub redirects the old
+  `Pyromesis/ValTraining` URLs (the API too), so older copies still find the project; `AppInfo.GitHubRepoLegacy` and
+  `UpdateAssets.Trusted` also accept release links from the old name. Releases made after the rename use the new name in
+  their download URLs, so 1.16.1–1.17.0 may need one manual install (the UPDATE button then opens the release page).
 - The installer removes the old `ValTrainer.exe` / `ValTrainer.pck` and the old ValTraining shortcuts when it upgrades
   an older install, and waits for either exe to exit. The app recognises all of its past exe names
   (`AppInfo.ExeNames`) when it reads its own version or unpacks a portable update.
