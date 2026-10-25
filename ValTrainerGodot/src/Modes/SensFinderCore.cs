@@ -12,6 +12,9 @@ public sealed class SensFinderConfig
     /// <summary>Unscored flicks at the start of every block (on top of the scored set, so both settings get the identical set).</summary>
     public int WarmupFlicks = 2;
     public int MicroFlicks = 4, MediumFlicks = 4, LargeFlicks = 4;
+    /// <summary>Micro-adjustment trials per block (1.18): 0.8-3 deg to a half-size head. They are scored on their own and
+    /// weigh more in the fine steps (half-width up to 1.09 and the confirmation), where the sens is tuned rather than found.</summary>
+    public int PrecisionFlicks = 4;
     public float FlickTimeout = 2.0f;
     /// <summary>Blank gap between a hit and the next target (lets the hand settle so movement onset is clean).</summary>
     public float Foreperiod = 0.3f;
@@ -26,7 +29,7 @@ public sealed class SensFinderConfig
     public const int TrackTier = 2; // Veteran strafe script
 
     public int Steps => HalfWidths.Length;
-    public int ScoredFlicks => MicroFlicks + MediumFlicks + LargeFlicks;
+    public int ScoredFlicks => MicroFlicks + MediumFlicks + LargeFlicks + PrecisionFlicks;
     public int FlicksPerBlock => WarmupFlicks + ScoredFlicks;
 
     /// <summary>Rough wall-clock estimate of a full run (all steps + confirmation), minutes.</summary>
@@ -38,7 +41,7 @@ public sealed class SensFinderConfig
     public static SensFinderConfig Quick() => new()
     {
         HalfWidths = new[] { 1.40f, 1.25f, 1.15f },
-        WarmupFlicks = 1, MicroFlicks = 2, MediumFlicks = 2, LargeFlicks = 2,
+        WarmupFlicks = 1, MicroFlicks = 2, MediumFlicks = 2, LargeFlicks = 2, PrecisionFlicks = 2,
         TrackReady = 0.6f, TrackSec = 5f, TrackWarmup = 1f, TrackWindow = 1.33f,
         RestSec = 1.5f,
     };
@@ -46,8 +49,11 @@ public sealed class SensFinderConfig
 
 /// <summary>One flick of the standard set: amplitude (deg) and direction elevation |φ| (deg, 0 = horizontal).
 /// The left/right and up/down signs are chosen per presentation (mirroring).</summary>
-public readonly record struct SfFlick(float Amp, float Elev)
+public readonly record struct SfFlick(float Amp, float Elev, float RScale = 1f)
 {
+    /// <summary>A micro-adjustment trial: a smaller head (RScale below 1) a few degrees away.</summary>
+    public bool Micro => RScale < 1f;
+
     /// <summary>The step's flick set: micro 3–8°, medium 8–20°, large 20–45° (stratified within each class).</summary>
     public static List<SfFlick> MakeSet(SensFinderConfig cfg, Random rng)
     {
@@ -63,6 +69,12 @@ public readonly record struct SfFlick(float Amp, float Elev)
         Class(cfg.MicroFlicks, 3f, 8f, 40f);
         Class(cfg.MediumFlicks, 8f, 20f, 35f);
         Class(cfg.LargeFlicks, 20f, 45f, 20f);
+        // micro-adjustments: small steps to a half-size head (the fine-sensitivity part of the test)
+        for (int i = 0; i < cfg.PrecisionFlicks; i++)
+        {
+            float a = 0.8f + (3f - 0.8f) * (i + (float)rng.NextDouble()) / Math.Max(1, cfg.PrecisionFlicks);
+            list.Add(new SfFlick(a, (float)rng.NextDouble() * 60f, 0.5f));
+        }
         return list;
     }
 }
@@ -121,6 +133,7 @@ public sealed class SfBlock
     public char Label;          // what the player sees: 'A' or 'B'
     public bool Mirror;         // tracking script mirrored
     public readonly List<double> FlickZ = new();      // ln(ID / MT') per scored flick
+    public readonly List<double> MicroZ = new();      // ln(ID / MT') per scored micro-adjustment
     public readonly List<double> TrackLogit = new();  // logit(on-target) per scored tracking window
     public readonly List<float> FlickMt = new();      // MT' (s), for logs
     public float TrackOn, TrackTotal;                 // scored tracking time on target / total (s)
@@ -155,11 +168,21 @@ public sealed class SfStage
 }
 
 /// <summary>Outcome of comparing condition 0 vs condition 1 (d = mean0 − mean1, in within-stage SD units).</summary>
-public sealed record SfComparison(double D, double Se, double T, double DFlick, double SeFlick, double DTrack, double SeTrack, int NFlick0, int NFlick1, int NTrack0, int NTrack1);
+public sealed record SfComparison(double D, double Se, double T, double DFlick, double SeFlick, double DTrack, double SeTrack, int NFlick0, int NFlick1, int NTrack0, int NTrack1)
+{
+    /// <summary>The micro-adjustment component (Sens Finder only; 0 where a comparison has none).</summary>
+    public double DMicro { get; init; }
+    public double SeMicro { get; init; }
+    public int NMicro0 { get; init; }
+    public int NMicro1 { get; init; }
+}
 
 public static class SfStats
 {
     public const double WFlick = 0.65, WTrack = 0.35;
+    /// <summary>Weights with micro-adjustments (1.18), as flick / micro / track: the finding steps, and the fine steps where
+    /// the small corrections decide.</summary>
+    public static readonly double[] WCoarse = { 0.45, 0.25, 0.30 }, WFine = { 0.35, 0.40, 0.25 };
 
     public static double Mean(IReadOnlyList<double> v) => v.Count == 0 ? 0 : v.Average();
 
@@ -190,28 +213,35 @@ public static class SfStats
     /// combined 0.65 / 0.35, and compared with Welch's SE on trial-level scores
     /// (SE² = 0.65²·SE²_flick + 0.35²·SE²_track). Also fills each block's composite score.
     /// </summary>
-    public static SfComparison Compare(IReadOnlyList<SfBlock> blocks)
+    /// <param name="fine">A fine step (small half-width or the confirmation): micro-adjustments weigh most.</param>
+    public static SfComparison Compare(IReadOnlyList<SfBlock> blocks, bool fine = false)
     {
         var (fm, fs) = Moments(blocks.SelectMany(b => b.FlickZ));
+        var (mm, ms) = Moments(blocks.SelectMany(b => b.MicroZ));
         var (tm, ts) = Moments(blocks.SelectMany(b => b.TrackLogit));
         List<double> F(int c) => blocks.Where(b => b.Cond == c).SelectMany(b => b.FlickZ).Select(z => (z - fm) / fs).ToList();
+        List<double> M(int c) => blocks.Where(b => b.Cond == c).SelectMany(b => b.MicroZ).Select(z => (z - mm) / ms).ToList();
         List<double> T(int c) => blocks.Where(b => b.Cond == c).SelectMany(b => b.TrackLogit).Select(z => (z - tm) / ts).ToList();
-        var f0 = F(0); var f1 = F(1); var t0 = T(0); var t1 = T(1);
-        bool hasF = f0.Count >= 2 && f1.Count >= 2, hasT = t0.Count >= 2 && t1.Count >= 2;
-        double wf = hasF ? WFlick : 0, wt = hasT ? WTrack : 0, sum = wf + wt;
-        if (sum <= 0) return new SfComparison(0, 0, 0, 0, 0, 0, 0, f0.Count, f1.Count, t0.Count, t1.Count);
-        wf /= sum; wt /= sum;
+        var f0 = F(0); var f1 = F(1); var m0 = M(0); var m1 = M(1); var t0 = T(0); var t1 = T(1);
+        bool hasF = f0.Count >= 2 && f1.Count >= 2, hasM = m0.Count >= 2 && m1.Count >= 2, hasT = t0.Count >= 2 && t1.Count >= 2;
+        var w = fine ? WFine : WCoarse;
+        double wf = hasF ? w[0] : 0, wm = hasM ? w[1] : 0, wt = hasT ? w[2] : 0, sum = wf + wm + wt;
+        if (sum <= 0) return new SfComparison(0, 0, 0, 0, 0, 0, 0, f0.Count, f1.Count, t0.Count, t1.Count) { NMicro0 = m0.Count, NMicro1 = m1.Count };
+        wf /= sum; wm /= sum; wt /= sum;
         var (df, sf) = hasF ? Welch(f0, f1) : (0, 0);
+        var (dm, sm) = hasM ? Welch(m0, m1) : (0, 0);
         var (dt, st) = hasT ? Welch(t0, t1) : (0, 0);
-        double d = wf * df + wt * dt, se = Math.Sqrt(wf * wf * sf * sf + wt * wt * st * st);
+        double d = wf * df + wm * dm + wt * dt, se = Math.Sqrt(wf * wf * sf * sf + wm * wm * sm * sm + wt * wt * st * st);
         double t = se > 1e-9 ? d / se : 0;
         foreach (var b in blocks)
         {
             double bf = b.FlickZ.Count > 0 ? b.FlickZ.Average(z => (z - fm) / fs) : 0;
+            double bm = b.MicroZ.Count > 0 ? b.MicroZ.Average(z => (z - mm) / ms) : 0;
             double bt = b.TrackLogit.Count > 0 ? b.TrackLogit.Average(z => (z - tm) / ts) : 0;
-            b.Score = wf * bf + wt * bt;
+            b.Score = wf * bf + wm * bm + wt * bt;
         }
-        return new SfComparison(d, se, t, df, sf, dt, st, f0.Count, f1.Count, t0.Count, t1.Count);
+        return new SfComparison(d, se, t, df, sf, dt, st, f0.Count, f1.Count, t0.Count, t1.Count)
+            { DMicro = dm, SeMicro = sm, NMicro0 = m0.Count, NMicro1 = m1.Count };
     }
 
     static (double Mean, double Sd) Moments(IEnumerable<double> v)

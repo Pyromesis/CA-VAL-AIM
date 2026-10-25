@@ -34,8 +34,8 @@ public sealed class LiveCoach
         tel = telemetry;
         string b = RunAnalysis.Base(modeKey);
         movementDrill = movement;
-        staticDrill = b is "flick" or "gridshot" or "spider" or "microshot" or "popup" or "switch";
-        trackingDrill = b is "tracking" or "airtrack" or "reacttrack";
+        staticDrill = b is "flick" or "gridshot" or "spider" or "microshot" or "popup" or "switch" or "flickx" or "microx" or "reflex";
+        trackingDrill = b is "tracking" or "airtrack" or "reacttrack" or "trackv";
         reactionDrill = b is "reaction" or "reactlab";
         botDrill = !staticDrill && !trackingDrill && !reactionDrill && b is not ("sensfinder" or "xhairfinder" or "crosshairfinder");
     }

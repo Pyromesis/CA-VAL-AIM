@@ -110,15 +110,17 @@ public partial class WhatsNewPanel : Control
 
     public override void _Ready()
     {
-        AddChild(new ColorRect { Color = new Color(0.02f, 0.04f, 0.06f, 0.72f), MouseFilter = MouseFilterEnum.Ignore, AnchorRight = 1, AnchorBottom = 1 });
+        AddChild(new ColorRect { Color = new Color(UiTheme.Bg, 0.88f), MouseFilter = MouseFilterEnum.Ignore, AnchorRight = 1, AnchorBottom = 1 });
+        Modulate = new Color(1, 1, 1, 0);
+        Ready += () => CreateTween().TweenProperty(this, "modulate:a", 1f, 0.25f).SetEase(Tween.EaseType.Out).SetTrans(Tween.TransitionType.Cubic);
         var center = new CenterContainer { MouseFilter = MouseFilterEnum.Ignore };
         center.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         AddChild(center);
 
         var vs = GetViewportRect().Size;
-        var panel = new VPanel
+        var panel = new MPanel
         {
-            Title = "WHAT'S NEW", Caption = $"CA-VAL-AIM {AppInfo.Version}", K = k, Fill = new Color(0.07f, 0.11f, 0.15f, 0.97f),
+            Title = "What's new", Caption = $"CA-VAL-AIM {AppInfo.Version}", K = k,
             CustomMinimumSize = new Vector2(Mathf.Min(960 * k, vs.X - 80 * k), Mathf.Min(760 * k, vs.Y - 80 * k)),
         };
         center.AddChild(panel);
@@ -144,13 +146,13 @@ public partial class WhatsNewPanel : Control
         foot.AddThemeConstantOverride("separation", (int)(14 * k));
         if (AppInfo.HasRepo)
         {
-            var all = new VButton { Label = "ALL RELEASES ON GITHUB", Kind = VButton.Look.Ghost, K = k, FontPx = 16, CustomMinimumSize = new Vector2(230 * k, 40 * k),
+            var all = new MLink { Label = "ALL RELEASES ON GITHUB", K = k, Px = 12f, Delay = 0.1f,
                 SizeFlagsVertical = SizeFlags.ShrinkCenter, TooltipText = "Opens the releases page in your browser" };
             all.Pressed += () => AppInfo.OpenGitHub(AppInfo.ReleasesUrl);
             foot.AddChild(all);
         }
         foot.AddChild(new Control { SizeFlagsHorizontal = SizeFlags.ExpandFill, MouseFilter = MouseFilterEnum.Ignore });
-        var ok = new VButton { Label = "GOT IT", Kind = VButton.Look.Primary, K = k, FontPx = 20, CustomMinimumSize = new Vector2(180 * k, 50 * k) };
+        var ok = new MAction { Label = "GOT IT", Primary = true, K = k, Px = 14f, Delay = 0.15f, CustomMinimumSize = new Vector2(200 * k, 50 * k) };
         ok.Pressed += () => onClose();
         foot.AddChild(ok);
         col.AddChild(foot);

@@ -23,8 +23,9 @@ public static class AboutLicenses
         "for more details.\n\n" +
         "You should have received a copy of the GNU General Public License along with this program (LICENSE.txt next " +
         "to the executable). If not, see <https://www.gnu.org/licenses/>.\n\n" +
-        "This build is based on the open-source ValTrainer project. The original copyright notices and license terms " +
-        "are preserved in NOTICE.\n\n" +
+        "This build is based on the open-source ValTrainer project, copyright (C) 2026 ValTrainer contributors\n" +
+        "(https://github.com/idoraz1/ValTrainer). The original copyright notices and license terms are preserved in\n" +
+        "NOTICE.txt next to the executable (NOTICE in the source repository).\n\n" +
         "CA-VAL-AIM is not affiliated with or endorsed by Riot Games. VALORANT is a trademark of Riot Games, Inc. " +
         "The optional maps folder contains Riot Games assets extracted for interoperability and is not covered by " +
         "the GNU GPL; see NOTICE and CREDITS.md.";

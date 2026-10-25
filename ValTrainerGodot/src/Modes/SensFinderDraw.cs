@@ -223,7 +223,7 @@ public sealed partial class SensFinderMode
             var vc = win < 0 || (s.Confirm && win == 1) ? UiTheme.Warn : UiTheme.Good;
             Gfx.TextR(c, UiTheme.HudWide, verdict, r.End.X - 8 * k, Gfx.Mid(cy - 8 * k, ts), ts, vc);
             var res = s.Result;
-            Gfx.TextR(c, UiTheme.Body, $"flicks {res.DFlick:+0.00;-0.00} · tracking {res.DTrack:+0.00;-0.00}", r.End.X - 8 * k, Gfx.Mid(cy + 12 * k, UiTheme.Fs(12, k)),
+            Gfx.TextR(c, UiTheme.Body, $"flicks {res.DFlick:+0.00;-0.00} · micro {res.DMicro:+0.00;-0.00} · tracking {res.DTrack:+0.00;-0.00}", r.End.X - 8 * k, Gfx.Mid(cy + 12 * k, UiTheme.Fs(12, k)),
                 UiTheme.Fs(12, k), UiTheme.Faint);
         }
 

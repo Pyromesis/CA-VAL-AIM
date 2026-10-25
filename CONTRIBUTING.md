@@ -82,9 +82,20 @@ Releases are built on Windows and published manually:
 
 1. Set the version in `ValTrainerGodot/project.godot` (`application/config/version`) and add a `CHANGELOG.md` section.
 2. Build and test the C# code, then export the Windows .NET build.
-3. Stage the exported app, add `LICENSE.txt`, `NOTICE`, `THIRD-PARTY-NOTICES.txt` and the optional `maps/` folder.
-4. Build `ValTraining-<version>-Setup.exe` with Inno Setup and `ValTraining-<version>-Portable.zip` from the same stage.
-5. Generate `SHA256SUMS.txt` and publish a GitHub Release with the two packages and the checksums.
+3. Stage the exported app (`-Stage app` writes `LICENSE.txt`, `NOTICE.txt` and `THIRD-PARTY-NOTICES.txt` beside it)
+   and add the optional `maps/` folder.
+4. Build `ValTraining-<version>-Setup.exe` with Inno Setup (`tools\build-release.ps1 -SkipPortable`, as the release
+   workflow does).
+5. Generate `SHA256SUMS.txt` and publish a GitHub Release with the installer and the checksums.
+
+The Release workflow builds and publishes the installer when a tag is pushed. A release that ships the full map set
+rebuilds the installer locally from that published one plus `maps/` (`-Stage package -SkipPortable`) and replaces the
+asset with `gh release upload --clobber`; the workflow never sees the git-ignored maps.
+
+Since 1.17.0 releases publish **only the installer**: no `-Portable.zip`. `build-release.ps1` without `-SkipPortable`
+still builds one for local use, and the in-app updater still handles portable copies (it swaps the running exe in
+place, keeping its file name, so an old portable `ValTrainer.exe` stays `ValTrainer.exe`). A portable copy only updates
+itself if a release carries a `-Portable.zip`; otherwise it shows the update and opens the release page.
 
 **Names after the rename (1.18.0).** The product name in the app, the installer and the exe's version resource is
 **CA-VAL-AIM**, and the executable is `CA-VAL-AIM.exe` (`CA-VAL-AIM.pck` next to it). Some names stay on purpose:
@@ -116,4 +127,6 @@ operate your own signing project.
 
 By contributing, you agree that your changes are licensed under the GNU GPL v3 or later, like the rest of the project.
 See `LICENSE` and `NOTICE`. Do not remove the original copyright notice or the GPL terms: this project is a modified
-version of ValTrainer, and those notices are required by the license.
+version of **ValTrainer** (<https://github.com/idoraz1/ValTrainer>), copyright (C) 2026 ValTrainer contributors, also
+GPL-3.0-or-later, and those notices are required by the license. Keep the full corresponding source public: every
+binary release must come with the source of the same version.

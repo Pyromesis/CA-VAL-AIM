@@ -152,6 +152,16 @@ public partial class Sfx : Node
 
         // ---- UI ----
         Add("tick", 0.06f, 2, () => t => (Sin(880, t) + 0.25f * Sin(2640, t)) * Env(t, 0.001f, 0.025f) * 0.35f);
+        // Interface (1.18): soft and low, no bright harmonics. A click is a 60 ms "tock" whose pitch settles from 560 to
+        // 470 Hz; a confirmation is two quiet rounded notes a fifth apart.
+        Add("ui_click", 0.07f, 3, () => t =>
+        {
+            float f = 470f + 90f * MathF.Exp(-t / 0.012f);
+            return MathF.Sin(2 * MathF.PI * f * t) * (1f - MathF.Exp(-t / 0.002f)) * MathF.Exp(-t / 0.016f) * 0.55f;
+        });
+        Add("ui_confirm", 0.32f, 1, () => t =>
+            (Sin(587, t) * (1f - MathF.Exp(-t / 0.004f)) * MathF.Exp(-t / 0.05f)
+             + (t > 0.09f ? Sin(880, t) * (1f - MathF.Exp(-(t - 0.09f) / 0.004f)) * MathF.Exp(-(t - 0.09f) / 0.07f) : 0f)) * 0.35f);
         Add("go", 0.45f, 1, () =>
         {
             var sw = new BPSweep(500, 4000, 0.4f, 1.5f);

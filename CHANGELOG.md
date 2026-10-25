@@ -2,6 +2,49 @@
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-10-25
+
+### Added
+
+- **60 new aim drills, 15 per family**, each with its own library tab: **Flick** (close, mid-range, long, wide, turn,
+  head-line, vertical, centre-out, triple, timed, blitz, drifting, tiny, big, mixed-range), **Tracking** (slow and fast
+  strafes, close, long-range, stop-and-go, orbit, bobbing, figure-8, zigzag, jumper, wander, surge, approach, tiny-fast,
+  wide), **Micro** (micro steps, small/medium adjusts, far, pinpoint, head-line, ladder, cluster, drifting, timed, quick,
+  close, mixed, double, body-to-head) and **Reflex** (centre, near, wide, peripheral, quick, lightning, long-range, big,
+  tiny, rapid, patient, vertical, double, close, mixed). They differ in distance, size, speed, timing and pattern, feed
+  the coach like the existing drills and play in the preview.
+- **Sens Finder fine-tunes on micro-adjustments.** Each block adds four 0.8–3° corrections to a half-size head, scored
+  on their own; they weigh 25% while the search narrows the sens and 40% in the fine steps and the confirmation, where
+  the small corrections decide.
+- **Interface sound settings** (Settings → Audio): *Interface sounds* on/off and *Interface volume*.
+
+### Changed
+
+- **Only the installer is published.** Releases carry `ValTraining-<version>-Setup.exe` and `SHA256SUMS.txt`, no
+  portable zip (as in 1.17.0). A portable copy from an older release still sees the update and opens the release page;
+  it keeps its own exe name if a later release ships a portable zip again.
+- **Quieter interface.** Hovering is silent (it played a bright 1.5 kHz tick on every button), a click is a soft, low
+  60 ms "tock" and a confirmation two quiet notes (it used the kill sound). Screen changes and loading make no sound.
+- **The rest of the menu follows the new style**: the map selector (‹ Name › with a full-screen map picker), the
+  update strip and the footer's update link, the drill preview pop-up, the *What's new* and updates panels. The red
+  sweep along the top of the screen on every screen change is gone from the minimal screens.
+- **Upstream credit made explicit.** `NOTICE`, the README, `CREDITS.md` and Settings → About → Licenses now name
+  **ValTrainer** and link to <https://github.com/idoraz1/ValTrainer>, and the installer ships `NOTICE.txt` next to the
+  executable. `THIRD-PARTY-NOTICES.txt` repeats the attribution. No code or licence terms changed.
+
+### Fixed
+
+- **No more spawns inside walls or under the map.** The collision of all 13 maps is sealed against the art (hidden
+  ground under raised floors filled, walk-through art walls closed). Each map ships a `spawn_exclude.json` from the
+  spawn audit: the Deathmatch never spawns on the pool points the art check rejects, and 7 drill spots that stood in
+  art, under a floor or on an invisible slab move to the nearest clean point (Bind Hall Door and plant 1, Icebox Fence,
+  Fracture Drop, Sunset retake 0, Corrode Mid Window, and Pearl's second retake entry, which moved 3.7 m in the map
+  data). Seven more spots that the minimap marked as outside the playable area move 0.5–3.9 m to the nearest point
+  inside it with a floor and no wall (Ascent Boxes and retake 1, Bind Hall and retake 1, Fracture Site Corner, Pearl A
+  Link and Default). Final audit: every drill start, every authored spot and 100% of every map's Deathmatch spawn pool
+  pass; a second sealing pass closed further walk-through walls on Breeze, Icebox, Pearl, Summit, Corrode, Abyss and
+  Lotus.
+
 ## [1.18.0] - 2026-10-24
 
 ### Added

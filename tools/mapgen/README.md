@@ -134,7 +134,9 @@ the rerun — keep it, it is the only backup of the hand-tuned boxes.
 
 `seal_map.py <installed maps> <out maps> [map ...] --dump spawns.json` patches a shipped
 `collision.json` additively (hidden ground under raised floors, walk-through art walls) into
-`<out>/<map>/` and keeps the shipped file as `collision.json.orig`. All 13 maps of the 1.18 set
+`<out>/<map>/` and keeps the shipped file as `collision.json.orig`. It always starts from the
+`collision.json.orig` it finds, so a second pass needs a source folder without the `.orig`, and
+`--no-hidden` (the hidden-ground fills don't change between passes and would be added twice). All 13 maps of the 1.18 set
 were sealed this way into the repository's (git-ignored) `dist-maps/maps`.
 
 Then the spawn audit, against the art:

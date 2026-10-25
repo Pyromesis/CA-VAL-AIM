@@ -12,7 +12,7 @@ static class RunAnalysis
 {
     /// <summary>First sightings further off the crosshair than this aren't crosshair placement (= TrainingMode.SeenMaxDeg).</summary>
     const float SeenMaxDeg = 60f;
-    static readonly HashSet<string> StaticModes = new() { "flick", "spider", "gridshot", "microshot", "popup" };
+    static readonly HashSet<string> StaticModes = new() { "flick", "spider", "gridshot", "microshot", "popup", "flickx", "microx", "reflex" };
     static readonly HashSet<string> SpawnBotModes = new() { "strafebots", "counterstrafe", "switch" };
     static readonly HashSet<string> SeenBotModes = new()
     {
@@ -44,7 +44,7 @@ static class RunAnalysis
         m["run.secs"] = p.Ft[^1] - p.Ft[0];
         Flicks(p, m);
         SpeedTier(p, m);
-        if (t.Mode is "tracking" or "airtrack" or "reacttrack") Tracking(p, m);
+        if (Base(t.Mode) is "tracking" or "airtrack" or "reacttrack" or "trackv") Tracking(p, m);
         Crosshair(p, m);
         Movement(p, m);
         if (t.Mode is "spray_vandal" or "spray_phantom" or "spray_transfer") Spray(p, m);

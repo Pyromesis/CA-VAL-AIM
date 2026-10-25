@@ -10,10 +10,10 @@
 ; SHA-256 against the release's SHA256SUMS.txt and runs
 ;   Setup.exe /SILENT /SUPPRESSMSGBOXES /NORESTART /CLOSEAPPLICATIONS /SP- /CURRENTUSER|/ALLUSERS /RELAUNCH
 ;             [/RELAUNCHARGS=arg1|arg2|...] /LOG=<file>
-; /RELAUNCH (silent installs only) starts ValTrainer again when Setup is done, with the '|'-separated arguments of
-; /RELAUNCHARGS. install.ini next to ValTrainer.exe tells the app it was installed by this Setup (AppId and per-user or
+; /RELAUNCH (silent installs only) starts CA-VAL-AIM again when Setup is done, with the '|'-separated arguments of
+; /RELAUNCHARGS. install.ini next to CA-VAL-AIM.exe tells the app it was installed by this Setup (AppId and per-user or
 ; all-users mode); the app also checks that Windows' uninstall entry for that AppId points at its own folder.
-; Setup and the uninstaller wait until ValTrainer.exe has exited before changing anything (see PrepareToInstall).
+; Setup and the uninstaller wait until CA-VAL-AIM.exe (or, on an update from 1.17.0 or older, ValTrainer.exe) has exited before changing anything (see PrepareToInstall).
 ; Interactive installs behave exactly as before.
 
 #ifndef AppVersion
@@ -23,7 +23,7 @@
   #define AppFileVersion "0.0.0.0"
 #endif
 #ifndef SourceDir
-  #error Pass /DSourceDir=<folder with ValTrainer.exe, ValTrainer.pck, data_ValTrainer_windows_x86_64, LICENSE.txt, THIRD-PARTY-NOTICES.txt>
+  #error Pass /DSourceDir=<folder with CA-VAL-AIM.exe, CA-VAL-AIM.pck, data_ValTrainer_windows_x86_64, LICENSE.txt, THIRD-PARTY-NOTICES.txt>
 #endif
 #ifndef IconFile
   #define IconFile AddBackslash(SourcePath) + "ValTrainer.ico"
@@ -53,7 +53,7 @@ AppName=CA-VAL-AIM
 AppVersion={#AppVersion}
 AppVerName=CA-VAL-AIM {#AppVersion}
 AppPublisher=Pyromesis
-AppCopyright=Copyright (C) 2026 Pyromesis and contributors. Formerly ValTraining, based on ValTrainer; see NOTICE. GPL-3.0-or-later.
+AppCopyright=Copyright (C) 2026 Pyromesis and contributors. Formerly ValTraining, based on ValTrainer (https://github.com/idoraz1/ValTrainer); see NOTICE.txt. GPL-3.0-or-later.
 #if HasRepo
 AppPublisherURL=https://github.com/{#GitHubRepo}
 AppSupportURL=https://github.com/{#GitHubRepo}/issues
@@ -62,13 +62,13 @@ AppUpdatesURL=https://github.com/{#GitHubRepo}/releases
 AppComments=Free, fan-made VALORANT-style aim trainer. Not affiliated with Riot Games.
 VersionInfoVersion={#AppFileVersion}
 VersionInfoProductVersion={#AppFileVersion}
-; Product version x.y.z.0 like ValTrainer.exe (SignPath Foundation: one product version for all signed files).
+; Product version x.y.z.0 like CA-VAL-AIM.exe (SignPath Foundation: one product version for all signed files).
 VersionInfoProductTextVersion={#AppFileVersion}
 VersionInfoTextVersion={#AppVersion}
 VersionInfoCompany=Pyromesis
 VersionInfoDescription=CA-VAL-AIM Setup
 VersionInfoProductName=CA-VAL-AIM
-VersionInfoCopyright=Copyright (C) 2026 Pyromesis and contributors. GPL-3.0-or-later. See NOTICE.
+VersionInfoCopyright=Copyright (C) 2026 Pyromesis and contributors. GPL-3.0-or-later. See NOTICE.txt.
 
 ; Per-user by default: no UAC prompt. Upgrades keep the previous folder (UsePreviousAppDir); new installs go to
 ; %LOCALAPPDATA%\Programs\CA-VAL-AIM.
@@ -332,13 +332,13 @@ begin
   end;
 end;
 
-{ ---------- wait until ValTrainer has exited ---------- }
+{ ---------- wait until the app has exited ---------- }
 { The app quits right after starting an update, but shutting down can take a few seconds. Setup must not touch any file
-  before then: [InstallDelete] would remove the .NET files the app hasn't loaded, a still-locked ValTrainer.exe would
+  before then: [InstallDelete] would remove the .NET files the app hasn't loaded, a still-locked exe would
   then abort the install, and the rollback can't bring the deleted files back (1.4.1 -> 1.4.2 broke like that).
   Nothing is ever killed: Setup only waits (silent) or asks the player to close it (interactive). }
 
-{ True while some process runs this ValTrainer.exe: Windows refuses to open a running exe for writing. }
+{ True while some process runs this exe (CA-VAL-AIM.exe or the legacy ValTrainer.exe): Windows refuses to open a running exe for writing. }
 function ExeInUse(const Exe: String): Boolean;
 var
   F: TFileStream;

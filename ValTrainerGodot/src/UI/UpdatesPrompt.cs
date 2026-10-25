@@ -69,15 +69,17 @@ public partial class UpdatesPromptPanel : Control
 
     public override void _Ready()
     {
-        AddChild(new ColorRect { Color = new Color(0.02f, 0.04f, 0.06f, 0.72f), MouseFilter = MouseFilterEnum.Ignore, AnchorRight = 1, AnchorBottom = 1 });
+        AddChild(new ColorRect { Color = new Color(UiTheme.Bg, 0.88f), MouseFilter = MouseFilterEnum.Ignore, AnchorRight = 1, AnchorBottom = 1 });
+        Modulate = new Color(1, 1, 1, 0);
+        Ready += () => CreateTween().TweenProperty(this, "modulate:a", 1f, 0.25f).SetEase(Tween.EaseType.Out).SetTrans(Tween.TransitionType.Cubic);
         var center = new CenterContainer { MouseFilter = MouseFilterEnum.Ignore };
         center.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         AddChild(center);
 
         var vs = GetViewportRect().Size;
-        var panel = new VPanel
+        var panel = new MPanel
         {
-            Title = "UPDATES", Caption = $"CA-VAL-AIM {AppInfo.Version}", K = k, Fill = new Color(0.07f, 0.11f, 0.15f, 0.97f),
+            Title = "Updates", Caption = $"CA-VAL-AIM {AppInfo.Version}", K = k,
             CustomMinimumSize = new Vector2(Mathf.Min(780 * k, vs.X - 80 * k), 0),
         };
         center.AddChild(panel);
@@ -90,11 +92,9 @@ public partial class UpdatesPromptPanel : Control
             CustomMinimumSize = new Vector2(0, 58 * k),
             OnDraw = b =>
             {
-                int fs = UiTheme.Fs(40, k);
-                float y = b.Size.Y - 14 * k;
-                const string q1 = "CHECK GITHUB FOR ", q2 = "NEW VERSIONS?";
-                Gfx.Text(b, UiTheme.Display, q1, 0, y, fs, UiTheme.Text);
-                Gfx.Text(b, UiTheme.Display, q2, Gfx.TextW(UiTheme.Display, q1, fs), y, fs, UiTheme.Accent);
+                int fs = UiTheme.Fs(30, k);
+                float y = b.Size.Y - 16 * k;
+                Gfx.Text(b, UiTheme.Light, "Check GitHub for new versions?", 0, y, fs, UiTheme.Text);
             },
         });
         col.AddChild(Text("CA-VAL-AIM can keep itself up to date. If you turn this on, it will:", 16, UiTheme.Dim));
@@ -108,11 +108,11 @@ public partial class UpdatesPromptPanel : Control
         var foot = new HBoxContainer();
         foot.AddThemeConstantOverride("separation", (int)(14 * k));
         foot.AddChild(new Control { SizeFlagsHorizontal = SizeFlags.ExpandFill, MouseFilter = MouseFilterEnum.Ignore });
-        var no = new VButton { Label = "NOT NOW", Kind = VButton.Look.Ghost, K = k, FontPx = 18, CustomMinimumSize = new Vector2(150 * k, 50 * k),
+        var no = new MLink { Label = "NOT NOW", K = k, Px = 12.5f, Delay = 0.1f, SizeFlagsVertical = SizeFlags.ShrinkCenter,
             TooltipText = "No update checks; you can turn them on later in Settings → About" };
         no.Pressed += () => onAnswer(false);
         foot.AddChild(no);
-        var yes = new VButton { Label = "ENABLE UPDATES", Kind = VButton.Look.Primary, K = k, FontPx = 20, CustomMinimumSize = new Vector2(230 * k, 50 * k),
+        var yes = new MAction { Label = "ENABLE UPDATES", Primary = true, K = k, Px = 14f, Delay = 0.15f, CustomMinimumSize = new Vector2(250 * k, 50 * k),
             TooltipText = "Check GitHub for new versions and download them in the background" };
         yes.Pressed += () => onAnswer(true);
         foot.AddChild(yes);

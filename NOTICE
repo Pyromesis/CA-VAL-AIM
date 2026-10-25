@@ -2,14 +2,21 @@ CA-VAL-AIM (formerly ValTraining)
 Copyright (C) 2026 Pyromesis and contributors
 
 This program is a modified version of ValTrainer, Copyright (C) 2026 ValTrainer
-contributors. The original work is licensed under the GNU General Public License,
-version 3 or later.
+contributors, https://github.com/idoraz1/ValTrainer. The original work is licensed
+under the GNU General Public License, version 3 or later.
+
+The complete source of this modified version is
+https://github.com/Pyromesis/CA-VAL-AIM (the same place the binaries are offered).
+The original copyright notice and licence terms above are preserved as required by
+section 5 of the GNU GPL version 3.
 
 Modifications for ValTraining / CA-VAL-AIM (2026): rebranding (ValTraining in
-1.16.1, CA-VAL-AIM in 1.18.0), additional map geometry, collision and movement
-fixes, Vandal/Phantom and full-arsenal weapon behaviour, sensitivity tools,
-reaction-time and tracking drills, deathmatch bots, a live coach, Spanish UI and
-release packaging.
+1.16.1, CA-VAL-AIM in 1.18.0), additional map geometry, sealed collision and a
+spawn audit, collision and movement fixes, Vandal/Phantom and full-arsenal weapon
+behaviour, sensitivity tools (including the micro-adjustment Sens Finder),
+reaction-time, tracking, flick, micro and reflex drills, deathmatch bots, a live
+coach, a minimalist interface with its own sound settings, Spanish UI and release
+packaging.
 
 This program is free software: you can redistribute it and/or modify it under the
 terms of the GNU General Public License as published by the Free Software Foundation,

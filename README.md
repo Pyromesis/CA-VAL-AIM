@@ -81,6 +81,7 @@ its memory or your input.
 | Category | Drills |
 |---|---|
 | Aim | Gridshot, Head Flicks, Spidershot, Strafe Tracking, **Air Tracking**, **Reactive Tracking**, Microshot, Target Switch, Pop-up Reflex |
+| Flick · Tracking · Micro · Reflex | 15 drills each (60 in all): distances, sizes, speeds, timings and patterns for every aim skill |
 | VALORANT | Strafe Bots, Peek Practice, Operator, Long-range Taps, **Arsenal Range** (every weapon's damage and time to kill) |
 | Recoil | **Vandal Spray / Phantom Spray**, Spray Transfer |
 | Movement | Counter-Strafe, Peek Duels, Jump Peek, Jiggle Peek |
@@ -153,7 +154,7 @@ recent runs are kept). The coach analyses them:
 - **Target order:** in Gridshot the coach checks whether you go for the target nearest your crosshair.
 - **Trends and today's plan:** each skill shows whether it is improving or dropping, and the coach suggests one
   drill per top problem.
-- **Sens Finder:** a blind A/B test of about 13 minutes. It narrows down to the sensitivity you score best with and ends
+- **Sens Finder:** a blind A/B test of about 15 minutes with flicks, micro-adjustments and tracking (the micro-adjustments decide the fine steps). It narrows down to the sensitivity you score best with and ends
   with a recommended VALORANT sens, eDPI and cm/360, plus a button to use it in CA-VAL-AIM. VALORANT itself is never
   changed.
 
@@ -198,8 +199,11 @@ CA-VAL-AIM is free software: you can redistribute it and/or modify it under the 
 License, version 3 or (at your option) any later version** (SPDX: `GPL-3.0-or-later`). See [LICENSE](LICENSE). It is
 distributed in the hope that it will be useful, but without any warranty.
 
-CA-VAL-AIM (formerly ValTraining) is a modified version of ValTrainer. The original copyright notice and GPL terms are preserved in
-[NOTICE](NOTICE). The original source is available from the same GPL project; the modified source is this repository.
+CA-VAL-AIM (formerly ValTraining) is a modified version of **ValTrainer**
+([idoraz1/ValTrainer](https://github.com/idoraz1/ValTrainer)), copyright (C) 2026 ValTrainer contributors, also
+under GPL-3.0-or-later. The original copyright notice and GPL terms are preserved in [NOTICE](NOTICE), which the
+installer ships as `NOTICE.txt`; the modified source is this repository. ValTrainer's own source is available at
+<https://github.com/idoraz1/ValTrainer>.
 
 All 3D models, textures, skies and recorded sounds are CC0 (public domain), except the official VALORANT map minimaps
 and the optional extracted map geometry in `maps/` (© Riot Games, not CC0; see

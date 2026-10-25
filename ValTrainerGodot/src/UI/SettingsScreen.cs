@@ -185,7 +185,7 @@ public partial class SettingsScreen : ScreenBase
                 int idx = Math.Max(0, App.Accounts.IndexOf(CurrentAccount()));
                 St.AccountId = App.Accounts[(idx + d + App.Accounts.Count) % App.Accounts.Count].Id;
                 App.Reimport();
-                Sfx.I?.Play("kill1", 0.4f);
+                UiTheme.ConfirmSound();
             },
             enabled: () => App.Accounts.Count > 1,
             note: () => App.Accounts.Count == 0 ? "No Valorant config folder found on this PC"
@@ -505,6 +505,21 @@ public partial class SettingsScreen : ScreenBase
                 Sfx.I?.Play("body");
             },
             bar: () => St.Volume));
+        v.AddChild(Segmented("Interface sounds", new[] { "OFF", "ON" }, () => St.UiSounds ? 1 : 0, i =>
+            {
+                St.UiSounds = i == 1;
+                UiTheme.ClickSound();
+            },
+            note: () => St.UiSounds ? "A soft click on buttons and a quiet chime on confirmations; hover is silent" : "Menus make no sound"));
+        v.AddChild(Selector("Interface volume", () => $"{St.UiVolume * 100:0}%",
+            d =>
+            {
+                St.UiVolume = Math.Clamp(MathF.Round((St.UiVolume + d * 0.05f) * 20f) / 20f, 0f, 1f);
+                UiTheme.ClickSound();
+            },
+            enabled: () => St.UiSounds,
+            note: () => "Relative to the volume above",
+            bar: () => St.UiVolume));
     }
 
     // ---------------- right column (read-only) ----------------
@@ -569,7 +584,7 @@ public partial class SettingsScreen : ScreenBase
             App.Reimport();
             App.ApplyFps();
             reimportFlash = 2.5f;
-            Sfx.I?.Play("kill1", 0.5f);
+            UiTheme.ConfirmSound();
             RefreshAll();
         }, 300, 50, 18);
         bottom.AddChild(re);

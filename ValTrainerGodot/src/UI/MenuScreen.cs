@@ -23,13 +23,14 @@ public partial class MenuScreen : ScreenBase
     readonly List<(Func<TrainingMode> Make, TrainingMode Info)> modes =
         ModeRegistry.All.Select(f => (Make: f, Info: f())).Where(m => m.Info.Category != AgentsCategory).ToList();
     readonly List<(MDrillRow Row, TrainingMode Info)> rows = new();
-    MapSelector? mapSel;
+    MMapSelector? mapSel;
     /// <summary>"ALL" or one of the drill categories: only that category's drills are listed.</summary>
     string catFilter = "ALL";
     SessionSummary summary;
     GridContainer? grid;
     MText? tierNote, dmNote, subLine;
     int gridColumns = 3;
+    float libraryWidth;
 
     protected override bool AnimatedBackdrop => false;
 
@@ -93,6 +94,7 @@ public partial class MenuScreen : ScreenBase
 
         float leftW = vp.X - side * 2 - rightW - body.GetThemeConstant("separation");
         gridColumns = leftW >= 1050 * k ? 3 : leftW >= 640 * k ? 2 : 1;
+        libraryWidth = leftW - 110 * k;
         BuildLeft(left);
         BuildRight(right);
 
@@ -234,7 +236,7 @@ public partial class MenuScreen : ScreenBase
         if (!cats.Contains(catFilter)) catFilter = "ALL";
         var tabs = new MSegment
         {
-            K = k, Delay = 0.34f, Px = 12f, Gap = 22,
+            K = k, Delay = 0.34f, Px = 12f, Gap = 22, MaxWidth = libraryWidth,
             Options = cats.Select(c => c.ToUpperInvariant()).ToArray(),
             Counts = cats.Select(c => c == "ALL" ? modes.Count : modes.Count(m => m.Info.Category == c)).ToArray(),
             Selected = cats.IndexOf(catFilter),
@@ -359,9 +361,9 @@ public partial class MenuScreen : ScreenBase
         d += 0.06f;
         right.AddChild(Caption("MAP", d));
         right.AddChild(Spacer(0, 4 * k));
-        mapSel = new MapSelector(this, k, label: false) { SizeFlagsHorizontal = SizeFlags.ShrinkBegin };
+        mapSel = new MMapSelector(this, k) { SizeFlagsHorizontal = SizeFlags.ShrinkBegin, Delay = d + 0.03f };
         mapSel.Changed = () => { if (subLine != null) { subLine.Text = SubText(); subLine.QueueRedraw(); } };
-        right.AddChild(Mn.FadeIn(mapSel, d + 0.03f));
+        right.AddChild(mapSel);
 
         right.AddChild(Spacer(0, 26 * k));
         d += 0.06f;
@@ -578,8 +580,7 @@ public partial class MenuScreen : ScreenBase
         Quick("AMMO", new[] { "DEFAULT", "REAL", "INFINITE" }, st.AmmoMode switch { 0 => 1, 1 => 2, _ => 0 },
             i => { st.AmmoMode = i switch { 0 => -1, 1 => 0, _ => 1 }; st.Save(); }, "Default: each drill's own; Real: magazines and reloads; Infinite: never reload");
         Quick("LANGUAGE", new[] { "EN", "ES" }, Loc.Spanish ? 1 : 0, i => Main.I.SetLanguage(i == 1 ? "es" : "en"), "Interface language");
-        var upd = new UpdateNowButton { K = k, CustomMinimumSize = new Vector2(170 * k, 28 * k), SizeFlagsVertical = SizeFlags.ShrinkCenter };
-        f.AddChild(Mn.FadeIn(upd, 0.56f));
+        f.AddChild(new MUpdateLink { K = k, Px = 10.5f, Delay = 0.56f, CustomMinimumSize = new Vector2(190 * k, 30 * k), SizeFlagsVertical = SizeFlags.ShrinkCenter });
         if (AppInfo.HasRepo)
         {
             var gh = new MLink { K = k, Label = "GITHUB", Px = 11, Delay = 0.58f, TooltipText = "Source code, releases and issue tracker", SizeFlagsVertical = SizeFlags.ShrinkCenter };
@@ -629,11 +630,11 @@ public partial class MenuScreen : ScreenBase
 
     // ---------------- update banner ----------------
 
-    UpdateBanner? banner;
+    MUpdateStrip? banner;
 
-    /// <summary>The strip under the header: "X is available" (DOWNLOAD opens the release page) → "Downloading update
-    /// 42%" → "X is ready — RESTART TO UPDATE · WHAT'S NEW · LATER" (see <see cref="Updater"/>). Progress only redraws
-    /// the text; the buttons are rebuilt when the stage changes.</summary>
+    /// <summary>The strip under the header (minimal): "CA-VAL-AIM X is available · you have Y" with DOWNLOAD / SKIP / HIDE
+    /// links → "Downloading … 42%" with a thin progress line → "X is ready" with RESTART TO UPDATE (the accent) / WHAT'S
+    /// NEW / LATER (see <see cref="Updater"/>). Progress only redraws the strip; the links are rebuilt when the stage changes.</summary>
     void RefreshBanner()
     {
         if (bannerSlot == null || bannerRev == UpdateCheck.Revision) return;
@@ -645,71 +646,49 @@ public partial class MenuScreen : ScreenBase
         banner = null;
         if (ver == null) return;
         float k = K;
-        bannerSlot.AddChild(Spacer(0, 18 * k));
-        banner = new UpdateBanner { K = k, Version = ver, Kind = stage, CustomMinimumSize = new Vector2(0, 46 * k) };
-        var row = HBox(10 * k);
+        bannerSlot.AddChild(Spacer(0, 22 * k));
+        banner = new MUpdateStrip { K = k, Version = ver, Kind = stage, CustomMinimumSize = new Vector2(0, 40 * k) };
+        var row = HBox(26 * k);
         row.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
-        row.OffsetLeft = 236 * k; // text is drawn by the banner itself
-        row.OffsetRight = -8 * k;
+        row.OffsetBottom = -4 * k;
         row.Alignment = BoxContainer.AlignmentMode.End;
         banner.AddChild(row);
         string? url = UpdateCheck.LatestUrl ?? (AppInfo.HasRepo ? AppInfo.LatestReleaseUrl : null);
         bool hasPage = url != null && AppInfo.HasRepo;
-        void Add(VButton b)
+        float d = 0.1f;
+        MLink Link(string label, Action act, string tip, bool accent = false, bool disabled = false)
         {
-            b.SizeFlagsVertical = SizeFlags.ShrinkCenter;
-            row.AddChild(b);
+            var l = new MLink { K = k, Label = label, Px = 11.5f, Delay = d, TooltipText = tip, Tint = accent ? UiTheme.Accent : null, SizeFlagsVertical = SizeFlags.ShrinkCenter };
+            d += Mn.Stagger;
+            l.Pressed += act;
+            l.Disabled = disabled;
+            row.AddChild(l);
+            return l;
         }
-        VButton WhatsNew()
-        {
-            var b = Btn("WHAT'S NEW", VButton.Look.Ghost, () => AppInfo.OpenGitHub(url), 140, 32, 15);
-            b.Disabled = !hasPage;
-            b.TooltipText = "Opens the release notes in your browser";
-            return b;
-        }
+        void Hide() { UpdateCheck.BannerDismissed = true; bannerRev = -1; RefreshBanner(); }
         switch (stage)
         {
             case UpdateBanner.Stage.Ready:
-            {
-                var go = Btn("RESTART TO UPDATE", VButton.Look.Primary, Updater.RestartToUpdate, 210, 32, 16);
-                go.TooltipText = Updater.NeedsElevation
+                Link("RESTART TO UPDATE", Updater.RestartToUpdate, Updater.NeedsElevation
                     ? "Installs the update and restarts CA-VAL-AIM. CA-VAL-AIM is installed for all users, so Windows asks for permission"
-                    : "Installs the update and restarts CA-VAL-AIM (takes a few seconds; settings and stats are kept)";
-                Add(go);
-                Add(WhatsNew());
-                var later = Btn("LATER", VButton.Look.Ghost, () => { UpdateCheck.BannerDismissed = true; bannerRev = -1; RefreshBanner(); }, 100, 32, 15);
-                later.TooltipText = Updater.NeedsElevation ? "Hide until next launch" : "Installs the next time you start CA-VAL-AIM";
-                Add(later);
+                    : "Installs the update and restarts CA-VAL-AIM (takes a few seconds; settings and stats are kept)", accent: true);
+                Link("WHAT'S NEW", () => AppInfo.OpenGitHub(url), "Opens the release notes in your browser", disabled: !hasPage);
+                Link("LATER", Hide, Updater.NeedsElevation ? "Hide until next launch" : "Installs the next time you start CA-VAL-AIM");
                 break;
-            }
             case UpdateBanner.Stage.Applying:
                 break;
             default:
-            {
-                if (stage == UpdateBanner.Stage.Downloading) Add(WhatsNew());
+                if (stage == UpdateBanner.Stage.Downloading)
+                    Link("WHAT'S NEW", () => AppInfo.OpenGitHub(url), "Opens the release notes in your browser", disabled: !hasPage);
                 else
-                {
-                    var dl = Btn("DOWNLOAD", VButton.Look.Secondary, () =>
-                    {
-                        if (!Updater.UpdateNow()) AppInfo.OpenGitHub(url);
-                    }, 150, 32, 16);
-                    dl.Disabled = !hasPage;
-                    dl.TooltipText = dl.Disabled
-                        ? "No download page is set for this build"
-                        : "Downloads the update, verifies it against SHA256SUMS.txt and offers to restart";
-                    Add(dl);
-                }
-                var skip = Btn("SKIP THIS VERSION", VButton.Look.Ghost, () => UpdateCheck.SkipVersion(ver), 170, 32, 15);
-                skip.TooltipText = $"Don't remind me about {ver} again (and don't download it)";
-                Add(skip);
-                var close = Btn("×", VButton.Look.Ghost, () => { UpdateCheck.BannerDismissed = true; bannerRev = -1; RefreshBanner(); }, 36, 32, 24);
-                close.TitleFont = UiTheme.Body;
-                close.TooltipText = "Hide until next launch";
-                Add(close);
+                    Link("DOWNLOAD", () => { if (!Updater.UpdateNow()) AppInfo.OpenGitHub(url); },
+                        hasPage ? "Downloads the update, verifies it against SHA256SUMS.txt and offers to restart" : "No download page is set for this build",
+                        accent: true, disabled: !hasPage);
+                Link("SKIP THIS VERSION", () => UpdateCheck.SkipVersion(ver), $"Don't remind me about {ver} again (and don't download it)");
+                Link("HIDE", Hide, "Hide until next launch");
                 break;
-            }
         }
-        bannerSlot.AddChild(Mn.FadeIn(banner, 0f));
+        bannerSlot.AddChild(banner);
     }
 
     static UpdateBanner.Stage BannerStage(string ver)

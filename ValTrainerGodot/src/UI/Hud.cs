@@ -864,7 +864,7 @@ public partial class Hud : Control
             Sfx.Volume = st.Volume;
             st.Save();
             volField?.QueueRedraw();
-            Sfx.I?.Play("tick", 0.55f);
+            Sfx.I?.Play("ui_click", 0.8f); // previews the game volume
         }
         float abr = 38 * k;
         OverlayButton("", VButton.Look.Arrow, new Rect2(rightX, py + 202 * k, abr, abr), k, () => SetVolume(st.Volume - 0.05f)).Dir = -1;

@@ -986,7 +986,10 @@ public partial class UpdateNowButton : VButton
         if (seen != UpdateCheck.Revision) Refresh(false);
     }
 
-    void Act()
+    void Act() => DoAct();
+
+    /// <summary>What the update control does when pressed (shared with the minimal menu's <see cref="MUpdateLink"/>).</summary>
+    public static void DoAct()
     {
         if (Updater.Status is Updater.State.Applying or Updater.State.Downloading) return;
         if (Updater.Status == Updater.State.Ready)
@@ -1008,6 +1011,22 @@ public partial class UpdateNowButton : VButton
     {
         if (!force && seen == UpdateCheck.Revision) return;
         seen = UpdateCheck.Revision;
+        var (label, tip, disabled, primary) = Compute();
+        var look = primary ? Look.Primary : Look.Secondary;
+        if (Label != label)
+        {
+            Log.Info($"Update button: {label} (available {UpdateCheck.Latest ?? "none"}, updater {Updater.Status})");
+            Label = label;
+            QueueRedraw();
+        }
+        if (Kind != look) { Kind = look; QueueRedraw(); }
+        if (Disabled != disabled) { Disabled = disabled; QueueRedraw(); }
+        TooltipText = tip;
+    }
+
+    /// <summary>The update control's label, tooltip, disabled state and whether it is the primary action right now.</summary>
+    public static (string Label, string Tip, bool Disabled, bool Primary) Compute()
+    {
         string label = "CHECK FOR UPDATES";
         var look = Look.Secondary;
         bool disabled = false;
@@ -1070,15 +1089,7 @@ public partial class UpdateNowButton : VButton
             if (UpdateCheck.Status == UpdateCheck.State.Failed && UpdateCheck.Message != null)
                 tip = "Last check failed: " + UpdateCheck.Message;
         }
-        if (Label != label)
-        {
-            Log.Info($"Update button: {label} (available {UpdateCheck.Latest ?? "none"}, updater {Updater.Status})");
-            Label = label;
-            QueueRedraw();
-        }
-        if (Kind != look) { Kind = look; QueueRedraw(); }
-        if (Disabled != disabled) { Disabled = disabled; QueueRedraw(); }
-        TooltipText = tip;
+        return (label, tip, disabled, look == Look.Primary);
     }
 }
 

@@ -1210,6 +1210,12 @@ public static class Loc
         ["much"] = "mucho",
         ["many"] = "muchos",
         ["few"] = "pocos",
+        // 1.18: interface sounds, reaction stats, loading
+        ["Interface sounds"] = "Sonidos de interfaz",
+        ["Interface volume"] = "Volumen de interfaz",
+        ["A soft click on buttons and a quiet chime on confirmations; hover is silent"] = "Un clic suave en los botones y un aviso discreto al confirmar; pasar el ratón no suena",
+        ["Menus make no sound"] = "Los menús no hacen ningún sonido",
+        ["Relative to the volume above"] = "Relativo al volumen de arriba",
     };
 
     /// <summary>

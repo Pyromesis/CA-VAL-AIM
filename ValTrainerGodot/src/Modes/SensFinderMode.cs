@@ -23,7 +23,7 @@ public sealed partial class SensFinderMode : TrainingMode
     public override string Key => "sensfinder";
     public override bool PreviewDemo => false; // blind A/B choices: only a person can play it
     public override string Name => "Sens Finder";
-    public override string Description => "Blind A/B test of sensitivities with flicks + tracking. Finds the sens you actually perform best with.";
+    public override string Description => "Blind A/B test of sensitivities with flicks, micro-adjustments and tracking. Finds the sens you perform best with, then fine-tunes it on the small corrections.";
     public override string Category => "Coach";
     public override WeaponKind Weapon => WeaponKind.None;
     public override bool Timed => false;
@@ -302,11 +302,11 @@ public sealed partial class SensFinderMode : TrainingMode
     void EndStage()
     {
         var st = stage!;
-        var cmp = SfStats.Compare(st.Blocks);
+        var cmp = SfStats.Compare(st.Blocks, fine: st.Confirm || st.HalfWidth <= 1.09f);
         st.Result = cmp;
         foreach (var b in st.Blocks) Event("sens_trial", b.Sens, (float)b.Score);
         float acc = st.Accuracy;
-        string stats = $"d={cmp.D:+0.000;-0.000} SE={cmp.Se:0.000} t={cmp.T:+0.00;-0.00} (flick d={cmp.DFlick:+0.00;-0.00}+/-{cmp.SeFlick:0.00} n={cmp.NFlick0}/{cmp.NFlick1}, track d={cmp.DTrack:+0.00;-0.00}+/-{cmp.SeTrack:0.00} n={cmp.NTrack0}/{cmp.NTrack1}) acc={acc * 100:0}%";
+        string stats = $"d={cmp.D:+0.000;-0.000} SE={cmp.Se:0.000} t={cmp.T:+0.00;-0.00} (flick d={cmp.DFlick:+0.00;-0.00}+/-{cmp.SeFlick:0.00} n={cmp.NFlick0}/{cmp.NFlick1}, micro d={cmp.DMicro:+0.00;-0.00}+/-{cmp.SeMicro:0.00} n={cmp.NMicro0}/{cmp.NMicro1}, track d={cmp.DTrack:+0.00;-0.00}+/-{cmp.SeTrack:0.00} n={cmp.NTrack0}/{cmp.NTrack1}) acc={acc * 100:0}%";
         if (!st.Confirm)
         {
             int win = cmp.T > 1 ? 0 : cmp.T < -1 ? 1 : -1;
@@ -393,6 +393,7 @@ public sealed partial class SensFinderMode : TrainingMode
         var (f, _) = seq[flickIdx];
         var dir = PlaceFlick(f);
         flickT.Position = G.View.Eye + dir * SensFinderConfig.FlickDist;
+        flickT.SetRadius(SensFinderConfig.FlickRadius * f.RScale); // micro-adjustments: a half-size head
         flickT.SpawnTime = Now;
         flickT.Visible = true;
         focusId++;
@@ -438,7 +439,7 @@ public sealed partial class SensFinderMode : TrainingMode
 
     void EndTrial(bool hit)
     {
-        var (_, scored) = seq[flickIdx];
+        var (fl, scored) = seq[flickIdx];
         var b = block!;
         if (hit)
         {
@@ -457,7 +458,7 @@ public sealed partial class SensFinderMode : TrainingMode
         mt = Mathf.Max(0.08f, mt + 0.15f * misses);
         if (scored)
         {
-            b.FlickZ.Add(Math.Log(SfStats.Id(amp, rAng) / mt));
+            (fl.Micro ? b.MicroZ : b.FlickZ).Add(Math.Log(SfStats.Id(amp, rAng) / mt));
             b.FlickMt.Add(mt);
         }
         Event("sf_flick", amp, hit ? mt * 1000f : -1f);

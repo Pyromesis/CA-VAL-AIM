@@ -90,8 +90,17 @@ public static class SpawnSafety
         List<(Vector3 From, Vector3 At, Vector3 To)>? list;
         lock (moves) moves.TryGetValue(KeyOf(world), out list);
         if (list != null)
+        {
+            // the closest listed spot wins (two authored spots can sit within 0.6 m of each other)
+            float best = 0.6f;
+            Vector3? moved = null;
             foreach (var (from, at, to) in list)
-                if (feet.DistanceTo(from) < 0.6f || feet.DistanceTo(at) < 0.6f) { feet = to; break; }
+            {
+                float dd = Mathf.Min(feet.DistanceTo(from), feet.DistanceTo(at));
+                if (dd < best) { best = dd; moved = to; }
+            }
+            if (moved is { } m) feet = m;
+        }
         // First the floors near the authored height; then, for spots authored on the hidden ground under a raised floor
         // (Shadowed), the floor right above them (up to ShadowClearance + a slab).
         foreach (float up in new[] { HeightWindow, ShadowClearance + 0.3f })
@@ -131,6 +140,27 @@ public static class SpawnSafety
     }
 
     public static Vector3 Resolve(Vector3 feet, IReadOnlyList<Box> world) => Resolve(feet, world, out _);
+
+    /// <summary>Every standable point (0.25 m grid, the floors within <see cref="HeightWindow"/>) within
+    /// <paramref name="radius"/> of <paramref name="feet"/>, nearest first (dev spawn audit).</summary>
+    public static List<Vector3> StandableNear(Vector3 feet, IReadOnlyList<Box> world, float radius)
+    {
+        var list = new List<(float D, Vector3 P)>();
+        int n = (int)(radius / 0.25f);
+        for (int iz = -n; iz <= n; iz++)
+            for (int ix = -n; ix <= n; ix++)
+            {
+                var q = new Vector3(feet.X + ix * 0.25f, feet.Y, feet.Z + iz * 0.25f);
+                float d = new Vector2(ix, iz).Length() * 0.25f;
+                if (d > radius) continue;
+                foreach (float y in FloorsNear(q, world))
+                {
+                    var p = new Vector3(q.X, y, q.Z);
+                    if (Standable(p, world, _ => -1)) list.Add((d + Mathf.Abs(y - feet.Y), p));
+                }
+            }
+        return list.OrderBy(x => x.D).Select(x => x.P).ToList();
+    }
 
     // Keyed by the collision's content (count, first and last box), not the list instance: a session works on its own
     // copy of the map's boxes (Environments.BuildMap), and it must see the same moves.

@@ -30,6 +30,8 @@ public sealed class AppSettings
     public bool LiveCoach = true;      // the coach's cues during a run (Analysis/LiveCoach)
     public int GuideLine = 2;          // guide to the nearest target: 0 = off, 1 = aim line, 2 = aim line + route on map drills (GuideSession)
     public float Volume = 0.5f;
+    public bool UiSounds = true;       // interface sounds (menu clicks, confirmations); hover is always silent (1.18)
+    public float UiVolume = 0.35f;     // interface sounds' volume, relative to Volume
     public bool Outlines = true;      // enemy outline + fresnel (Valorant: "Hide outlines and fresnel" off)
     public string TargetStyle = "valorant"; // aim-drill targets: "valorant" = dark body + enemy-colour outline/fresnel, "classic" = solid enemy-colour sphere
     public bool ViewModel = true;      // first-person gun

@@ -257,9 +257,18 @@ public partial class MSegment : Control
         MouseDefaultCursorShape = CursorShape.PointingHand;
     }
 
+    /// <summary>Widest the row may be (pixels, 0 = no limit): the gap, then the type size shrink to fit, then the counts go.</summary>
+    public float MaxWidth;
+
     public override void _Ready()
     {
         hover = new float[Options.Length];
+        if (MaxWidth > 0)
+        {
+            while (TotalWidth() > MaxWidth && Gap > 10) Gap -= 2;
+            while (TotalWidth() > MaxWidth && Px > 10f) Px -= 0.5f;
+            if (TotalWidth() > MaxWidth) Counts = null;
+        }
         CustomMinimumSize = new Vector2(MathF.Ceiling(TotalWidth()), MathF.Max(CustomMinimumSize.Y, 34 * K));
         MouseExited += () => { hot = -1; };
     }

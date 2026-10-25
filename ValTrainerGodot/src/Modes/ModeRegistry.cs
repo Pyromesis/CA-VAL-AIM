@@ -2,6 +2,9 @@ namespace ValTrainer.Modes;
 
 public static class ModeRegistry
 {
+    // The 60-drill aim set (15 flicking, 15 tracking, 15 micro-adjustment, 15 reflex: Modes/AimVariants.cs), after the rest.
+    static ModeRegistry() => All.AddRange(AimVariants.Factories());
+
     public static readonly List<Func<TrainingMode>> All = new()
     {
         () => new GridshotMode(),
@@ -64,6 +67,10 @@ public static class ModeRegistry
         ["chamber"] = a => new ChamberMode(a),
         ["anchor"] = a => new AnchorMode(a),
         [ReactionStats.Base] = a => new ReactionLabMode(a),
+        ["flickx"] = a => AimVariants.Make("flickx", a),
+        ["trackv"] = a => AimVariants.Make("trackv", a),
+        ["microx"] = a => AimVariants.Make("microx", a),
+        ["reflex"] = a => AimVariants.Make("reflex", a),
     };
 
     /// <summary>Factory for a mode key: "flick", or "base:argument" for drills in <see cref="WithArg"/> ("flashpeek" alone = default argument).</summary>

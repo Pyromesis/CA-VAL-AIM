@@ -27,6 +27,9 @@ public static class SpawnAudit
         sb.Append("{\"maps\":{");
         bool firstMap = true;
         int problems = 0;
+        bool candidates = Core.CmdLine.Has("--spawn-candidates");
+        float candRadius = float.TryParse(Core.CmdLine.DevAfter("--spawn-candidates"), System.Globalization.NumberStyles.Float,
+            System.Globalization.CultureInfo.InvariantCulture, out var cr) ? Math.Clamp(cr, 0.5f, 8f) : 3f;
         foreach (var spot in MapSpots.All)
         {
             if (keys != null && !keys.Contains(spot.Key)) continue;
@@ -52,7 +55,12 @@ public static class SpawnAudit
                     if (!ok) problems++;
                     if (!first) sb.Append(',');
                     first = false;
-                    sb.Append($"{{\"name\":\"{n.Replace("\"", "'")}\",\"authored\":{V(p)},\"resolved\":{V(r)},\"ok\":{(ok ? "true" : "false")}}}");
+                    sb.Append($"{{\"name\":\"{n.Replace("\"", "'")}\",\"authored\":{V(p)},\"resolved\":{V(r)},\"ok\":{(ok ? "true" : "false")}");
+                    // --spawn-candidates: every collision-standable point within 3 m of the resolved spot, for
+                    // audit_spawns.py to pick a replacement the game's own SpawnSafety keeps as is.
+                    if (candidates)
+                        sb.Append(",\"cand\":[").Append(string.Join(",", SpawnSafety.StandableNear(r, solid, candRadius).Select(V))).Append(']');
+                    sb.Append('}');
                 }
                 sb.Append(']');
             }

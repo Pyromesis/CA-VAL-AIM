@@ -30,6 +30,14 @@ public abstract class MapMode : MovementMode
         MapSpot = key == "random" ? MapSpots.All[Random.Shared.Next(MapSpots.All.Length)] : MapSpots.ByKey(key);
         SpawnFeet = SafeFeet(MapSpot.StartFeet, MapSpot.Solid, MapSpot);
         SpawnYaw = MapSpot.StartYaw;
+        // Dev-only: "--start-at x,y,z [--start-yaw deg]" starts the drill standing on that point (through the same
+        // SpawnSafety as every spot, spot moves included) — to look at a spawn point with --screenshot.
+        if (Main.I?.Dev == true && CmdLine.DevAfter("--start-at") is { } at)
+        {
+            var v = at.Split(',').Select(s => float.TryParse(s, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var f) ? f : float.NaN).ToArray();
+            if (v.Length == 3 && v.All(float.IsFinite)) SpawnFeet = SafeFeet(new Vector3(v[0], v[1], v[2]), MapSpot.Solid, MapSpot);
+            if (float.TryParse(CmdLine.DevAfter("--start-yaw"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var yaw)) SpawnYaw = yaw;
+        }
         if (Main.I?.Dev == true)
             GD.Print($"[spawn] {MapSpot.Key} authored={MapSpot.StartFeet} safe={SpawnFeet} yaw={SpawnYaw} " +
                      $"ground={Collision.Ground(SpawnFeet, MapSpot.Solid)} overlap={Collision.Overlaps(SpawnFeet, MapSpot.Solid)}");

@@ -44,7 +44,7 @@ static partial class InsightsBuilder
         if (p != null)
         {
             Trials(c, p);
-            if (t.Mode is "tracking" or "airtrack" or "reacttrack") Tracking(c, p);
+            if (RunAnalysis.Base(t.Mode) is "tracking" or "airtrack" or "reacttrack" or "trackv") Tracking(c, p);
             if (t.Mode is "spray_vandal" or "spray_phantom" or "spray_transfer") Sprays(c, p, vertOnly: t.Mode == "spray_transfer");
         }
         Shots(c);

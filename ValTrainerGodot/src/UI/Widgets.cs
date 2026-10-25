@@ -517,7 +517,7 @@ public abstract partial class ScreenBase : Control
         Modulate = new Color(1, 1, 1, 0);
         var fade = CreateTween();
         fade.TweenProperty(this, "modulate:a", 1f, 0.32f).SetEase(Tween.EaseType.Out).SetTrans(Tween.TransitionType.Cubic);
-        AddChild(new IntroSweep());
+        if (AnimatedBackdrop) AddChild(new IntroSweep()); // the minimal screens enter with their own staggered rise
     }
 
     public override void _Process(double delta)

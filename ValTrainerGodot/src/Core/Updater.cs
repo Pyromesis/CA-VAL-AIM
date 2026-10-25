@@ -9,7 +9,7 @@ namespace ValTrainer.Core;
 /// (%LOCALAPPDATA%\ValTrainer\updates), resumably, and checked against the release's SHA256SUMS.txt. Then the menu
 /// banner offers RESTART TO UPDATE; if the player doesn't click it, the update is applied on the next launch, before
 /// the menu (never mid-drill). Installed copies run the release's Setup.exe silently (it closes ValTrainer, upgrades in
-/// place and starts it again); portable copies swap ValTrainer.exe next to the running one and restart.
+/// place and starts it again); portable copies swap their exe (CA-VAL-AIM.exe, or ValTrainer.exe for copies from 1.17.0 and older) next to the running one and restart.
 /// <para>Safety: nothing runs that doesn't match the SHA-256 published with the same release; a bad download is deleted
 /// (at most 2 per version); an install that doesn't take is retried once, then the banner falls back to opening the
 /// release page — never a loop, and the installed copy stays as it was. Skipped versions are never downloaded; "Check
@@ -467,7 +467,7 @@ public static partial class Updater
 public sealed class UpdaterState
 {
     public string? Version;         // target version
-    public string? File;            // verified file in the updates folder (installer, or the portable ValTrainer.exe)
+    public string? File;            // verified file in the updates folder (installer, or the portable exe)
     public string? Sha256;          // its SHA-256 (re-checked right before it runs)
     public bool Ready;              // downloaded + verified
     public int BadDownloads;        // size / hash mismatches for this version

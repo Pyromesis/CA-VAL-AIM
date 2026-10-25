@@ -24,7 +24,7 @@ body:
       label: How did you install it?
       options:
         - Installer (ValTraining-x.y.z-Setup.exe)
-        - Portable zip (ValTraining-x.y.z-Portable.zip)
+        - Portable zip (ValTraining-x.y.z-Portable.zip, 1.16.x and older)
         - Built from source
     validations:
       required: true

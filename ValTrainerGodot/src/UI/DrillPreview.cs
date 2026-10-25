@@ -73,16 +73,16 @@ public partial class DrillPreview : Control
 
     public override void _Ready()
     {
-        AddChild(new ColorRect { Color = new Color(0.02f, 0.04f, 0.06f, 0.78f), MouseFilter = MouseFilterEnum.Ignore, AnchorRight = 1, AnchorBottom = 1 });
+        AddChild(new ColorRect { Color = new Color(UiTheme.Bg, 0.9f), MouseFilter = MouseFilterEnum.Ignore, AnchorRight = 1, AnchorBottom = 1 });
         var center = new CenterContainer { MouseFilter = MouseFilterEnum.Ignore };
         center.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         AddChild(center);
 
         var vs = GetViewportRect().Size;
         float w = Mathf.Min(1480 * k, vs.X - 70 * k);
-        var panel = new VPanel
+        var panel = new MPanel
         {
-            Title = (title ?? info.Name).ToUpperInvariant(), Caption = Caption(), K = k, Fill = new Color(0.07f, 0.11f, 0.15f, 0.98f),
+            Title = title ?? info.Name, Caption = Caption(), K = k,
             CustomMinimumSize = new Vector2(w, 0),
         };
         center.AddChild(panel);
@@ -113,41 +113,32 @@ public partial class DrillPreview : Control
         if (info.MadeBy is { } by) right.AddChild(Text($"Made by the community: @{by}", 15, UiTheme.Teal));
         right.AddChild(new Control { CustomMinimumSize = new Vector2(0, 4 * k), MouseFilter = MouseFilterEnum.Ignore });
 
-        int stripe = 0;
         void Row(string label, string value) =>
-            right.AddChild(new InfoRow { K = k, H = 32, Label = label, Value = () => value, Stripe = stripe++ % 2 == 0 });
+            right.AddChild(new InfoRow { K = k, H = 32, Label = label, Value = () => value });
         Row("Length", info.Timed ? $"{info.Duration:0} s" : "Until you finish it");
         if (!info.Is2D && info.SelectedWeapon != WeaponKind.None) Row("Weapon", WeaponName(info.SelectedWeapon));
         // the map the demo is playing (a random map pick changes per run); RANDOM tag when the map picker is on random
         whereRow = new InfoRow
         {
-            K = k, H = 32, Label = "Where", Stripe = stripe++ % 2 == 0,
+            K = k, H = 32, Label = "Where",
             Value = () => (demo?.Mode?.Map ?? info.Map) is { } m ? $"{Cap(m.Map)} · {m.Name}" : info.Is2D ? "On screen" : "Shooting range",
             Tag = () => info.Map != null && Main.I.MapKey == "random" ? "RANDOM" : null,
         };
         right.AddChild(whereRow);
         Row("Trains", Trains(info));
 
-        right.AddChild(new SectionLabel { Text = "YOUR RECORD", K = k, CustomMinimumSize = new Vector2(0, 34 * k) });
+        right.AddChild(new MText { K = k, Text = "YOUR RECORD", Font = UiTheme.HudWide, Px = 11f, Color = UiTheme.Faint, CustomMinimumSize = new Vector2(0, 34 * k) });
         record = new DrawBox { CustomMinimumSize = new Vector2(0, 112 * k), OnDraw = DrawRecord };
         right.AddChild(record);
 
-        right.AddChild(new SectionLabel { Text = "DIFFICULTY", Note = "bots and targets scale with it", K = k, CustomMinimumSize = new Vector2(0, 34 * k) });
-        var tiers = new HBoxContainer();
-        tiers.AddThemeConstantOverride("separation", (int)(6 * k));
-        right.AddChild(tiers);
-        foreach (var t in Difficulty.Tiers)
+        right.AddChild(new MText { K = k, Text = "DIFFICULTY", Font = UiTheme.HudWide, Px = 11f, Color = UiTheme.Faint, CustomMinimumSize = new Vector2(0, 30 * k) });
+        right.AddChild(new MSegment
         {
-            int id = t.Id;
-            var b = new VButton
-            {
-                Label = t.Name.ToUpperInvariant(), Kind = VButton.Look.Select, K = k, FontPx = 13, Selected = Main.I.Tier == id,
-                CustomMinimumSize = new Vector2(0, 40 * k), SizeFlagsHorizontal = SizeFlags.ExpandFill, TooltipText = $"{t.Name} · {t.Ranks}",
-            };
-            b.Pressed += () => SelectTier(id);
-            tierButtons.Add(b);
-            tiers.AddChild(b);
-        }
+            K = k, Px = 12f, Gap = 18, MaxWidth = rightW,
+            Options = Difficulty.Tiers.Select(t => t.Name.ToUpperInvariant()).ToArray(),
+            Tips = Difficulty.Tiers.Select(t => $"{t.Name} · {t.Ranks}").ToArray(),
+            Selected = Main.I.Tier, Changed = SelectTier,
+        });
         tierInfo = new DrawBox
         {
             CustomMinimumSize = new Vector2(0, 26 * k),
@@ -167,17 +158,19 @@ public partial class DrillPreview : Control
         var hint = Text(CanDemo(info) ? $"Preview: the built-in simulated player, muted. Space / Enter starts,{(onFreePlay != null ? " F free play," : "")} Esc goes back." : "Space / Enter starts, Esc goes back.", 14, UiTheme.Faint);
         hint.SizeFlagsVertical = SizeFlags.ShrinkCenter;
         foot.AddChild(hint);
-        var back = new VButton { Label = "BACK", Kind = VButton.Look.Secondary, K = k, FontPx = 18, CustomMinimumSize = new Vector2(160 * k, 54 * k) };
+        hint.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        var back = new MLink { K = k, Label = "BACK", Px = 12.5f, Delay = 0.1f, SizeFlagsVertical = SizeFlags.ShrinkCenter, TooltipText = "Esc" };
         back.Pressed += Close;
         foot.AddChild(back);
+        foot.AddChild(new Control { CustomMinimumSize = new Vector2(10 * k, 0), MouseFilter = MouseFilterEnum.Ignore });
         if (onFreePlay != null)
         {
-            var free = new VButton { Label = "FREE PLAY", Kind = VButton.Look.Secondary, K = k, FontPx = 18, CustomMinimumSize = new Vector2(190 * k, 54 * k) };
+            var free = new MAction { K = k, Label = "FREE PLAY", Px = 13f, Delay = 0.14f, CustomMinimumSize = new Vector2(200 * k, 52 * k) };
             free.TooltipText = "Play it with no clock and no score, and nothing saved. It starts over when the time is up; Esc → menu to stop.";
             free.Pressed += () => Start(true);
             foot.AddChild(free);
         }
-        var start = new VButton { Label = "START", Kind = VButton.Look.Primary, K = k, FontPx = 22, CustomMinimumSize = new Vector2(260 * k, 54 * k) };
+        var start = new MAction { K = k, Label = "START", Primary = true, Px = 14.5f, Delay = 0.18f, CustomMinimumSize = new Vector2(260 * k, 52 * k) };
         start.Pressed += () => Start();
         foot.AddChild(start);
 
@@ -190,6 +183,9 @@ public partial class DrillPreview : Control
                 if (ans == "start") Start(); else if (ans == "free" && onFreePlay != null) Start(true); else Close();
             };
         Loc.Apply(this);
+        // entrance: the dim and the panel fade in together
+        Modulate = new Color(1, 1, 1, 0);
+        CreateTween().TweenProperty(this, "modulate:a", 1f, 0.22f).SetEase(Tween.EaseType.Out).SetTrans(Tween.TransitionType.Cubic);
     }
 
     string Caption()
@@ -335,7 +331,7 @@ public partial class DrillPreview : Control
         if (Main.I.Tier == id) return;
         Main.I.Settings.Tier = id;
         Main.I.Settings.Save();
-        for (int i = 0; i < tierButtons.Count; i++) { tierButtons[i].Selected = i == id; tierButtons[i].QueueRedraw(); }
+
         record.QueueRedraw();
         tierInfo.QueueRedraw();
         StartDemo(); // the demo plays the new tier's bots / targets
@@ -382,7 +378,10 @@ public partial class DrillPreview : Control
         done = true;
         UiTheme.ClickSound();
         StopDemo(true);
-        QueueFree();
+        MouseFilter = MouseFilterEnum.Ignore;
+        var tw = CreateTween();
+        tw.TweenProperty(this, "modulate:a", 0f, 0.16f).SetEase(Tween.EaseType.In).SetTrans(Tween.TransitionType.Cubic);
+        tw.TweenCallback(Callable.From(QueueFree));
         onClose();
     }
 

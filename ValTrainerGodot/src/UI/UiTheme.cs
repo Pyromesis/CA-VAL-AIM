@@ -105,8 +105,19 @@ public static class UiTheme
 
     // ---------------- sounds ----------------
 
-    public static void HoverSound() => Sfx.I?.Play("tick", 0.12f, 1.7f);
-    public static void ClickSound() => Sfx.I?.Play("tick", 0.3f);
+    // Interface sounds (1.18): hover is silent (it played a bright 1.5 kHz tick on every pointer move); a click is a
+    // short, soft low "tock" and a confirmation two quiet notes. Both follow Settings → Audio → Interface sounds / volume.
+    public static void HoverSound() { }
+    public static void ClickSound() => UiSound("ui_click");
+    public static void ConfirmSound() => UiSound("ui_confirm");
+
+    /// <summary>Plays an interface sound at the interface volume (nothing when interface sounds are off).</summary>
+    public static void UiSound(string name, float vol = 1f)
+    {
+        var st = ValTrainer.Main.I?.Settings;
+        if (st == null || !st.UiSounds || st.UiVolume <= 0.001f) return;
+        Sfx.I?.Play(name, vol * st.UiVolume);
+    }
 
     // ---------------- Godot theme (tooltips, scrollbars) ----------------
 

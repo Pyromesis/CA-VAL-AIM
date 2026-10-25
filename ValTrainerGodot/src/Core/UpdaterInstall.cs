@@ -17,16 +17,16 @@ public enum InstallKind
     InstalledUser,
     /// <summary>Installed by Setup for all users (Program Files): the installer needs a UAC prompt.</summary>
     InstalledAdmin,
-    /// <summary>The portable single-file ValTrainer.exe: swaps itself.</summary>
+    /// <summary>The portable single-file exe (CA-VAL-AIM.exe, or ValTrainer.exe up to 1.17.0): swaps itself.</summary>
     Portable,
 }
 
 public static partial class Updater
 {
-    /// <summary>Written by the installer next to ValTrainer.exe: [ValTrainer] AppId=&lt;guid&gt;, Mode=user|admin.</summary>
+    /// <summary>Written by the installer next to CA-VAL-AIM.exe: [ValTrainer] AppId=&lt;guid&gt;, Mode=user|admin.</summary>
     const string MarkerName = "install.ini";
 
-    /// <summary>Full path of the running ValTrainer.exe.</summary>
+    /// <summary>Full path of the running exe (any of <see cref="AppInfo.ExeNames"/>).</summary>
     static string ExePath = "";
 
     /// <summary>Sets <see cref="Kind"/>; returns why this copy can't update itself (null when it can).
@@ -119,8 +119,8 @@ public static partial class Updater
         catch { return false; }
     }
 
-    /// <summary>Portable: the previous exe (renamed to "ValTrainer.exe.old" by the last update) and a half-staged
-    /// "ValTrainer.exe.new". The old process may still be exiting, so a locked file is simply left for the next launch.</summary>
+    /// <summary>Portable: the previous exe (renamed to "[exe].old" by the last update) and a half-staged
+    /// "[exe].new". The old process may still be exiting, so a locked file is simply left for the next launch.</summary>
     static void CleanPortableLeftovers()
     {
         foreach (var f in new[] { ExePath + ".old", ExePath + ".new" })
@@ -152,8 +152,8 @@ public static partial class Updater
         catch (Exception e) { return Log.Describe(e); }
     }
 
-    /// <summary>Portable: "ValTrainer.exe" → "ValTrainer.exe.old" (Windows allows renaming a running exe), the verified
-    /// "ValTrainer.exe.new" → "ValTrainer.exe", then a helper starts it once this process has exited (the new exe
+    /// <summary>Portable: "[exe]" (its own file name) → "[exe].old" (Windows allows renaming a running exe), the verified
+    /// "[exe].new" → "[exe]", then a helper starts it once this process has exited (the new exe
     /// unpacks its .NET files over the ones this process still has open). Undone if the second rename fails.</summary>
     static string? SwapPortable(string staged)
     {
@@ -166,16 +166,16 @@ public static partial class Updater
         catch (Exception e)
         {
             TryDelete(staged);
-            return $"can't rename ValTrainer.exe ({Log.Describe(e)})";
+            return $"can't rename {Path.GetFileName(exe)} ({Log.Describe(e)})";
         }
         try { File.Move(staged, exe); }
         catch (Exception e)
         {
-            try { File.Move(old, exe); } catch (Exception e2) { Log.Error($"Updater: couldn't put the old ValTrainer.exe back: {e2.Message}"); }
+            try { File.Move(old, exe); } catch (Exception e2) { Log.Error($"Updater: couldn't put the old {Path.GetFileName(exe)} back: {e2.Message}"); }
             TryDelete(staged);
-            return $"can't put the new ValTrainer.exe in place ({Log.Describe(e)})";
+            return $"can't put the new {Path.GetFileName(exe)} in place ({Log.Describe(e)})";
         }
-        Log.Info($"Updater: ValTrainer.exe replaced by {st.Version} (old one kept as {Path.GetFileName(old)} until the next launch)");
+        Log.Info($"Updater: {Path.GetFileName(exe)} replaced by {st.Version} (old one kept as {Path.GetFileName(old)} until the next launch)");
         RelaunchAfterExit(exe);
         return null;
     }

@@ -1,9 +1,16 @@
 # Credits
 
-CA-VAL-AIM (formerly ValTraining) is a fan-made aim/movement trainer and is not affiliated with or endorsed by Riot Games. The 3D blockout geometry, UI and textures are original or CC0, with two exceptions: the map minimap images in `assets/maps/` and the optional extracted map geometry in the release's `maps/` folder are official VALORANT assets, © Riot Games, used here for a free, non-commercial fan project under Riot's Fan Content Policy. They are **not** CC0 and **not** covered by the GNU GPL; delete those folders to fall back to the palette-only map postcards and blockout maps.
+CA-VAL-AIM (formerly ValTraining) is a fan-made aim/movement trainer and is not affiliated with or endorsed by Riot Games. The 3D blockout geometry, UI and textures are original or CC0, with two exceptions: the map minimap images in `assets/maps/` and the optional extracted map geometry in the release's `maps/` folder are official VALORANT assets, © Riot Games, included for interoperability in this free, non-commercial fan project. They remain Riot Games' property; Riot's Fan Content Policy does not grant rights to extracted game assets. They are **not** CC0 and **not** covered by the GNU GPL; delete those folders to fall back to the palette-only map postcards and blockout maps.
 
 Every other third-party asset bundled in `assets/` is released under **CC0 1.0 Universal (public domain)**: <https://creativecommons.org/publicdomain/zero/1.0/>.
 Credit is not required, but these creators deserve it. Thank you!
+
+## Upstream project
+
+CA-VAL-AIM is a modified version of **ValTrainer** (<https://github.com/idoraz1/ValTrainer>), copyright (C) 2026
+ValTrainer contributors, licensed under the GNU GPL version 3 or later. The original notice is preserved in
+[`../NOTICE`](../NOTICE) (shipped as `NOTICE.txt` next to the executable); the modified source is
+<https://github.com/Pyromesis/CA-VAL-AIM>.
 
 ## Map minimaps and extracted geometry
 `assets/maps/*.png` are the official VALORANT minimaps for all 13 maps (source: valorant-api.com). They are used only to draw the map picker, the countdown briefing and the in-game minimap. These files are © Riot Games and are not covered by the CC0 licence above.

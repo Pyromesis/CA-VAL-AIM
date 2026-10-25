@@ -111,7 +111,7 @@ public static partial class Updater
                 Outcome = Result.Ok;
                 return;
             }
-            // portable: take ValTrainer.exe out of the verified zip
+            // portable: take the exe (CA-VAL-AIM.exe, or ValTrainer.exe in older zips) out of the verified zip
             string exeName = $"ValTrainer-{Version}.exe", exe = Path.Combine(Dir, exeName), tmp = exe + ".tmp";
             try
             {
@@ -223,7 +223,7 @@ public static partial class Updater
 
     /// <summary>
     /// RESTART TO UPDATE, off the main thread: re-checks the downloaded file's SHA-256 (it sat on disk since it was
-    /// verified) and, for a portable copy, copies the new exe next to the running one ("ValTrainer.exe.new", same drive,
+    /// verified) and, for a portable copy, copies the new exe next to the running one ("[exe].new", same drive,
     /// so the swap is two renames) and checks the copy too.
     /// </summary>
     sealed class ApplyJob
@@ -249,7 +249,7 @@ public static partial class Updater
                 {
                     string tmp = exePath + ".new";
                     System.IO.File.Copy(File, tmp, overwrite: true);
-                    if (Sha256(tmp, default) != Sha256Hex) { TryDelete(tmp); Error = "copying the new ValTrainer.exe failed (SHA-256 mismatch)"; return; }
+                    if (Sha256(tmp, default) != Sha256Hex) { TryDelete(tmp); Error = "copying the new exe failed (SHA-256 mismatch)"; return; }
                     StagedExe = tmp;
                 }
                 Ok = true;
