@@ -18,7 +18,7 @@ Get the latest version from **[GitHub Releases](https://github.com/Pyromesis/CA-
 | `ValTraining-<version>-Setup.exe` | **The one download.** Installs for your Windows user (no admin rights needed), with Start menu shortcuts and an uninstaller. Includes the full map set. |
 
 The release also carries an `SHA256SUMS.txt` with the installer's SHA-256; the in-app updater verifies every download
-against it. The installer is large (about 2 GB) because it bundles the optional extracted map geometry in `maps/`. The
+against it. The installer is large (about 700 MB) because it bundles the optional extracted map geometry in `maps/`. The
 Git repository does not contain those binaries; the app still runs without them and falls back to the blockout maps.
 A portable (unzip-and-run) copy is no longer published as a release download, but you can still build one from this
 repository with `tools/build-release.ps1` (see [CONTRIBUTING.md](CONTRIBUTING.md)).

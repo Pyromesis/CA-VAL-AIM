@@ -15,7 +15,7 @@ ValTrainer contributors, licensed under the GNU GPL version 3 or later. The orig
 ## Map minimaps and extracted geometry
 `assets/maps/*.png` are the official VALORANT minimaps for all 13 maps (source: valorant-api.com). They are used only to draw the map picker, the countdown briefing and the in-game minimap. These files are © Riot Games and are not covered by the CC0 licence above.
 
-The release packages also include a `maps/` folder with extracted VALORANT geometry, textures, collision data and manifests for Ascent, Fracture, Lotus, Sunset, Pearl, Summit, Abyss and Corrode. These files are © Riot Games, are not covered by the CC0 licence or the GNU GPL, and are included only in the release binaries (not in the Git repository) for interoperability in this free, non-commercial fan project. Delete `maps/` to fall back to the blockout maps.
+The release packages also include a `maps/` folder with extracted VALORANT geometry, textures, collision data and manifests for all 13 maps (Ascent, Bind, Breeze, Corrode, Fracture, Haven, Icebox, Lotus, Pearl, Split, Summit, Sunset and Abyss). These files are © Riot Games, are not covered by the CC0 licence or the GNU GPL, and are included only in the release binaries (not in the Git repository) for interoperability in this free, non-commercial fan project. Delete `maps/` to fall back to the blockout maps.
 
 ## 3D models and animation: Quaternius (<https://quaternius.com>, <https://www.patreon.com/quaternius>)
 - **Universal Base Characters** (Standard): base bodies, heads, eyes, eyebrows, hair. <https://quaternius.itch.io/universal-base-characters>
