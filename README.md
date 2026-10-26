@@ -15,7 +15,7 @@ Get the latest version from **[GitHub Releases](https://github.com/Pyromesis/CA-
 
 | File | For |
 |---|---|
-| `ValTraining-<version>-Setup.exe` | **The one download.** Installs for your Windows user (no admin rights needed), with Start menu shortcuts and an uninstaller. Includes the full map set. |
+| `ValTraining-<version>-Setup.exe` | **The one download.** Installs for all users in `C:\Program Files\CA-VAL-AIM` (Windows asks for administrator permission), with Start menu shortcuts and an uninstaller. Includes the full map set. |
 
 The release also carries an `SHA256SUMS.txt` with the installer's SHA-256; the in-app updater verifies every download
 against it. The installer is large (about 700 MB) because it bundles the optional extracted map geometry in `maps/`. The
@@ -34,7 +34,7 @@ From 1.18.0 the app is called **CA-VAL-AIM**: window, menu, installer, Start men
 | Settings, stats, recordings | `%APPDATA%\ValTrainer` | Unchanged, so your data carries over. |
 | Logs and shader cache | `%APPDATA%\Godot\app_userdata\ValTrainer` | Unchanged, so the first start after the update doesn't recompile every shader. |
 | GitHub repository | `Pyromesis/CA-VAL-AIM` | Renamed with the app (it was `Pyromesis/ValTraining`). GitHub redirects the old links, so bookmarks and issue links keep working. 1.16.1–1.17.0 may offer **OPEN DOWNLOAD** instead of an automatic update once, because GitHub rewrites release download URLs after a rename. |
-| Install folder | your existing folder | An update installs over the previous version (for example `%LOCALAPPDATA%\Programs\ValTraining`) and removes the old `ValTrainer.exe` and the old ValTraining shortcuts. New installs go to `%LOCALAPPDATA%\Programs\CA-VAL-AIM`. |
+| Install folder | your existing folder | An in-app update installs over the previous version, in the same folder and mode. New installs go to `C:\Program Files\CA-VAL-AIM` (all users); `/CURRENTUSER` keeps a per-user copy in `%LOCALAPPDATA%\Programs`. |
 
 **Updates:** CA-VAL-AIM updates itself. At startup and every 6 hours it asks GitHub for the newest release, shows it in
 the menu and downloads it in the background; the update installs when you restart. Settings and stats are kept. A new

@@ -4,15 +4,16 @@
 ;            LICENSE.txt and THIRD-PARTY-NOTICES.txt added> /DIconFile=<ValTrainer.ico> /DOutputDir=<dist> installer\ValTrainer.iss
 ; Optional: /DGitHubRepo=owner/repo (publisher / support / update links; omitted while it is the OWNER placeholder),
 ;           /DSIGN with /Ssigntool=... (signs Setup.exe and the uninstaller).
-; Per-user install by default (no admin prompt); "Install for all users" is offered in a dialog / with /ALLUSERS.
+; All-users install by default (one UAC prompt): Program Files, shortcuts for every user. /CURRENTUSER keeps a per-user
+; copy in %LOCALAPPDATA%\Programs, which is what in-app updates from 2.0.0 and older per-user installs use.
 ;
 ; Automatic updates (ValTrainerGodot\src\Core\Updater*.cs): the app downloads the next release's Setup.exe, checks its
 ; SHA-256 against the release's SHA256SUMS.txt and runs
 ;   Setup.exe /SILENT /SUPPRESSMSGBOXES /NORESTART /CLOSEAPPLICATIONS /SP- /CURRENTUSER|/ALLUSERS /RELAUNCH
 ;             [/RELAUNCHARGS=arg1|arg2|...] /LOG=<file>
 ; /RELAUNCH (silent installs only) starts CA-VAL-AIM again when Setup is done, with the '|'-separated arguments of
-; /RELAUNCHARGS. install.ini next to CA-VAL-AIM.exe tells the app it was installed by this Setup (AppId and per-user or
-; all-users mode); the app also checks that Windows' uninstall entry for that AppId points at its own folder.
+; /RELAUNCHARGS. install.ini next to CA-VAL-AIM.exe tells the app it was installed by this Setup (AppId and all-users or
+; per-user mode); the app also checks that Windows' uninstall entry for that AppId points at its own folder.
 ; Setup and the uninstaller wait until CA-VAL-AIM.exe (or, on an update from 1.17.0 or older, ValTrainer.exe) has exited before changing anything (see PrepareToInstall).
 ; Interactive installs behave exactly as before.
 
@@ -70,10 +71,11 @@ VersionInfoDescription=CA-VAL-AIM Setup
 VersionInfoProductName=CA-VAL-AIM
 VersionInfoCopyright=Copyright (C) 2026 Pyromesis and contributors. GPL-3.0-or-later. See NOTICE.txt.
 
-; Per-user by default: no UAC prompt. Upgrades keep the previous folder (UsePreviousAppDir); new installs go to
-; %LOCALAPPDATA%\Programs\CA-VAL-AIM.
-PrivilegesRequired=lowest
-PrivilegesRequiredOverridesAllowed=dialog commandline
+; All users by default: one UAC prompt, Program Files, shortcuts for every user. /CURRENTUSER (used by in-app updates
+; from per-user installs) keeps a per-user copy in %LOCALAPPDATA%\Programs. Upgrades keep the previous folder
+; (UsePreviousAppDir), but a folder under the user's %TEMP% or one that no longer exists is ignored (InitializeWizard).
+PrivilegesRequired=admin
+PrivilegesRequiredOverridesAllowed=commandline
 DefaultDirName={autopf}\CA-VAL-AIM
 DefaultGroupName=CA-VAL-AIM
 DisableProgramGroupPage=yes
@@ -156,7 +158,7 @@ Name: "{group}\CA-VAL-AIM (safe graphics)"; Filename: "{app}\{#AppExe}"; Paramet
 Name: "{autodesktop}\CA-VAL-AIM"; Filename: "{app}\{#AppExe}"; WorkingDir: "{app}"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\{#AppExe}"; Description: "{cm:LaunchProgram,CA-VAL-AIM}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\{#AppExe}"; Description: "{cm:LaunchProgram,CA-VAL-AIM}"; Flags: nowait postinstall skipifsilent runasoriginaluser
 ; In-app update (silent + /RELAUNCH): start the new version again, as the user (never elevated).
 Filename: "{app}\{#AppExe}"; Parameters: "{code:RelaunchParams}"; WorkingDir: "{app}"; Flags: nowait runasoriginaluser; Check: ShouldRelaunch
 
@@ -279,6 +281,52 @@ begin
       'CA-VAL-AIM ' + Old + ' is installed, which is newer than this setup (' + '{#AppVersion}' + ').' + #13#10#13#10 +
       'Replace it with the older version ' + '{#AppVersion}' + '? Your settings and stats are kept.',
       mbConfirmation, MB_YESNO or MB_DEFBUTTON2, IDYES) = IDYES;
+end;
+
+{ ---------- install folder ---------- }
+
+function PathStartsWith(const Path, Prefix: String): Boolean;
+var
+  P, Q: String;
+begin
+  P := Lowercase(Path);
+  Q := Lowercase(Prefix);
+  while (Length(Q) > 1) and (Q[Length(Q)] = '\') do
+    Delete(Q, Length(Q), 1);
+  Result := (Q <> '') and ((P = Q) or
+    ((Length(P) > Length(Q)) and (Copy(P, 1, Length(Q)) = Q) and (P[Length(Q) + 1] = '\')));
+end;
+
+function IsUnderUserTemp(const Dir: String): Boolean;
+begin
+  Result := PathStartsWith(Dir, ExpandConstant('{%TEMP}')) or
+            PathStartsWith(Dir, ExpandConstant('{%TMP}')) or
+            PathStartsWith(Dir, ExpandConstant('{localappdata}\Temp'));
+end;
+
+function DirParamGiven(): Boolean;
+var
+  I: Integer;
+begin
+  Result := False;
+  for I := 1 to ParamCount do
+    if CompareText(Copy(ParamStr(I), 1, 5), '/DIR=') = 0 then
+    begin
+      Result := True;
+      Exit;
+    end;
+end;
+
+procedure InitializeWizard();
+var
+  Prev: String;
+begin
+  { An explicit /DIR=... wins. Otherwise a previous folder that no longer exists or lives in the user's temp folder is
+    not a valid default: a stale uninstall entry used to send new installs to %TEMP%. }
+  if DirParamGiven() then Exit;
+  Prev := WizardForm.DirEdit.Text;
+  if (Prev = '') or (not DirExists(Prev)) or IsUnderUserTemp(Prev) then
+    WizardForm.DirEdit.Text := ExpandConstant('{autopf}\CA-VAL-AIM');
 end;
 
 { ---------- in-app updates ---------- }

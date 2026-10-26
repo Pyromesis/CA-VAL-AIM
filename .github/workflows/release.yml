@@ -252,14 +252,14 @@ jobs:
           $footer = @"
 
           ---
-          **Download:** ``ValTraining-$env:VERSION-Setup.exe`` — one installer, nothing else: it installs for your Windows user (no admin rights), with Start menu shortcuts and an uninstaller. Windows 10 (1607+) or 11, 64-bit.
+          **Download:** ``ValTraining-$env:VERSION-Setup.exe`` — one installer, nothing else: it installs for all users in ``C:\Program Files\CA-VAL-AIM`` (Windows asks for administrator permission), with Start menu shortcuts and an uninstaller. Windows 10 (1607+) or 11, 64-bit.
           CA-VAL-AIM isn't code-signed yet, so Windows SmartScreen may say "Windows protected your PC": click **More info** -> **Run anyway**. Check your download against ``SHA256SUMS.txt`` if you like.
           "@
           if ($env:SIGNPATH_ENABLED -eq 'true') {
             $footer = @"
 
           ---
-          **Download:** ``ValTraining-$env:VERSION-Setup.exe`` — one installer, nothing else: it installs for your Windows user (no admin rights), with Start menu shortcuts and an uninstaller. Windows 10 (1607+) or 11, 64-bit.
+          **Download:** ``ValTraining-$env:VERSION-Setup.exe`` — one installer, nothing else: it installs for all users in ``C:\Program Files\CA-VAL-AIM`` (Windows asks for administrator permission), with Start menu shortcuts and an uninstaller. Windows 10 (1607+) or 11, 64-bit.
           The installer is code-signed. Free code signing provided by [SignPath.io](https://about.signpath.io/), certificate by [SignPath Foundation](https://signpath.org/). Check your download against ``SHA256SUMS.txt`` if you like.
           "@
           }

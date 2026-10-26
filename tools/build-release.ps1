@@ -4,7 +4,7 @@
 
 .DESCRIPTION
   Output (in -OutDir, default dist\ in the repo root):
-    ValTraining-<version>-Setup.exe      Inno Setup installer (per-user, no admin prompt)
+    ValTraining-<version>-Setup.exe      Inno Setup installer (all users, one UAC prompt, Program Files)
     ValTraining-<version>-Portable.zip   the portable folder (CA-VAL-AIM.exe + data folder + maps) with LICENSE.txt, THIRD-PARTY-NOTICES.txt and README.txt
     SHA256SUMS.txt                      "<sha256>  <file>" lines (sha256sum -c compatible)
 

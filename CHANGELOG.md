@@ -2,6 +2,21 @@
 
 ## [Unreleased]
 
+## [2.0.1] - 2026-10-25
+
+### Changed
+
+- **Installs for all users in Program Files.** The installer now asks for administrator permission once and installs to
+  `C:\Program Files\CA-VAL-AIM` with shortcuts for every user, instead of `%LOCALAPPDATA%\Programs` without a UAC prompt.
+  In-app updates keep the mode of the installed copy: an all-users copy asks for UAC, a per-user copy (2.0.0 and older)
+  stays per-user. Settings, stats and recordings stay in `%APPDATA%\ValTrainer` either way.
+
+### Fixed
+
+- **The installer never proposes a folder under %TEMP% or one that no longer exists.** A stale uninstall entry could
+  make new installs default to a temporary folder (and keep reusing it after its files were deleted). Setup now falls
+  back to `C:\Program Files\CA-VAL-AIM` in that case; an explicit `/DIR=` still wins.
+
 ## [2.0.0] - 2026-10-25
 
 ### Added
