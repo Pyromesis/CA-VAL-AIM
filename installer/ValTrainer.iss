@@ -26,6 +26,13 @@
 #ifndef SourceDir
   #error Pass /DSourceDir=<folder with CA-VAL-AIM.exe, CA-VAL-AIM.pck, data_ValTrainer_windows_x86_64, LICENSE.txt, THIRD-PARTY-NOTICES.txt>
 #endif
+; Every release ships the 13 extracted maps in <SourceDir>\maps (that is most of the installer's size). Refuse to
+; compile without them so a map-less installer can never be published by accident; /DAllowNoMaps is for local tests.
+#ifndef AllowNoMaps
+  #if !FileExists(AddBackslash(SourceDir) + "maps\ascent\collision.json") || !FileExists(AddBackslash(SourceDir) + "maps\summit\collision.json")
+    #error SourceDir has no complete maps\ folder: every release ships the 13 extracted maps (see tools\build-release.ps1). Pass /DAllowNoMaps only for a local test.
+  #endif
+#endif
 #ifndef IconFile
   #define IconFile AddBackslash(SourcePath) + "ValTrainer.ico"
 #endif

@@ -83,14 +83,24 @@ Releases are built on Windows and published manually:
 1. Set the version in `ValTrainerGodot/project.godot` (`application/config/version`) and add a `CHANGELOG.md` section.
 2. Build and test the C# code, then export the Windows .NET build.
 3. Stage the exported app (`-Stage app` writes `LICENSE.txt`, `NOTICE.txt` and `THIRD-PARTY-NOTICES.txt` beside it)
-   and add the optional `maps/` folder.
-4. Build `ValTraining-<version>-Setup.exe` with Inno Setup (`tools\build-release.ps1 -SkipPortable`, as the release
-   workflow does).
-5. Generate `SHA256SUMS.txt` and publish a GitHub Release with the installer and the checksums.
+   and copy the full `maps/` folder next to it.
+4. Build `ValTraining-<version>-Setup.exe` with Inno Setup (`tools\build-release.ps1 -SkipPortable`).
+5. Generate `SHA256SUMS.txt` and publish a GitHub Release with the installer and the checksums, then push the tag.
 
-The Release workflow builds and publishes the installer when a tag is pushed. A release that ships the full map set
-rebuilds the installer locally from that published one plus `maps/` (`-Stage package -SkipPortable`) and replaces the
-asset with `gh release upload --clobber`; the workflow never sees the git-ignored maps.
+**Every release ships all 13 maps**, and the tooling enforces it: `tools\build-release.ps1` checks the map set (13
+folders with `collision.json` and their GLBs, at least 1 GB) before it starts, copies it into the installer's staging
+folder, verifies the copy and aborts if anything is missing (`-AllowNoMaps` exists for local experiments only).
+`installer\ValTrainer.iss` refuses to compile without `maps\`, so a map-less installer cannot be produced by accident.
+
+The set is 2.3 GB, git-ignored, and published once as `maps.zip` in the **`maps` pre-release** (2.3 GB of folders,
+752 MB zipped, `maps/<key>/` at the archive root). The Release workflow downloads and unpacks it when the checkout has
+no `dist-maps\maps`, so a tag push builds the full installer; if the download or the 13-map check fails the job stops
+and nothing is published. When the map set changes, rebuild the archive and replace the asset:
+
+```powershell
+tar.exe -a -c -f dist-maps\maps.zip -C dist-maps maps
+gh release upload maps dist-maps\maps.zip --clobber
+```
 
 Since 1.17.0 releases publish **only the installer**: no `-Portable.zip`. `build-release.ps1` without `-SkipPortable`
 still builds one for local use, and the in-app updater still handles portable copies (it swaps the running exe in

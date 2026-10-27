@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Packaging
+
+- **A release can no longer be built without the maps.** `tools\build-release.ps1` checks the 13-map set, copies it
+  into the installer and aborts if a map is missing; `installer\ValTrainer.iss` refuses to compile without `maps\`, and
+  the Release workflow downloads the published map set and checks all 13 before it builds. 2.1.0 already ships them.
+
 ## [2.1.0] - 2026-10-27
 
 ### Added

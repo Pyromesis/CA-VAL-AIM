@@ -80,6 +80,9 @@ param(
   [string]$Iscc = "",
   [switch]$SkipInstaller,
   [switch]$SkipPortable,
+  # Escape hatch for local experiments only: every real release ships all 13 maps, and without them the build fails
+  # instead of quietly producing an installer that falls back to the traced blockouts.
+  [switch]$AllowNoMaps,
   [string]$WorkDir = "",
   [switch]$KeepWork
 )
@@ -104,6 +107,29 @@ $DoChecksums = $Stage -eq 'all' -or $Stage -eq 'checksums'
 
 function Step([string]$msg) { Write-Host ("[{0,5:0}s] {1}" -f $sw.Elapsed.TotalSeconds, $msg) -ForegroundColor Cyan }
 function Fail([string]$msg) { throw $msg }
+
+# ---------------------------------------------------------------- the map set
+# Every release ships the 13 extracted maps. They live outside the project (dist-maps\maps: ~2.3 GB, git-ignored)
+# because the repository does not carry the extracted Riot geometry; the installer copies that folder next to the
+# executable, where MapAssets finds maps\<key>\collision.json and the GLBs. A build without them is not a smaller
+# release, it is a broken one (every map falls back to the traced blockout), so the build stops unless -AllowNoMaps.
+$MapKeys = @('abyss', 'ascent', 'bind', 'breeze', 'corrode', 'fracture', 'haven', 'icebox', 'lotus', 'pearl',
+             'split', 'summit', 'sunset')
+
+function Assert-MapSet([string]$dir, [string]$what) {
+  if (-not (Test-Path -LiteralPath $dir)) { Fail "$what is missing: $dir" }
+  $missing = @()
+  foreach ($key in $MapKeys) {
+    $mapDir = Join-Path $dir $key
+    if (-not (Test-Path -LiteralPath (Join-Path $mapDir 'collision.json'))) { $missing += $key; continue }
+    $glb = Get-ChildItem -LiteralPath $mapDir -Filter *.glb -File -ErrorAction SilentlyContinue | Select-Object -First 1
+    if (-not $glb) { $missing += "$key (no GLBs)" }
+  }
+  if ($missing.Count -gt 0) { Fail "$what is incomplete (missing: $($missing -join ', '))" }
+  $bytes = (Get-ChildItem -LiteralPath $dir -Recurse -File | Measure-Object Length -Sum).Sum
+  if ($bytes -lt 1GB) { Fail "$what is suspiciously small: $([math]::Round($bytes / 1MB)) MB for 13 maps" }
+  Write-Host ("Maps OK: 13/13, {0:N0} MB in {1}" -f ($bytes / 1MB), $dir) -ForegroundColor Green
+}
 
 function Invoke-Native([string]$exe, [string[]]$arguments, [string]$what) {
   & $exe @arguments
@@ -234,6 +260,17 @@ function Invoke-AppStage {
   }
   New-Item -ItemType Directory -Force $stage, $outInst, $outPort | Out-Null
 
+  # ---------------------------------------------------------------- the map set (checked before anything expensive)
+  $mapsSrc = Join-Path $Repo 'dist-maps\maps'
+  if (Test-Path -LiteralPath $mapsSrc) {
+    Assert-MapSet $mapsSrc 'the source map set (dist-maps\maps)'
+  } elseif ($AllowNoMaps) {
+    Write-Warning "Real maps: $mapsSrc not found (-AllowNoMaps): this build uses the traced blockouts."
+  } else {
+    Fail ("The real map set is missing: $mapsSrc. Every release ships all 13 maps, so the build stops here; " +
+          "restore dist-maps\maps (see tools\mapgen\README.md) or pass -AllowNoMaps for a local experiment.")
+  }
+
   # ---------------------------------------------------------------- private copy of the project
   Step "Copying the project to $stage"
   # .godot\imported is copied too (saves re-importing every asset); .godot\mono (build output) is rebuilt.
@@ -292,18 +329,18 @@ function Invoke-AppStage {
     }
 
     # ---------------------------------------------------------------- real map assets
-    # The extracted map set lives outside the project (dist-maps/maps). It is shipped next to the executable,
-    # where MapAssets looks for maps/<key>/collision.json and the GLBs; the installer copies its whole source folder.
-    $mapsSrc = Join-Path $Repo 'dist-maps\maps'
+    # Copied next to the executable, where MapAssets looks for maps/<key>/collision.json and the GLBs; the installer
+    # ships its whole source folder. The portable folder only gets them when it is actually exported.
     if (Test-Path -LiteralPath $mapsSrc) {
-      Step "Copying real maps -> installer and portable folders"
-      foreach ($dir in @($outInst, $outPort)) {
+      $staging = @($outInst)
+      if (-not $SkipPortable) { $staging += $outPort }
+      Step "Copying real maps -> $($staging.Count) export folder(s)"
+      foreach ($dir in $staging) {
         $dst = Join-Path $dir 'maps'
         if (Test-Path -LiteralPath $dst) { Remove-Item -LiteralPath $dst -Recurse -Force }
         Copy-Item -LiteralPath $mapsSrc -Destination $dst -Recurse -Force
+        Assert-MapSet $dst "the staged maps in $dst"
       }
-    } else {
-      Write-Host "Real maps: $mapsSrc not found; the release will use the traced fallback."
     }
 
     # ---------------------------------------------------------------- notices
@@ -459,7 +496,7 @@ License: GNU GPL v3 (LICENSE.txt). Upstream copyright notice: NOTICE.txt. Third-
     $ghRepo = if ($repoMatch.Success) { $repoMatch.Groups[1].Value } else { 'Pyromesis/CA-VAL-AIM' }
     if (Test-Path -LiteralPath $setupPath) { Remove-Item -LiteralPath $setupPath -Force }
     $isccArgs = @('/Qp', "/DAppVersion=$Version", "/DAppFileVersion=$FileVersion", "/DSourceDir=$outInst", "/DIconFile=$ico",
-      "/DOutputDir=$OutDir", "/DGitHubRepo=$ghRepo", "/DAssetPrefix=$AssetPrefix") + $signArgs + @((Join-Path $Repo 'installer\ValTrainer.iss'))
+      "/DOutputDir=$OutDir", "/DGitHubRepo=$ghRepo", "/DAssetPrefix=$AssetPrefix") + $(if ($AllowNoMaps) { @('/DAllowNoMaps') } else { @() }) + $signArgs + @((Join-Path $Repo 'installer\ValTrainer.iss'))
     Invoke-Native $Iscc $isccArgs 'Inno Setup'
     if (-not (Test-Path -LiteralPath $setupPath)) { Fail "installer not produced: $setupPath" }
   } else {

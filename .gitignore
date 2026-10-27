@@ -31,8 +31,7 @@ dist/
 *.tpz
 
 # ---- Local scratch ----
-/.tmp-icon/
-/.tmp-selftest/
+/.tmp-*
 
 # ---- Local tools (CI downloads its own copies) ----
 /tools/godot/

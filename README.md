@@ -195,9 +195,12 @@ CA-VAL-AIM is built with the [Godot Engine](https://godotengine.org) 4.7 (.NET /
 the .NET 8 SDK. [CONTRIBUTING.md](CONTRIBUTING.md) explains how to build, run, test and export it, the dev flags, the
 project layout and the release process.
 
-The `maps/` folder is not tracked in Git. To build a release with the full map set, copy the extracted `maps/` folder
-next to the exported executable (or into the installer staging folder). Without it the app falls back to the blockout
-maps.
+The `maps/` folder is not tracked in Git: every release ships all 13 extracted maps, but the 2.3 GB of geometry lives
+only on the release machine, in `dist-maps/maps` (see [`tools/mapgen/README.md`](tools/mapgen/README.md)).
+`tools/build-release.ps1` copies it next to the exported executable and stops if any of the 13 maps is missing, and
+`installer/ValTrainer.iss` refuses to compile without it, so a release can never go out without the maps. The Release
+workflow takes the set from the `maps` pre-release (`maps.zip`). An install without them still works and falls back to
+the traced blockout maps.
 
 ## License, credits and legal
 
