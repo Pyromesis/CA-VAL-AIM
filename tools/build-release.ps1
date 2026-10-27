@@ -291,6 +291,21 @@ function Invoke-AppStage {
       foreach ($exe in @($instExe, $portExe)) { Assert-ExeMetadata $exe }
     }
 
+    # ---------------------------------------------------------------- real map assets
+    # The extracted map set lives outside the project (dist-maps/maps). It is shipped next to the executable,
+    # where MapAssets looks for maps/<key>/collision.json and the GLBs; the installer copies its whole source folder.
+    $mapsSrc = Join-Path $Repo 'dist-maps\maps'
+    if (Test-Path -LiteralPath $mapsSrc) {
+      Step "Copying real maps -> installer and portable folders"
+      foreach ($dir in @($outInst, $outPort)) {
+        $dst = Join-Path $dir 'maps'
+        if (Test-Path -LiteralPath $dst) { Remove-Item -LiteralPath $dst -Recurse -Force }
+        Copy-Item -LiteralPath $mapsSrc -Destination $dst -Recurse -Force
+      }
+    } else {
+      Write-Host "Real maps: $mapsSrc not found; the release will use the traced fallback."
+    }
+
     # ---------------------------------------------------------------- notices
     Step "Writing THIRD-PARTY-NOTICES.txt"
     if (Test-Path -LiteralPath $engineNotices) { Remove-Item -LiteralPath $engineNotices -Force }

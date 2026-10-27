@@ -257,7 +257,7 @@ public partial class StatsRow : Control
         float ColW(int c) => (c + 1 < StatsScreen.Cols.Length ? StatsScreen.Cols[c + 1] : 1f) * w - StatsScreen.Cols[c] * w - 10 * k;
 
         int ns = UiTheme.Fs(22, k), cs = UiTheme.Fs(11, k), vs = UiTheme.Fs(22, k);
-        Gfx.TextFit(this, UiTheme.Display, (Label ?? mode.Name).ToUpperInvariant(), X(0), Gfx.Mid(cy - 8 * k, ns), ns, UiTheme.Text, ColW(0));
+        Gfx.TextFit(this, UiTheme.Light, (Label ?? mode.Name).ToUpperInvariant(), X(0), Gfx.Mid(cy - 8 * k, ns), ns, UiTheme.Text, ColW(0));
         Gfx.Text(this, UiTheme.HudWide, mode.Category.ToUpperInvariant(), X(0), Gfx.Mid(cy + 13 * k, cs), cs, ModeCard.CategoryColor(mode.Category));
 
         if (runs == 0)
@@ -266,11 +266,11 @@ public partial class StatsRow : Control
             Gfx.Text(this, UiTheme.Body, Loc.Spanish ? "Aún no jugado en este nivel" : "Not played at this tier yet", X(1), Gfx.Mid(cy, fs), fs, UiTheme.Faint);
             return;
         }
-        Gfx.Text(this, UiTheme.Display, Loc.Score(runs), X(1), Gfx.Mid(cy, vs), vs, UiTheme.Text);
-        Gfx.Text(this, UiTheme.Display, best, X(2), Gfx.Mid(cy, vs), vs, UiTheme.Good);
-        Gfx.Text(this, UiTheme.Display, avg10, X(3), Gfx.Mid(cy, vs), vs, UiTheme.Text);
-        Gfx.Text(this, UiTheme.Display, acc, X(4), Gfx.Mid(cy, vs), vs, UiTheme.Text);
-        Gfx.Text(this, UiTheme.Display, kill, X(5), Gfx.Mid(cy, vs), vs, UiTheme.Text);
+        Gfx.Text(this, UiTheme.Hud, Loc.Score(runs), X(1), Gfx.Mid(cy, vs), vs, UiTheme.Text);
+        Gfx.Text(this, UiTheme.Hud, best, X(2), Gfx.Mid(cy, vs), vs, UiTheme.Good);
+        Gfx.Text(this, UiTheme.Hud, avg10, X(3), Gfx.Mid(cy, vs), vs, UiTheme.Text);
+        Gfx.Text(this, UiTheme.Hud, acc, X(4), Gfx.Mid(cy, vs), vs, UiTheme.Text);
+        Gfx.Text(this, UiTheme.Hud, kill, X(5), Gfx.Mid(cy, vs), vs, UiTheme.Text);
 
         float er = 12 * k;
         RankEmblem.Draw(this, new Vector2(X(6) + er, cy), er, badge, badge >= 0 ? 1f : 0.6f);

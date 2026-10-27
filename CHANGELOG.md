@@ -2,6 +2,38 @@
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-10-27
+
+### Added
+
+- **Playlists.** Build a named set from any drill in the library and play it back to back: each run hands over to the
+  next one, the last drill keeps its normal results screen, and the list is saved in `playlists.json` next to your
+  settings.
+- **Any weapon in any drill.** A **WEAPON** picker in the menu and in the pause menu gives every drill that accepts a gun
+  any playable weapon, or keeps each drill's own; the choice is remembered between sessions.
+- **Progressive difficulty.** A switch in the pause menu raises the tier after a strong scored run and lowers it after a
+  poor one, comparing accuracy and score with your personal best; the results screen shows when the tier moved.
+- **The coach reads direction, tremor and flick error.** It now separates left, right, up and down flicks (hit rate,
+  error and which side you miss), flags aim tremor (many tiny corrections after the flick), under- and overshooting and
+  reaction time, and recommends a drill for each.
+- **New app icon:** a flick trail landing on a ring, on VALORANT red.
+
+### Changed
+
+- **The rest of the app joins the minimal style.** Agents, Coach, Stats, Settings and the pause menu now use the flat
+  surfaces, hairlines, light type and single red accent of the 2.0 menu; shared buttons, headings, cards and agent tiles
+  were restyled with them, and hover no longer scales type.
+- **Difficulty now scales the 60 library drills.** Flick, Tracking, Micro and Reflex change target size, distance,
+  angles, lifetime, speed and reaction windows with the tier, not just the timers.
+- **The library remembers the selected tab** when you come back from a drill.
+- **The pause menu is rebuilt** in two columns with the run actions, difficulty, progressive difficulty, weapon,
+  sensitivity, audio and graphics in one place.
+
+### Fixed
+
+- **The installer ships the real maps.** The release build now copies the extracted `maps/` set into the installer and
+  the portable folder, and the map picker calls the fallback **TRACED** instead of BLOCKOUT / MAQUETA.
+
 ## [2.0.1] - 2026-10-25
 
 ### Changed

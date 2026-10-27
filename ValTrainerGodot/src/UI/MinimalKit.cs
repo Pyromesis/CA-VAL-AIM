@@ -40,6 +40,16 @@ public static class Mn
     }
 
     public static Color A(Color c, float a) => new(c.R, c.G, c.B, c.A * a);
+
+    /// <summary>Flat card surface: the barest wash inside one hairline. Hover brightens the edge; a selection adds the
+    /// accent as a bottom rule (the same signal the menu tabs use), never a fill or a corner cut.</summary>
+    public static void Card(CanvasItem ci, Rect2 r, float k, float hover = 0f, bool selected = false)
+    {
+        ci.DrawRect(r, new Color(1, 1, 1, (selected ? 0.045f : 0.015f) + 0.022f * hover));
+        ci.DrawRect(r, new Color(1, 1, 1, 0.075f + 0.17f * hover), false, Mathf.Max(1f, k));
+        if (selected)
+            ci.DrawRect(new Rect2(r.Position.X, r.End.Y - Mathf.Max(1.5f, 2 * k), r.Size.X, Mathf.Max(1.5f, 2 * k)), UiTheme.Accent);
+    }
 }
 
 /// <summary>Flat menu canvas: the theme background with a barely-there light falloff from the top-left. Static (no
@@ -402,6 +412,8 @@ public partial class MDrillRow : MButtonBase
 {
     public string Title = "", Meta = "", Value = "", ValueCaption = "";
     public bool IsNew;
+    /// <summary>Draws the value / caption in the accent (playlist membership).</summary>
+    public bool Marked;
 
     public override void _Draw()
     {
@@ -421,8 +433,10 @@ public partial class MDrillRow : MButtonBase
         Gfx.TextFit(this, UiTheme.Body, Meta, x, h * 0.44f + ms * 1.45f, ms, UiTheme.Faint, Size.X - x - valueW - 8 * k);
         if (valueW > 0)
         {
-            Gfx.TextR(this, UiTheme.Hud, Value, Size.X - 12 * k, h * 0.44f, vs, UiTheme.Text.Lerp(UiTheme.Text, Hover));
-            Gfx.TextR(this, UiTheme.HudWide, ValueCaption, Size.X - 12 * k, h * 0.44f + ms * 1.45f, UiTheme.Fs(9.5f, k), UiTheme.Faint);
+            var vc = Marked ? UiTheme.Accent : UiTheme.Text.Lerp(UiTheme.Text, Hover);
+            Gfx.TextR(this, UiTheme.Hud, Value, Size.X - 12 * k, h * 0.44f, vs, vc);
+            Gfx.TextR(this, UiTheme.HudWide, ValueCaption, Size.X - 12 * k, h * 0.44f + ms * 1.45f, UiTheme.Fs(9.5f, k),
+                Marked ? Mn.A(UiTheme.Accent, 0.8f) : UiTheme.Faint);
         }
     }
 }
@@ -451,6 +465,75 @@ public partial class MRule : Control
     {
         float r = Gfx.EaseInOut(Mathf.Clamp((t - Delay) / 0.9f, 0, 1));
         DrawRect(new Rect2(0, 0, Size.X * r, 1), UiTheme.Line);
+    }
+}
+
+/// <summary>Flat on/off switch: a hairline track, an accent knob that slides, and the state as light caps. Click toggles.</summary>
+public partial class MToggle : MButtonBase
+{
+    public bool On;
+    public Action<bool>? Changed;
+    float slide = -1f;
+
+    public override void _Ready()
+    {
+        base._Ready();
+        Pressed += () =>
+        {
+            On = !On;
+            Changed?.Invoke(On);
+        };
+    }
+
+    protected override bool Animating => Mathf.Abs(slide - (On ? 1f : 0f)) > 0.002f;
+
+    public override void _Process(double delta)
+    {
+        float dt = (float)delta;
+        if (slide < 0) slide = On ? 1f : 0f;
+        slide = Mn.Approach(slide, On ? 1f : 0f, dt, 16f);
+        base._Process(delta);
+    }
+
+    public override void _Draw()
+    {
+        if (!BeginDraw()) return;
+        float k = K, cy = Size.Y / 2;
+        float tw = 46 * k, th = 22 * k;
+        var track = new Rect2(0, cy - th / 2, tw, th);
+        var line = On ? UiTheme.Accent : Mn.A(UiTheme.Text, 0.22f + 0.2f * Hover);
+        DrawRect(track, new Color(1, 1, 1, 0.03f + 0.03f * Hover));
+        DrawRect(new Rect2(track.Position.X, track.Position.Y, track.Size.X, 1), line);
+        DrawRect(new Rect2(track.Position.X, track.End.Y - 1, track.Size.X, 1), line);
+        float knob = tw * Mathf.Lerp(0.08f, 0.5f, slide);
+        var kr = new Rect2(knob, cy - th / 2 + 3 * k, tw * 0.4f, th - 6 * k);
+        DrawRect(kr, On ? UiTheme.Accent : Mn.A(UiTheme.Text, 0.55f + 0.3f * Hover));
+        Gfx.Text(this, UiTheme.HudWide, On ? "ON" : "OFF", tw + 14 * k, Gfx.Mid(cy, UiTheme.Fs(11.5f, k)),
+            UiTheme.Fs(11.5f, k), On ? UiTheme.Text : UiTheme.Faint.Lerp(UiTheme.TextSoft, Hover));
+    }
+}
+
+/// <summary>A thin value bar: a hairline track and an accent fill (master volume).</summary>
+public partial class MBar : Control
+{
+    public float K = 1f, Value;
+    public float Delay;
+    float t;
+
+    public MBar() => MouseFilter = MouseFilterEnum.Ignore;
+
+    public override void _Process(double delta)
+    {
+        if (t > Delay + 1f) return;
+        t += (float)delta;
+        QueueRedraw();
+    }
+
+    public override void _Draw()
+    {
+        float r = Gfx.EaseOutCubic(Mathf.Clamp((t - Delay) / 0.7f, 0, 1));
+        DrawRect(new Rect2(0, Size.Y / 2 - 0.5f, Size.X, 1), UiTheme.Line);
+        DrawRect(new Rect2(0, Size.Y / 2 - 1.5f * K, Size.X * Mathf.Clamp(Value, 0, 1) * r, 3 * K), UiTheme.Accent);
     }
 }
 

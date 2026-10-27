@@ -343,6 +343,7 @@ public partial class Main : Node
     }
 
     public void ShowAgents() => SetScreen(new AgentsScreen());
+    public void ShowPlaylists() => SetScreen(new PlaylistsScreen());
 
     public void ShowSettings() => SetScreen(new SettingsScreen());
     public void ShowStats() => SetScreen(new StatsScreen());

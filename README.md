@@ -47,7 +47,7 @@ Settings → About; the app only contacts `api.github.com` and the release downl
 - Windows 10 (1607+) or Windows 11, 64-bit. Nothing else to install (.NET is bundled).
 - Any GPU with a Vulkan or Direct3D 12 driver gets full graphics. Older GPUs, virtual machines and remote desktop switch
   automatically to a simpler OpenGL/Direct3D 11 mode.
-- About 2.5 GB of disk space with the full map set (the installer, the installed app and the maps).
+- About 3.3 GB of disk space with the full map set (the installer, the installed app and the maps).
 - VALORANT is optional: without it, CA-VAL-AIM uses VALORANT's defaults and you set your sensitivity in Settings.
 
 ## Maps
@@ -91,6 +91,9 @@ its memory or your input.
 | Coach | Sens Finder, Crosshair Finder |
 | Other | Reaction Test, **Reaction Lab** (visual, audio, peripheral, choice, flick; per-category stats in Stats → REACTION TIMES), **Lock-In**: a short pre-ranked routine with a check-in, adaptive aim drills, a deathmatch and a hand-off card |
 
+**Playlists** (menu → PLAYLISTS) chain any of these drills into a saved set and play it back to back, handing over
+from one drill's results to the next.
+
 ## Difficulty tiers (calibrated to ranks)
 
 | Tier | Ranks | Bot reaction | Bot's median time to kill you in the open |
@@ -103,7 +106,8 @@ its memory or your input.
 
 Bots react with a human-like delay, move their crosshair with Fitts' law and fire the Vandal with a per-shot hit chance
 against your 100 HP + 50 shield. Target sizes, speeds and time limits scale with the tier. Personal bests are tracked per
-tier.
+tier. With **Progressive difficulty** on in the pause menu, a strong scored run raises the tier and a poor one lowers it;
+the results screen says when the tier moved.
 
 ## Weapons
 
@@ -113,6 +117,8 @@ tier.
 - **Phantom:** 11 rounds/s, 30-round magazine, damage falloff.
 - **Switching rifles:** pick Vandal or Phantom in Settings, or press *Equip primary* (1) during a drill's countdown
   (any time in free play) to swap; every rifle drill uses your choice.
+- **Any weapon in any drill:** the **WEAPON** picker in the menu (and in the pause menu) gives every drill that accepts a
+  gun any playable weapon, or keeps each drill's own; the choice is remembered.
 - **Operator:** 2.5× scope, bolt action.
 - **Movement:** running adds 6° of inaccuracy and walking 3°. You are accurate below 27.5% of run speed, which is what
   makes counter-strafing work.
@@ -147,6 +153,8 @@ recent runs are kept). The coach analyses them:
 - **Coach screen:** an estimated rank overall and for 8 skills (flicking, precision/micro-adjust, tracking, reaction,
   crosshair placement, spray, movement, utility), each with a confidence level.
 - **Problems** sorted by importance, each with your numbers, why it happens, how to fix it and drills to practise.
+- **Direction, tremor and flick error:** it separates left, right, up and down flicks (hit rate, error and the side you
+  miss), flags aim tremor, under- and overshooting and reaction time, and points to a drill for each.
 - **Live coach:** during a run, short cues with the evidence and one fix (crosshair too low, shooting while moving,
   overshooting or stopping short, sprays too long…). Settings → Gameplay → Live coach.
 - **Run review:** the results screen adds a short review of that run: a summary, the top problems with fixes and what

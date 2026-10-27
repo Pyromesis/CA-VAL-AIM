@@ -27,13 +27,19 @@ public abstract class TrainingMode
     /// <summary>True for drills that use a rifle and therefore follow the Vandal / Phantom choice in Settings.</summary>
     public virtual bool RifleSelectable => Weapon is WeaponKind.Vandal or WeaponKind.Phantom;
 
-    /// <summary>The weapon this run really uses: the drill's own weapon, or the player's primary rifle.</summary>
+    /// <summary>The weapon this run really uses: a global weapon picked in the menu / pause menu, otherwise the drill's
+    /// own weapon or (for rifle drills) the player's primary rifle.</summary>
     public WeaponKind SelectedWeapon
     {
         get
         {
+            if (Main.I is { } app)
+            {
+                int pick = app.Settings.WeaponOverride;
+                if (pick >= 0 && pick < Weapons.AllPlayable.Length) return Weapons.AllPlayable[pick].Kind;
+            }
             if (!RifleSelectable) return Weapon;
-            return Main.I is { } app ? app.PrimaryRifle : WeaponKind.Vandal;
+            return Main.I is { } app2 ? app2.PrimaryRifle : WeaponKind.Vandal;
         }
     }
 

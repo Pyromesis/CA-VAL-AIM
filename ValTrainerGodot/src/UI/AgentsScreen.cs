@@ -27,7 +27,7 @@ public partial class AgentsScreen : ScreenBase
     VBoxContainer? page;
     ScrollContainer? pageScroll;
     LineEdit? searchBox;
-    MapSelector? mapSel;
+    MMapSelector? mapSel;
     Control? noMatch;
     bool narrow;
 
@@ -81,23 +81,18 @@ public partial class AgentsScreen : ScreenBase
         var col = (VBoxContainer)root.GetChild(0);
 
         // ---- header: title, tier in effect, map, back ----
-        var head = HBox(16 * k);
-        var title = VBox(2 * k);
+        var head = HBox(20 * k);
+        var title = Heading("AGENTS", "SIGNATURE DRILLS WITH EACH AGENT'S OWN UTILITY · ROLE DRILLS · A 10-MINUTE AGENT LOCK-IN");
         title.SizeFlagsHorizontal = SizeFlags.ExpandFill;
-        title.AddChild(Lbl("AGENTS", UiTheme.Display, 64, UiTheme.Text));
-        var sub = Lbl("SIGNATURE DRILLS WITH EACH AGENT'S OWN UTILITY · ROLE DRILLS · A 10-MINUTE AGENT LOCK-IN", UiTheme.HudWide, 15, UiTheme.Dim);
-        sub.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
-        sub.ClipText = true;
-        title.AddChild(sub);
         head.AddChild(title);
-        var tier = new DrawBox { CustomMinimumSize = new Vector2(190 * k, 52 * k), SizeFlagsVertical = SizeFlags.ShrinkCenter, OnDraw = DrawTier };
+        var tier = new DrawBox { CustomMinimumSize = new Vector2(180 * k, 52 * k), SizeFlagsVertical = SizeFlags.ShrinkCenter, OnDraw = DrawTier };
         tier.MouseFilter = MouseFilterEnum.Pass;
         tier.TooltipText = "Drills run at the tier picked on the menu";
         head.AddChild(tier);
-        mapSel = new MapSelector(this, k) { SizeFlagsVertical = SizeFlags.ShrinkCenter };
+        mapSel = new MMapSelector(this, k) { SizeFlagsVertical = SizeFlags.ShrinkCenter };
         head.AddChild(mapSel);
         head.AddChild(Spacer(4 * k, 0));
-        var back = Btn("BACK", VButton.Look.Primary, Main.I.ShowMenu, 160, 52, 22);
+        var back = Btn("BACK", VButton.Look.Secondary, Main.I.ShowMenu, 132, 42, 16);
         back.SizeFlagsVertical = SizeFlags.ShrinkCenter;
         head.AddChild(back);
         col.AddChild(head);
@@ -132,10 +127,10 @@ public partial class AgentsScreen : ScreenBase
     {
         float k = K, cy = d.Size.Y / 2;
         var t = Difficulty.Get(Main.I.Tier);
-        RankEmblem.Draw(d, new Vector2(16 * k, cy), 14 * k, t.Id);
-        int fs = UiTheme.Fs(17, k), ss = UiTheme.Fs(12, k);
-        Gfx.TextFit(d, UiTheme.HudWide, t.Name.ToUpperInvariant() + " TIER", 40 * k, Gfx.Mid(cy - 9 * k, fs), fs, UiTheme.TierColor(t.Id), d.Size.X - 40 * k);
-        Gfx.TextFit(d, UiTheme.Body, "set on the menu", 40 * k, Gfx.Mid(cy + 11 * k, ss), ss, UiTheme.Faint, d.Size.X - 40 * k);
+        RankEmblem.Draw(d, new Vector2(15 * k, cy), 14 * k, t.Id);
+        int fs = UiTheme.Fs(16, k), ss = UiTheme.Fs(11.5f, k);
+        Gfx.TextFit(d, UiTheme.HudWide, t.Name.ToUpperInvariant() + " TIER", 38 * k, Gfx.Mid(cy - 9 * k, fs), fs, UiTheme.TierColor(t.Id), d.Size.X - 38 * k);
+        Gfx.TextFit(d, UiTheme.Body, "set on the menu", 38 * k, Gfx.Mid(cy + 11 * k, ss), ss, UiTheme.Faint, d.Size.X - 38 * k);
     }
 
     // ---------------- roster ----------------
@@ -232,7 +227,7 @@ public partial class AgentsScreen : ScreenBase
         foreach (var (h, _) in How) hw = Mathf.Max(hw, Gfx.TextW(UiTheme.HudWide, h, hs));
         foreach (var (h, t) in How)
         {
-            Gfx.Diamond(d, new Vector2(4 * k, y + 10 * k), 3.5f * k, 4.5f * k, UiTheme.Accent);
+            d.DrawRect(new Rect2(4 * k, y + 9 * k, 7 * k, 2 * k), UiTheme.Accent);
             Gfx.Text(d, UiTheme.HudWide, h, 16 * k, Gfx.Mid(y + 10 * k, hs), hs, UiTheme.Text);
             float x = 16 * k + hw + 12 * k;
             d.DrawMultilineString(UiTheme.Body, new Vector2(x, y + 10 * k + ts * 0.36f), t, HorizontalAlignment.Left, d.Size.X - x, ts, 2, UiTheme.Dim);
@@ -419,11 +414,10 @@ public partial class AgentsScreen : ScreenBase
                 CustomMinimumSize = new Vector2(0, 68 * k),
                 OnDraw = d =>
                 {
-                    Gfx.PlateEx(d, new Rect2(Vector2.Zero, d.Size), 12 * k, true, false, false, true,
-                        new Color(0.07f, 0.11f, 0.15f, 0.6f), new Color(UiTheme.Text, 0.10f), 1f);
+                    Mn.Card(d, new Rect2(Vector2.Zero, d.Size), k);
                     int fs = UiTheme.Fs(15, k), ss = UiTheme.Fs(13.5f, k);
-                    Gfx.Diamond(d, new Vector2(0, 12 * k), 3f * k, 3f * k, new Color(UiTheme.Teal, 0.8f));
-                    Gfx.TextFit(d, UiTheme.Body, $"No signature drill for {a.Name} yet.", 16 * k, Gfx.Mid(24 * k, fs), fs, UiTheme.Text, d.Size.X - 32 * k);
+                    d.DrawRect(new Rect2(16 * k, 24 * k - 1 * k, 7 * k, 2 * k), new Color(UiTheme.Teal, 0.8f));
+                    Gfx.TextFit(d, UiTheme.Body, $"No signature drill for {a.Name} yet.", 32 * k, Gfx.Mid(24 * k, fs), fs, UiTheme.Text, d.Size.X - 48 * k);
                     Gfx.TextFit(d, UiTheme.Body, $"The {a.Role.ToString().ToLowerInvariant()} drills below train the fights that {a.Name}'s utility sets up.",
                         16 * k, Gfx.Mid(48 * k, ss), ss, UiTheme.Dim, d.Size.X - 32 * k);
                 },

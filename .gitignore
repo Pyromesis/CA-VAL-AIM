@@ -25,9 +25,14 @@ __pycache__/
 
 # ---- Release / export output ----
 dist/
+/dist-full/
 *.exe
 *.zip
 *.tpz
+
+# ---- Local scratch ----
+/.tmp-icon/
+/.tmp-selftest/
 
 # ---- Local tools (CI downloads its own copies) ----
 /tools/godot/

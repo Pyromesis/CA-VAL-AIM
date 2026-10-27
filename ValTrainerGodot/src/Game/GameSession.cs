@@ -30,7 +30,10 @@ public partial class GameSession : Node3D, IGame
     public PlayerView View { get; } = new();
     public Mover Mover { get; private set; } = new();
     public PlayerState Player { get; } = new();
-    public int Tier => Math.Clamp(TierOverride ?? (Mode as TrainingMode)?.PreferredTier ?? Main.I.Tier, 0, 4);
+    public int Tier => Math.Clamp(playedTier ?? TierOverride ?? (Mode as TrainingMode)?.PreferredTier ?? Main.I.Tier, 0, 4);
+    /// <summary>The tier this run started at: changing it in the pause menu only applies to the next run, and the results
+    /// screen keeps reporting the tier that was actually played.</summary>
+    int? playedTier;
     public Color Enemy => Main.I.EnemyColor;
     public Random Rng { get; } = new();
     public float Now { get; private set; }
@@ -64,6 +67,10 @@ public partial class GameSession : Node3D, IGame
         return i >= 0 && i + 1 < a.Length ? a[i + 1] : null;
     }
     public int PrevBest { get; private set; }
+    /// <summary>Progressive difficulty: the tier this run was played at and the tier the next run will use (null = no
+    /// change; the results screen shows them as a note).</summary>
+    public int? ProgressiveFrom { get; private set; }
+    public int? ProgressiveTo { get; private set; }
     public float AdsBlend;
 
     Hud hud = null!;
@@ -246,6 +253,8 @@ public partial class GameSession : Node3D, IGame
 
         Mode = factory();
         if (!Demo) Main.I.LastModeKey = Mode.Key; // bug reports say which drill ran last
+        playedTier = Math.Clamp(TierOverride ?? Mode.PreferredTier ?? Main.I.Tier, 0, 4); // lock the run's difficulty
+        ProgressiveFrom = ProgressiveTo = null;
         Mode.Attach(this); // ExtraSolids / Map below already follow the session tier
         if (Adaptive is { Trials: > 0 } stair) Adaptive = stair.Fresh(); // a restarted run adapts from the start level again
         TrialSens = SessionSens; // null unless a routine (warm-up sens shifter) set one
@@ -798,7 +807,45 @@ public partial class GameSession : Node3D, IGame
             app.Stats.Runs.Add(Record);
             app.Stats.Save();
         }
+        ApplyProgressive();
         if (OnFinished is { } done) { OnFinished = null; done(this); } // routine: next step instead of the results screen
+    }
+
+    /// <summary>
+    /// Progressive difficulty (Settings): a scored run that beats the personal best by a clear margin or lands a high
+    /// accuracy raises the tier one step; a run far below the best or with very low accuracy lowers it. Locked to the
+    /// tier that was played, so the results still describe the run as it happened. Warm-up / overridden / adaptive runs
+    /// and drills without a score never move the tier.
+    /// </summary>
+    void ApplyProgressive()
+    {
+        var st = Main.I.Settings;
+        if (!st.ProgressiveDifficulty || Record == null || !Mode.ShowScore || Record.Warmup) return;
+        if (TierOverride != null || Adaptive != null || !KeepInStats || Now < 8f) return;
+        int played = Tier;
+        int score = Record.Score;
+        float acc = Record.Accuracy;
+        bool first = PrevBest < 0;
+        bool strong = false, weak = false;
+        if (Record.Shots >= 12)
+        {
+            strong = acc >= 0.60f;
+            weak = acc <= 0.22f;
+        }
+        if (!first && PrevBest > 0 && score > 0)
+        {
+            if (score >= PrevBest * 1.10f) strong = true;
+            if (score <= PrevBest * 0.62f) weak = true;
+        }
+        if (strong == weak) return; // neither fired, or both did: don't guess
+        int next = Math.Clamp(played + (strong ? 1 : -1), 0, Difficulty.Tiers.Length - 1);
+        if (next == played) return;
+        st.Tier = next;
+        st.Save();
+        ProgressiveFrom = played;
+        ProgressiveTo = next;
+        Log.Info($"[progressive] {Mode.Key} {Difficulty.Get(played).Name} -> {Difficulty.Get(next).Name} " +
+                 $"(score {score}, best {PrevBest}, acc {acc * 100:0}%)");
     }
 
     // ---- routine hooks (warm-up); set before the session enters the tree ----

@@ -250,6 +250,246 @@ public partial class MMapTile : MButtonBase
     }
 }
 
+/// <summary>
+/// The weapon choice shared by the main menu and the pause overlay: ‹ NAME › (DRILL DEFAULT = each drill's own gun), the
+/// class under it, and a click opens the full arsenal. The pick is global: every drill can be played with every gun.
+/// </summary>
+public partial class MWeaponSelector : HBoxContainer
+{
+    readonly Control host;
+    readonly float k;
+    readonly MWeaponName name;
+    MWeaponPicker? picker;
+    public Action? Changed;
+    public float Delay;
+
+    public MWeaponSelector(Control host, float k)
+    {
+        this.host = host;
+        this.k = k;
+        AddThemeConstantOverride("separation", (int)(12 * k));
+        var prev = new MLink { K = k, Label = "‹", Font = UiTheme.Light, Px = 24, TooltipText = "Previous weapon" };
+        prev.Pressed += () => Step(-1);
+        name = new MWeaponName { K = k, CustomMinimumSize = new Vector2(210 * k, 42 * k), TooltipText = "Weapon for every drill · click for the full arsenal" };
+        name.Pressed += () => { if (IsOpen) Close(); else Open(); };
+        var next = new MLink { K = k, Label = "›", Font = UiTheme.Light, Px = 24, TooltipText = "Next weapon" };
+        next.Pressed += () => Step(1);
+        AddChild(prev); AddChild(name); AddChild(next);
+    }
+
+    static int Count => Weapons.AllPlayable.Length + 1; // + DRILL DEFAULT at index 0
+    static int Current => Math.Clamp(Main.I.Settings.WeaponOverride + 1, 0, Count - 1);
+
+    public override void _Ready()
+    {
+        foreach (var c in GetChildren()) if (c is MButtonBase b) b.Delay = Delay;
+    }
+
+    public bool IsOpen => picker != null && IsInstanceValid(picker) && picker.IsInsideTree();
+
+    void Step(int dir)
+    {
+        int i = (Current + dir + Count) % Count;
+        Select(i - 1);
+    }
+
+    public void Select(int pick)
+    {
+        Main.I.Settings.WeaponOverride = Math.Clamp(pick, -1, Weapons.AllPlayable.Length - 1);
+        Main.I.Settings.Save();
+        name.Bump();
+        Changed?.Invoke();
+    }
+
+    public void Open()
+    {
+        if (IsOpen || !IsInsideTree()) return;
+        picker = new MWeaponPicker(k, Main.I.Settings.WeaponOverride, p => { Select(p); Close(); }, Close);
+        host.AddChild(picker);
+    }
+
+    public void Close()
+    {
+        if (picker != null && IsInstanceValid(picker)) picker.Dismiss();
+        picker = null;
+    }
+
+    public override void _ExitTree() => Close();
+}
+
+/// <summary>The selected weapon in light type with its class underneath (or DRILL DEFAULT); a change cross-fades.</summary>
+public partial class MWeaponName : MButtonBase
+{
+    float swap = 1f;
+    public void Bump() { swap = 0f; QueueRedraw(); }
+    protected override bool Animating => swap < 1f;
+
+    public override void _Process(double delta)
+    {
+        if (swap < 1f) swap = Mathf.Min(1f, swap + (float)delta / 0.28f);
+        base._Process(delta);
+    }
+
+    public override void _Draw()
+    {
+        if (!BeginDraw()) return;
+        float k = K, cy = Size.Y / 2, e = Gfx.EaseOutCubic(swap);
+        int pick = Main.I.Settings.WeaponOverride;
+        bool def = pick < 0 || pick >= Weapons.AllPlayable.Length;
+        string nm = def ? "Drill default" : Weapons.AllPlayable[pick].Name;
+        string cls = def ? "each drill's own weapon" : Weapons.ClassName(Weapons.AllPlayable[pick].Class);
+        int fs = UiTheme.Fs(21, k), cs = UiTheme.Fs(10, k);
+        DrawString(UiTheme.Light, new Vector2(0, cy + fs * 0.12f + (1 - e) * 6 * k), nm, HorizontalAlignment.Left, -1, fs,
+            Mn.A(UiTheme.TextSoft.Lerp(UiTheme.Text, Hover), e));
+        DrawString(UiTheme.HudWide, new Vector2(1, cy + fs * 0.12f + cs * 1.7f), Loc.T(cls), HorizontalAlignment.Left, -1, cs,
+            Mn.A(UiTheme.Faint, e));
+        float w = UiTheme.Light.GetStringSize(nm, HorizontalAlignment.Left, -1, fs).X;
+        if (Hover > 0.01f) DrawRect(new Rect2(0, cy + fs * 0.12f + cs * 2.4f, w * Hover, Mathf.Max(1, k)), Mn.A(UiTheme.Text, 0.4f * Hover));
+    }
+}
+
+/// <summary>Full-screen arsenal: every playable weapon plus DRILL DEFAULT. Click one, click outside or Esc to close.</summary>
+public partial class MWeaponPicker : Control
+{
+    readonly float k;
+    readonly int current;
+    readonly Action<int> pick;
+    readonly Action close;
+    float t, outT = -1f;
+
+    public MWeaponPicker(float k, int current, Action<int> pick, Action close)
+    {
+        this.k = k; this.current = current; this.pick = pick; this.close = close;
+        SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+        MouseFilter = MouseFilterEnum.Stop;
+        FocusMode = FocusModeEnum.All;
+    }
+
+    public override void _Ready()
+    {
+        GrabFocus();
+        var vs = GetViewportRect().Size;
+        int cols = vs.X / k >= 1300 ? 4 : 3;
+        float tileW = Mathf.Min(250 * k, (vs.X - 160 * k) / cols - 14 * k), tileH = 58 * k;
+        var grid = new GridContainer { Columns = cols, MouseFilter = MouseFilterEnum.Ignore };
+        grid.AddThemeConstantOverride("h_separation", (int)(14 * k));
+        grid.AddThemeConstantOverride("v_separation", (int)(10 * k));
+        var tile = new MWeaponTile(-1, Loc.T("Drill default"), Loc.T("each drill's own weapon")) { K = k, Selected = current < 0, Delay = 0.04f, CustomMinimumSize = new Vector2(tileW, tileH) };
+        tile.Pressed += () => pick(-1);
+        grid.AddChild(tile);
+        int i = 0;
+        foreach (var w in Weapons.AllPlayable)
+        {
+            int idx = i++;
+            var wt = new MWeaponTile(idx, w.Name, Loc.T(Weapons.ClassName(w.Class))) { K = k, Selected = idx == current, Delay = 0.05f + i * 0.012f, CustomMinimumSize = new Vector2(tileW, tileH) };
+            wt.Pressed += () => pick(idx);
+            grid.AddChild(wt);
+        }
+        var center = new CenterContainer { MouseFilter = MouseFilterEnum.Ignore };
+        center.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+        var col = new VBoxContainer { MouseFilter = MouseFilterEnum.Ignore };
+        col.AddThemeConstantOverride("separation", (int)(18 * k));
+        col.AddChild(new MText { K = k, Text = Loc.T("CHOOSE A WEAPON"), Font = UiTheme.HudWide, Px = 11.5f, Color = UiTheme.Faint, Delay = 0.02f, CustomMinimumSize = new Vector2(420 * k, 0) });
+        col.AddChild(grid);
+        col.AddChild(new MText { K = k, Text = Loc.T("Every drill · every gun · Esc closes"), Font = UiTheme.Body, Px = 12, Color = UiTheme.Faint, Delay = 0.3f });
+        center.AddChild(col);
+        AddChild(center);
+    }
+
+    public void Dismiss()
+    {
+        if (outT >= 0) return;
+        outT = 0f;
+        MouseFilter = MouseFilterEnum.Ignore;
+    }
+
+    /// <summary>
+    /// Esc and clicks outside the tiles close the picker before the session / menu sees them. The in-game HUD swallows
+    /// mouse presses (so a pause-resume click never fires), which is why the picker handles its own dismissal here.
+    /// </summary>
+    public override void _Input(InputEvent e)
+    {
+        if (outT >= 0) return;
+        if (e is InputEventKey { Pressed: true, Echo: false, Keycode: Key.Escape })
+        {
+            GetViewport().SetInputAsHandled();
+            close();
+            return;
+        }
+        if (e is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left } mb && !OnTile(mb.Position))
+        {
+            GetViewport().SetInputAsHandled();
+            close();
+        }
+    }
+
+    bool OnTile(Vector2 p)
+    {
+        bool Hit(Node n)
+        {
+            foreach (var c in n.GetChildren())
+            {
+                if (c is Control { Visible: false }) continue;
+                if (c is BaseButton b && b.GetGlobalRect().HasPoint(p)) return true;
+                if (Hit(c)) return true;
+            }
+            return false;
+        }
+        return Hit(this);
+    }
+
+    public override void _GuiInput(InputEvent e)
+    {
+        if (e is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left }) { AcceptEvent(); close(); }
+        else if (e is InputEventKey { Pressed: true, Keycode: Key.Escape }) { AcceptEvent(); close(); }
+    }
+
+    public override void _Process(double delta)
+    {
+        float dt = (float)delta;
+        t += dt;
+        if (outT >= 0)
+        {
+            outT += dt;
+            Modulate = new Color(1, 1, 1, 1f - Gfx.EaseOutCubic(outT / 0.2f));
+            if (outT >= 0.2f) QueueFree();
+        }
+        QueueRedraw();
+    }
+
+    public override void _Draw()
+    {
+        float a = Gfx.EaseOutCubic(t / 0.25f);
+        DrawRect(new Rect2(Vector2.Zero, Size), new Color(UiTheme.Bg, 0.94f * a));
+    }
+}
+
+/// <summary>One weapon in the picker: name + class, accent underline when selected.</summary>
+public partial class MWeaponTile : MButtonBase
+{
+    readonly int index;
+    readonly string label, sub;
+    public bool Selected;
+
+    public MWeaponTile(int index, string label, string sub) { this.index = index; this.label = label; this.sub = sub; }
+
+    public override void _Draw()
+    {
+        if (!BeginDraw()) return;
+        float k = K, h = Size.Y;
+        var r = new Rect2(0, 0, Size.X, h);
+        DrawRect(r, new Color(1, 1, 1, 0.025f + 0.04f * Hover));
+        DrawRect(new Rect2(0, h - 1, Size.X, 1), UiTheme.Line);
+        int fs = UiTheme.Fs(16, k), cs = UiTheme.Fs(9.5f, k);
+        Gfx.TextFit(this, UiTheme.Body, label, 13 * k, h * 0.46f, fs,
+            Selected ? UiTheme.Text : UiTheme.TextSoft.Lerp(UiTheme.Text, Hover), Size.X - 26 * k);
+        Gfx.TextFit(this, UiTheme.HudWide, sub, 13 * k, h * 0.46f + cs * 1.6f, cs, UiTheme.Faint, Size.X - 26 * k);
+        if (Selected) DrawRect(new Rect2(0, h - 2 * k, Size.X, Mathf.Max(1.5f, 2 * k)), UiTheme.Accent);
+        else if (Hover > 0.01f) DrawRect(new Rect2(0, h - 1, Size.X * Hover, 1), Mn.A(UiTheme.Text, 0.45f * Hover));
+        _ = index;
+    }
+}
+
 /// <summary>The footer's update control as a text link: CHECK FOR UPDATES → UPDATE TO x.y.z → DOWNLOADING 42% →
 /// RESTART TO UPDATE (in the accent). Same behaviour as <see cref="UpdateNowButton"/>.</summary>
 public partial class MUpdateLink : MLink

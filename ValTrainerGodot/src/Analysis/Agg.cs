@@ -16,6 +16,11 @@ static class Agg
         "flick.n", "flick.n5", "flick.n_prim", "flick.n_still", "flick.n_low", "flick.n_over", "flick.n_under", "flick.n_off", "flick.n_small",
         "flick.n_large", "flick.anticip", "flick.onset_n", "flick.n_hit", "flick.n_corr", "flick.misses", "flick.premature",
         "flick.snap", "flick.n_first", "flick.first_hits",
+        "flick.dir_left_n", "flick.dir_left_hit", "flick.dir_left_off",
+        "flick.dir_right_n", "flick.dir_right_hit", "flick.dir_right_off",
+        "flick.dir_up_n", "flick.dir_up_hit", "flick.dir_up_off",
+        "flick.dir_down_n", "flick.dir_down_hit", "flick.dir_down_off",
+        "flick.tremor_n", "flick.tremor_trials",
         "head.n_first", "head.first_hits", "head.n_hit",
         "speed.n",
         "track.secs", "track.reversals",
@@ -44,6 +49,11 @@ static class Agg
         ["flick.premature_dps"] = "flick.premature", ["flick.snap_err_deg"] = "flick.snap",
         ["flick.premature_share"] = "flick.misses", ["flick.snap_share"] = "flick.misses",
         ["flick.shot_err_deg"] = "flick.n_first", ["flick.shot_err_r"] = "flick.n_first", ["flick.precision_deg"] = "flick.n_first",
+        ["flick.dir_left_err_r"] = "flick.dir_left_n", ["flick.dir_left_off_pct"] = "flick.dir_left_n", ["flick.dir_left_hit_pct"] = "flick.dir_left_n",
+        ["flick.dir_right_err_r"] = "flick.dir_right_n", ["flick.dir_right_off_pct"] = "flick.dir_right_n", ["flick.dir_right_hit_pct"] = "flick.dir_right_n",
+        ["flick.dir_up_err_r"] = "flick.dir_up_n", ["flick.dir_up_off_pct"] = "flick.dir_up_n", ["flick.dir_up_hit_pct"] = "flick.dir_up_n",
+        ["flick.dir_down_err_r"] = "flick.dir_down_n", ["flick.dir_down_off_pct"] = "flick.dir_down_n", ["flick.dir_down_hit_pct"] = "flick.dir_down_n",
+        ["flick.end_scatter_r"] = "flick.n_still", ["flick.tremor_r"] = "flick.tremor_n", ["flick.tremor_share"] = "flick.n_hit",
         ["flick.fsh_pct"] = "flick.n_first", ["flick.ttk_hit_ms"] = "speed.n",
         ["head.fsh_pct"] = "head.n_first", ["head.tc_ms"] = "head.n_hit", ["head.nc"] = "head.n_hit",
         ["speed.tier"] = "speed.n", ["speed.score_min"] = "speed.n",
@@ -80,6 +90,15 @@ static class Agg
         Ratio(m, "flick.premature_share", "flick.premature", "flick.misses", 1);
         Ratio(m, "flick.snap_share", "flick.snap", "flick.misses", 1);
         Ratio(m, "flick.low_share", "flick.n_low", "flick.n_prim", 1);
+        Ratio(m, "flick.dir_left_off_pct", "flick.dir_left_off", "flick.dir_left_n", 100);
+        Ratio(m, "flick.dir_right_off_pct", "flick.dir_right_off", "flick.dir_right_n", 100);
+        Ratio(m, "flick.dir_up_off_pct", "flick.dir_up_off", "flick.dir_up_n", 100);
+        Ratio(m, "flick.dir_down_off_pct", "flick.dir_down_off", "flick.dir_down_n", 100);
+        Ratio(m, "flick.dir_left_hit_pct", "flick.dir_left_hit", "flick.dir_left_n", 100);
+        Ratio(m, "flick.dir_right_hit_pct", "flick.dir_right_hit", "flick.dir_right_n", 100);
+        Ratio(m, "flick.dir_up_hit_pct", "flick.dir_up_hit", "flick.dir_up_n", 100);
+        Ratio(m, "flick.dir_down_hit_pct", "flick.dir_down_hit", "flick.dir_down_n", 100);
+        Ratio(m, "flick.tremor_share", "flick.tremor_trials", "flick.n_hit", 1);
         Ratio(m, "flick.fsh_pct", "flick.first_hits", "flick.n_first", 100);
         Ratio(m, "head.fsh_pct", "head.first_hits", "head.n_first", 100);
         Ratio(m, "xhair.below_pct", "xhair.below", "xhair.n", 100);

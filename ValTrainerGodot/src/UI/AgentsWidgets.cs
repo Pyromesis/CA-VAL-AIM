@@ -76,32 +76,37 @@ public static class AgentArt
         }
     }
 
-    /// <summary>Agent badge: angular plate tinted with the role colour, a faint role glyph and the agent's monogram.</summary>
+    /// <summary>Agent badge: a flat role-tinted block, a role rule along the top and the agent's monogram. No Riot art.</summary>
     public static void Badge(CanvasItem ci, Rect2 r, AgentInfo a, float k, float glow = 0f, float alpha = 1f)
     {
         var col = RoleColor(a.Role);
         float s = Mathf.Min(r.Size.X, r.Size.Y);
-        Gfx.PlateEx(ci, r, s * 0.16f, true, false, false, true,
-            new Color(0.08f, 0.12f, 0.16f, 0.95f * alpha), new Color(col, (0.45f + 0.4f * glow) * alpha), Mathf.Max(1f, 1.5f * k));
-        Gfx.VGradient(ci, new Rect2(r.Position.X + 1, r.Position.Y + r.Size.Y * 0.45f, r.Size.X - 2, r.Size.Y * 0.55f - 1),
-            new Color(col, 0f), new Color(col, (0.2f + 0.12f * glow) * alpha));
+        ci.DrawRect(r, new Color(col, (0.055f + 0.05f * glow) * alpha));
+        Gfx.VGradient(ci, new Rect2(r.Position.X, r.Position.Y + r.Size.Y * 0.45f, r.Size.X, r.Size.Y * 0.55f),
+            new Color(col, 0f), new Color(col, (0.10f + 0.08f * glow) * alpha));
+        ci.DrawRect(new Rect2(r.Position, new Vector2(r.Size.X, Mathf.Max(1.5f, 2 * k))),
+            new Color(col, (0.55f + 0.4f * glow) * alpha));
         RoleGlyph(ci, r.GetCenter(), s * 0.4f, a.Role, new Color(col, (0.16f + 0.08f * glow) * alpha));
         int fs = Math.Max(10, (int)(s * 0.4f));
-        Gfx.TextC(ci, UiTheme.Display, a.Mono, r.GetCenter().X, Gfx.Mid(r.GetCenter().Y, fs), fs, new Color(UiTheme.Text, alpha));
+        Gfx.TextC(ci, UiTheme.Light, a.Mono, r.GetCenter().X, Gfx.Mid(r.GetCenter().Y, fs), fs, new Color(UiTheme.Text, alpha));
     }
 
-    /// <summary>Keyboard key cap for an ability slot (C / Q / E / X); passives get a small diamond.</summary>
+    /// <summary>Keyboard key cap for an ability slot (C / Q / E / X); passives get a short dash.</summary>
     public static void KeyCap(CanvasItem ci, Rect2 r, string slot, Color col, float k)
     {
-        ci.DrawRect(r, new Color(col, 0.12f));
-        ci.DrawRect(r, new Color(col, 0.8f), false, Mathf.Max(1f, 1.5f * k));
-        if (slot.Length == 0) { Gfx.Diamond(ci, r.GetCenter(), r.Size.X * 0.2f, r.Size.Y * 0.26f, col); return; }
+        ci.DrawRect(r, new Color(col, 0.10f));
+        ci.DrawRect(r, new Color(col, 0.65f), false, Mathf.Max(1f, 1.5f * k));
+        if (slot.Length == 0)
+        {
+            ci.DrawRect(new Rect2(r.GetCenter().X - r.Size.X * 0.18f, r.GetCenter().Y - Mathf.Max(1f, k), r.Size.X * 0.36f, Mathf.Max(1.5f, 2 * k)), col);
+            return;
+        }
         int fs = Math.Max(10, (int)(r.Size.Y * 0.56f));
-        Gfx.TextC(ci, UiTheme.Display, slot, r.GetCenter().X, Gfx.Mid(r.GetCenter().Y, fs), fs, UiTheme.Text);
+        Gfx.TextC(ci, UiTheme.HudWide, slot, r.GetCenter().X, Gfx.Mid(r.GetCenter().Y, fs), fs, UiTheme.Text);
     }
 }
 
-/// <summary>One agent in the roster: badge, name and a diamond per signature drill.</summary>
+/// <summary>One agent in the roster: badge, name and one small mark per signature drill.</summary>
 public partial class AgentTile : BaseButton
 {
     public readonly AgentInfo Agent;
@@ -144,21 +149,21 @@ public partial class AgentTile : BaseButton
         var col = AgentArt.RoleColor(Agent.Role);
         float nameH = 24 * k;
         var art = new Rect2(0, 0, r.Size.X, r.Size.Y - nameH);
+        Mn.Card(this, r, k, Selected ? 0f : hover, Selected);
         AgentArt.Badge(this, art, Agent, k, Selected ? 1f : hover);
-        if (Selected)
-        {
-            DrawRect(new Rect2(0, r.Size.Y - nameH, r.Size.X, nameH), UiTheme.Text);
-            DrawRect(new Rect2(0, r.Size.Y - 3 * k, r.Size.X, 3 * k), UiTheme.Accent);
-        }
+        DrawRect(new Rect2(0, r.Size.Y - nameH, r.Size.X, 1), new Color(1, 1, 1, 0.07f + 0.06f * hover));
         int ns = UiTheme.Fs(11.5f, k);
         string name = Agent.Name.ToUpperInvariant();
         // long names (BRIMSTONE) drop the letter spacing instead of being cut
         var font = Gfx.TextW(UiTheme.HudWide, name, ns) <= r.Size.X - 6 ? UiTheme.HudWide : UiTheme.Hud;
-        Gfx.TextFit(this, font, name, 2, Gfx.Mid(r.Size.Y - nameH / 2 - (Selected ? 1 * k : 0), ns), ns,
-            Selected ? UiTheme.Bg : UiTheme.Text.Lerp(Colors.White, hover * 0.3f), r.Size.X - 4, HorizontalAlignment.Center);
+        Gfx.TextFit(this, font, name, 2, Gfx.Mid(r.Size.Y - nameH / 2, ns), ns,
+            (Selected ? UiTheme.Text : UiTheme.TextSoft).Lerp(UiTheme.Text, hover * 0.8f), r.Size.X - 4, HorizontalAlignment.Center);
+        // signature drills: one small mark per drill, top right, in the role colour
         for (int i = 0; i < Math.Min(3, SignatureCount); i++)
-            Gfx.Diamond(this, new Vector2(r.Size.X - 11 * k - i * 10 * k, 11 * k), 3.5f * k, 4.5f * k, col);
-        if (hover > 0.01f && !Selected) Gfx.Brackets(this, r.Grow(2 * k), 7 * k * hover, new Color(UiTheme.Text, 0.85f * hover), Mathf.Max(1, 2 * k));
+        {
+            float m = 3 * k;
+            DrawRect(new Rect2(r.Size.X - 8 * k - i * (m + 3 * k) - m, 8 * k, m, m), col);
+        }
     }
 }
 
@@ -228,23 +233,18 @@ public partial class RoleChip : BaseButton
     {
         float k = K;
         var r = new Rect2(Vector2.Zero, Size);
+        // flat chip: a hairline box, the accent rule at the bottom only while it is the active filter
+        DrawRect(r, new Color(1, 1, 1, (Selected ? 0.05f : 0.02f) + 0.03f * hover));
+        DrawRect(r, new Color(1, 1, 1, 0.08f + 0.22f * hover), false, 1f);
         if (Selected)
-        {
-            DrawRect(r, UiTheme.Text);
-            DrawRect(new Rect2(0, r.Size.Y - 3 * k, r.Size.X, 3 * k), UiTheme.Accent);
-        }
-        else
-        {
-            DrawRect(r, new Color(0.06f, 0.1f, 0.14f, 0.72f).Lerp(new Color(0.93f, 0.91f, 0.88f, 0.14f), hover));
-            DrawRect(r, new Color(UiTheme.Text, 0.14f + 0.4f * hover), false, 1f);
-        }
-        var c = r.GetCenter() - new Vector2(0, Selected ? 1.5f * k : 0);
+            DrawRect(new Rect2(0, r.Size.Y - Mathf.Max(1.5f, 2 * k), r.Size.X, Mathf.Max(1.5f, 2 * k)), UiTheme.Accent);
+        var c = r.GetCenter();
         if (Role is { } role)
-            AgentArt.RoleGlyph(this, c, r.Size.Y * 0.3f, role, Selected ? AgentArt.RoleColor(role).Darkened(0.35f) : AgentArt.RoleColor(role));
+            AgentArt.RoleGlyph(this, c, r.Size.Y * 0.3f, role, AgentArt.RoleColor(role));
         else
         {
             int fs = UiTheme.Fs(17, k);
-            Gfx.TextC(this, UiTheme.Display, "ALL", c.X, Gfx.Mid(c.Y, fs), fs, Selected ? UiTheme.Bg : UiTheme.Text);
+            Gfx.TextC(this, UiTheme.HudWide, "ALL", c.X, Gfx.Mid(c.Y, fs), fs, Selected ? UiTheme.Text : UiTheme.TextSoft);
         }
     }
 }
@@ -274,12 +274,9 @@ public partial class AbilityCard : Control
         var r = new Rect2(Vector2.Zero, Size);
         var col = AgentArt.RoleColor(agent.Role);
         bool trained = drills.Count > 0;
-        Gfx.PlateEx(this, r, 10 * k, true, false, false, true, new Color(0.07f, 0.11f, 0.15f, 0.88f), new Color(UiTheme.Text, 0.09f), 1f);
-        // role strip along the top edge: accent run that fades out instead of a hard bar
-        float stripW = Mathf.Max(0, r.Size.X - 10 * k - 30 * k);
-        DrawRect(new Rect2(10 * k, 0, stripW, 2 * k), new Color(trained ? col : UiTheme.Faint, trained ? 0.8f : 0.4f));
-        Gfx.HGradient(this, new Rect2(10 * k + stripW, 0, 30 * k, 2 * k),
-            new Color(trained ? col : UiTheme.Faint, (trained ? 0.8f : 0.4f) * 0.5f), new Color(0, 0, 0, 0));
+        Mn.Card(this, r, k);
+        // role rule along the top edge, dimmed when no drill trains the ability yet
+        DrawRect(new Rect2(0, 0, r.Size.X, Mathf.Max(1.5f, 2 * k)), new Color(trained ? col : UiTheme.Faint, trained ? 0.75f : 0.3f));
 
         float cap = 30 * k;
         AgentArt.KeyCap(this, new Rect2(pad, pad + 2 * k, cap, cap), ability.Slot, trained ? col : UiTheme.Dim, k);
@@ -287,14 +284,14 @@ public partial class AbilityCard : Control
         float nx = pad + cap + 10 * k, nw = r.Size.X - nx - pad, top = pad + 2 * k;
         string name = ability.Name.ToUpperInvariant();
         int ns = UiTheme.Fs(19, k), minNs = UiTheme.Fs(15, k);
-        while (ns > minNs && Gfx.TextW(UiTheme.Display, name, ns) > nw) ns--;
+        while (ns > minNs && Gfx.TextW(UiTheme.Light, name, ns) > nw) ns--;
         float below = pad + cap; // where the summary area starts
-        if (Gfx.TextW(UiTheme.Display, name, ns) <= nw)
-            Gfx.Text(this, UiTheme.Display, name, nx, Gfx.Mid(top + cap / 2, ns), ns, UiTheme.Text);
+        if (Gfx.TextW(UiTheme.Light, name, ns) <= nw)
+            Gfx.Text(this, UiTheme.Light, name, nx, Gfx.Mid(top + cap / 2, ns), ns, UiTheme.Text);
         else
         {
-            DrawMultilineString(UiTheme.Display, new Vector2(nx, top + UiTheme.Display.GetAscent(ns) - 2 * k), name, HorizontalAlignment.Left, nw, ns, 2, UiTheme.Text);
-            below = Mathf.Max(below, top + UiTheme.Display.GetMultilineStringSize(name, HorizontalAlignment.Left, nw, ns, 2).Y);
+            DrawMultilineString(UiTheme.Light, new Vector2(nx, top + UiTheme.Light.GetAscent(ns) - 2 * k), name, HorizontalAlignment.Left, nw, ns, 2, UiTheme.Text);
+            below = Mathf.Max(below, top + UiTheme.Light.GetMultilineStringSize(name, HorizontalAlignment.Left, nw, ns, 2).Y);
         }
         if (ability.Slot.Length == 0)
         {
@@ -365,16 +362,13 @@ public partial class RoleCard : BaseButton
         float k = K, pad = 22 * k;
         var r = new Rect2(Vector2.Zero, Size);
         var col = AgentArt.RoleColor(role);
-        Gfx.PlateEx(this, r, 16 * k, true, false, false, true, new Color(0.075f, 0.115f, 0.155f, 0.9f).Lerp(new Color(0.13f, 0.18f, 0.23f, 0.96f), hover), new Color(UiTheme.Text, 0.08f + 0.3f * hover), 1f);
-        Gfx.Diamond(this, new Vector2(0, 16 * k), 3.4f * k, 3.4f * k, new Color(col, 0.55f + 0.45f * hover));
-        DrawRect(new Rect2(6 * k, 0, Mathf.Max(0, 30 * k - 6 * k), 2 * k), new Color(col, 0.6f + 0.4f * hover));
-        Gfx.HGradient(this, new Rect2(30 * k, 0, 26 * k, 2 * k), new Color(col, (0.6f + 0.4f * hover) * 0.5f), new Color(0, 0, 0, 0));
-        Gfx.VGradient(this, new Rect2(1, r.Size.Y * 0.55f, r.Size.X - 2, r.Size.Y * 0.45f - 1), new Color(col, 0f), new Color(col, 0.08f + 0.05f * hover));
-        if (hover > 0.01f) Gfx.Brackets(this, r.Grow(3 * k), 8 * k * hover, new Color(UiTheme.Text, 0.8f * hover), Mathf.Max(1, 2 * k));
+        Mn.Card(this, r, k, hover);
+        // role rule across the top: this card's only colour until the glyph
+        DrawRect(new Rect2(0, 0, r.Size.X, Mathf.Max(1.5f, 2 * k)), new Color(col, 0.5f + 0.4f * hover));
 
         AgentArt.RoleGlyph(this, new Vector2(pad + 26 * k, pad + 26 * k), 24 * k, role, col);
         int ts = UiTheme.Fs(40, k);
-        Gfx.Text(this, UiTheme.Display, role.ToString().ToUpperInvariant() + "S", pad + 66 * k, Gfx.Mid(pad + 26 * k, ts), ts, UiTheme.Text);
+        Gfx.Text(this, UiTheme.Light, role.ToString().ToUpperInvariant() + "S", pad + 66 * k, Gfx.Mid(pad + 26 * k, ts), ts, UiTheme.Text);
         int cs = UiTheme.Fs(12, k);
         string count = $"{agents} AGENTS · {withSignature} WITH SIGNATURE DRILLS";
         Gfx.TextFit(this, UiTheme.HudWide, count, pad + 66 * k, pad + 62 * k, cs, col, r.Size.X - pad * 2 - 66 * k);
@@ -426,12 +420,10 @@ public partial class AgentsLinkCard : BaseButton
         float k = K;
         var r = new Rect2(Vector2.Zero, Size);
         bool down = GetDrawMode() is DrawMode.Pressed or DrawMode.HoverPressed;
-        var fill = new Color(0.075f, 0.115f, 0.155f, 0.9f).Lerp(new Color(0.13f, 0.18f, 0.23f, 0.96f), hover);
-        if (down) fill = new Color(0.18f, 0.22f, 0.27f, 0.98f);
-        Gfx.PlateEx(this, r, 12 * k, true, false, false, true, fill, new Color(UiTheme.Text, 0.08f + 0.3f * hover), 1f);
+        Mn.Card(this, r, k, hover);
+        if (down) DrawRect(r, new Color(1, 1, 1, 0.03f));
         var cat = ModeCard.CategoryColor("Agents");
-        DrawRect(new Rect2(0, 12 * k, 3 * k, Mathf.Max(0, r.Size.Y - 12 * k)), new Color(cat, 0.55f + 0.45f * hover));
-        if (hover > 0.01f) Gfx.Brackets(this, r.Grow(3 * k), 8 * k * hover, new Color(UiTheme.Text, 0.8f * hover), Mathf.Max(1, 2 * k));
+        DrawRect(new Rect2(0, 0, Mathf.Max(1.5f, 2 * k), r.Size.Y), new Color(cat, 0.35f + 0.45f * hover));
 
         float pad = 16 * k;
         // the four role glyphs on the right
@@ -439,7 +431,7 @@ public partial class AgentsLinkCard : BaseButton
         for (int i = AgentRoles.All.Length - 1; i >= 0; i--, gx -= gr * 2 + 5 * k)
             AgentArt.RoleGlyph(this, new Vector2(gx, 24 * k), gr, AgentRoles.All[i], AgentArt.RoleColor(AgentRoles.All[i]));
         int ns = UiTheme.Fs(23, k);
-        Gfx.TextFit(this, UiTheme.Display, "AGENT TRAINING", pad, Gfx.Mid(24 * k, ns), ns, UiTheme.Text, gx - pad);
+        Gfx.TextFit(this, UiTheme.Light, "AGENT TRAINING", pad, Gfx.Mid(24 * k, ns), ns, UiTheme.Text, gx - pad);
         int ds = UiTheme.Fs(13.5f, k);
         string d = $"All {AgentRoster.All.Length} agents: signature drills with their own utility, role drills and a 10-minute Lock-In.";
         if (TwoLines)
@@ -482,7 +474,7 @@ public partial class RoutineList : Control
             bool sig = signature.Contains(s.Mode);
             Gfx.Text(this, UiTheme.HudWide, (i + 1).ToString(Inv), 6 * k, Gfx.Mid(cy, ls), ls, UiTheme.Faint);
             float x = 30 * k;
-            if (sig) { Gfx.Diamond(this, new Vector2(x + 4 * k, cy), 4 * k, 5 * k, sigCol); x += 14 * k; }
+            if (sig) { DrawRect(new Rect2(x, cy - 1.5f * k, 7 * k, 3 * k), sigCol); x += 14 * k; }
             var (sens, tagCol) = s.Shifted ? ($"{s.OffsetPct:+0;-0}%", Warmup.WarmupCharts.ShiftCol)
                 : s.Adaptive ? ("ADAPTIVE", Warmup.WarmupCharts.PhaseColor(Warmup.Phase.Calibration))
                 : s.Easier ? ("EASY", Warmup.WarmupCharts.PhaseColor(Warmup.Phase.Activation))

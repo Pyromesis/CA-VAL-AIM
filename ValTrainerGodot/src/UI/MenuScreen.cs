@@ -24,8 +24,10 @@ public partial class MenuScreen : ScreenBase
         ModeRegistry.All.Select(f => (Make: f, Info: f())).Where(m => m.Info.Category != AgentsCategory).ToList();
     readonly List<(MDrillRow Row, TrainingMode Info)> rows = new();
     MMapSelector? mapSel;
-    /// <summary>"ALL" or one of the drill categories: only that category's drills are listed.</summary>
-    string catFilter = "ALL";
+    MWeaponSelector? weaponSel;
+    /// <summary>"ALL" or one of the drill categories: only that category's drills are listed. Static, so returning from a
+    /// drill (the menu screen is rebuilt) lands on the same library tab.</summary>
+    static string catFilter = "ALL";
     SessionSummary summary;
     GridContainer? grid;
     MText? tierNote, dmNote, subLine;
@@ -37,6 +39,7 @@ public partial class MenuScreen : ScreenBase
     /// <summary>Esc closes the map pop-up; otherwise it does nothing on the menu (Quit is a link).</summary>
     protected override void Back()
     {
+        if (weaponSel?.IsOpen == true) { weaponSel.Close(); return; }
         if (mapSel?.IsOpen == true) mapSel.Close();
     }
 
@@ -47,6 +50,7 @@ public partial class MenuScreen : ScreenBase
     {
         rows.Clear();
         mapSel = null;
+        weaponSel = null;
         coachHint = null; coachHintDone = false;
         summary = SessionSummary.From(Main.I.Stats.Runs);
         // Dev-only: "--menu-filter aim|valorant|..." opens the menu on that category (layout screenshots).
@@ -130,6 +134,7 @@ public partial class MenuScreen : ScreenBase
         }
         Link("AGENTS", Main.I.ShowAgents, "All 29 agents: signature drills, role drills and an agent Lock-In");
         Link("COACH", Main.I.ShowProfile, "Your estimated rank, the problems holding you back and how to fix them");
+        Link("PLAYLISTS", Main.I.ShowPlaylists, "Your own sets of drills, played back to back");
         Link("STATS", Main.I.ShowStats, "Personal bests and history");
         Link("SETTINGS", Main.I.ShowSettings, "Sensitivity, crosshair, graphics, audio and updates");
         nav.AddChild(Spacer(10 * k, 0));
@@ -365,7 +370,23 @@ public partial class MenuScreen : ScreenBase
         mapSel.Changed = () => { if (subLine != null) { subLine.Text = SubText(); subLine.QueueRedraw(); } };
         right.AddChild(mapSel);
 
-        right.AddChild(Spacer(0, 26 * k));
+        right.AddChild(Spacer(0, 20 * k));
+        d += 0.05f;
+        var weaponHead = HBox(0);
+        var weaponCap = Caption(L("WEAPON", "ARMA"), d);
+        weaponCap.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        weaponHead.AddChild(weaponCap);
+        weaponHead.AddChild(new MText
+        {
+            K = k, Text = L("every drill", "cada ejercicio"), Font = UiTheme.Body, Px = 12, Color = UiTheme.Faint,
+            Delay = d, Align = HorizontalAlignment.Right, CustomMinimumSize = new Vector2(160 * k, 20 * k),
+        });
+        right.AddChild(weaponHead);
+        right.AddChild(Spacer(0, 2 * k));
+        weaponSel = new MWeaponSelector(this, k) { SizeFlagsHorizontal = SizeFlags.ShrinkBegin, Delay = d + 0.02f };
+        right.AddChild(weaponSel);
+
+        right.AddChild(Spacer(0, 22 * k));
         d += 0.06f;
         BuildDeathmatch(right, d);
 
@@ -576,7 +597,7 @@ public partial class MenuScreen : ScreenBase
             f.AddChild(g);
         }
         Quick("RIFLE", new[] { "VANDAL", "PHANTOM" }, st.PrimaryRifle == 1 ? 1 : 0,
-            i => { st.PrimaryRifle = i; st.Save(); }, "Rifle for every drill that takes either");
+            i => { st.PrimaryRifle = i; st.Save(); }, "Rifle for drills set to WEAPON · DRILL DEFAULT");
         Quick("AMMO", new[] { "DEFAULT", "REAL", "INFINITE" }, st.AmmoMode switch { 0 => 1, 1 => 2, _ => 0 },
             i => { st.AmmoMode = i switch { 0 => -1, 1 => 0, _ => 1 }; st.Save(); }, "Default: each drill's own; Real: magazines and reloads; Infinite: never reload");
         Quick("LANGUAGE", new[] { "EN", "ES" }, Loc.Spanish ? 1 : 0, i => Main.I.SetLanguage(i == 1 ? "es" : "en"), "Interface language");

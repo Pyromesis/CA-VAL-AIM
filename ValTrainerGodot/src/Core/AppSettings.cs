@@ -23,6 +23,8 @@ public sealed class AppSettings
     public string MapKey = "random";   // map for map-based drills
     public string Language = "en";     // UI language: "en" or "es"
     public int PrimaryRifle;           // rifle drills: 0 = Vandal, 1 = Phantom
+    public int WeaponOverride = -1;    // every drill with any weapon: -1 = the drill's own, else an index into Weapons.AllPlayable
+    public bool ProgressiveDifficulty; // after each scored run, move the tier up on a strong run and down on a poor one
     public int AmmoMode = -1;          // -1 = the drill's default, 0 = real magazines/reserve, 1 = infinite
     public int DmDifficulty = 1;       // Deathmatch bots: 0 Easy, 1 Medium, 2 Hard, 3 Nightmare (DeathmatchRules)
     public int DmPlayers = 12;         // Deathmatch lobby size including you (4..12)

@@ -134,12 +134,9 @@ public partial class ProfileScreen : ScreenBase
     {
         float k = K;
         var r = new Rect2(Vector2.Zero, d.Size);
-        Gfx.PlateEx(d, r, 16 * k, true, false, false, true, new Color(0.07f, 0.11f, 0.15f, 0.84f), new Color(UiTheme.Text, 0.1f), 1.2f);
-        // top accent run with a fading tail and signalling diamonds at the two cut corners
-        d.DrawRect(new Rect2(16 * k, 0, 46 * k, 2 * k), UiTheme.Accent);
-        Gfx.HGradient(d, new Rect2(62 * k, 0, 34 * k, 2 * k), new Color(UiTheme.Accent, 0.5f), new Color(UiTheme.Accent, 0f));
-        Gfx.Diamond(d, new Vector2(0, 16 * k), 3.5f * k, 3.5f * k, UiTheme.Accent);
-        Gfx.Diamond(d, new Vector2(r.Size.X - 16 * k, r.Size.Y), 3.5f * k, 3.5f * k, new Color(UiTheme.Teal, 0.85f));
+        Mn.Card(d, r, k);
+        // a single accent run on the top edge; the rank colour lives in the emblem and the range
+        d.DrawRect(new Rect2(0, 0, 46 * k, Mathf.Max(1.5f, 2 * k)), UiTheme.Accent);
         bool ranked = CoachData.HasOverall(p);
         float t = p.OverallTier;
         var rc = ranked ? CoachRank.Col(t) : UiTheme.NoTier;
@@ -187,7 +184,7 @@ public partial class ProfileScreen : ScreenBase
         }
         else
         {
-            Gfx.Text(d, UiTheme.Display, "UNRANKED", x0, 114 * k, UiTheme.Fs(64, k), UiTheme.Dim);
+            Gfx.Text(d, UiTheme.Light, "UNRANKED", x0, 114 * k, UiTheme.Fs(64, k), UiTheme.Dim);
             int rated = p.Skills.Count(CoachRank.Rated);
             int need = CoachData.RunsNeeded();
             string msg = rated == 0
@@ -205,7 +202,7 @@ public partial class ProfileScreen : ScreenBase
     static void RangeTitle(CanvasItem d, string lo, string? hi, float x, float baseline, float maxW, float k)
     {
         const string sep = "  –  ";
-        var f = UiTheme.Display;
+        var f = UiTheme.Light;
         int fs = UiTheme.Fs(66, k);
         float W(int s) => Gfx.TextW(f, lo, s) + (hi == null ? 0 : Gfx.TextW(f, sep, s) + Gfx.TextW(f, hi, s));
         while (fs > 20 && W(fs) > maxW) fs -= 2;
@@ -701,7 +698,7 @@ public partial class ProfileScreen : ScreenBase
         void Marker(float cm, string label, Color c)
         {
             float x = X(cm);
-            Gfx.Diamond(d, new Vector2(x, by - 8 * k), 5.5f * k, 6.5f * k, c);
+            d.DrawRect(new Rect2(x - 1 * k, by - 11 * k, Mathf.Max(1.5f, 2 * k), 20 * k), c);
             float lw = Gfx.TextW(UiTheme.HudWide, label, ls);
             float lx = Mathf.Clamp(x - 3 * k, r.Position.X, Mathf.Max(r.Position.X, r.End.X - lw));
             Gfx.Text(d, UiTheme.HudWide, label, lx, Gfx.Mid(by - 24 * k, ls), ls, c);
@@ -731,7 +728,7 @@ public partial class ProfileScreen : ScreenBase
             SizeFlagsVertical = SizeFlags.ShrinkBegin,
             OnDraw = d =>
             {
-                if (!check) { Gfx.Diamond(d, new Vector2(7 * k, 12 * k), 4 * k, 4 * k, c); return; }
+                if (!check) { d.DrawRect(new Rect2(3 * k, 11 * k, 7 * k, 2 * k), c); return; }
                 Span<Vector2> pts = stackalloc Vector2[3];
                 pts[0] = new(2 * k, 12 * k); pts[1] = new(6.5f * k, 16.5f * k); pts[2] = new(14 * k, 6 * k);
                 d.Polyline(pts, c, Mathf.Max(1.5f, 2.4f * k), true);

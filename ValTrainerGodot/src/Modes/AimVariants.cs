@@ -62,6 +62,58 @@ public sealed record AimVariant(string Id, AimFamily Family, string Name, string
         AimFamily.Flick => "Flick", AimFamily.Track => "Tracking", AimFamily.Micro => "Micro", _ => "Reflex",
     };
 
+    /// <summary>
+    /// The same drill at a skill tier (0 Rookie … 4 Radiant). Authored numbers are the tier-2 baseline (Regular): lower
+    /// tiers get bigger/slower targets, shorter flicks and longer windows; higher tiers get smaller/faster targets, wider
+    /// flicks and tighter windows. Values are clamped so no tier can produce an unplayable drill.
+    /// </summary>
+    public AimVariant At(int tier)
+    {
+        tier = Math.Clamp(tier, 0, 4);
+        float radiusMul = new[] { 1.42f, 1.18f, 1f, 0.84f, 0.70f }[tier];
+        float distMul = new[] { 0.82f, 0.91f, 1f, 1.07f, 1.14f }[tier];
+        float angleMul = new[] { 0.78f, 0.89f, 1f, 1.08f, 1.16f }[tier];
+        float lifeMul = new[] { 1.40f, 1.18f, 1f, 0.84f, 0.70f }[tier];
+        float speedMul = new[] { 0.62f, 0.81f, 1f, 1.13f, 1.26f }[tier];
+        float windowMul = new[] { 1.45f, 1.22f, 1f, 0.82f, 0.68f }[tier];
+        float offMul = new[] { 1.32f, 1.15f, 1f, 0.86f, 0.74f }[tier];
+
+        float radius = Math.Clamp(Radius * radiusMul, 0.035f, 0.8f);
+        float dmin = Math.Clamp(DistMin * distMul, 3f, 80f);
+        float dmax = Math.Clamp(Math.Max(DistMax * distMul, dmin + 0.5f), 3.5f, 90f);
+        float yaw = Math.Clamp(Yaw * angleMul, 1f, 170f);
+        float offMin = Math.Clamp(OffMin * offMul, 0.2f, 14f);
+        float offMax = Math.Clamp(Math.Max(OffMax * offMul, offMin + 0.1f), 0.3f, 18f);
+        float speed = Math.Clamp(Speed * speedMul, 0.5f, 14f);
+        float width = Math.Clamp(Width * (tier <= 1 ? 0.85f : tier >= 3 ? 1.12f : 1f), 1.5f, 30f);
+        float height = Math.Clamp(Height * (tier <= 1 ? 0.8f : tier >= 3 ? 1.15f : 1f), 0.25f, 4f);
+        float turnMin = Math.Clamp(TurnMin * (tier <= 1 ? 1.25f : tier >= 3 ? 0.82f : 1f), 0.12f, 4f);
+        float turnMax = Math.Clamp(Math.Max(TurnMax * (tier <= 1 ? 1.25f : tier >= 3 ? 0.82f : 1f), turnMin + 0.05f), 0.2f, 6f);
+        float delayMin = Math.Clamp(DelayMin * (tier <= 1 ? 1.2f : tier >= 3 ? 0.85f : 1f), 0.2f, 7f);
+        float delayMax = Math.Clamp(Math.Max(DelayMax * (tier <= 1 ? 1.2f : tier >= 3 ? 0.85f : 1f), delayMin + 0.1f), 0.3f, 9f);
+
+        return this with
+        {
+            Radius = radius,
+            DistMin = dmin,
+            DistMax = dmax,
+            Yaw = yaw,
+            MinAngle = Math.Clamp(MinAngle * angleMul, 0f, 120f),
+            Life = Life > 0 ? Math.Clamp(Life * lifeMul, 0.25f, 12f) : 0f,
+            Drift = Drift > 0 ? Math.Clamp(Drift * speedMul, 0.15f, 10f) : 0f,
+            OffMin = offMin,
+            OffMax = offMax,
+            Speed = speed,
+            Width = width,
+            Height = height,
+            TurnMin = turnMin,
+            TurnMax = turnMax,
+            DelayMin = delayMin,
+            DelayMax = delayMax,
+            Window = Math.Clamp(Window * windowMul, 0.18f, 4f),
+        };
+    }
+
     public TrainingMode Create() => Family switch
     {
         AimFamily.Flick => new FlickVariantMode(this),
@@ -171,7 +223,7 @@ static class VariantMath
 /// <summary>Flicking drill from an <see cref="AimVariant"/>: 1–3 static (or drifting) targets, hit to respawn.</summary>
 public sealed class FlickVariantMode : TrainingMode
 {
-    readonly AimVariant v;
+    AimVariant v;
     public FlickVariantMode(AimVariant v) => this.v = v;
 
     public override string Key => v.Key;
@@ -203,6 +255,7 @@ public sealed class FlickVariantMode : TrainingMode
 
     protected override void Setup()
     {
+        v = v.At(Tier); // the tier chosen in the menu / pause menu scales the authored drill
         int n = Math.Clamp(v.Count, 1, 3);
         t = new Target[n]; ids = new int[n]; drift = new float[n];
         for (int i = 0; i < n; i++) { t[i] = G.SpawnTarget(v.Radius); Spawn(i, first: true); }
@@ -297,7 +350,7 @@ public sealed class FlickVariantMode : TrainingMode
 /// <summary>Micro-adjustment drill from an <see cref="AimVariant"/>: each new head a small step from the last.</summary>
 public sealed class MicroVariantMode : TrainingMode
 {
-    readonly AimVariant v;
+    AimVariant v;
     public MicroVariantMode(AimVariant v) => this.v = v;
 
     public override string Key => v.Key;
@@ -330,6 +383,7 @@ public sealed class MicroVariantMode : TrainingMode
 
     protected override void Setup()
     {
+        v = v.At(Tier);
         int n = Math.Clamp(v.Count, 1, 2);
         t = new Target[n]; ids = new int[n]; drift = new float[n]; home = new Vector3[n];
         for (int i = 0; i < n; i++) { t[i] = G.SpawnTarget(v.Radius); Place(i, i == 0 ? 0f : 2f, 2f, first: true); }
@@ -437,7 +491,7 @@ public sealed class MicroVariantMode : TrainingMode
 /// <summary>Reflex drill from an <see cref="AimVariant"/>: heads pop up after a random pause for a short window.</summary>
 public sealed class ReflexVariantMode : TrainingMode
 {
-    readonly AimVariant v;
+    AimVariant v;
     public ReflexVariantMode(AimVariant v) => this.v = v;
 
     public override string Key => v.Key;
@@ -469,6 +523,7 @@ public sealed class ReflexVariantMode : TrainingMode
 
     protected override void Setup()
     {
+        v = v.At(Tier);
         int n = Math.Clamp(v.Count, 1, 2);
         heads = new Target[n]; up = new bool[n]; ids = new int[n];
         for (int i = 0; i < n; i++)
@@ -574,7 +629,7 @@ public sealed class ReflexVariantMode : TrainingMode
 /// <summary>Tracking drill from an <see cref="AimVariant"/>: hold Mouse 1 on a target that moves in its own pattern.</summary>
 public sealed class TrackVariantMode : TrackingDrill
 {
-    readonly AimVariant v;
+    AimVariant v;
     public TrackVariantMode(AimVariant v) => this.v = v;
 
     public override string Key => v.Key;
@@ -588,6 +643,7 @@ public sealed class TrackVariantMode : TrackingDrill
 
     protected override void Setup()
     {
+        v = v.At(Tier);
         target = G.SpawnTarget(v.Radius);
         z = -(v.DistMin + v.DistMax) / 2f;
         target.Position = new Vector3(0, BaseY, z);

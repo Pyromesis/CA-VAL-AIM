@@ -1273,6 +1273,16 @@ public static class Loc
         ["NEW"] = "NUEVO",
         ["PB"] = "RÉCORD",
         ["PERSONAL BEST"] = "RÉCORD PERSONAL",
+
+        // ---- weapon picker ----
+        ["CHOOSE A WEAPON"] = "ELIGE UN ARMA",
+        ["Every drill · every gun · Esc closes"] = "Cada ejercicio · cualquier arma · Esc cierra",
+        ["each drill's own weapon"] = "el arma propia de cada ejercicio",
+        ["Sidearm"] = "Pistola",
+        ["SMG"] = "Subfusil",
+        ["Shotgun"] = "Escopeta",
+        ["Machine gun"] = "Ametralladora",
+        ["Melee"] = "Cuerpo a cuerpo",
         ["Fan-made trainer · not endorsed by or affiliated with Riot Games"] =
             "Entrenador no oficial · no está afiliado ni respaldado por Riot Games",
 
@@ -1302,7 +1312,7 @@ public static class Loc
         ["DAY STREAK"] = "RACHA DE DÍAS",
         ["STREAK"] = "RACHA",
         ["REAL ART"] = "ARTE REAL",
-        ["BLOCKOUT"] = "MAQUETA",
+        ["TRACED"] = "TRAZADO",
         ["MAP LIBRARY"] = "BIBLIOTECA DE MAPAS",
         ["ALL RUNS"] = "TODAS LAS PARTIDAS",
         ["LAST 20 RUNS"] = "ÚLTIMAS 20 PARTIDAS",

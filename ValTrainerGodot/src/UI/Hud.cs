@@ -29,7 +29,7 @@ public partial class Hud : Control
     DrawBox? overlay;
     Vector2 overlaySize;
     readonly List<BaseButton> overlayButtons = new();
-    VButton? resetSens;
+    BaseButton? resetSens;
     LineEdit? sensEdit;
     float overlayAt;
     int locRev = Loc.Revision;
@@ -56,6 +56,21 @@ public partial class Hud : Control
         cAmmo = new(), cReserve = new(), cSpeed = new(), cStop = new(), cTier = new(), cCount = new();
 
     static float RealNow => Time.GetTicksMsec() / 1000f;
+
+    static string L(string en, string es) => Loc.Spanish ? es : en;
+
+    /// <summary>Every button under an overlay node, last child first, so a pop-up added on top wins over the page behind it.</summary>
+    static IEnumerable<BaseButton> ButtonsDeep(Node n)
+    {
+        var kids = n.GetChildren();
+        for (int i = kids.Count - 1; i >= 0; i--)
+        {
+            var c = kids[i];
+            if (c is Control { Visible: false }) continue;
+            if (c is BaseButton b) yield return b;
+            foreach (var x in ButtonsDeep(c)) yield return x;
+        }
+    }
 
     // uppercase labels cached per mode / subtitle / weapon (avoid per-frame string allocations)
     string nameUpper = "", subSrc = "", subUpper = "", gunSrc = "", gunUpper = "";
@@ -139,8 +154,29 @@ public partial class Hud : Control
                 return;
             }
             if (typing) sensEdit!.ReleaseFocus(); // clicking anywhere else applies what was typed
-            foreach (var b in overlayButtons)
-                if (b.IsVisibleInTree() && !b.Disabled && b.GetGlobalRect().HasPoint(mb.Position)) { b.EmitSignal(BaseButton.SignalName.Pressed); break; }
+            // The weapon picker is a full-screen pop-up: only its own tiles may take the click, never the pause controls
+            // behind the scrim. Clicks outside it close it (the picker handles that itself).
+            MWeaponPicker? picker = null;
+            foreach (var c in overlay.GetChildren())
+                if (c is MWeaponPicker { Visible: true } p) { picker = p; break; }
+            if (picker != null)
+            {
+                foreach (var b in ButtonsDeep(picker))
+                    if (!b.Disabled && b.IsVisibleInTree() && b.GetGlobalRect().HasPoint(mb.Position))
+                    {
+                        b.EmitSignal(BaseButton.SignalName.Pressed);
+                        return;
+                    }
+                return;
+            }
+            // The overlay swallows the press so the session never sees a stale fire edge: dispatch it to the button under
+            // the pointer by hand (the minimal widgets are all BaseButtons, and pop-ups are deeper in the tree).
+            foreach (var b in ButtonsDeep(overlay))
+                if (!b.Disabled && b.IsVisibleInTree() && b.GetGlobalRect().HasPoint(mb.Position))
+                {
+                    b.EmitSignal(BaseButton.SignalName.Pressed);
+                    break;
+                }
         }
     }
 
@@ -782,47 +818,249 @@ public partial class Hud : Control
         var m = s.Mode;
         var app = Main.I;
         var st = app.Settings;
-        float pw = 860 * k, ph = 600 * k;
-        var panel = new Rect2(size.X / 2 - pw / 2, size.Y / 2 - ph / 2, pw, ph);
-        float px = panel.Position.X, py = panel.Position.Y;
-        float bx = px + 52 * k, bw = 360 * k, bh = 52 * k;
-        float rightX = px + 456 * k, rightW = pw - (rightX - px) - 52 * k;
+        var tier = Difficulty.Get(s.Tier);
 
-        // ---- left: run controls and sensitivity ----
-        float y = py + 164 * k;
-        OverlayButton("RESUME", VButton.Look.Primary, new Rect2(bx, y, bw, bh), k, s.Resume);
-        y += 66 * k;
-        OverlayButton("RESTART", VButton.Look.Secondary, new Rect2(bx, y, bw, bh), k, s.Restart);
-        y += 66 * k;
-        OverlayButton("BACK TO MENU", VButton.Look.Secondary, new Rect2(bx, y, bw, bh), k, Main.I.ShowMenu);
+        // Flat wash: the drill stays visible underneath, the overlay only quiets it.
+        overlay!.OnDraw = d => d.DrawRect(new Rect2(Vector2.Zero, size), new Color(0.012f, 0.015f, 0.020f, 0.86f));
 
-        float sensY = py + 388 * k;
-        float ab = 44 * k;
-        void Adjust(int d)
+        float pageW = Mathf.Min(size.X - 120 * k, 1120 * k);
+        var page = new VBoxContainer { CustomMinimumSize = new Vector2(pageW, 0), MouseFilter = MouseFilterEnum.Ignore };
+        page.AddThemeConstantOverride("separation", 0);
+        var center = new CenterContainer { MouseFilter = MouseFilterEnum.Ignore };
+        center.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+        center.AddChild(page);
+        overlay.AddChild(center);
+
+        MText Cap(string text, float delay) => new()
+        {
+            K = k, Text = text, Font = UiTheme.HudWide, Px = 10.5f, Color = UiTheme.Faint, Delay = delay,
+            CustomMinimumSize = new Vector2(0, 18 * k),
+        };
+        void Gap(VBoxContainer col, float h) => col.AddChild(new Control
+        {
+            CustomMinimumSize = new Vector2(0, h * k), MouseFilter = MouseFilterEnum.Ignore,
+        });
+        MLink Link(string label, Action act, float delay, float px = 12f)
+        {
+            var l = new MLink { K = k, Label = label, Px = px, Delay = delay };
+            l.Pressed += act;
+            return l;
+        }
+        HBoxContainer ArrowRow(float gap = 10f)
+        {
+            var row = new HBoxContainer { MouseFilter = MouseFilterEnum.Ignore };
+            row.AddThemeConstantOverride("separation", (int)(gap * k));
+            return row;
+        }
+        MLink Arrow(string label, Action act, float delay, float px = 21f)
+        {
+            var l = Link(label, act, delay, px);
+            l.CustomMinimumSize = new Vector2(28 * k, 36 * k);
+            l.SizeFlagsVertical = SizeFlags.ShrinkCenter;
+            return l;
+        }
+        MText Value(string text, float px, float delay) => new()
+        {
+            K = k, Text = text, Font = UiTheme.Light, Px = px, Color = UiTheme.Text, Delay = delay,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill, SizeFlagsVertical = SizeFlags.ShrinkCenter,
+            CustomMinimumSize = new Vector2(0, 36 * k),
+        };
+
+        // ---------------------------------------------------------------- header
+        page.AddChild(new MText { K = k, Text = "PAUSED", Font = UiTheme.HudWide, Px = 11, Color = UiTheme.Accent, Delay = 0.02f });
+        Gap(page, 4);
+        page.AddChild(new MText
+        {
+            K = k, Text = m.Name, Font = UiTheme.Light, Px = 50, Color = UiTheme.Text, Delay = 0.05f,
+            CustomMinimumSize = new Vector2(0, 62 * k),
+        });
+        Gap(page, 2);
+        page.AddChild(new MText
+        {
+            K = k, Text = $"{Loc.T(m.Category).ToUpperInvariant()}  ·  {tier.Name.ToUpperInvariant()}", Font = UiTheme.Body,
+            Px = 13, Color = UiTheme.Dim, Delay = 0.09f,
+        });
+        Gap(page, 20);
+        page.AddChild(new MRule { Delay = 0.12f });
+        Gap(page, 22);
+
+        // ---------------------------------------------------------------- two columns
+        var body = new HBoxContainer { SizeFlagsVertical = SizeFlags.ShrinkBegin, MouseFilter = MouseFilterEnum.Ignore };
+        body.AddThemeConstantOverride("separation", (int)(56 * k));
+        page.AddChild(body);
+
+        var left = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill, MouseFilter = MouseFilterEnum.Ignore };
+        left.AddThemeConstantOverride("separation", 0);
+        body.AddChild(left);
+        body.AddChild(new ColorRect
+        {
+            Color = UiTheme.Line, CustomMinimumSize = new Vector2(1, 0), SizeFlagsVertical = SizeFlags.ExpandFill,
+            MouseFilter = MouseFilterEnum.Ignore,
+        });
+        var right = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill, MouseFilter = MouseFilterEnum.Ignore };
+        right.AddThemeConstantOverride("separation", 0);
+        body.AddChild(right);
+
+        // ---- left: the run, then what the next run plays at ----
+        left.AddChild(Cap(L("RUN", "PARTIDA"), 0.14f));
+        Gap(left, 8);
+        var resume = new MAction
+        {
+            K = k, Primary = true, Label = L("RESUME", "REANUDAR"), Px = 13, Delay = 0.16f,
+            CustomMinimumSize = new Vector2(0, 48 * k), SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            TooltipText = L("Back to the drill (Esc)", "Volver al ejercicio (Esc)"),
+        };
+        resume.Pressed += s.Resume;
+        left.AddChild(resume);
+        Gap(left, 8);
+        var restart = new MAction
+        {
+            K = k, Label = L("RESTART", "REINICIAR"), Px = 13, Delay = 0.18f,
+            CustomMinimumSize = new Vector2(0, 44 * k), SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            TooltipText = L("Play this drill again from the countdown", "Jugar este ejercicio otra vez desde la cuenta atrás"),
+        };
+        restart.Pressed += s.Restart;
+        left.AddChild(restart);
+        Gap(left, 8);
+        var menu = new MAction
+        {
+            K = k, Label = L("BACK TO MENU", "VOLVER AL MENÚ"), Px = 13, Delay = 0.2f,
+            CustomMinimumSize = new Vector2(0, 44 * k), SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            TooltipText = L("Leave this run without saving it", "Salir de esta partida sin guardarla"),
+        };
+        menu.Pressed += Main.I.ShowMenu;
+        left.AddChild(menu);
+
+        Gap(left, 20);
+        left.AddChild(new MRule { Delay = 0.24f });
+        Gap(left, 14);
+
+        left.AddChild(Cap(L("DIFFICULTY", "DIFICULTAD"), 0.26f));
+        var tierRow = ArrowRow();
+        MText tierNote = null!; // declared first: StepTier's lambda may run before the note below is built
+        var tierText = Value(tier.Name, 23, 0.27f);
+        var tPrev = Arrow("‹", () => StepTier(-1), 0.27f);
+        var tNext = Arrow("›", () => StepTier(1), 0.27f);
+        tierRow.AddChild(tPrev);
+        tierRow.AddChild(tierText);
+        tierRow.AddChild(tNext);
+        left.AddChild(tierRow);
+        tierNote = new MText
+        {
+            K = k, Font = UiTheme.Body, Px = 11.5f, Color = UiTheme.Faint, Delay = 0.28f,
+            CustomMinimumSize = new Vector2(0, 18 * k),
+        };
+        left.AddChild(tierNote);
+        // Functions read controls declared above; call once they all exist.
+        void StepTier(int dir)
+        {
+            int next = Math.Clamp(st.Tier + dir, 0, Difficulty.Tiers.Length - 1);
+            if (next == st.Tier) return;
+            st.Tier = next;
+            st.Save();
+            PaintTier();
+        }
+        void PaintTier()
+        {
+            var t = Difficulty.Get(st.Tier);
+            tierText.Text = t.Name;
+            tierText.QueueRedraw();
+            tierNote.Text = $"{t.Ranks}  ·  ~{t.Bot.ReactMs:0} ms  ·  " + L("from the next run", "desde la próxima partida");
+            tierNote.QueueRedraw();
+        }
+        PaintTier();
+
+        Gap(left, 12);
+        left.AddChild(Cap(L("PROGRESSIVE DIFFICULTY", "DIFICULTAD PROGRESIVA"), 0.31f));
+        Gap(left, 2);
+        var progressive = new MToggle
+        {
+            K = k, On = st.ProgressiveDifficulty, Delay = 0.32f, CustomMinimumSize = new Vector2(130 * k, 30 * k),
+            TooltipText = L("After each scored run: a strong run raises the tier, a poor run lowers it",
+                "Tras cada partida puntuada: una buena sube el nivel, una mala lo baja"),
+        };
+        progressive.Changed = on => { st.ProgressiveDifficulty = on; st.Save(); };
+        left.AddChild(progressive);
+        left.AddChild(new MText
+        {
+            K = k, Font = UiTheme.Body, Px = 11.5f, Color = UiTheme.Faint, Delay = 0.33f,
+            Text = L("strong run → one tier up · poor run → one tier down",
+                "buena partida → sube un nivel · mala → baja uno"),
+        });
+
+        Gap(left, 12);
+        left.AddChild(Cap(L("WEAPON", "ARMA"), 0.35f));
+        Gap(left, 2);
+        var weapon = new MWeaponSelector(overlay, k) { SizeFlagsHorizontal = SizeFlags.ShrinkBegin, Delay = 0.36f };
+        left.AddChild(weapon);
+        left.AddChild(new MText
+        {
+            K = k, Font = UiTheme.Body, Px = 11.5f, Color = UiTheme.Faint, Delay = 0.37f,
+            Text = L("every drill · applies from the next run", "cada ejercicio · se aplica en la próxima partida"),
+        });
+
+        // ---- right: sensitivity, audio, graphics ----
+        right.AddChild(Cap(L("SENSITIVITY", "SENSIBILIDAD"), 0.14f));
+        Gap(right, 6);
+        var sensRow = ArrowRow();
+        MText sensNote = null!; // declared first: the arrow/use lambdas can run before the note is built
+        MLink useVal = null!;
+        var sPrev = Arrow("‹", () => AdjustSens(-1), 0.17f);
+        sensRow.AddChild(sPrev);
+        sensEdit = new LineEdit
+        {
+            CustomMinimumSize = new Vector2(0, 42 * k), SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            MaxLength = 8, Alignment = HorizontalAlignment.Center, SelectAllOnFocus = true,
+            TooltipText = L("Click and type a sensitivity, then Enter. Shift-click the arrows for ±0.001",
+                "Haz clic y escribe una sensibilidad, luego Enter. Mayús + flechas para ±0.001"),
+        };
+        SettingsScreen.StyleEdit(sensEdit, k, 24, UiTheme.Light);
+        StyleBoxFlat HairBox(Color border) => new()
+        {
+            BgColor = new Color(1, 1, 1, 0.02f), DrawCenter = true, BorderColor = border, BorderWidthBottom = 1,
+            ContentMarginLeft = 6 * k, ContentMarginRight = 6 * k, ContentMarginTop = 4 * k, ContentMarginBottom = 4 * k,
+        };
+        sensEdit.AddThemeStyleboxOverride("normal", HairBox(Mn.A(UiTheme.Text, 0.18f)));
+        sensEdit.AddThemeStyleboxOverride("focus", HairBox(UiTheme.Accent));
+        sensRow.AddChild(sensEdit);
+        var sNext = Arrow("›", () => AdjustSens(1), 0.17f);
+        sensRow.AddChild(sNext);
+        right.AddChild(sensRow);
+        sensNote = new MText
+        {
+            K = k, Font = UiTheme.HudWide, Px = 10.5f, Color = UiTheme.Faint, Delay = 0.18f,
+            CustomMinimumSize = new Vector2(0, 18 * k),
+        };
+        right.AddChild(sensNote);
+        useVal = Link(L("USE VALORANT SENSITIVITY", "USAR SENSIBILIDAD DE VALORANT"), () =>
+        {
+            st.UseSensOverride = false;
+            st.Save();
+            PaintSens();
+        }, 0.2f, 10.5f);
+        useVal.CustomMinimumSize = new Vector2(0, 24 * k);
+        resetSens = useVal;
+        right.AddChild(useVal);
+
+        void AdjustSens(int d)
         {
             if (!st.UseSensOverride) { st.UseSensOverride = true; st.SensOverride = app.Valorant.Sensitivity; }
             float step = Input.IsKeyPressed(Key.Shift) ? 0.001f : 0.01f;
             st.SensOverride = MathF.Max(0.001f, MathF.Round((st.SensOverride + d * step) * 1000f) / 1000f);
             st.Save();
+            PaintSens();
         }
-        OverlayButton("", VButton.Look.Arrow, new Rect2(bx, sensY, ab, ab), k, () => Adjust(-1)).Dir = -1;
-        OverlayButton("", VButton.Look.Arrow, new Rect2(bx + bw - ab, sensY, ab, ab), k, () => Adjust(1)).Dir = 1;
-        resetSens = OverlayButton("USE VALORANT SENSITIVITY", VButton.Look.Ghost, new Rect2(bx, sensY + ab + 6 * k, bw, 26 * k), k, () =>
+        void PaintSens()
         {
-            st.UseSensOverride = false;
-            st.Save();
-        }, 13);
-        resetSens.TitleFont = UiTheme.HudWide;
-        // The value itself is a text box: click, type an exact sensitivity, Enter.
-        var sensRect = new Rect2(bx + ab + 8 * k, sensY, bw - 2 * ab - 16 * k, ab);
-        sensEdit = new LineEdit
-        {
-            Position = sensRect.Position, Size = sensRect.Size, CustomMinimumSize = sensRect.Size, MaxLength = 8,
-            Alignment = HorizontalAlignment.Center, SelectAllOnFocus = true,
-            TooltipText = "Click and type a sensitivity, then Enter. Shift-click the arrows for ±0.001",
-        };
-        SettingsScreen.StyleEdit(sensEdit, k, 30, UiTheme.Display);
-        sensEdit.AddThemeStyleboxOverride("normal", new StyleBoxEmpty());
+            if (sensEdit != null && IsInstanceValid(sensEdit) && !sensEdit.HasFocus())
+                sensEdit.Text = app.Sens.ToString("0.000", Inv);
+            string note = st.UseSensOverride
+                ? $"CUSTOM · {PlayerView.Cm360(app.Sens, st.Dpi):0.0} CM/360"
+                : $"FROM VALORANT · {PlayerView.Cm360(app.Sens, st.Dpi):0.0} CM/360";
+            sensNote.Text = Loc.Numeric(L(note, note.Replace("CUSTOM", "PERSONALIZADA").Replace("FROM VALORANT", "DE VALORANT")));
+            sensNote.QueueRedraw();
+            useVal.Visible = st.UseSensOverride;
+        }
         // Enter or clicking away applies a valid value; anything else snaps back to the current sensitivity.
         void ApplySens()
         {
@@ -833,12 +1071,13 @@ public partial class Hud : Control
                 st.SensOverride = v;
                 st.Save();
             }
-            sensEdit.Text = app.Sens.ToString("0.000", Inv);
+            PaintSens();
         }
         sensEdit.TextSubmitted += _ => sensEdit?.ReleaseFocus();
         sensEdit.FocusExited += ApplySens;
         sensEdit.Text = app.Sens.ToString("0.000", Inv);
-        overlay!.AddChild(sensEdit);
+        PaintSens();
+
         // Dev self-check "--pause-type <value>" (with --pause-at): click the box, type, Enter, through the real input path.
         if (Main.I.Dev && CmdLine.DevAfter("--pause-type") is { } typed)
             GetTree().CreateTimer(1.0).Timeout += () =>
@@ -856,65 +1095,114 @@ public partial class Hud : Control
                 GetTree().CreateTimer(0.5).Timeout += () => Log.Info($"[pause-type] typed {typed}: sens now {Main.I.Sens.ToString("0.000", Inv)} (custom {st.UseSensOverride}), state {s.State}");
             };
 
-        // ---- right: quick audio + graphics (valued settings, saved immediately) ----
-        ValueField? volField = null;
+        Gap(right, 14);
+        right.AddChild(new MRule { Delay = 0.24f });
+        Gap(right, 14);
+
+        right.AddChild(Cap(L("AUDIO", "AUDIO"), 0.26f));
+        Gap(right, 2);
+        var volText = Value($"{st.Volume * 100:0}%", 22, 0.28f);
+        var volRow = ArrowRow();
+        MBar volBar = null!; // declared first: the arrow lambdas can run before the bar is built
+        volRow.AddChild(Arrow("‹", () => SetVolume(st.Volume - 0.05f), 0.28f));
+        volRow.AddChild(volText);
+        volRow.AddChild(Arrow("›", () => SetVolume(st.Volume + 0.05f), 0.28f));
+        right.AddChild(volRow);
+        volBar = new MBar { K = k, Value = st.Volume, Delay = 0.3f, CustomMinimumSize = new Vector2(0, 10 * k) };
+        right.AddChild(volBar);
         void SetVolume(float value)
         {
             st.Volume = Math.Clamp(MathF.Round(value * 100f) / 100f, 0f, 1f);
             Sfx.Volume = st.Volume;
             st.Save();
-            volField?.QueueRedraw();
+            volText.Text = $"{st.Volume * 100:0}%";
+            volText.QueueRedraw();
+            volBar.Value = st.Volume;
+            volBar.QueueRedraw();
             Sfx.I?.Play("ui_click", 0.8f); // previews the game volume
         }
-        float abr = 38 * k;
-        OverlayButton("", VButton.Look.Arrow, new Rect2(rightX, py + 202 * k, abr, abr), k, () => SetVolume(st.Volume - 0.05f)).Dir = -1;
-        volField = new ValueField
-        {
-            K = k, Value = () => $"{st.Volume * 100:0}%", Bar = () => st.Volume,
-            Position = new Vector2(rightX + abr + 7 * k, py + 202 * k),
-            Size = new Vector2(rightW - 2 * abr - 14 * k, abr), CustomMinimumSize = new Vector2(rightW - 2 * abr - 14 * k, abr),
-            TooltipText = "Master volume. Click or use the arrows to change it; saved immediately.",
-        };
-        volField.Pressed += () => SetVolume(st.Volume + 0.05f);
-        overlay!.AddChild(volField);
-        overlayButtons.Add(volField);
-        OverlayButton("", VButton.Look.Arrow, new Rect2(rightX + rightW - abr, py + 202 * k, abr, abr), k, () => SetVolume(st.Volume + 0.05f)).Dir = 1;
 
-        float qY = py + 308 * k, qh = 34 * k, qg = 6 * k, qw = (rightW - 3 * qg) / 4;
-        var qButtons = new List<VButton>();
+        Gap(right, 14);
+        right.AddChild(Cap(L("GRAPHICS", "GRÁFICOS"), 0.34f));
+        Gap(right, 4);
+        var qRow = ArrowRow(18f);
+        var qLinks = new List<MLink>();
         string[] qNames = { "LOW", "MED", "HIGH", "ULTRA" };
         for (int i = 0; i < qNames.Length; i++)
         {
             int qi = i;
-            var b = OverlayButton(qNames[i], VButton.Look.Select, new Rect2(rightX + i * (qw + qg), qY, qw, qh), k, () =>
+            var q = Link(qNames[i], () =>
             {
                 st.Quality = qi;
                 st.Save();
-                foreach (var qb in qButtons) qb.SetSelected(qb == qButtons[qi]);
-            }, 12);
-            b.Selected = st.Quality == qi;
-            b.TooltipText = qi == 0 ? "Competitive/Low: highest FPS" : qi == 3 ? "Ultra: best looking, heaviest" : $"Graphics preset {qNames[qi]}";
-            qButtons.Add(b);
+                for (int j = 0; j < qLinks.Count; j++)
+                {
+                    qLinks[j].Active = j == qi;
+                    qLinks[j].QueueRedraw();
+                }
+            }, 0.36f + i * 0.01f, 11f);
+            q.Active = st.Quality == qi;
+            q.CustomMinimumSize = new Vector2(0, 26 * k);
+            q.TooltipText = qi == 0 ? L("Competitive/Low: highest FPS", "Competitivo/Bajo: más FPS")
+                : qi == 3 ? L("Ultra: best looking, heaviest", "Ultra: mejor aspecto, el más exigente")
+                : $"{L("Graphics preset", "Ajuste gráfico")} {qNames[qi]}";
+            qLinks.Add(q);
+            qRow.AddChild(q);
         }
+        right.AddChild(qRow);
 
-        bool vs = app.VSync;
-        var vsButtons = new List<VButton>();
+        Gap(right, 8);
+        var vsRow = ArrowRow();
+        var vsLabel = new MText
+        {
+            K = k, Text = "VSYNC", Font = UiTheme.HudWide, Px = 10.5f, Color = UiTheme.Dim, Delay = 0.4f,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill, SizeFlagsVertical = SizeFlags.ShrinkCenter,
+            CustomMinimumSize = new Vector2(0, 26 * k),
+        };
+        vsRow.AddChild(vsLabel);
+        var vsLinks = new List<MLink>();
+        foreach (bool on in new[] { true, false })
+        {
+            bool state = on;
+            var v = Link(on ? "ON" : "OFF", () => SetVSync(state), 0.4f, 11f);
+            v.CustomMinimumSize = new Vector2(0, 26 * k);
+            v.Active = app.VSync == state;
+            vsLinks.Add(v);
+            vsRow.AddChild(v);
+        }
+        right.AddChild(vsRow);
+        void PaintVSync()
+        {
+            vsLinks[0].Active = app.VSync;
+            vsLinks[1].Active = !app.VSync;
+            foreach (var v in vsLinks) v.QueueRedraw();
+        }
         void SetVSync(bool on)
         {
             st.VSyncOverride = on ? 1 : 0;
             st.Save();
             app.ApplyFps();
-            foreach (var vb in vsButtons) vb.SetSelected(vb == vsButtons[on ? 0 : 1]);
+            PaintVSync();
         }
-        float vsY = py + 384 * k;
-        vsButtons.Add(OverlayButton("ON", VButton.Look.Select, new Rect2(rightX + rightW - 150 * k, vsY, 72 * k, 32 * k), k, () => SetVSync(true), 12));
-        vsButtons.Add(OverlayButton("OFF", VButton.Look.Select, new Rect2(rightX + rightW - 72 * k, vsY, 72 * k, 32 * k), k, () => SetVSync(false), 12));
-        vsButtons[0].Selected = vs;
-        vsButtons[1].Selected = !vs;
 
+        Gap(right, 6);
+        var fpsRow = ArrowRow();
+        var fpsLabel = new MText
+        {
+            K = k, Text = "FPS CAP", Font = UiTheme.HudWide, Px = 10.5f, Color = UiTheme.Dim, Delay = 0.43f,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill, SizeFlagsVertical = SizeFlags.ShrinkCenter,
+            CustomMinimumSize = new Vector2(0, 36 * k),
+        };
+        fpsRow.AddChild(fpsLabel);
         int[] caps = { 0, 60, 144, 165, 240, 360 };
-        float fpsY = py + 432 * k;
-        ValueField? fpsField = null;
+        var fpsText = Value(app.FpsCap <= 0 ? L("Unlimited", "Sin límite") : app.FpsCap.ToString(), 15, 0.44f);
+        fpsText.SizeFlagsHorizontal = SizeFlags.ShrinkEnd;
+        fpsText.CustomMinimumSize = new Vector2(92 * k, 36 * k);
+        fpsText.Align = HorizontalAlignment.Right;
+        fpsRow.AddChild(Arrow("‹", () => StepFps(-1), 0.44f, 16f));
+        fpsRow.AddChild(fpsText);
+        fpsRow.AddChild(Arrow("›", () => StepFps(1), 0.44f, 16f));
+        right.AddChild(fpsRow);
         int CapIndex()
         {
             int cap = app.FpsCap;
@@ -929,181 +1217,25 @@ public partial class Hud : Control
             st.FpsCapOverride = caps[i];
             st.Save();
             app.ApplyFps();
-            fpsField?.QueueRedraw();
+            fpsText.Text = app.FpsCap <= 0 ? L("Unlimited", "Sin límite") : app.FpsCap.ToString();
+            fpsText.QueueRedraw();
         }
-        float fw = 34 * k;
-        OverlayButton("", VButton.Look.Arrow, new Rect2(rightX + rightW - 214 * k, fpsY, fw, 32 * k), k, () => StepFps(-1)).Dir = -1;
-        fpsField = new ValueField
+        right.AddChild(new MText
         {
-            K = k, Value = () => app.FpsCap <= 0 ? "Unlimited" : app.FpsCap.ToString(),
-            Position = new Vector2(rightX + rightW - 174 * k, fpsY),
-            Size = new Vector2(128 * k, 32 * k), CustomMinimumSize = new Vector2(128 * k, 32 * k),
-            TooltipText = "Frame-rate cap. Applies immediately.",
-        };
-        fpsField.Pressed += () => StepFps(1);
-        overlay!.AddChild(fpsField);
-        overlayButtons.Add(fpsField);
-        OverlayButton("", VButton.Look.Arrow, new Rect2(rightX + rightW - fw, fpsY, fw, 32 * k), k, () => StepFps(1)).Dir = 1;
+            K = k, Font = UiTheme.Body, Px = 11.5f, Color = UiTheme.Faint, Delay = 0.46f,
+            Text = L("VSync and FPS cap apply immediately", "VSync y el límite de FPS se aplican al momento"),
+        });
 
-        var pauseTier = Difficulty.Get(s.Tier);
-        string pauseSub = $"{m.Name.ToUpperInvariant()} · {pauseTier.Name.ToUpperInvariant()}";
-        overlay!.OnDraw = d =>
+        // ---------------------------------------------------------------- footer
+        Gap(page, 22);
+        page.AddChild(new MRule { Delay = 0.5f });
+        Gap(page, 10);
+        page.AddChild(new MText
         {
-            float t = RealNow - overlayAt;
-            float pulse = Gfx.Wave(RealNow, 0.5f);
-            Dimmer(d, size, k, 0.78f, RealNow);
-
-            var pr = panel;
-            float x0 = pr.Position.X, y0 = pr.Position.Y, x1 = pr.End.X, y1 = pr.End.Y, cx = pr.GetCenter().X;
-            float cut = 26 * k;
-
-            // marching dashes for the edges (declared early, used by header + divider)
-            void RunX(float ex, float ey, float len, Color c, float h, float speed)
-            {
-                float db = 62 * k, span = len + db;
-                float xx = ((RealNow * speed * k) % span) - db;
-                for (int i = 0; i < 9; i++)
-                {
-                    float fall = 1f - MathF.Abs(i - 4f) / 5f;
-                    d.DrawRect(new Rect2(ex + xx + (i - 4) * 9 * k, ey, 3 * k, h), new Color(c, c.A * fall * 0.85f));
-                }
-            }
-
-            // ---- plate: glow halo, 45° cuts, inner hairline ----
-            for (int i = 0; i < 2; i++)
-            {
-                float e = (9 + i * 10 + pulse * 3) * k;
-                Gfx.PlateEx(d, new Rect2(x0 - e, y0 - e, pr.Size.X + e * 2, pr.Size.Y + e * 2), cut + e,
-                    true, false, false, true, new Color(0, 0, 0, 0), new Color(UiTheme.Accent, 0.05f / (i + 1)), 1f);
-            }
-            Gfx.PlateEx(d, pr, cut, true, false, false, true,
-                new Color(0.05f, 0.09f, 0.13f, 0.97f), new Color(UiTheme.Text, 0.14f + 0.06f * pulse), 1.5f);
-            Gfx.PlateEx(d, new Rect2(x0 + 4 * k, y0 + 4 * k, pr.Size.X - 8 * k, pr.Size.Y - 8 * k), cut - 4 * k,
-                true, false, false, true, new Color(0, 0, 0, 0), new Color(UiTheme.Accent, 0.11f), 1f);
-            float dp = (3f + 1.6f * pulse) * k;
-            Gfx.Diamond(d, new Vector2(x0, y0 + cut), dp, dp, UiTheme.Accent);
-            Gfx.Diamond(d, new Vector2(x1 - cut, y1), dp, dp, UiTheme.Teal);
-            float bb = 9 * k + pulse * 2.5f * k; // breathing outer brackets
-            Gfx.Brackets(d, new Rect2(x0 - bb, y0 - bb, pr.Size.X + bb * 2, pr.Size.Y + bb * 2),
-                (15 + 3 * pulse) * k, new Color(UiTheme.Text, 0.28f + 0.14f * pulse), 2 * k);
-
-            // breathing accent bar along the top edge with a fading tail; teal echo at the bottom right
-            float abw = (110 + 60 * pulse) * k;
-            d.DrawRect(new Rect2(x0 + cut, y0, abw, 3 * k), UiTheme.Accent);
-            Span<Vector2> tq = stackalloc Vector2[4];
-            Span<Color> tc = stackalloc Color[4];
-            tq[0] = new(x0 + cut + abw, y0);
-            tq[1] = tq[0] + new Vector2(80 * k, 0);
-            tq[2] = tq[1] + new Vector2(0, 3 * k);
-            tq[3] = tq[0] + new Vector2(0, 3 * k);
-            tc[0] = new Color(UiTheme.Accent, 0.4f); tc[3] = tc[0];
-            tc[1] = new Color(0, 0, 0, 0); tc[2] = tc[1];
-            d.GradPoly(tq, tc);
-            d.DrawRect(new Rect2(x1 - cut - 80 * k, y1 - 3 * k, 80 * k, 3 * k), new Color(UiTheme.Teal, 0.7f));
-
-            // slow scan shimmer drifting inside the plate
-            float scanY = y0 + ((RealNow * 42 * k) % pr.Size.Y);
-            float band = MathF.Min(36 * k, scanY - y0 - 2 * k);
-            if (band > 0)
-            {
-                Span<Vector2> sq = stackalloc Vector2[4];
-                Span<Color> sc = stackalloc Color[4];
-                sq[0] = new(x0 + 3 * k, scanY - band);
-                sq[1] = new(x1 - 3 * k, scanY - band);
-                sq[2] = sq[1] + new Vector2(0, band);
-                sq[3] = sq[0] + new Vector2(0, band);
-                sc[0] = new Color(0, 0, 0, 0); sc[1] = sc[0];
-                sc[2] = new Color(UiTheme.Accent, 0.03f); sc[3] = sc[2];
-                d.GradPoly(sq, sc);
-            }
-            d.DrawRect(new Rect2(x0 + 3 * k, scanY, pr.Size.X - 6 * k, 1.5f), new Color(UiTheme.Accent, 0.09f));
-
-            // ---- header ----
-            int ts = UiTheme.Fs(76, k), ss = UiTheme.Fs(14, k), ks = UiTheme.Fs(12, k), ls = UiTheme.Fs(11, k);
-            float kw = Gfx.TextC(d, UiTheme.HudWide, "// SYSTEM HOLD", cx, y0 + 40 * k, ks, new Color(UiTheme.Teal, 0.7f + 0.3f * pulse));
-            float kickCy = y0 + 40 * k - ks * 0.36f;
-            Gfx.Diamond(d, new Vector2(cx - kw / 2 - 14 * k, kickCy), 2.6f * k, 2.6f * k, new Color(UiTheme.Teal, 0.8f));
-            Gfx.Diamond(d, new Vector2(cx + kw / 2 + 14 * k, kickCy), 2.6f * k, 2.6f * k, new Color(UiTheme.Teal, 0.8f));
-            float ty = y0 + 84 * k + (1f - Gfx.EaseOutExpo(MathF.Min(t / 0.45f, 1f))) * 16 * k;
-            Gfx.TextC(d, UiTheme.Display, "PAUSED", cx, ty + 5 * k, ts, new Color(UiTheme.Accent, 0.35f));
-            Gfx.TextC(d, UiTheme.Display, "PAUSED", cx, ty, ts, UiTheme.Text);
-            float tw = Gfx.RawW(UiTheme.Display, Loc.T("PAUSED"), ts);
-            float tCy = ty - ts * 0.36f;
-            float tgap = tw / 2 + 30 * k + pulse * 5 * k;
-            Gfx.Chevron(d, new Vector2(cx - tgap, tCy), 18 * k, 1, new Color(UiTheme.Accent, 0.4f + 0.4f * pulse), 4 * k);
-            Gfx.Chevron(d, new Vector2(cx + tgap, tCy), 18 * k, -1, new Color(UiTheme.Accent, 0.4f + 0.4f * pulse), 4 * k);
-            float sw = Gfx.TextC(d, UiTheme.HudWide, pauseSub, cx, y0 + 116 * k, ss, UiTheme.Dim);
-            Gfx.Diamond(d, new Vector2(cx - sw / 2 - 12 * k, y0 + 116 * k - ss * 0.36f), 2.8f * k, 2.8f * k, new Color(UiTheme.Accent, 0.7f));
-            Gfx.Diamond(d, new Vector2(cx + sw / 2 + 12 * k, y0 + 116 * k - ss * 0.36f), 2.8f * k, 2.8f * k, new Color(UiTheme.Accent, 0.7f));
-
-            // header divider: accent fading to the right + marching dashes
-            float dy = y0 + 140 * k;
-            Span<Vector2> dq = stackalloc Vector2[4];
-            Span<Color> dc = stackalloc Color[4];
-            dq[0] = new(bx, dy); dq[1] = new(x1 - 52 * k, dy);
-            dq[2] = dq[1] + new Vector2(0, 1.4f); dq[3] = dq[0] + new Vector2(0, 1.4f);
-            dc[0] = new Color(UiTheme.Accent, 0.4f + 0.25f * pulse); dc[3] = dc[0];
-            dc[1] = new Color(UiTheme.Text, 0.09f); dc[2] = dc[1];
-            d.GradPoly(dq, dc);
-            Gfx.Diamond(d, new Vector2(bx - 10 * k, dy), 3.5f * k, 3.5f * k, UiTheme.Accent);
-            RunX(bx + 6 * k, dy - 2.5f * k, x1 - 58 * k - bx, new Color(UiTheme.Text, 0.3f), 5 * k, 55);
-
-            // column divider with teal end diamonds
-            float vx = rightX - 22 * k;
-            d.DrawRect(new Rect2(vx, y0 + 158 * k, 1, 368 * k), new Color(UiTheme.Text, 0.09f));
-            Gfx.Diamond(d, new Vector2(vx, y0 + 158 * k), 3 * k, 3 * k, new Color(UiTheme.Teal, 0.85f));
-            Gfx.Diamond(d, new Vector2(vx, y0 + 526 * k), 3 * k, 3 * k, new Color(UiTheme.Teal, 0.85f));
-
-            // left: sensitivity quick adjust
-            float sens = app.Sens;
-            int vsz = UiTheme.Fs(30, k), ns = UiTheme.Fs(11, k);
-            float shw = Gfx.TextC(d, UiTheme.HudWide, "SENSITIVITY", bx + bw / 2, py + 374 * k, ls, UiTheme.Dim);
-            float shCy = py + 374 * k - ls * 0.36f;
-            float rail = MathF.Max(0f, bw / 2 - shw / 2 - 10 * k);
-            d.DrawRect(new Rect2(bx, shCy - 0.5f, rail, 1), new Color(UiTheme.Text, 0.14f));
-            d.DrawRect(new Rect2(bx + bw - rail, shCy - 0.5f, rail, 1), new Color(UiTheme.Text, 0.14f));
-            var sbox = new Rect2(bx + ab + 8 * k, sensY, bw - 2 * ab - 16 * k, ab);
-            Gfx.PlateEx(d, sbox, 9 * k, false, false, false, true, new Color(0.03f, 0.06f, 0.09f, 0.92f), new Color(UiTheme.Text, 0.17f), 1f);
-            d.DrawRect(new Rect2(sbox.Position.X, sbox.Position.Y, 2.5f * k, sbox.Size.Y), UiTheme.Accent);
-            if (sensEdit != null && IsInstanceValid(sensEdit))
-            {
-                if (!sensEdit.HasFocus() && sensEdit.Text != sens.ToString("0.000", Inv)) sensEdit.Text = sens.ToString("0.000", Inv);
-                sensEdit.AddThemeColorOverride("font_color", st.UseSensOverride ? UiTheme.Warn : UiTheme.Text);
-            }
-            else Gfx.TextC(d, UiTheme.Display, sens.ToString("0.000", Inv), bx + bw / 2, Gfx.Mid(sensY + ab / 2, vsz), vsz, st.UseSensOverride ? UiTheme.Warn : UiTheme.Text);
-            string note = st.UseSensOverride
-                ? $"CUSTOM · {PlayerView.Cm360(sens, st.Dpi):0.0} CM/360"
-                : $"FROM VALORANT · {PlayerView.Cm360(sens, st.Dpi):0.0} CM/360";
-            Gfx.TextFit(d, UiTheme.HudWide, Loc.Numeric(note), bx, sensY + ab + 38 * k, ns, UiTheme.Faint, bw, HorizontalAlignment.Center);
-
-            // right: audio + graphics
-            int hs = UiTheme.Fs(12, k);
-            void Head(string text, float yy)
-            {
-                float hp = Gfx.Wave(RealNow + yy * 0.021f, 0.55f);
-                float cy = yy - hs * 0.36f;
-                Gfx.Diamond(d, new Vector2(rightX + 3 * k, cy), (2.8f + 1.4f * hp) * k, (2.8f + 1.4f * hp) * k, UiTheme.Accent);
-                Gfx.Text(d, UiTheme.HudWide, text, rightX + 14 * k, yy, hs, UiTheme.Dim);
-                float hw = Gfx.TextW(UiTheme.HudWide, text, hs);
-                float rail2 = MathF.Max(0f, rightW - hw - 26 * k);
-                d.DrawRect(new Rect2(rightX + 14 * k + hw + 10 * k, cy - 0.5f, rail2, 1), new Color(UiTheme.Text, 0.10f));
-            }
-            Head("AUDIO", py + 172 * k);
-            Gfx.Text(d, UiTheme.HudWide, "MASTER VOLUME", rightX, py + 194 * k, UiTheme.Fs(10, k), UiTheme.Faint);
-            Head("GRAPHICS", py + 278 * k);
-            Gfx.Text(d, UiTheme.HudWide, "QUALITY PRESET", rightX, py + 300 * k, UiTheme.Fs(10, k), UiTheme.Faint);
-            Gfx.Text(d, UiTheme.HudWide, "APPLIES NEXT DRILL", rightX, py + 362 * k, UiTheme.Fs(10, k), UiTheme.Faint);
-            Gfx.Text(d, UiTheme.HudWide, "VSYNC", rightX, Gfx.Mid(vsY + 16 * k, hs), hs, UiTheme.Dim);
-            Gfx.Text(d, UiTheme.HudWide, "FPS CAP", rightX, Gfx.Mid(fpsY + 16 * k, hs), hs, UiTheme.Dim);
-            Gfx.Text(d, UiTheme.HudWide, "VSYNC AND FPS CAP APPLY IMMEDIATELY", rightX, py + 492 * k, UiTheme.Fs(10, k), UiTheme.Faint);
-
-            string esc = "ESC — RESUME";
-            float ea = 0.45f + 0.4f * Gfx.Wave(RealNow, 0.9f);
-            float ew = Gfx.TextC(d, UiTheme.HudWide, esc, cx, y1 - 26 * k, ls, new Color(UiTheme.Text, ea));
-            float ec = y1 - 26 * k - ls * 0.36f;
-            Gfx.Chevron(d, new Vector2(cx - ew / 2 - 14 * k, ec), 10 * k, 1, new Color(UiTheme.Accent, 0.45f + 0.4f * pulse), 2.5f * k);
-            Gfx.Chevron(d, new Vector2(cx + ew / 2 + 14 * k, ec), 10 * k, -1, new Color(UiTheme.Accent, 0.45f + 0.4f * pulse), 2.5f * k);
-        };
+            K = k, Text = L("ESC  —  RESUME", "ESC  —  REANUDAR"), Font = UiTheme.HudWide, Px = 10.5f, Color = UiTheme.Dim,
+            Align = HorizontalAlignment.Center, Delay = 0.52f, SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            CustomMinimumSize = new Vector2(0, 18 * k),
+        });
     }
 
     // ---------------- results ----------------
@@ -1115,6 +1247,10 @@ public partial class Hud : Control
         if (s.Live is { History.Count: > 0 } live)
             resultLines.Add((Loc.Spanish ? "Coach en directo" : "Live coach",
                 string.Join(" · ", live.History.Where(h => !h.Positive).Select(h => h.Headline).Distinct().DefaultIfEmpty(live.History[^1].Headline))));
+        if (s.ProgressiveFrom is int pf && s.ProgressiveTo is int pt)
+            resultLines.Add((L("Progressive difficulty", "Dificultad progresiva"),
+                $"{(pt > pf ? "↑" : "↓")}  {Difficulty.Get(pf).Name} → {Difficulty.Get(pt).Name}  ·  " +
+                L("applies to the next run", "se aplica en la próxima partida")));
         var rec = s.Record;
         int prev = s.PrevBest;
         int tierId = s.Tier;

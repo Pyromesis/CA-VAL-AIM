@@ -392,16 +392,8 @@ public partial class ModeCard : BaseButton
         float dt = (float)delta;
         t += dt;
         float target = IsHovered() ? 1f : 0f;
-        bool down = GetDrawMode() is DrawMode.Pressed or DrawMode.HoverPressed;
         if (hover != target) { hover = Mathf.MoveToward(hover, target, dt * 8f); QueueRedraw(); }
         if (reveal < 1f || hover > 0.001f || (IsNew && Tag == null && t > 0.2f)) QueueRedraw();
-        var want = Vector2.One * (1f + 0.012f * hover - (down ? 0.008f : 0f));
-        if (Scale.DistanceTo(want) > 0.0005f)
-        {
-            PivotOffset = Size / 2;
-            Scale = Scale.Lerp(want, Mathf.Min(1f, dt * 12f));
-            QueueRedraw();
-        }
     }
 
     public override void _Draw()
@@ -411,26 +403,12 @@ public partial class ModeCard : BaseButton
         var r = new Rect2(Vector2.Zero, Size);
         bool down = GetDrawMode() is DrawMode.Pressed or DrawMode.HoverPressed;
         var cc = Tint ?? CategoryColor(info.Category);
-        var fill = UiTheme.Card.Lerp(UiTheme.CardHover, hover);
-        if (down) fill = UiTheme.CardHover.Lightened(0.06f);
+        Mn.Card(this, r, k, hover);
+        if (down) DrawRect(r, new Color(1, 1, 1, 0.03f));
+        // category rule along the top edge, brighter under the pointer
+        DrawRect(new Rect2(0, 0, r.Size.X, Mathf.Max(1.5f, 2 * k)), new Color(cc, 0.22f + 0.5f * hover));
 
-        // hovered glow under the card + angular plate (top-right corner cut)
-        if (hover > 0.02f)
-            Gfx.Glow(this, r.GetCenter(), Mathf.Max(r.Size.X, r.Size.Y) * (0.55f + 0.2f * hover),
-                new Color(cc, 0.05f * hover), 7);
-        Gfx.PlateEx(this, r, 12 * k, false, true, false, false, new Color(fill, 0.97f),
-            new Color(UiTheme.LineStrong.Lerp(cc, hover * 0.55f)), 1);
-        // category-coloured top edge that lights up with the pointer
-        Gfx.HGradient(this, new Rect2(16 * k, 0, Mathf.Max(0, r.Size.X - 40 * k), 1.6f * k),
-            new Color(cc, 0.35f + 0.5f * hover), new Color(cc, 0.05f));
-        // hover wash sweeping in from the left
-        if (hover > 0.01f)
-            Gfx.PlateEx(this, new Rect2(0, 0, r.Size.X * Gfx.EaseOutQuart(hover) * 0.96f, r.Size.Y), 0, false, false, false, false,
-                new Color(cc, 0.055f * hover), default);
-        // left spine
-        DrawRect(new Rect2(1.5f * k, 16 * k, 3 * k, Mathf.Max(0, r.Size.Y - 32 * k)), new Color(cc, 0.55f + 0.45f * hover));
-
-        float pad = 18 * k + 2.5f * k * hover, cy = TwoLines ? 26 * k : 21 * k, right = r.Size.X - 16 * k;
+        float pad = 18 * k, cy = TwoLines ? 26 * k : 21 * k, right = r.Size.X - 16 * k;
         // best badge ever (top right); none for drills without a meaningful score (Sens Finder)
         if (info.ShowScore)
         {
@@ -447,23 +425,23 @@ public partial class ModeCard : BaseButton
         float comW = community != null ? Gfx.TextW(UiTheme.HudWide, community, ts) + 12 * k : 0;
         string name = Loc.T(Title ?? info.Name);
         // Narrow card: the name stays whole, and COMMUNITY outranks NEW.
-        if (community != null && tag != null && Gfx.TextW(UiTheme.Display, name, ns) > right - pad - tagW - comW - 14 * k) { tag = null; tagW = 0; }
+        if (community != null && tag != null && Gfx.TextW(UiTheme.Light, name, ns) > right - pad - tagW - comW - 14 * k) { tag = null; tagW = 0; }
         float nameMax = Mathf.Max(20 * k, right - pad - (tag != null ? tagW + 8 * k : 0) - (community != null ? comW + 6 * k : 0));
-        float nw = Mathf.Min(Gfx.TextW(UiTheme.Display, name, ns), nameMax);
-        Gfx.TextFit(this, UiTheme.Display, name, pad, Gfx.Mid(cy, ns), ns, UiTheme.Text, nameMax);
+        float nw = Mathf.Min(Gfx.TextW(UiTheme.Light, name, ns), nameMax);
+        Gfx.TextFit(this, UiTheme.Light, name, pad, Gfx.Mid(cy, ns), ns, UiTheme.Text, nameMax);
         if (tag != null)
         {
             var tc = Tag != null ? cc : UiTheme.Accent;
             var tr = new Rect2(pad + nw + 8 * k, cy - 9 * k, tagW, 18 * k);
-            float pw = Tag == null ? Gfx.Wave(t, 0.9f) : 0f; // NEW: soft breathing halo
-            if (pw > 0) Gfx.PlateEx(this, tr.Grow(2.5f * k * pw), 7 * k, true, true, true, true, new Color(tc, 0.10f * pw), default);
-            Gfx.PlateEx(this, tr, 5 * k, true, false, false, true, new Color(tc, 0.14f), new Color(tc, 0.55f + 0.3f * pw), 1);
+            DrawRect(tr, new Color(tc, 0.10f + 0.05f * hover));
+            DrawRect(tr, new Color(tc, 0.40f + 0.3f * hover), false, 1);
             Gfx.Text(this, UiTheme.HudWide, tag, tr.Position.X + 6 * k, Gfx.Mid(cy, ts), ts, tc);
         }
         if (community != null)
         {
             var cr = new Rect2(pad + nw + 8 * k + (tag != null ? tagW + 6 * k : 0), cy - 9 * k, comW, 18 * k);
-            Gfx.PlateEx(this, cr, 5 * k, true, false, false, true, new Color(UiTheme.Good, 0.10f), new Color(UiTheme.Good, 0.5f), 1);
+            DrawRect(cr, new Color(UiTheme.Good, 0.09f));
+            DrawRect(cr, new Color(UiTheme.Good, 0.40f), false, 1);
             Gfx.Text(this, UiTheme.HudWide, community, cr.Position.X + 6 * k, Gfx.Mid(cy, ts), ts, UiTheme.Good);
         }
 
@@ -478,12 +456,13 @@ public partial class ModeCard : BaseButton
             if (info.ShowScore && pb >= 0)
             {
                 int ps = UiTheme.Fs(15, k), pl = UiTheme.Fs(9.5f, k);
-                float numW = Gfx.TextW(UiTheme.Display, pbText, ps);
+                float numW = Gfx.TextW(UiTheme.Hud, pbText, ps);
                 float labW = Gfx.TextW(UiTheme.HudWide, "PB", pl);
                 float chipW = numW + labW + 26 * k, chipH = 24 * k;
                 var chip = new Rect2(r.Size.X - 16 * k - chipW, r.Size.Y - 14 * k - chipH, chipW, chipH);
-                Gfx.PlateEx(this, chip, 6 * k, false, true, true, false,
-                    new Color(1, 1, 1, 0.035f + 0.025f * hover), UiTheme.Line.Lerp(UiTheme.Good, hover * 0.8f), 1);                Gfx.TextR(this, UiTheme.Display, pbText, chip.End.X - 10 * k, Gfx.Mid(chip.GetCenter().Y, ps), ps,
+                DrawRect(chip, new Color(1, 1, 1, 0.03f + 0.02f * hover));
+                DrawRect(chip, new Color(1, 1, 1, 0.10f + 0.12f * hover), false, 1);
+                Gfx.TextR(this, UiTheme.Hud, pbText, chip.End.X - 10 * k, Gfx.Mid(chip.GetCenter().Y, ps), ps,
                     UiTheme.Good.Lerp(Colors.White, hover * 0.5f));
                 Gfx.Text(this, UiTheme.HudWide, "PB", chip.Position.X + 10 * k, Gfx.Mid(chip.GetCenter().Y, pl), pl, UiTheme.Faint);
             }
@@ -502,7 +481,7 @@ public partial class ModeCard : BaseButton
             {
                 int vs = UiTheme.Fs(16, k), ls = UiTheme.Fs(9.5f, k);
                 float x = r.Size.X - 16 * k;
-                x -= Gfx.TextR(this, UiTheme.Display, pbText, x, Gfx.Mid(lineY, vs), vs, UiTheme.Good) + 6 * k;
+                x -= Gfx.TextR(this, UiTheme.Hud, pbText, x, Gfx.Mid(lineY, vs), vs, UiTheme.Good) + 6 * k;
                 x -= Gfx.TextR(this, UiTheme.HudWide, "PB", x, Gfx.Mid(lineY, ls), ls, UiTheme.Faint);
                 descRight = x - 12 * k;
             }
@@ -552,9 +531,9 @@ public partial class MapSelector : HBoxContainer
 
     /// <summary>Short art-status tag for the selector button and the map tiles.</summary>
     public static string ArtLabel(string key) => key == "random" ? $"{MapCount} MAPS" :
-        !HasArt(key) ? "BLOCKOUT" : FullArt(key) ? "REAL ART" : "PARTIAL ART";
+        !HasArt(key) ? "TRACED" : FullArt(key) ? "REAL ART" : "PARTIAL ART";
 
-    /// <summary>Tag colour: teal for complete art, amber for a partial extraction, grey for a blockout.</summary>
+    /// <summary>Tag colour: teal for complete art, amber for a partial extraction, grey for a traced fallback.</summary>
     public static Color ArtColor(string key) => key == "random" ? UiTheme.Dim :
         !HasArt(key) ? UiTheme.Faint : FullArt(key) ? UiTheme.Teal : UiTheme.Warn;
 
@@ -756,11 +735,14 @@ public partial class MapPickerOverlay : Control
         Gfx.Diamond(this, new Vector2(panel.Position.X + pad + 4 * k, cy), 5 * k, 5 * k, UiTheme.Accent);
         Gfx.Text(this, UiTheme.DisplayWide, "MAP LIBRARY", panel.Position.X + pad + 14 * k, Gfx.Mid(cy, fs), fs, UiTheme.Text);
         int art = MapSelector.ArtCount, total = MapSpots.All.Select(m => m.Key).Distinct().Count();
-        string rest = $" · {total - art} BLOCKOUT · RANDOM PICKS A NEW ONE EVERY RUN";
+        string rest = Loc.Spanish
+            ? $" · {total - art} TRAZADOS · ALEATORIO ELIGE UNO NUEVO EN CADA PARTIDA"
+            : $" · {total - art} TRACED · RANDOM PICKS A NEW ONE EVERY RUN";
         float restW = Gfx.TextW(UiTheme.HudWide, rest, ns);
         float right = panel.End.X - pad;
         Gfx.TextR(this, UiTheme.HudWide, rest, right, Gfx.Mid(cy, ns), ns, UiTheme.Faint);
-        Gfx.TextR(this, UiTheme.HudWide, $"{art} REAL ART", right - restW, Gfx.Mid(cy, ns), ns, UiTheme.Teal);
+        Gfx.TextR(this, UiTheme.HudWide, Loc.Spanish ? $"{art} ARTE REAL" : $"{art} REAL ART", right - restW,
+            Gfx.Mid(cy, ns), ns, UiTheme.Teal);
         DrawRect(new Rect2(panel.Position.X + pad, panel.Position.Y + pad + headH - 14 * k, panel.Size.X - pad * 2, 1), UiTheme.Line);
     }
 

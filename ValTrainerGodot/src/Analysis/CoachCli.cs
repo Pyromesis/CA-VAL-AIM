@@ -174,6 +174,9 @@ public static class CoachCli
         {
             "flick.n", "flick.onset_ms", "flick.gain", "flick.overshoot_share", "flick.mean_overshoot_deg", "flick.end_err_pct", "flick.nc", "flick.tc_ms",
             "flick.dwell_ms", "flick.snap_share", "flick.premature_share", "flick.eta", "flick.eta_p", "flick.end_y_deg", "flick.ttk_hit_ms", "speed.tier", "head.fsh_pct",
+            "flick.dir_left_err_r", "flick.dir_right_err_r", "flick.dir_up_err_r", "flick.dir_down_err_r",
+            "flick.dir_left_n", "flick.dir_right_n", "flick.dir_up_n", "flick.dir_down_n",
+            "flick.tremor_r", "flick.tremor_share", "flick.end_scatter_r",
             "track.ontarget", "track.lag_deg", "track.tau_ms", "track.jitter", "track.reacq_ms", "track.overrun_deg",
             "xhair.n", "xhair.err_deg", "xhair.pitch_deg", "xhair.h_deg", "spray.n", "spray.v", "spray.h", "spray.delay_ms", "react.ms",
         };

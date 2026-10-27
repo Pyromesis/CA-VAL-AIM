@@ -171,6 +171,7 @@ static class RunAnalysis
         public float A, R;
         public bool Predictable, Hit, Head, HasPrimary, Bot;
         public float Onset = float.NaN, Mt, PeakDps, PeakCms, EndErr, S, Perp, Gain, Curv, EndY, EtaP = float.NaN;
+        public float EndX, EndErrR = float.NaN;  // primary endpoint: sideways error and radius-normalised distance
         public bool Over, Under;
         public int Nc;
         public float Tc = float.NaN, Dwell = float.NaN, Eta = float.NaN, MtFitts = float.NaN, Id, Ttk = float.NaN;
@@ -232,6 +233,29 @@ static class RunAnalysis
             var large = still.Where(r => r.A >= 25).ToList();
             if (small.Count > 0) { m["flick.n_small"] = small.Count; m["flick.gain_small"] = Dsp.Mean(small.Select(r => r.Gain)); }
             if (large.Count > 0) { m["flick.n_large"] = large.Count; m["flick.gain_large"] = Dsp.Mean(large.Select(r => r.Gain)); }
+            // Directional balance: each static flick is bucketed on its dominant axis (left/right/up/down) and scored by how
+            // far past the target its primary motion ended, in target radii, so sides are comparable across sizes.
+            void Direction(string key, Func<TrialResult, bool> pick)
+            {
+                var list = still.Where(pick).ToList();
+                if (list.Count == 0) return;
+                m[$"flick.dir_{key}_n"] = list.Count;
+                m[$"flick.dir_{key}_hit"] = list.Count(r => r.Hit);
+                m[$"flick.dir_{key}_off"] = list.Count(r => r.EndErrR > 1f);
+                m[$"flick.dir_{key}_err_r"] = Dsp.Median(list.Select(r => r.EndErrR));
+            }
+            Direction("right", r => MathF.Abs(r.Ux) >= MathF.Abs(r.Uy) && r.Ux > 0);
+            Direction("left", r => MathF.Abs(r.Ux) >= MathF.Abs(r.Uy) && r.Ux < 0);
+            Direction("up", r => MathF.Abs(r.Uy) > MathF.Abs(r.Ux) && r.Uy > 0);
+            Direction("down", r => MathF.Abs(r.Uy) > MathF.Abs(r.Ux) && r.Uy < 0);
+            // Endpoint scatter (tremor at the stop): spread of the landing point around the player's own mean, in radii.
+            var scatter = still.Where(r => !float.IsNaN(r.EndErrR)).ToList();
+            if (scatter.Count >= 3)
+            {
+                float sdx = Dsp.Sd(scatter.Select(r => r.EndX / r.R));
+                float sdy = Dsp.Sd(scatter.Select(r => r.EndY / r.R));
+                if (!float.IsNaN(sdx) && !float.IsNaN(sdy)) m["flick.end_scatter_r"] = MathF.Sqrt(sdx * sdx + sdy * sdy);
+            }
             var onset = prim.Where(r => !r.Predictable && !float.IsNaN(r.Onset)).ToList();
             var valid = onset.Where(r => r.Onset >= 100 && r.Onset <= 1000).ToList();
             if (onset.Count > 0) m["flick.anticip"] = onset.Count(r => r.Onset < 100);
@@ -254,6 +278,12 @@ static class RunAnalysis
                 m["flick.n_corr"] = corr.Count;
                 m["flick.corr_amp_deg"] = Dsp.Median(corr.Select(c => c.a));
                 m["flick.corr_amp_r"] = Dsp.Median(corr.Select(c => c.a / Math.Max(0.05f, c.R)));
+                // Tremor: many tiny corrections after the primary instead of one decisive one. RMS wants the small ones to
+                // matter, so it is not dominated by a single big re-flick.
+                var rel = corr.Select(c => c.a / Math.Max(0.05f, c.R)).ToList();
+                m["flick.tremor_n"] = corr.Count;
+                m["flick.tremor_r"] = MathF.Sqrt(rel.Sum(a => a * a) / rel.Count);
+                m["flick.tremor_trials"] = hits.Count(r => r.CorrAmps.Count >= 2);
             }
             // Fitts: MT = a + b·ID, reported at ID 4.7 bits.
             var fx = hits.Where(r => !float.IsNaN(r.MtFitts)).ToList();
@@ -458,6 +488,8 @@ static class RunAnalysis
                 r.Over = r.S > R;
                 r.Under = r.S < -R;
                 r.EndY = ey;
+                r.EndX = ex;
+                r.EndErrR = MathF.Sqrt(ex * ex + ey * ey) / R;
                 float maxPerp = 0;
                 for (int i = P.S; i <= P.E; i++)
                 {

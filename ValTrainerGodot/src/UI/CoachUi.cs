@@ -133,10 +133,10 @@ public static class CoachSkills
     /// <summary>Drills that produce data for the skill (first = best).</summary>
     public static string[] Drills(Skill s) => s switch
     {
-        Skill.Flicking => new[] { "flick", "spider", "gridshot" },
-        Skill.Precision => new[] { "flick", "gridshot" },
-        Skill.Tracking => new[] { "tracking", "strafebots" },
-        Skill.Reaction => new[] { "reaction" },
+        Skill.Flicking => new[] { "flick", "spider", "gridshot", "flickx:horizontal", "flickx:mid" },
+        Skill.Precision => new[] { "flick", "gridshot", "microx:tiny", "flickx:tiny" },
+        Skill.Tracking => new[] { "tracking", "strafebots", "trackv:slow", "trackv:fast" },
+        Skill.Reaction => new[] { "reaction", "reflex:centre", "reflex:near" },
         Skill.CrosshairPlacement => new[] { "peek", "siteclear", "anchor" },
         Skill.SprayControl => new[] { "spray_vandal", "spray_phantom" },
         Skill.Movement => new[] { "counterstrafe", "peekduel" },
@@ -388,7 +388,7 @@ public static class CoachDraw
         ci.DrawRect(new Rect2(x0, r.Position.Y - 3 * k, Mathf.Max(2, x1 - x0), r.Size.Y + 6 * k), new Color(1, 1, 1, 0.13f));
         ci.DrawRect(new Rect2(x0, r.Position.Y - 3 * k, Mathf.Max(2, x1 - x0), r.Size.Y + 6 * k), new Color(1, 1, 1, 0.35f), false, 1f);
         ci.DrawRect(new Rect2(x - 1.5f * k, r.Position.Y - 7 * k, 3 * k, r.Size.Y + 14 * k), UiTheme.Text);
-        Gfx.Diamond(ci, new Vector2(x, r.Position.Y - 9 * k), 6 * k, 6 * k, UiTheme.Text);
+        ci.DrawRect(new Rect2(x - 5 * k, r.Position.Y - 9 * k, 10 * k, 2 * k), UiTheme.Text);
     }
 
     /// <summary>
@@ -488,7 +488,7 @@ public static class CoachDraw
     }
 }
 
-/// <summary>Angular card background (plate + coloured left strip) for coach cards; children laid out inside.</summary>
+/// <summary>Flat card for coach cards: a hairline box with a severity strip down the left edge.</summary>
 public partial class CardFrame : MarginContainer
 {
     public float K = 1f;
@@ -505,8 +505,8 @@ public partial class CardFrame : MarginContainer
     public override void _Draw()
     {
         var r = new Rect2(Vector2.Zero, Size);
-        Gfx.PlateEx(this, r, 14 * K, true, false, false, true, Fill, new Color(UiTheme.Text, 0.09f), 1f);
-        DrawRect(new Rect2(0, 14 * K, 4 * K, Mathf.Max(0, r.Size.Y - 14 * K)), Strip);
+        Mn.Card(this, r, K);
+        DrawRect(new Rect2(0, 0, Mathf.Max(1.5f, 2 * K), r.Size.Y), Strip);
     }
 }
 
@@ -724,10 +724,8 @@ public partial class DrillTile : BaseButton
         float k = K, pad = 18 * k;
         var r = new Rect2(Vector2.Zero, Size);
         bool done = Runs >= Target;
-        var fill = new Color(0.075f, 0.115f, 0.155f, 0.92f).Lerp(new Color(0.13f, 0.18f, 0.23f, 0.96f), hover);
-        Gfx.PlateEx(this, r, 12 * k, true, false, false, true, fill, new Color(UiTheme.Text, 0.08f + 0.3f * hover), 1f);
-        DrawRect(new Rect2(0, 12 * k, 3 * k, Mathf.Max(0, r.Size.Y - 12 * k)), done ? UiTheme.Good : new Color(UiTheme.Accent, 0.5f + 0.5f * hover));
-        if (hover > 0.01f) Gfx.Brackets(this, r.Grow(3 * k), 8 * k * hover, new Color(UiTheme.Text, 0.8f * hover), Mathf.Max(1, 2 * k));
+        Mn.Card(this, r, k, hover);
+        DrawRect(new Rect2(0, 0, Mathf.Max(1.5f, 2 * k), r.Size.Y), done ? UiTheme.Good : new Color(UiTheme.Accent, 0.45f + 0.4f * hover));
 
         int ns = UiTheme.Fs(23, k), ds = UiTheme.Fs(13, k), ps = UiTheme.Fs(22, k), ls = UiTheme.Fs(10.5f, k);
         float right = r.Size.X - pad;

@@ -336,7 +336,7 @@ static class Assess
                     "Relax your grip and forearm — a tense arm overshoots and can't stop cleanly.",
                     "Play Head Flicks one tier lower until most flicks land on or just short of the head.",
                 },
-                new[] { "flick", "spider" },
+                new[] { "flickx:horizontal", "microx:small", "flick" },
                 F2($"{O * 100:0}% of your off-target flicks overshot the target by {dOver:0.0}°",
                     $"El {O * 100:0}% de tus flicks fallados se pasaron {dOver:0.0}° del objetivo"),
                 highNcJ ? S("you also need many corrections / track shakily — try 5–10% lower sens.", "además necesitas muchas correcciones o haces tracking inestable: prueba una sensibilidad un 5–10% más baja.") : null, unit: "off-target flicks");
@@ -360,10 +360,93 @@ static class Assess
                     "Use your arm, not just the wrist, for wide flicks so the first motion covers the whole distance.",
                     "Look at the target first, then move — the eyes lead the hand.",
                 },
-                new[] { "spider", "flick" },
+                new[] { "flickx:wide", "flickx:close", "spider" },
                 F2($"your flicks stopped short (covering {G * 100:0}% of the distance)", $"tus flicks se quedaron cortos (recorriendo el {G * 100:0}% de la distancia)"),
                 wideOnly ? F2($"only your wide flicks (≥ 25°) fall short ({gl * 100:0}% vs {gs * 100:0}%) — try 5–10% higher sens.",
                     $"solo tus flicks amplios (≥ 25°) se quedan cortos ({gl * 100:0}% vs {gs * 100:0}%): prueba una sensibilidad un 5–10% más alta.") : null, unit: "flicks");
+        }
+
+        // LEFT / RIGHT / UP / DOWN WEAKNESS — one side consistently stops further from the target than its opposite.
+        // Each side is compared with its own opposite, so at most one of left/right and one of up/down can fire.
+        void DirectionIssue(string id, string side, float nW, float nS, float eW, float eS, float oW, float oS, string[] drills)
+        {
+            if (nW < 6 || nS < 6 || float.IsNaN(eW) || float.IsNaN(eS)) return;
+            float ratio = eW / MathF.Max(0.08f, eS);
+            float dOff = float.IsNaN(oW) || float.IsNaN(oS) ? 0 : oW - oS;
+            if (ratio < 1.25f && !(ratio >= 1.12f && dOff >= 15f)) return;
+            bool big = ratio >= 1.6f || dOff >= 30f;
+            (string Title, string DirEn, string OppEn, string DirEs, string OppEs) w = side switch
+            {
+                "left" => ("Weaker flicks to the left", "to the left", "to the right", "a la izquierda", "a la derecha"),
+                "right" => ("Weaker flicks to the right", "to the right", "to the left", "a la derecha", "a la izquierda"),
+                "up" => ("Weaker flicks upward", "upward", "downward", "hacia arriba", "hacia abajo"),
+                _ => ("Weaker flicks downward", "downward", "upward", "hacia abajo", "hacia arriba"),
+            };
+            string off = dOff == 0 ? "" : F2($"; {oW:0}% of the {w.DirEn} ones needed a correction, against {oS:0}% {w.OppEn}",
+                $"; el {oW:0}% de los {w.DirEs} necesitaron corrección, frente al {oS:0}% {w.OppEs}");
+            Add(id, Skill.Flicking, big ? 2 : 1, nW + nS, 24, w.Title,
+                F2($"Your flicks {w.DirEn} stopped {eW:0.00} target radii from the centre, against {eS:0.00} {w.OppEn}",
+                    $"Tus flicks {w.DirEs} terminaron a {eW:0.00} radios del centro, frente a {eS:0.00} {w.OppEs}") + off,
+                "The arm has less room on one side (the mouse sits off-centre or the pad is too small), so the same flick is planned differently depending on where the target appears.",
+                new[]
+                {
+                    "Centre the mouse on the pad and give yourself the same room to both sides.",
+                    "Turn the keyboard slightly so the arm sweeps freely in both directions.",
+                    "Practise the weak side deliberately: overshoot it by a little, then settle back.",
+                    "Keep the wrist loose on the cramped side instead of steering with the fingertips.",
+                },
+                drills,
+                F2($"your flicks {w.DirEn} missed by {eW:0.00} vs {eS:0.00} target radii {w.OppEn}",
+                    $"tus flicks {w.DirEs} fallaron por {eW:0.00} frente a {eS:0.00} radios {w.OppEs}"),
+                null, unit: "flicks");
+        }
+        DirectionIssue("LEFT_WEAK", "left",
+            N(m, "flick.dir_left_n"), N(m, "flick.dir_right_n"), V(m, "flick.dir_left_err_r"), V(m, "flick.dir_right_err_r"),
+            V(m, "flick.dir_left_off_pct"), V(m, "flick.dir_right_off_pct"),
+            new[] { "flickx:horizontal", "flickx:wide", "microx:line" });
+        DirectionIssue("RIGHT_WEAK", "right",
+            N(m, "flick.dir_right_n"), N(m, "flick.dir_left_n"), V(m, "flick.dir_right_err_r"), V(m, "flick.dir_left_err_r"),
+            V(m, "flick.dir_right_off_pct"), V(m, "flick.dir_left_off_pct"),
+            new[] { "flickx:horizontal", "flickx:wide", "microx:line" });
+        DirectionIssue("UP_WEAK", "up",
+            N(m, "flick.dir_up_n"), N(m, "flick.dir_down_n"), V(m, "flick.dir_up_err_r"), V(m, "flick.dir_down_err_r"),
+            V(m, "flick.dir_up_off_pct"), V(m, "flick.dir_down_off_pct"),
+            new[] { "flickx:vertical", "reflex:vertical", "microx:ladder" });
+        DirectionIssue("DOWN_WEAK", "down",
+            N(m, "flick.dir_down_n"), N(m, "flick.dir_up_n"), V(m, "flick.dir_down_err_r"), V(m, "flick.dir_up_err_r"),
+            V(m, "flick.dir_down_off_pct"), V(m, "flick.dir_up_off_pct"),
+            new[] { "flickx:vertical", "reflex:vertical", "microx:ladder" });
+
+        // AIM TREMOR — many tiny corrections after the flick (or a wide scatter of landing points) instead of one stop.
+        float tremorN = N(m, "flick.tremor_n"), tremorR = V(m, "flick.tremor_r"), tremorShare = V(m, "flick.tremor_share");
+        float scatterR = V(m, "flick.end_scatter_r");
+        bool shaky = tremorN >= 16 && !float.IsNaN(tremorR) && tremorR <= 0.45f
+            && (tremorShare >= 0.35f || nc >= Math.Max(2.2f, bandNc + 0.5f) || (!float.IsNaN(scatterR) && scatterR >= 0.7f));
+        if (shaky)
+        {
+            string evidence = F2($"After the flick you made {nc:0.0} corrections per target, each only {tremorR * 100:0}% of a target radius",
+                $"Después del flick hiciste {nc:0.0} correcciones por objetivo, cada una de solo el {tremorR * 100:0}% de un radio")
+                + (float.IsNaN(tremorShare) ? "" : F2($"; {tremorShare * 100:0}% of hits needed two or more",
+                    $"; el {tremorShare * 100:0}% de los aciertos necesitaron dos o más"))
+                + (float.IsNaN(scatterR) ? "" : F2($"; landing points spread {scatterR:0.00} radii",
+                    $"; los puntos de llegada se dispersaron {scatterR:0.00} radios"));
+            Add("AIM_TREMOR", Skill.Precision, tremorShare >= .60f || nc >= bandNc + 1.2f ? 2 : 1, tremorN, 24,
+                "Aim tremor: tiny corrections that never settle",
+                evidence,
+                "A tight grip or fingertip-only aiming adds a small involuntary shake. Chasing it with more tiny corrections makes the crosshair dance instead of stopping on the head.",
+                new[]
+                {
+                    "Relax your grip: hold the mouse, don't squeeze it, and keep the wrist loose.",
+                    "Stop once on the target and click — don't chase the exact centre with tiny nudges.",
+                    "Try 5–10% lower sensitivity and a slower, smoother stop.",
+                    "Check the pad is clean and flat; dust or a frayed edge adds real tremor.",
+                },
+                new[] { "microx:tiny", "trackv:slow", "microx:cluster" },
+                F2($"your aim kept making tiny corrections instead of stopping ({tremorR * 100:0}% of a radius each)",
+                    $"tu mira seguía haciendo correcciones diminutas en vez de detenerse ({tremorR * 100:0}% de un radio cada una)"),
+                S("tiny corrections that never settle usually mean the sens is slightly high — try 5–10% lower.",
+                    "las correcciones diminutas que no se asientan suelen indicar una sensibilidad algo alta: prueba un 5–10% menos."),
+                unit: "corrections");
         }
 
         // NO_MICRO
@@ -383,12 +466,12 @@ static class Assess
                     "If the flick lands off, make one small correction instead of firing anyway.",
                     "Play Head Flicks at Rookie (untimed) until you reach 85% accuracy, then speed up.",
                 },
-                new[] { "flick", "gridshot" },
+                new[] { "microx:tiny", "flickx:close", "flick" },
                 F2($"{snapShare * 100:0}% of your misses were fired straight off the flick with no correction",
                     $"El {snapShare * 100:0}% de tus fallos se dispararon al terminar el flick sin corregir"), unit: "misses");
 
-        // SLOW_MICRO
-        if (!float.IsNaN(tc) && (tc > 1.3f * bandTc || nc >= 2.5f))
+        // SLOW_MICRO (not when the corrections were tiny and involuntary — that is AIM_TREMOR above)
+        if (!shaky && !float.IsNaN(tc) && (tc > 1.3f * bandTc || nc >= 2.5f))
         {
             float amp = V(m, "flick.corr_amp_r");
             string? sens = amp < 2f && nc >= Math.Max(2f, bandNc + 0.3f) ? S("lots of corrections smaller than two head-widths usually means the sens is a bit high — try 5% lower.",
@@ -409,7 +492,7 @@ static class Assess
                     "Keep the hand loose after the flick so the correction is quick and small.",
                     "The head is bigger than its centre: click once you're on it, don't chase the exact middle.",
                 },
-                new[] { "gridshot", "flick" },
+                new[] { "microx:line", "microx:tiny", "flickx:mid" },
                 float.IsNaN(nc) ? F2($"you took {tc:0} ms to settle after each flick", $"tardaste {tc:0} ms en estabilizarte después de cada flick")
                     : F2($"you took {tc:0} ms and {nc:0.0} corrections to settle after each flick",
                         $"tardaste {tc:0} ms y {nc:0.0} correcciones en estabilizarte después de cada flick"),
@@ -433,7 +516,7 @@ static class Assess
                     "Slow your flicks down about 10% until your accuracy recovers.",
                     "Say \"stop-click\" in your head for a few sessions to break the rhythm.",
                 },
-                new[] { "flick" },
+                new[] { "microx:quick", "flickx:timed", "flick" },
                 F2($"{prem * 100:0}% of your misses were fired while the crosshair was still moving",
                     $"El {prem * 100:0}% de tus fallos se dispararon con la mira en movimiento"), unit: "misses");
 
@@ -451,7 +534,7 @@ static class Assess
                     "Trust the first confirmation — speed up the click, not the flick.",
                     "Play Gridshot focusing only on clicking the instant you arrive.",
                 },
-                new[] { "gridshot" },
+                new[] { "flickx:blitz", "reflex:quick", "gridshot" },
                 F2($"you waited {dwell:0} ms on the target before clicking", $"esperaste {dwell:0} ms sobre el objetivo antes de hacer clic"), unit: "hits");
 
         // CURVED (path efficiency of the primary flick itself, so overshoot returns don't count as curvature)
@@ -480,7 +563,7 @@ static class Assess
                     "Line your mouse pad up with the monitor and sit square to it.",
                     "Level the crosshair at head height first, then flick sideways along that line.",
                 },
-                new[] { "spider" },
+                new[] { "flickx:horizontal", "flickx:vertical", "microx:line" },
                 lowEnd ? F2($"your flicks tended to end {-endY:0.0}° below the head", $"tus flicks tendían a terminar {-endY:0.0}° por debajo de la cabeza")
                     : F2($"your flicks curved, wasting {(1 - etaP) * 100:0}% of their path", $"tus flicks se curvaron y desperdiciaron el {(1 - etaP) * 100:0}% de su recorrido"),
                 unit: "flicks");
@@ -500,7 +583,7 @@ static class Assess
                     "Turn on Settings → Guide line: it always points at the nearest target. Follow it until the habit sticks, then turn it off.",
                     "Clear groups in a loop that keeps the flicks short instead of zig-zagging across the grid.",
                 },
-                new[] { "gridshot", "switch" },
+                new[] { "flickx:triple", "flickx:centreout", "gridshot" },
                 F2($"{100 - nearPct:0}% of your picks skipped the nearest target", $"el {100 - nearPct:0}% de tus elecciones se saltaron el objetivo más cercano"),
                 unit: "picks");
 
@@ -523,7 +606,7 @@ static class Assess
                     "Start moving the moment you see colour — refine the exact spot while already moving.",
                     "Warm up with the Reaction Test, then Gridshot.",
                 },
-                new[] { "reaction", "gridshot" },
+                new[] { "reflex:centre", "reflex:near", "gridshot" },
                 F2($"you took {onset:0} ms to start moving toward each target", $"tardaste {onset:0} ms en empezar a moverte hacia cada objetivo"), null, !haveReact, unit: "flicks");
 
         // SLOW_REACT
@@ -540,7 +623,7 @@ static class Assess
                     "Warm up for 5 minutes before playing ranked.",
                     "Test again when rested — tiredness costs 20–40 ms.",
                 },
-                new[] { "reaction" },
+                new[] { "reflex:centre", "reflex:rapid", "reaction" },
                 F2($"your median reaction was {react:0} ms", $"tu reacción mediana fue de {react:0} ms"), unit: "trials");
 
         // ---- tracking ----
@@ -563,7 +646,7 @@ static class Assess
                     "Ride the leading edge of the target, not its centre.",
                     "Play Strafe Tracking one tier lower until you stay on target 50%+.",
                 },
-                new[] { "tracking", "strafebots" },
+                new[] { "trackv:slow", "trackv:close", "tracking" },
                 behind ? F2($"you trailed the target by {lag:0.00}°", $"te quedaste {lag:0.00}° por detrás del objetivo")
                     : F2($"your aim followed the target {tau:0} ms late", $"tu mira siguió al objetivo {tau:0} ms tarde"),
                 !float.IsNaN(J) && J <= bandJ ? S("your tracking is smooth but behind — try 5% higher sens.", "tu tracking es suave pero va por detrás: prueba una sensibilidad un 5% más alta.") : null, unit: "s of tracking");
@@ -585,7 +668,7 @@ static class Assess
                     "Ease off as the target slows down; don't keep pushing through.",
                     "Play Strafe Tracking at Veteran or higher to practise reversals.",
                 },
-                new[] { "tracking" },
+                new[] { "trackv:stopgo", "trackv:zigzag", "tracking" },
                 overran ? F2($"you ran {overrun:0.00}° past the target when it changed direction", $"te pasaste {overrun:0.00}° del objetivo cuando cambió de dirección")
                     : F2($"you ran {-lag:0.00}° ahead of the target", $"ibas {-lag:0.00}° por delante del objetivo"),
                 !float.IsNaN(J) && J > 1.3f * bandJ ? S("combined with shaky tracking this points to a slightly high sens — try 5% lower.",
@@ -603,7 +686,7 @@ static class Assess
                     "Track with your arm and wrist; keep the fingers quiet.",
                     "Smooth beats fast: let small errors go instead of chasing them.",
                 },
-                new[] { "tracking" },
+                new[] { "trackv:slow", "trackv:long", "tracking" },
                 F2($"your tracking wobbled ({J:0.00}× the target's motion)", $"tu tracking osciló ({J:0.00}× el movimiento del objetivo)"),
                 S("try 5–10% lower sens.", "prueba una sensibilidad un 5–10% más baja."), unit: "s of tracking");
         float reacq = V(m, "track.reacq_ms"), bandRq = Bench.ValueAt(refT, Bench.ReacqMs);
@@ -618,7 +701,7 @@ static class Assess
                     "Watch the body for the moment it plants, then reverse immediately.",
                     "Make the reversal one quick, small adjustment instead of a big swing.",
                 },
-                new[] { "strafebots", "tracking" },
+                new[] { "trackv:stopgo", "trackv:zigzag", "strafebots" },
                 F2($"you needed {reacq:0} ms to get back on after each direction change",
                     $"necesitaste {reacq:0} ms para volver a ponerte encima tras cada cambio de dirección"), unit: "direction changes");
 
@@ -639,7 +722,7 @@ static class Assess
                     "Use map details at head height (door frames, box edges) as reference points.",
                     "After every kill, reset the crosshair to head level — not down.",
                 },
-                new[] { "peek", "siteclear" },
+                new[] { "flickx:vertical", "microx:ladder", "peek" },
                 epLow ? F2($"enemies appeared {-ep:0.0}° above your crosshair", $"los enemigos aparecieron {-ep:0.0}° por encima de tu mira")
                     : F2($"your crosshair was below head height in {below:0}% of sightings", $"tu mira estaba por debajo de la altura de la cabeza en el {below:0}% de los avistamientos"),
                 unit: "sightings");
@@ -656,7 +739,7 @@ static class Assess
                     "Clear one angle at a time, keeping the crosshair glued to the edge.",
                     "When you move, slide the crosshair along the wall edge with you.",
                 },
-                new[] { "peekduel", "siteclear", "anchor" },
+                new[] { "flickx:horizontal", "microx:line", "siteclear", "anchor" },
                 F2($"enemies appeared {eh:0.0}° to the side of your crosshair", $"los enemigos aparecieron a {eh:0.0}° del lado de tu mira"), unit: "sightings");
 
         // ---- movement ----
