@@ -48,7 +48,7 @@ jobs:
           $maps = 'dist-maps\maps'
           if (-not (Test-Path $maps)) {
             Write-Host 'No dist-maps\maps in the checkout: downloading the published map set'
-            gh release download maps --pattern maps.zip --dir .
+            gh release download maps --pattern maps.zip --dir . --repo ${{ github.repository }}
             if ($LASTEXITCODE -ne 0 -or -not (Test-Path maps.zip)) { throw 'Could not download maps.zip from the "maps" release.' }
             New-Item -ItemType Directory -Force dist-maps | Out-Null
             & tar.exe -xf maps.zip -C dist-maps
