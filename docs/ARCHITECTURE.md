@@ -347,6 +347,11 @@ flowchart LR
 Drills that accept either rifle follow **Settings → Primary rifle**, and a weapon picked in the pause menu overrides it
 for that run. Some drills keep their own weapon (Spray Control always runs Vandal or Phantom).
 
+Most drills also expose the three in-game slots (`TrainingMode.WeaponSlots`): 1 is the big weapon (the drill's gun, or
+the player's primary rifle when the drill uses a sidearm or the knife), 2 the sidearm (the drill's own pistol or the
+Classic) and 3 the knife. `GameSession.ChangeWeapon` keeps each slot's magazine across switches. Weapon-specific
+drills (Spray Control, Spray Transfer, Operator, Arsenal, Chamber and Crosshair Finder) opt out.
+
 ---
 
 ## 9. Bots and difficulty

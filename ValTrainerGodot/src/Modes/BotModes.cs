@@ -309,6 +309,7 @@ public sealed class OperatorMode : BotMode
     public override string Name => "Operator";
     public override string Description => "Bots cross a gap between cover at 22–45 m. Scope (2.5x), one-shot body, bolt action.";
     public override WeaponKind Weapon => WeaponKind.Operator;
+    public override bool WeaponSlots => false; // the drill is the Operator duel
 
     static readonly float[] LaneZ = { -24f, -34f, -44f };
     float Gap => Difficulty.OperatorGap(Tier);

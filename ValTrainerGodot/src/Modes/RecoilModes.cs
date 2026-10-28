@@ -41,6 +41,7 @@ public sealed class SprayControlMode : TrainingMode
     public override string Category => "Recoil";
     public override WeaponKind Weapon => kind;
     public override bool RifleSelectable => false; // Vandal Spray / Phantom Spray always use their own rifle
+    public override bool WeaponSlots => false;     // the drill measures this rifle's pattern
     public override bool InfiniteAmmo => false;   // real magazine: a full spray is 25 (Vandal) / 30 (Phantom)
     public override bool InfiniteReserve => true;
     public override bool UsesHeadshots => true;
@@ -274,6 +275,7 @@ public sealed class SprayTransferMode : BotMode
     public override string Name => "Spray Transfer";
     public override string Description => "Kill all the agents in one continuous rifle spray: control the recoil while dragging between targets.";
     public override string Category => "Recoil";
+    public override bool WeaponSlots => false; // one continuous rifle spray
 
     readonly List<BotCharacter> bots = new();
     bool spraying;

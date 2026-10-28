@@ -43,6 +43,7 @@ public sealed partial class CrosshairFinderMode : TrainingMode
     public override string Description => "Try dot, cross, plus, circle and box crosshairs in real drills (hip fire, ADS or the sniper scope); get the one you see and shoot best with as a VALORANT code.";
     public override string Category => "Coach";
     public override WeaponKind Weapon => WeaponKind.Vandal;
+    public override bool WeaponSlots => false; // the Sniper tab sets its own Operator
     public override bool Timed => false;
     public override bool Done => done;
     public override bool ShowScore => false;

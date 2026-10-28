@@ -22,6 +22,7 @@ public sealed partial class ChamberMode
     bool Tdf => Variant == "tdf";
     string GunName => Tdf ? "Tour De Force" : "Headhunter";
     public override WeaponKind Weapon => Tdf ? WeaponKind.TourDeForce : WeaponKind.Headhunter;
+    public override bool WeaponSlots => false; // the Headhunter / Tour de Force is the drill's round
     public override bool InfiniteAmmo => false;
     public override bool InfiniteReserve => false;
     public override string SimKind => "bot";

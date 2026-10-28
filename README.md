@@ -131,6 +131,10 @@ the results screen says when the tier moved.
 - **Phantom:** 11 rounds/s, 30-round magazine, damage falloff, and its measured pattern (7.5° climb, 4.5° sweep).
 - **Switching rifles:** pick Vandal or Phantom in Settings, or press *Equip primary* (1) during a drill's countdown
   (any time in free play) to swap; every rifle drill uses your choice.
+- **Weapon slots:** 1, 2 and 3 draw the big weapon, the sidearm and the knife with your VALORANT binds. The big weapon
+  is the drill's gun (your primary rifle when the drill uses a pistol or the knife), the sidearm is the drill's own
+  pistol or the Classic, and each slot keeps its magazine. Weapon-specific drills (Vandal / Phantom Spray, Spray
+  Transfer, Operator, Arsenal, Chamber and Crosshair Finder) keep their own weapon rules.
 - **Any weapon in any drill:** the **WEAPON** picker in the menu (and in the pause menu) gives every drill that accepts a
   gun any playable weapon, or keeps each drill's own; the choice is remembered.
 - **Operator:** 2.5× scope, bolt action.

@@ -685,11 +685,23 @@ public partial class Hud : Control
         TC(UiTheme.Display, nameUpper, c.X, c.Y + r + 54 * k, ns, UiTheme.Text);
         TC(UiTheme.Body, m.Description, c.X, c.Y + r + 82 * k, ds, UiTheme.Dim);
         if (m.MadeBy is { } by) TC(UiTheme.HudWide, $"MADE BY THE COMMUNITY · @{by}", c.X, c.Y + r + 110 * k, ls, UiTheme.Good);
-        if (s.CanSwapRifle && s.Weapon is { } gun)
+        if (s.CanSwitchWeapon || s.CanSwapRifle)
         {
-            string other = gun.Kind == WeaponKind.Phantom ? "VANDAL" : "PHANTOM";
-            string key = Main.I.Valorant.Binds.Short(GameAction.EquipPrimary);
-            string hint = Loc.Spanish ? $"{gun.Name.ToUpperInvariant()} · {key} PARA CAMBIAR A {other}" : $"{gun.Name.ToUpperInvariant()} · {key} TO SWITCH TO {other}";
+            var binds = Main.I.Valorant.Binds;
+            string key1 = binds.Short(GameAction.EquipPrimary);
+            string other = s.Weapon?.Kind == WeaponKind.Phantom ? "VANDAL" : "PHANTOM";
+            string hint;
+            if (s.CanSwitchWeapon)
+            {
+                string primary = Weapons.Get(s.PrimarySlot)?.Name.ToUpperInvariant() ?? "";
+                string sidearm = Weapons.Get(s.SidearmSlot)?.Name.ToUpperInvariant() ?? "";
+                hint = $"{key1} {primary} · {binds.Short(GameAction.EquipSecondary)} {sidearm} · {binds.Short(GameAction.EquipMelee)} {Loc.T("KNIFE")}";
+                if (s.CanSwapRifle) hint += Loc.Spanish ? $" · {key1} OTRA VEZ: {other}" : $" · {key1} AGAIN: {other}";
+            }
+            else
+            {
+                hint = $"{s.Weapon?.Name.ToUpperInvariant()} · {key1} {(Loc.Spanish ? "PARA CAMBIAR A" : "TO SWITCH TO")} {other}";
+            }
             TC(UiTheme.HudWide, hint, c.X, c.Y + r + (m.MadeBy != null ? 136 : 110) * k, ls, UiTheme.Teal);
         }
     }

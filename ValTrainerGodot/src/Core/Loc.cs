@@ -1405,6 +1405,7 @@ public static class Loc
         ["Shotgun"] = "Escopeta",
         ["Machine gun"] = "Ametralladora",
         ["Melee"] = "Cuerpo a cuerpo",
+        ["Knife"] = "Cuchillo",
         ["Fan-made trainer · not endorsed by or affiliated with Riot Games"] =
             "Entrenador no oficial · no está afiliado ni respaldado por Riot Games",
 

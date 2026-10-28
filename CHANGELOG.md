@@ -4,6 +4,12 @@
 
 ### Added
 
+- **Switch weapons with 1 / 2 / 3.** Every drill with a gun now has three slots: 1 draws the big weapon (the drill's
+  gun, or your primary rifle when the drill uses a pistol or the knife), 2 the sidearm (the drill's own pistol,
+  otherwise the Classic) and 3 the knife, using your VALORANT binds. Each slot keeps its own magazine, so switching
+  never hands out a free reload; 1 still swaps Vandal ↔ Phantom during the countdown or in free play. Weapon-specific
+  drills (Vandal / Phantom Spray, Spray Transfer, Operator, Arsenal, Chamber and Crosshair Finder) keep their own weapon
+  rules.
 - **Real Vandal and Phantom spray patterns.** Both rifles now play their measured pattern (25 rounds climbing 9.0° and
   sweeping 5.0° for the Vandal; 30 rounds, 7.5° / 4.5° for the Phantom), with each bullet's exact sideways offset and
   no random side swap. The spray chart and the arsenal note follow it.

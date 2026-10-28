@@ -44,6 +44,7 @@ public partial class GameSession : Node3D, IGame
 
     List<Box> solid = new();
     WeaponDef? weaponDef;
+    readonly Dictionary<WeaponKind, (int Ammo, int Reserve)> slotAmmo = new();
     public WeaponController? Gun { get; private set; }
     Viewmodel? viewmodel;
     Camera3D cam = null!;
@@ -273,6 +274,7 @@ public partial class GameSession : Node3D, IGame
         ResetTransientInput();
         wasReloading = false;
         BannerTime = 0;
+        slotAmmo.Clear(); // every run starts with full magazines
         AdsBlend = 0;
         abilityInHand = false; // agent drills: the gun is in hand (AbilitySession.cs)
         View.Zoom = View.VisualZoom = 1;
@@ -390,16 +392,38 @@ public partial class GameSession : Node3D, IGame
         int ads = binds.Match(e, GameAction.AltFire);
         if (ads != 0) OnAdsButton(ads > 0, wheel, binds);
 
-        if (binds.Pressed(e, GameAction.EquipPrimary) && CanSwapRifle) SwapRifle();
+        if (binds.Pressed(e, GameAction.EquipPrimary))
+        {
+            if (CanSwapRifle) SwapRifle();
+            else if (CanSwitchWeapon) EquipSlot(1);
+        }
+        if (binds.Pressed(e, GameAction.EquipSecondary) && CanSwitchWeapon) EquipSlot(2);
+        if (binds.Pressed(e, GameAction.EquipMelee) && CanSwitchWeapon) EquipSlot(3);
         if (binds.Pressed(e, GameAction.Reload) && State == St.Running && Gun != null && !Mode.EffectiveInfiniteAmmo)
             Gun.StartReload(Mode.EffectiveInfiniteReserve);
         // Wheel notches have no hold: queue the jump (key / mouse-button jumps are polled by the Mover).
         if (wheel && State == St.Running && binds.Pressed(e, GameAction.Jump)) Mover.QueueJump();
     }
 
+    /// <summary>1 / 2 / 3 slots: the run's big gun, a sidearm and the knife. No switching while the drill is a 2D game,
+    /// during the results, with an agent ability in hand or when a weapon-specific drill owns its gun (see
+    /// <see cref="TrainingMode.WeaponSlots"/>).</summary>
+    public bool CanSwitchWeapon => !Demo && Mode.WeaponSlots && !Mode.Is2D && weaponDef != null && Gun != null
+        && cam != null && IsInstanceValid(cam) && !abilityInHand && !Player.Dead
+        && (State == St.Countdown || State == St.Running);
+
+    /// <summary>Slot 1: the run's gun, or the player's primary rifle when the drill's gun is a sidearm / the knife.</summary>
+    public WeaponKind PrimarySlot => Weapons.Get(Mode.SelectedWeapon) is { Class: WeaponClass.Sidearm or WeaponClass.Melee }
+        ? Main.I.PrimaryRifle : Mode.SelectedWeapon;
+
+    /// <summary>Slot 2: the drill's own sidearm when it has one, otherwise the Classic.</summary>
+    public WeaponKind SidearmSlot => Weapons.Get(Mode.SelectedWeapon) is { Class: WeaponClass.Sidearm }
+        ? Mode.SelectedWeapon : WeaponKind.Classic;
+
     /// <summary>Equip primary swaps Vandal ↔ Phantom on rifle drills: during the countdown (a run is played with one gun,
     /// so its stats stay comparable) or any time in free play. The choice is kept as the primary rifle (Settings).</summary>
-    public bool CanSwapRifle => !Demo && Mode.RifleSelectable && weaponDef?.Kind is WeaponKind.Vandal or WeaponKind.Phantom
+    public bool CanSwapRifle => !Demo && !abilityInHand && !Player.Dead && (Mode.RifleSelectable || Mode.WeaponSlots)
+        && weaponDef?.Kind is WeaponKind.Vandal or WeaponKind.Phantom
         && (State == St.Countdown || (FreePlay && State == St.Running));
 
     void SwapRifle()
@@ -407,9 +431,31 @@ public partial class GameSession : Node3D, IGame
         var next = weaponDef!.Kind == WeaponKind.Vandal ? WeaponKind.Phantom : WeaponKind.Vandal;
         Main.I.Settings.PrimaryRifle = next == WeaponKind.Phantom ? 1 : 0;
         Main.I.Settings.Save();
-        SwitchWeapon(next);
-        Telemetry.Weapon = next.ToString();
-        Banner(next == WeaponKind.Phantom ? "PHANTOM" : "VANDAL", UiTheme.Teal);
+        if (ChangeWeapon(next)) Banner(next == WeaponKind.Phantom ? "PHANTOM" : "VANDAL", UiTheme.Teal);
+    }
+
+    void EquipSlot(int slot)
+    {
+        var kind = slot switch { 1 => PrimarySlot, 2 => SidearmSlot, _ => WeaponKind.Knife };
+        if (kind == weaponDef?.Kind) return;
+        if (!ChangeWeapon(kind)) return;
+        string name = Weapons.Get(kind)?.Name.ToUpperInvariant() ?? kind.ToString().ToUpperInvariant();
+        Banner(Loc.T(name), UiTheme.Teal);
+    }
+
+    /// <summary>Swaps the gun keeping the magazine each weapon had: 1 / 2 / 3 must never hand out a free reload.</summary>
+    bool ChangeWeapon(WeaponKind kind)
+    {
+        if (Weapons.Get(kind) == null || weaponDef?.Kind == kind) return false;
+        if (Gun != null && weaponDef != null) slotAmmo[weaponDef.Kind] = (Gun.Ammo, Gun.Reserve);
+        SwitchWeapon(kind);
+        if (weaponDef?.Kind != kind) return false; // the switch was refused (no camera / 2D drill)
+        if (Gun != null && slotAmmo.TryGetValue(kind, out var kept))
+        {
+            Gun.Ammo = Math.Clamp(kept.Ammo, 0, Gun.Def.Mag);
+            Gun.Reserve = Math.Max(0, kept.Reserve);
+        }
+        return true;
     }
 
     void OnAdsButton(bool pressed, bool wheel, Keybinds binds)

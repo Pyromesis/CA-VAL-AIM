@@ -4,6 +4,12 @@
 
 ### Añadido
 
+- **Cambia de arma con 1 / 2 / 3.** Todos los ejercicios con arma tienen ahora tres ranuras: el 1 saca el arma grande
+  (el arma del ejercicio o tu rifle principal cuando el ejercicio usa una pistola o el cuchillo), el 2 la pistola (la
+  del propio ejercicio o, si no tiene, la Classic) y el 3 el cuchillo, con tus controles de VALORANT. Cada ranura conserva
+  su cargador, así que cambiar de arma no regala nunca una recarga; el 1 sigue alternando Vandal ↔ Phantom durante la
+  cuenta atrás o en el juego libre. Los ejercicios de arma fija (Ráfaga Vandal / Phantom, Transferencia de ráfaga,
+  Operator, Arsenal, Chamber y Buscador de mira) mantienen sus propias reglas de arma.
 - **Patrones de retroceso reales de la Vandal y la Phantom.** Las dos armas usan ahora su patrón de spray medido
   (25 balas y 9,0° de subida / 5,0° de barrido en la Vandal; 30 balas y 7,5° / 4,5° en la Phantom), con el desvío
   lateral exacto de cada bala y sin el giro aleatorio de los patrones reconstruidos. El gráfico del entrenamiento de

@@ -26,6 +26,7 @@ public sealed class ArsenalMode : BotMode
     public override bool ShowScore => false;
     public override bool RifleSelectable => false;
     public override WeaponKind Weapon => start;
+    public override bool WeaponSlots => false; // the arsenal has its own 1 / 2 / 3 weapon cycle
     public override bool InfiniteAmmo => false;
     public override bool InfiniteReserve => true;
     public override string SimKind => "bot";
