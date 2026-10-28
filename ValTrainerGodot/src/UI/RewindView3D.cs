@@ -138,6 +138,7 @@ public partial class RewindScreen
 
     public override void _ExitTree()
     {
+        OpenCount = Math.Max(0, OpenCount - 1);
         if (prevDisable3D is { } d && GetTree()?.Root is { } root) root.Disable3D = d;
         prevDisable3D = null;
     }
@@ -385,12 +386,13 @@ public partial class RewindScreen
         if (cur.Id != 0)
         {
             float err = Mathf.Sqrt(cur.Yaw * cur.Yaw + cur.Pitch * cur.Pitch);
-            if (err <= cur.R) { status = "On the target"; sc = UiTheme.Good; }
-            else status = $"Target {err:0.0}° away";
-            if (!onScreen && stage.FocusPoint != null) status += " (off screen)";
+            if (err <= cur.R) { status = Loc.Spanish ? "En el objetivo" : "On the target"; sc = UiTheme.Good; }
+            else status = Loc.Spanish ? $"Objetivo a {err:0.0}°" : $"Target {err:0.0}° away";
+            if (!onScreen && stage.FocusPoint != null) status += Loc.Spanish ? " (fuera de pantalla)" : " (off screen)";
         }
-        else status = "No target";
-        string extra = (fr0.Has(FrameFlags.Firing) ? "  ·  FIRING" : "") + (fr0.Speed > 1f ? $"  ·  MOVING {fr0.Speed:0.0} M/S" : "");
+        else status = Loc.Spanish ? "Sin objetivo" : "No target";
+        string extra = (fr0.Has(FrameFlags.Firing) ? (Loc.Spanish ? "  ·  DISPARANDO" : "  ·  FIRING") : "") +
+                       (fr0.Speed > 1f ? (Loc.Spanish ? $"  ·  MOVIÉNDOSE {fr0.Speed:0.0} M/S" : $"  ·  MOVING {fr0.Speed:0.0} M/S") : "");
         float sw = Gfx.TextW(UiTheme.Body, status, fs) + Gfx.TextW(UiTheme.HudWide, extra, cs);
         float y = sz.Y - 14 * k;
         over.DrawRect(new Rect2(6 * k, y - fs - 8 * k, sw + 16 * k, fs + 16 * k), new Color(0.02f, 0.035f, 0.05f, 0.7f));

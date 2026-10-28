@@ -463,18 +463,9 @@ public partial class MenuScreen : ScreenBase
         right.AddChild(play);
     }
 
-    static string DmName(DmDifficulty x) => !Loc.Spanish ? DeathmatchRules.Name(x) : x switch
-    {
-        DmDifficulty.Easy => "Fácil", DmDifficulty.Medium => "Medio", DmDifficulty.Hard => "Difícil", _ => "Pesadilla",
-    };
+    static string DmName(DmDifficulty x) => DeathmatchRules.NameLocal(x);
 
-    static string DmBlurb(DmDifficulty x) => !Loc.Spanish ? DeathmatchRules.Blurb(x) : x switch
-    {
-        DmDifficulty.Easy => "Bots Hierro–Bronce: reaccionan lento y disparan corriendo",
-        DmDifficulty.Medium => "Bots Platino–Diamante: se paran para disparar y apuntan donde estabas",
-        DmDifficulty.Hard => "Bots Ascendente–Inmortal: jiggle peeks, ángulos aguantados, ráfagas agachados",
-        _ => "Más allá de Radiante: 150 ms de reacción y oyen cada paso que das corriendo",
-    };
+    static string DmBlurb(DmDifficulty x) => DeathmatchRules.BlurbLocal(x);
 
     void BuildSetup(VBoxContainer right, float d)
     {
@@ -496,8 +487,10 @@ public partial class MenuScreen : ScreenBase
             right.AddChild(r);
         }
         if (!v.Found) Row("VALORANT data", L("Not found — check Settings", "No encontrado — revisa Ajustes"));
-        Row("Sensitivity", app.Sens.ToString("0.###", inv) + (app.Settings.UseSensOverride ? L("  (custom)", "  (personalizada)") : ""));
-        Row("eDPI · cm/360", Loc.Numeric($"{app.Sens * app.Settings.Dpi:0} · {PlayerView.Cm360(app.Sens, app.Settings.Dpi):0.0} cm @ {app.Settings.Dpi} DPI"));
+        Row("Sensitivity", Loc.Numeric(app.Sens.ToString("0.###", inv)) + (app.Settings.UseSensOverride ? L("  (custom)", "  (personalizada)") : ""));
+        Row("eDPI · cm/360", Loc.Numeric(Loc.Spanish
+            ? $"{app.Sens * app.Settings.Dpi:0} · {PlayerView.Cm360(app.Sens, app.Settings.Dpi):0.0} cm a {app.Settings.Dpi} DPI"
+            : $"{app.Sens * app.Settings.Dpi:0} · {PlayerView.Cm360(app.Sens, app.Settings.Dpi):0.0} cm @ {app.Settings.Dpi} DPI"));
         Row("Crosshair", Valorant.CrosshairCode.Effective.Name);
         Row("Enemy highlight", Loc.T(UiTheme.EnemyColorNames[Math.Clamp(app.EnemyColorIndex, 0, 3)]));
         right.AddChild(Spacer(0, 6 * k));
@@ -549,8 +542,11 @@ public partial class MenuScreen : ScreenBase
     static string TierLine(Tier t)
     {
         var (fmin, fmax) = Difficulty.FlickDistance(t.Id);
-        return $"Bots react in ~{t.Bot.ReactMs:0} ms · Gridshot targets {Difficulty.GridshotRadius(t.Id) * 200:0} cm wide · "
-             + $"head flicks at {fmin:0}–{fmax:0} m · {(t.Bot.RunAndGun ? "bots run-and-gun" : "bots stop before shooting")}";
+        return Loc.Spanish
+            ? $"Los bots reaccionan en ~{t.Bot.ReactMs:0} ms · objetivos Gridshot de {Difficulty.GridshotRadius(t.Id) * 200:0} cm · " +
+              $"flicks a la cabeza a {fmin:0}–{fmax:0} m · {(t.Bot.RunAndGun ? "los bots disparan corriendo" : "los bots se paran antes de disparar")}"
+            : $"Bots react in ~{t.Bot.ReactMs:0} ms · Gridshot targets {Difficulty.GridshotRadius(t.Id) * 200:0} cm wide · " +
+              $"head flicks at {fmin:0}–{fmax:0} m · {(t.Bot.RunAndGun ? "bots run-and-gun" : "bots stop before shooting")}";
     }
 
     string TierNote()
@@ -705,7 +701,8 @@ public partial class MenuScreen : ScreenBase
                     Link("DOWNLOAD", () => { if (!Updater.UpdateNow()) AppInfo.OpenGitHub(url); },
                         hasPage ? "Downloads the update, verifies it against SHA256SUMS.txt and offers to restart" : "No download page is set for this build",
                         accent: true, disabled: !hasPage);
-                Link("SKIP THIS VERSION", () => UpdateCheck.SkipVersion(ver), $"Don't remind me about {ver} again (and don't download it)");
+                Link("SKIP THIS VERSION", () => UpdateCheck.SkipVersion(ver),
+                    Loc.Spanish ? $"No volver a avisarme de la {ver} (ni descargarla)" : $"Don't remind me about {ver} again (and don't download it)");
                 Link("HIDE", Hide, "Hide until next launch");
                 break;
         }
@@ -718,6 +715,28 @@ public partial class MenuScreen : ScreenBase
         if (Updater.ReadyVersion == ver) return UpdateBanner.Stage.Ready;
         if (Updater.Status == Updater.State.Downloading && Updater.Target == ver) return UpdateBanner.Stage.Downloading;
         return UpdateBanner.Stage.Available;
+    }
+
+    // ---------------- startup "update available" modal ----------------
+
+    UpdateOfferPanel? offerPanel;
+
+    /// <summary>
+    /// Shows the update modal once per version and session as soon as the (asynchronous) check answers, so a new
+    /// release can't be missed. Never stacks over another first-launch panel or a pop-up, and never for a version the
+    /// player already put off with LATER (the strip under the header keeps offering it).
+    /// </summary>
+    void MaybeOfferUpdate()
+    {
+        // Dev builds only show it for a simulated release (screenshots and smoke runs must stay clean).
+        if (CmdLine.Dev && CmdLine.DevAfter("--update-test") == null && CmdLine.DevAfter("--update-source") == null) return;
+        if (offerPanel != null && IsInstanceValid(offerPanel)) return;
+        offerPanel = null;
+        if (UpdateCheck.Offered is not { } ver || ver == UpdateOffer.DeferredVersion) return;
+        if (GetChildren().Any(c => c is WhatsNewPanel or UpdatesPromptPanel or BugReportPanel or DrillPreview
+                                      or MapPickerOverlay or UpdateOfferPanel)) return;
+        offerPanel = new UpdateOfferPanel(K, ver, () => offerPanel = null);
+        AddChild(offerPanel);
     }
 
     // ---------------- coach hint (top problem one-liner, once the profile is ready) ----------------
@@ -778,6 +797,7 @@ public partial class MenuScreen : ScreenBase
     {
         if (!coachHintDone) UpdateCoachHint();
         if (bannerRev != UpdateCheck.Revision) RefreshBanner();
+        MaybeOfferUpdate();
         // the menu may stay open while the player is in VALORANT: look again now and then
         if ((matchRecheck -= dt) <= 0) CheckMatchPrompt(true);
     }

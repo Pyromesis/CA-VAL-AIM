@@ -171,24 +171,29 @@ public static class WarmupScore
 
     public static bool LowerBetter(string mode) => Def(mode) == Kind.Ttk;
 
-    public static string Label(string mode) => Def(mode) switch
+    public static string Label(string mode) => (Def(mode), Loc.Spanish) switch
     {
-        Kind.Ttk => mode == "reaction" ? "reaction" : "time to kill",
-        Kind.OnTarget => "on target",
-        Kind.KillsPerMin => "kills / min",
+        (Kind.Ttk, true) => mode == "reaction" ? "reacción" : "tiempo de baja",
+        (Kind.OnTarget, true) => "al objetivo",
+        (Kind.KillsPerMin, true) => "bajas / min",
+        (Kind.ScorePerMin, true) => "puntos / min",
+        (Kind.Ttk, _) => mode == "reaction" ? "reaction" : "time to kill",
+        (Kind.OnTarget, _) => "on target",
+        (Kind.KillsPerMin, _) => "kills / min",
         _ => "score / min",
     };
 
     public static string Format(string mode, float v)
     {
         if (v < 0) return "—";
-        var inv = CultureInfo.InvariantCulture;
+        // Spanish uses the decimal comma and the dot for thousands ("4,4 bajas / min").
+        var nf = Loc.Spanish ? CultureInfo.GetCultureInfo("es-ES") : CultureInfo.InvariantCulture;
         return Def(mode) switch
         {
-            Kind.Ttk => v.ToString("0", inv) + " ms",
-            Kind.OnTarget => v.ToString("0", inv) + "%",
-            Kind.KillsPerMin => v.ToString("0.0", inv),
-            _ => v.ToString("#,0", inv),
+            Kind.Ttk => v.ToString("0", nf) + " ms",
+            Kind.OnTarget => v.ToString("0", nf) + "%",
+            Kind.KillsPerMin => v.ToString("0.0", nf),
+            _ => v.ToString("#,0", nf),
         };
     }
 
@@ -230,12 +235,18 @@ public static class WarmupScore
         return 100f * (LowerBetter(mode) ? baseline / value : value / baseline);
     }
 
-    public static string BaselineText(string kind) => kind switch
+    public static string BaselineText(string kind) => !Loc.Spanish ? kind switch
     {
         "7d" => "your 7-day average",
         "recent" => "your recent average",
         "today" => "your first run of it today",
         _ => "no history yet",
+    } : kind switch
+    {
+        "7d" => "tu media de 7 días",
+        "recent" => "tu media reciente",
+        "today" => "tu primera vez hoy",
+        _ => "aún sin historial",
     };
 
     // ---------------- Lock-In ----------------
@@ -260,10 +271,21 @@ public static class WarmupScore
     {
         string usual = BaselineText(kind);
         var inv = CultureInfo.InvariantCulture;
-        if (readiness < 0) return ("NO COMPARISON YET", "Play these drills normally a few times and the next Lock-In compares you with your usual level.", UI.UiTheme.Text);
+        bool es = Loc.Spanish;
+        if (readiness < 0) return (es ? "AÚN SIN COMPARACIÓN" : "NO COMPARISON YET",
+            es ? "Juega estos ejercicios con normalidad unas cuantas veces y el próximo Lock-In te compara con tu nivel habitual."
+               : "Play these drills normally a few times and the next Lock-In compares you with your usual level.",
+            UI.UiTheme.Text);
         string pct = readiness.ToString("0", inv);
-        if (readiness >= 106) return ("ABOVE YOUR USUAL RANGE", $"{pct}% of {usual}, over the drills you have history for.", UI.UiTheme.Good);
-        if (readiness >= 94) return ("IN YOUR USUAL RANGE", $"{pct}% of {usual}, over the drills you have history for.", UI.UiTheme.Teal);
-        return ("BELOW YOUR USUAL RANGE TODAY", $"{pct}% of {usual}. Warm-up scores vary a lot and say little about how your match will go.", UI.UiTheme.Text);
+        if (readiness >= 106) return (es ? "POR ENCIMA DE TU NIVEL" : "ABOVE YOUR USUAL RANGE",
+            es ? $"{pct}% de {usual}, en los ejercicios de los que tienes historial." : $"{pct}% of {usual}, over the drills you have history for.",
+            UI.UiTheme.Good);
+        if (readiness >= 94) return (es ? "EN TU NIVEL HABITUAL" : "IN YOUR USUAL RANGE",
+            es ? $"{pct}% de {usual}, en los ejercicios de los que tienes historial." : $"{pct}% of {usual}, over the drills you have history for.",
+            UI.UiTheme.Teal);
+        return (es ? "HOY POR DEBAJO DE TU NIVEL" : "BELOW YOUR USUAL RANGE TODAY",
+            es ? $"{pct}% de {usual}. Los resultados del calentamiento varían mucho y dicen poco de cómo irá tu partida."
+               : $"{pct}% of {usual}. Warm-up scores vary a lot and say little about how your match will go.",
+            UI.UiTheme.Text);
     }
 }

@@ -32,14 +32,23 @@ public partial class SettingsScreen : ScreenBase
     }
 
     static readonly string[] WindowModes = { "Fullscreen", "Windowed Fullscreen", "Windowed" };
+    static readonly string[] WindowModesEs = { "Pantalla completa", "Pantalla completa sin bordes", "Ventana" };
     static readonly int[] FpsCaps = { 0, 60, 144, 165, 240, 360 };
     static readonly int[] Dpis = { 400, 800, 1000, 1200, 1600, 2000, 3200 };
     internal static readonly string[] Qualities ={ "Competitive (Low)", "Medium", "High", "Ultra" };
+    static readonly string[] QualitiesEs = { "Competitivo (bajo)", "Medio", "Alto", "Ultra" };
     static readonly CultureInfo Inv = CultureInfo.InvariantCulture;
 
     public static string AaName(int v) => v switch { -1 => "Default", 0 => "None", 1 => "MSAA 2x", 2 => "MSAA 4x", 3 => "FXAA", _ => v.ToString() };
-    static string Q(int v) => v switch { -1 => "Default", 0 => "Low", 1 => "Medium", 2 => "High", 3 => "Ultra", _ => v.ToString() };
-    static string B(bool? b) => b == null ? "Default" : b.Value ? "On" : "Off";
+    static string AaNameLocal(int v) => Loc.Spanish
+        ? v switch { -1 => "Predeterminado", 0 => "Ninguno", 3 => "FXAA", _ => AaName(v) }
+        : AaName(v);
+    static string WM(int i) => (Loc.Spanish ? WindowModesEs : WindowModes)[Math.Clamp(i, 0, 2)];
+    internal static string QualityName(int i) => (Loc.Spanish ? QualitiesEs : Qualities)[Math.Clamp(i, 0, 3)];
+    static string Q(int v) => Loc.Spanish
+        ? v switch { -1 => "Predeterminado", 0 => "Bajo", 1 => "Medio", 2 => "Alto", 3 => "Ultra", _ => v.ToString() }
+        : v switch { -1 => "Default", 0 => "Low", 1 => "Medium", 2 => "High", 3 => "Ultra", _ => v.ToString() };
+    static string B(bool? b) => b == null ? Loc.T("Default") : b.Value ? Loc.T("On") : Loc.T("Off");
     static int Wrap(int v, int min, int max) => v < min ? max : v > max ? min : v;
 
     readonly List<Action> refreshers = new();
@@ -162,8 +171,11 @@ public partial class SettingsScreen : ScreenBase
                 UiTheme.ConfirmSound();
             },
             enabled: () => App.Accounts.Count > 1,
-            note: () => App.Accounts.Count == 0 ? "No Valorant config folder found on this PC"
-                : $"{App.Accounts.Count} found{(CurrentAccount().IsLastUsed ? " · this one was used last" : "")}"));
+            note: () => App.Accounts.Count == 0
+                ? Loc.Spanish ? "No se ha encontrado la configuración de VALORANT en este PC" : "No Valorant config folder found on this PC"
+                : Loc.Spanish
+                    ? $"{App.Accounts.Count} encontradas{(CurrentAccount().IsLastUsed ? " · esta se usó la última" : "")}"
+                    : $"{App.Accounts.Count} found{(CurrentAccount().IsLastUsed ? " · this one was used last" : "")}"));
 
         v.AddChild(Spacer(0, 6 * k));
         v.AddChild(new SectionLabel { Text = "SENSITIVITY", K = k });
@@ -400,7 +412,7 @@ public partial class SettingsScreen : ScreenBase
         float k = K;
         v.AddChild(new SectionLabel { Text = "DISPLAY", K = k });
         v.AddChild(Selector("Display mode",
-            () => St.WindowModeOverride < 0 ? $"Valorant ({WindowModes[Math.Clamp(App.Valorant.WindowMode, 0, 2)]})" : WindowModes[St.WindowModeOverride],
+            () => St.WindowModeOverride < 0 ? $"Valorant ({WM(App.Valorant.WindowMode)})" : WM(St.WindowModeOverride),
             d => { St.WindowModeOverride = Wrap(St.WindowModeOverride + d, -1, 2); App.ApplyDisplay(); }));
         int monCount = Math.Max(1, DisplayServer.GetScreenCount());
         string MonName(int i) { var s = DisplayServer.ScreenGetSize(i); return $"#{i + 1} · {s.X}×{s.Y}"; }
@@ -409,11 +421,11 @@ public partial class SettingsScreen : ScreenBase
             d => { St.MonitorOverride = Wrap(St.MonitorOverride + d, -1, monCount - 1); App.ApplyDisplay(); },
             enabled: () => monCount > 1 || St.MonitorOverride >= 0));
         v.AddChild(Selector("VSync",
-            () => St.VSyncOverride < 0 ? $"Valorant ({(App.Valorant.VSync ? "On" : "Off")})" : St.VSyncOverride == 1 ? "On" : "Off",
+            () => St.VSyncOverride < 0 ? $"Valorant ({(App.Valorant.VSync ? Loc.T("On") : Loc.T("Off"))})" : St.VSyncOverride == 1 ? Loc.T("On") : Loc.T("Off"),
             d => { St.VSyncOverride = Wrap(St.VSyncOverride + d, -1, 1); App.ApplyFps(); }));
         v.AddChild(Selector("FPS cap",
-            () => St.FpsCapOverride < 0 ? $"Valorant ({(App.Valorant.FrameRateLimit <= 0 ? "Unlimited" : App.Valorant.FrameRateLimit.ToString("0", Inv))})"
-                : St.FpsCapOverride == 0 ? "Unlimited" : St.FpsCapOverride.ToString(),
+            () => St.FpsCapOverride < 0 ? $"Valorant ({(App.Valorant.FrameRateLimit <= 0 ? Loc.T("Unlimited") : App.Valorant.FrameRateLimit.ToString("0", Inv))})"
+                : St.FpsCapOverride == 0 ? Loc.T("Unlimited") : St.FpsCapOverride.ToString(),
             d =>
             {
                 int fi = St.FpsCapOverride < 0 ? -1 : Array.IndexOf(FpsCaps, St.FpsCapOverride);
@@ -424,7 +436,7 @@ public partial class SettingsScreen : ScreenBase
 
         v.AddChild(Spacer(0, 6 * k));
         v.AddChild(new SectionLabel { Text = "GRAPHICS", K = k });
-        v.AddChild(Selector("Graphics quality", () => Qualities[Math.Clamp(St.Quality, 0, 3)],
+        v.AddChild(Selector("Graphics quality", () => QualityName(St.Quality),
             d => St.Quality = Wrap(St.Quality + d, 0, 3),
             note: () => "Applies on next drill"));
 
@@ -448,7 +460,9 @@ public partial class SettingsScreen : ScreenBase
         v.AddChild(Selector("Difficulty tier", () => { var t = Difficulty.Get(St.Tier); return $"{t.Name} · {t.Ranks}"; },
             d => St.Tier = Wrap(St.Tier + d, 0, 4),
             emblem: () => St.Tier,
-            note: () => $"Bots react in ~{Difficulty.Get(St.Tier).Bot.ReactMs:0} ms"));
+            note: () => Loc.Spanish
+                ? $"Los bots reaccionan en ~{Difficulty.Get(St.Tier).Bot.ReactMs:0} ms"
+                : $"Bots react in ~{Difficulty.Get(St.Tier).Bot.ReactMs:0} ms"));
         v.AddChild(Segmented("Viewmodel (first-person gun)", new[] { "OFF", "ON" }, () => St.ViewModel ? 1 : 0, i => St.ViewModel = i == 1,
             note: () => "Applies on next drill"));
         v.AddChild(Segmented("Guide line", new[] { "OFF", "LINE", "LINE + ROUTE" }, () => Math.Clamp(St.GuideLine, 0, 2), i => St.GuideLine = i,
@@ -462,8 +476,10 @@ public partial class SettingsScreen : ScreenBase
             note: () => St.LiveCoach ? "Short cues during the run: what is going wrong and how to fix it" : "The coach only reviews the run at the end"));
         v.AddChild(Segmented("Weapon hand", new[] { "RIGHT", "LEFT" }, () => St.LeftHandedWeapon ? 1 : 0, i => St.LeftHandedWeapon = i == 1,
             note: () => Main.I.Valorant.Found
-                ? $"Applies on next drill · VALORANT uses {(Main.I.Valorant.LeftHanded ? "left" : "right")}"
-                : "Applies on next drill"));
+                ? Loc.Spanish
+                    ? $"Se aplica en el siguiente ejercicio · VALORANT usa {(Main.I.Valorant.LeftHanded ? "izquierda" : "derecha")}"
+                    : $"Applies on next drill · VALORANT uses {(Main.I.Valorant.LeftHanded ? "left" : "right")}"
+                : Loc.Spanish ? "Se aplica en el siguiente ejercicio" : "Applies on next drill"));
 
         v.AddChild(Spacer(0, 6 * k));
         v.AddChild(new SectionLabel { Text = "AUDIO", K = k });
@@ -521,28 +537,35 @@ public partial class SettingsScreen : ScreenBase
         {
             var row = Info(label, value);
             row.MouseFilter = MouseFilterEnum.Pass;
-            string Tip() => "VALORANT keybinds (primary · secondary)\n" + vp().Binds.ListText();
+            string Tip() => (Loc.Spanish ? "Teclas de VALORANT (principal · secundaria)\n" : "VALORANT keybinds (primary · secondary)\n") + vp().Binds.ListText();
             row.TooltipText = Tip();
             refreshers.Add(() => row.TooltipText = Tip());
         }
 
-        Info("Source", () => vp().Found ? vp().Source : "Not found — Valorant defaults", () => vp().Found ? UiTheme.Good : UiTheme.Warn);
-        Info("Sensitivity", () => vp().SensFromFile ? vp().Sensitivity.ToString("0.####", Inv) : $"{vp().Sensitivity.ToString(Inv)} (default)");
+        Info("Source", () => vp().Found ? vp().Source : Loc.Spanish ? "No encontrado: valores por defecto de Valorant" : "Not found — Valorant defaults", () => vp().Found ? UiTheme.Good : UiTheme.Warn);
+        Info("Sensitivity", () => vp().SensFromFile ? vp().Sensitivity.ToString("0.####", Inv) : $"{vp().Sensitivity.ToString(Inv)} {(Loc.Spanish ? "(por defecto)" : "(default)")}");
         Info("Scoped / ADS multiplier", () => $"{vp().ZoomedSensMult.ToString("0.###", Inv)} / {vp().AdsSensMult.ToString("0.###", Inv)}");
-        Info("Sniper scope input", () => vp().HoldToScope ? "Hold" : "Toggle");
+        Info("Sniper scope input", () => vp().HoldToScope ? Loc.T("Hold") : Loc.T("Toggle"));
         Keys("Move (forward left back right)", () => string.Join(" ", new[] { GameAction.MoveForward, GameAction.StrafeLeft, GameAction.MoveBack, GameAction.StrafeRight }.Select(a => vp().Binds.Short(a))));
         Keys("Walk / crouch / jump", () => $"{vp().Binds.Text(GameAction.Walk)} / {vp().Binds.Text(GameAction.Crouch)} / {vp().Binds.Text(GameAction.Jump)}");
         Keys("Fire / alt fire", () => $"{vp().Binds.Text(GameAction.Fire)} / {vp().Binds.Text(GameAction.AltFire)}");
         Keys("Reload / use / plant-defuse", () => $"{vp().Binds.Text(GameAction.Reload)} / {vp().Binds.Text(GameAction.Use)} / {vp().Binds.Text(GameAction.UseSpike)}");
         Keys("Abilities C Q E X", () => string.Join(" ", Enumerable.Range(0, 4).Select(i => vp().AbilityBindText(i))));
-        Info("Resolution", () => $"{vp().ResX} × {vp().ResY}{(vp().Letterbox ? " (letterbox)" : "")}");
-        Info("Display mode / monitor", () => $"{WindowModes[Math.Clamp(vp().WindowMode, 0, 2)]} / #{vp().MonitorIndex + 1}");
-        Info("VSync / FPS limit", () => $"{(vp().VSync ? "On" : "Off")} / {(vp().FrameRateLimit <= 0 ? "Unlimited" : vp().FrameRateLimit.ToString("0", Inv))}");
+        Info("Resolution", () => $"{vp().ResX} × {vp().ResY}{(vp().Letterbox ? (Loc.Spanish ? " (barras negras)" : " (letterbox)") : "")}");
+        Info("Display mode / monitor", () => $"{WM(vp().WindowMode)} / #{vp().MonitorIndex + 1}");
+        Info("VSync / FPS limit", () => $"{(vp().VSync ? Loc.T("On") : Loc.T("Off"))} / {(vp().FrameRateLimit <= 0 ? Loc.T("Unlimited") : vp().FrameRateLimit.ToString("0", Inv))}");
         Info("Material / Texture / Detail", () => $"{Q(vp().MaterialQuality)} / {Q(vp().TextureQuality)} / {Q(vp().DetailQuality)}");
-        Info("UI quality / Anisotropic", () => $"{Q(vp().UIQuality)} / {(vp().Anisotropic < 0 ? "Default" : vp().Anisotropic + "x")}");
-        Info("Anti-aliasing", () => AaName(vp().AntiAliasing) + (vp().WantsMsaa ? " → MSAA 4x" : ""));
+        Info("UI quality / Anisotropic", () => $"{Q(vp().UIQuality)} / {(vp().Anisotropic < 0 ? Loc.T("Default") : vp().Anisotropic + "x")}");
+        Info("Anti-aliasing", () => AaNameLocal(vp().AntiAliasing) + (vp().WantsMsaa ? " → MSAA 4x" : ""));
         Info("Improve clarity / Bloom", () => $"{B(vp().ImproveClarity)} / {Q(vp().BloomQuality)}");
-        Info("NVIDIA Reflex", () => vp().Reflex switch { -1 => "Default", 0 => "Off", 1 => "On", 2 => "On + Boost", _ => vp().Reflex.ToString() });
+        Info("NVIDIA Reflex", () => vp().Reflex switch
+        {
+            -1 => Loc.T("Default"),
+            0 => Loc.T("Off"),
+            1 => Loc.T("On"),
+            2 => Loc.Spanish ? "Sí + Boost" : "On + Boost",
+            _ => vp().Reflex.ToString(),
+        });
         Info("Enemy highlight", () => UiTheme.EnemyColorNames[Math.Clamp(vp().EnemyHighlight, 0, 3)], () => UiTheme.EnemyColors[Math.Clamp(vp().EnemyHighlight, 0, 3)],
             () => UiTheme.EnemyColors[Math.Clamp(vp().EnemyHighlight, 0, 3)]);
         Info("Show FPS counter", () => vp().ShowFps ? "On" : "Off");
@@ -606,10 +629,10 @@ public partial class SettingsScreen : ScreenBase
         }
 
         v.AddChild(new SectionLabel { Text = "THIS PC", K = k });
-        Info("Version", () => AppInfo.Version + (App.Dev ? " (dev run)" : ""));
+        Info("Version", () => AppInfo.Version + (App.Dev ? (Loc.Spanish ? " (ejecución dev)" : " (dev run)") : ""));
         Info("Renderer", () => SysInfo.RendererName, () => SysInfo.IsCompatibility ? UiTheme.Warn : UiTheme.Text);
-        Info("Graphics card", () => SysInfo.GpuName.Length > 0 ? SysInfo.GpuName : "Unknown");
-        Info("Graphics quality", () => Qualities[Math.Clamp(St.Quality, 0, 3)] + (St.AutoQualityReason != null ? $" · auto ({St.AutoQualityReason})" : ""));
+        Info("Graphics card", () => SysInfo.GpuName.Length > 0 ? SysInfo.GpuName : Loc.Spanish ? "Desconocida" : "Unknown");
+        Info("Graphics quality", () => QualityName(St.Quality) + (St.AutoQualityReason != null ? (Loc.Spanish ? $" · auto ({St.AutoQualityReason})" : $" · auto ({St.AutoQualityReason})") : ""));
 
         v.AddChild(Spacer(0, 6 * k));
         v.AddChild(new SectionLabel { Text = "FOLDERS", K = k });
@@ -722,12 +745,21 @@ public partial class SettingsScreen : ScreenBase
     /// <summary>Settings → About note under "Download updates automatically": how this copy updates (or why it can't).</summary>
     static string AutoUpdateNote()
     {
-        if (Updater.Status == Updater.State.Off) return "Not available: " + (Updater.Message ?? "this copy can't update itself");
+        if (Updater.Status == Updater.State.Off)
+            return Loc.Spanish
+                ? "No disponible: " + (Updater.Message ?? "esta copia no puede actualizarse sola")
+                : "Not available: " + (Updater.Message ?? "this copy can't update itself");
         return Updater.Kind switch
         {
-            InstallKind.Portable => "Downloads new versions in the background; ValTrainer.exe is replaced when you restart",
-            InstallKind.InstalledAdmin => "Downloads new versions in the background; RESTART TO UPDATE installs them (Windows asks for permission)",
-            _ => "Downloads new versions in the background; they install when you restart CA-VAL-AIM",
+            InstallKind.Portable => Loc.Spanish
+                ? "Descarga las versiones nuevas en segundo plano; ValTrainer.exe se sustituye al reiniciar"
+                : "Downloads new versions in the background; ValTrainer.exe is replaced when you restart",
+            InstallKind.InstalledAdmin => Loc.Spanish
+                ? "Descarga las versiones nuevas en segundo plano; REINICIAR PARA ACTUALIZAR las instala (Windows pedirá permiso)"
+                : "Downloads new versions in the background; RESTART TO UPDATE installs them (Windows asks for permission)",
+            _ => Loc.Spanish
+                ? "Descarga las versiones nuevas en segundo plano; se instalan al reiniciar CA-VAL-AIM"
+                : "Downloads new versions in the background; they install when you restart CA-VAL-AIM",
         };
     }
 
@@ -746,30 +778,37 @@ public partial class SettingsScreen : ScreenBase
 
     (string, Color) CheckStatus() => UpdateCheck.Status switch
     {
-        UpdateCheck.State.Checking => ("Checking GitHub…", UiTheme.Dim),
-        UpdateCheck.State.Available => ($"CA-VAL-AIM {UpdateCheck.Latest} is available", UiTheme.Good),
-        UpdateCheck.State.UpToDate => ("You have the latest version" + (St.LastUpdateCheck > 0 ? $" · checked {Ago(St.LastUpdateCheck)}" : ""), UiTheme.Dim),
-        UpdateCheck.State.Failed => (string.IsNullOrWhiteSpace(UpdateCheck.Message) ? "Couldn't check for updates" : $"Couldn't check for updates: {UpdateCheck.Message}", UiTheme.Warn),
-        UpdateCheck.State.Off => (UpdateCheck.Message ?? "Off", UiTheme.Faint),
+        UpdateCheck.State.Checking => (Loc.Spanish ? "Comprobando GitHub…" : "Checking GitHub…", UiTheme.Dim),
+        UpdateCheck.State.Available => (Loc.Spanish ? $"CA-VAL-AIM {UpdateCheck.Latest} está disponible" : $"CA-VAL-AIM {UpdateCheck.Latest} is available", UiTheme.Good),
+        UpdateCheck.State.UpToDate => (Loc.Spanish
+            ? "Tienes la última versión" + (St.LastUpdateCheck > 0 ? $" · comprobado {Ago(St.LastUpdateCheck)}" : "")
+            : "You have the latest version" + (St.LastUpdateCheck > 0 ? $" · checked {Ago(St.LastUpdateCheck)}" : ""), UiTheme.Dim),
+        UpdateCheck.State.Failed => (string.IsNullOrWhiteSpace(UpdateCheck.Message)
+            ? (Loc.Spanish ? "No se pudo comprobar si hay actualizaciones" : "Couldn't check for updates")
+            : (Loc.Spanish ? $"No se pudo comprobar si hay actualizaciones: {UpdateCheck.Message}" : $"Couldn't check for updates: {UpdateCheck.Message}"), UiTheme.Warn),
+        UpdateCheck.State.Off => (UpdateCheck.Message ?? (Loc.Spanish ? "Desactivado" : "Off"), UiTheme.Faint),
         _ => ("", UiTheme.Dim),
     };
 
     static string Ago(long unix)
     {
         var d = DateTimeOffset.UtcNow - DateTimeOffset.FromUnixTimeSeconds(unix);
-        if (d.TotalMinutes < 1) return "just now";
-        if (d.TotalHours < 1) return $"{(int)d.TotalMinutes} min ago";
-        if (d.TotalDays < 1) return $"{(int)d.TotalHours} h ago";
-        return $"{(int)d.TotalDays} d ago";
+        if (d.TotalMinutes < 1) return Loc.Spanish ? "ahora mismo" : "just now";
+        if (d.TotalHours < 1) return Loc.Spanish ? $"hace {(int)d.TotalMinutes} min" : $"{(int)d.TotalMinutes} min ago";
+        if (d.TotalDays < 1) return Loc.Spanish ? $"hace {(int)d.TotalHours} h" : $"{(int)d.TotalHours} h ago";
+        return Loc.Spanish ? $"hace {(int)d.TotalDays} d" : $"{(int)d.TotalDays} d ago";
     }
 
-    static string SystemInfoText() =>
-        $"CA-VAL-AIM {AppInfo.Version}{(App.Dev ? " (dev)" : "")}\n" +
-        $"Renderer: {SysInfo.Summary}\n" +
-        $"Graphics quality: {Qualities[Math.Clamp(St.Quality, 0, 3)]}{(St.AutoQualityReason != null ? $" (auto: {St.AutoQualityReason})" : "")}\n" +
-        $"VALORANT settings: {(App.Valorant.Found ? "imported" : App.Valorant.Status.ToString())}\n" +
-        $"Data folder: {Paths.DataDir}{(Paths.DataDirProblem != null ? $" [{Paths.DataDirProblem}]" : "")}\n" +
-        $"Logs: {Paths.LogDir}";
+    static string SystemInfoText()
+    {
+        bool es = Loc.Spanish;
+        return $"CA-VAL-AIM {AppInfo.Version}{(App.Dev ? " (dev)" : "")}\n" +
+               $"{(es ? "Renderizador" : "Renderer")}: {SysInfo.Summary}\n" +
+               $"{(es ? "Calidad gráfica" : "Graphics quality")}: {Qualities[Math.Clamp(St.Quality, 0, 3)]}{(St.AutoQualityReason != null ? $" {(es ? "(auto" : "(auto")}: {St.AutoQualityReason})" : "")}\n" +
+               $"{(es ? "Ajustes de VALORANT" : "VALORANT settings")}: {(App.Valorant.Found ? (es ? "importados" : "imported") : Loc.T(App.Valorant.Status.ToString()))}\n" +
+               $"{(es ? "Carpeta de datos" : "Data folder")}: {Paths.DataDir}{(Paths.DataDirProblem != null ? $" [{Paths.DataDirProblem}]" : "")}\n" +
+               $"{(es ? "Registros" : "Logs")}: {Paths.LogDir}";
+    }
 
     /// <summary>"label / path ............ [OPEN]" (opens the folder in Explorer).</summary>
     Control FolderRow(string label, string path)
@@ -890,14 +929,24 @@ public partial class SettingsScreen : ScreenBase
                 string mb = (usage.Bytes / 1048576.0).ToString(usage.Bytes < 10 * 1048576L ? "0.0" : "0", System.Globalization.CultureInfo.InvariantCulture);
                 Gfx.TextFit(d, UiTheme.Body, $"Rewind recordings · {usage.Runs} run{(usage.Runs == 1 ? "" : "s")} · {mb} MB", 10 * k, Gfx.Mid(cy - 29 * k, ls), ls, UiTheme.Dim, d.Size.X - 10 * k);
                 Gfx.TextFit(d, UiTheme.Body, dir, 10 * k, Gfx.Mid(cy - 10 * k, ls), ls, UiTheme.Text, d.Size.X - 10 * k);
-                Gfx.TextFit(d, UiTheme.Body, $"Kept: your last {RecordingStore.KeepRecent} runs + examples of problems the coach still sees.", 10 * k, Gfx.Mid(cy + 9 * k, ns), ns, UiTheme.Faint, d.Size.X - 10 * k);
-                Gfx.TextFit(d, UiTheme.Body, $"Deleted automatically: problems you fixed, and runs older than {RecordingStore.MaxAgeDays} days.", 10 * k, Gfx.Mid(cy + 25 * k, ns), ns, UiTheme.Faint, d.Size.X - 10 * k);
+                Gfx.TextFit(d, UiTheme.Body,
+                    Loc.Spanish
+                        ? $"Se guardan: tus últimas {RecordingStore.KeepRecent} partidas + ejemplos de los problemas que el coach aún detecta."
+                        : $"Kept: your last {RecordingStore.KeepRecent} runs + examples of problems the coach still sees.",
+                    10 * k, Gfx.Mid(cy + 9 * k, ns), ns, UiTheme.Faint, d.Size.X - 10 * k);
+                Gfx.TextFit(d, UiTheme.Body,
+                    Loc.Spanish
+                        ? $"Se borran solas: los problemas que ya has corregido y las partidas de más de {RecordingStore.MaxAgeDays} días."
+                        : $"Deleted automatically: problems you fixed, and runs older than {RecordingStore.MaxAgeDays} days.",
+                    10 * k, Gfx.Mid(cy + 25 * k, ns), ns, UiTheme.Faint, d.Size.X - 10 * k);
             },
         };
         row.AddChild(txt);
         var open = Btn("OPEN", VButton.Look.Secondary, () => AppInfo.OpenFolder(dir), 96, 36, 16);
         open.SizeFlagsVertical = SizeFlags.ShrinkCenter;
-        open.TooltipText = $"{dir}\nThese are CA-VAL-AIM recordings (.vtt run data + .vtr 3D replay), played back inside CA-VAL-AIM's Rewind — not video files.";
+        open.TooltipText = Loc.Spanish
+            ? $"{dir}\nSon grabaciones de CA-VAL-AIM (datos de partida .vtt + repetición 3D .vtr) que se reproducen dentro del Rewind de CA-VAL-AIM — no son archivos de vídeo."
+            : $"{dir}\nThese are CA-VAL-AIM recordings (.vtt run data + .vtr 3D replay), played back inside CA-VAL-AIM's Rewind — not video files.";
         row.AddChild(open);
         VButton? del = null;
         ulong armedAt = 0;
@@ -1093,6 +1142,7 @@ public partial class SettingRow : BoxContainer
     {
         float k = K;
         string? note = Note?.Invoke();
+        if (note != null) note = Loc.T(note); // translate first: wrapping English and translating each line misses every entry
         twoLines = note != null && text.Size.X > 0 && NoteLines(note, UiTheme.Fs(12.5f, k), text.Size.X - 12 * k).Length > 1;
         if (Stacked)
         {
@@ -1138,6 +1188,7 @@ public partial class SettingRow : BoxContainer
         float k = K, cy = d.Size.Y / 2;
         bool on = Enabled?.Invoke() ?? true;
         string? note = Note?.Invoke();
+        if (note != null) note = Loc.T(note); // the wrapped lines below are drawn as-is
         int ls = UiTheme.Fs(16, k), ns = UiTheme.Fs(12.5f, k);
         float x = 12 * k, w = d.Size.X - x;
         var lc = on ? UiTheme.Text : UiTheme.Dim;

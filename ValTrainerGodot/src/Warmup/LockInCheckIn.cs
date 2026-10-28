@@ -1,4 +1,5 @@
 using Godot;
+using ValTrainer.Core;
 using ValTrainer.UI;
 
 namespace ValTrainer.Warmup;
@@ -167,8 +168,13 @@ public partial class LockInCheckIn : ScreenBase
         var col = (VBoxContainer)root.GetChild(0);
 
         var head = HBox(16 * k);
-        string who = run.Plan.Preset.Key.StartsWith(Agents.AgentRoutines.Prefix) ? $"LOCK IN AS {run.Plan.Preset.Name.ToUpperInvariant()}" : run.Plan.Preset.Name.ToUpperInvariant();
-        var title = Heading("CHECK-IN", $"{who} · 30 SECONDS · HOW YOU FEEL RIGHT NOW · NOTHING HERE IS SCORED");
+        bool es = Loc.Spanish;
+        string who = run.Plan.Preset.Key.StartsWith(Agents.AgentRoutines.Prefix)
+            ? $"{(es ? "LOCK-IN COMO" : "LOCK IN AS")} {run.Plan.Preset.Name.ToUpperInvariant()}"
+            : run.Plan.Preset.Name.ToUpperInvariant();
+        var title = Heading("CHECK-IN", es
+            ? $"{who} · 30 SEGUNDOS · CÓMO TE SIENTES AHORA MISMO · AQUÍ NADA PUNTÚA"
+            : $"{who} · 30 SECONDS · HOW YOU FEEL RIGHT NOW · NOTHING HERE IS SCORED");
         title.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         head.AddChild(title);
         var back = Btn("BACK", VButton.Look.Secondary, Back, 160, 52, 22);
@@ -230,7 +236,11 @@ public partial class LockInCheckIn : ScreenBase
             {
                 Kind = VButton.Look.Select, K = k, Label = secs == 0 ? "OFF" : $"{secs} S", FontPx = 17, Selected = c.BreathSeconds == secs,
                 CustomMinimumSize = new Vector2(0, 58 * k), SizeFlagsHorizontal = SizeFlags.ExpandFill,
-                TooltipText = secs == 0 ? "No breathing guide" : $"{secs} s of slow breathing (4 s in, 6 s out) before your goal card",
+                TooltipText = secs == 0
+                    ? (Loc.Spanish ? "Sin guía de respiración" : "No breathing guide")
+                    : (Loc.Spanish
+                        ? $"{secs} s de respiración lenta (4 s dentro, 6 s fuera) antes de tu tarjeta de objetivo"
+                        : $"{secs} s of slow breathing (4 s in, 6 s out) before your goal card"),
             };
             int s = secs;
             b.Pressed += () => SetBreath(s, true);

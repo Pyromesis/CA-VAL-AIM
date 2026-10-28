@@ -120,7 +120,7 @@ public static class Difficulty
         level = Math.Clamp(level, 0f, 4f);
         int n = (int)MathF.Round(level);
         float d = level - n;
-        return Tiers[n].Name + (d >= 0.2f ? "+" : d <= -0.2f ? "−" : "");
+        return Loc.T(Tiers[n].Name) + (d >= 0.2f ? "+" : d <= -0.2f ? "−" : "");
     }
 
     public static float TrackRadius(int t) => T(t, .45f, .38f, .30f, .22f, .16f);

@@ -34,8 +34,12 @@ public sealed partial class AnchorMode : MapMode
     public override string Key => Agent.Length == 0 ? "anchor" : "anchor:" + Agent;
     public override string Name => "Site Anchor";
     public override string Description => Agent.Length == 0
-        ? "Hold the site alone while 2–4 attackers execute through the choke. Hear them, hold your angle, win the duels."
-        : $"Hold the site alone with {AgentName}'s setup: place it, then stall and kill the execute.";
+        ? (Loc.Spanish
+            ? "Aguanta el sitio tú solo mientras 2–4 atacantes ejecutan por el choke. Óyelos, mantén tu ángulo y gana los duelos."
+            : "Hold the site alone while 2–4 attackers execute through the choke. Hear them, hold your angle, win the duels.")
+        : (Loc.Spanish
+            ? $"Aguanta el sitio tú solo con el setup de {AgentName}: colócalo y luego frena y mata la ejecución."
+            : $"Hold the site alone with {AgentName}'s setup: place it, then stall and kill the execute.");
     public override string Category => Agent.Length == 0 ? "Map" : "Agents";
     public override float Duration => 180f;
     public override string SimKind => "bot";
@@ -225,7 +229,7 @@ public sealed partial class AnchorMode : MapMode
         liveStart = Now;
         rounds++;
         SpawnAttackers();
-        G.Banner("THEY'RE COMING", UiTheme.Warn);
+        G.Banner(Loc.Spanish ? "VIENEN" : "THEY'RE COMING", UiTheme.Warn);
         Log($"round {rounds}: {attackers.Count} attackers");
     }
 
@@ -294,8 +298,10 @@ public sealed partial class AnchorMode : MapMode
                     if (GodotObject.IsInstanceValid(a.Body))
                         RevealFx.Set(a.Body, a.Alive && a.IsRevealed ? 1f : 0f);
                 }
-                if (attackers.Count > 0 && attackers.All(a => !a.Alive)) EndRound(true, $"SITE HELD  {Now - liveStart:0.0}s");
-                else if (Now - liveStart > RoundTime) EndRound(true, "TIME — they didn't plant");
+                if (attackers.Count > 0 && attackers.All(a => !a.Alive))
+                    EndRound(true, Loc.Spanish ? $"SITIO AGUANTADO  {Now - liveStart:0.0}s" : $"SITE HELD  {Now - liveStart:0.0}s");
+                else if (Now - liveStart > RoundTime)
+                    EndRound(true, Loc.Spanish ? "TIEMPO — no plantaron" : "TIME — they didn't plant");
                 else if (attackers.Count > 0 && !attackers.Any(a => a.Alive && a.Carrier))
                 {
                     // The carrier died: the nearest teammate picks up the spike and goes for the plant.
@@ -403,8 +409,8 @@ public sealed partial class AnchorMode : MapMode
         G.Blind.Apply(sec, BlindOverlay.LookOf(flashAgent), BlindModel.ScreenUv(G.View, flashPop, aspect));
         if (sec >= 0.5f) G.Sound("flash_ring", 0.6f * Mathf.Clamp(sec / 2.25f, 0.35f, 1f));
         Event("flash", grade switch { BlindGrade.Flashed => 2, BlindGrade.Partial => 1, BlindGrade.NoLineOfSight => -1, _ => 0 }, -1);
-        if (grade == BlindGrade.Flashed) { flashedFull++; Note($"FLASHED {sec:0.0}s · {flashAgent.Agent}", UiTheme.Accent); }
-        else if (grade == BlindGrade.Dodged) Note($"Flash dodged · {flashAgent.Agent}", UiTheme.Good);
+        if (grade == BlindGrade.Flashed) { flashedFull++; Note($"{(Loc.Spanish ? "CEGADO" : "FLASHED")} {sec:0.0}s · {flashAgent.Agent}", UiTheme.Accent); }
+        else if (grade == BlindGrade.Dodged) Note(Loc.Spanish ? $"Flash esquivada · {flashAgent.Agent}" : $"Flash dodged · {flashAgent.Agent}", UiTheme.Good);
         orb.Pop();
         orb = null;
         Log($"flash popped: {grade} {sec:0.0}s");
@@ -433,7 +439,7 @@ public sealed partial class AnchorMode : MapMode
     {
         Deaths++;
         Score -= 100;
-        EndRound(false, "YOU DIED");
+        EndRound(false, Loc.Spanish ? "HAS MUERTO" : "YOU DIED");
     }
 
     void OnPlanted(Attacker a)
@@ -443,7 +449,7 @@ public sealed partial class AnchorMode : MapMode
         plants++;
         Score -= 100;
         Event("spike_planted");
-        EndRound(false, "SPIKE PLANTED");
+        EndRound(false, Loc.Spanish ? "SPIKE PLANTADA" : "SPIKE PLANTED");
     }
 
     // ------------------------------------------------------------------ hooks for devices / attackers
@@ -479,18 +485,25 @@ public sealed partial class AnchorMode : MapMode
     {
         triggers++;
         Event("util_trigger", (int)d.A.Kind, affected);
+        bool es = Loc.Spanish;
         string what = d.A.Kind switch
         {
-            SentKind.Alarmbot => affected > 0 ? $"ALARMBOT · {affected} vulnerable" : "Alarmbot went off",
-            SentKind.Turret => "TURRET · contact",
-            SentKind.Trapwire => "TRAPWIRE · caught one",
-            SentKind.SonicSensor => affected > 0 ? $"SONIC SENSOR · {affected} concussed" : "Sonic sensor fired",
-            SentKind.Shear => "SHEAR · wall up",
-            SentKind.Chokehold => $"CHOKEHOLD · {affected} held",
-            SentKind.Trademark => "TRADEMARK · tagged",
-            SentKind.Razorvine => $"Razorvine: {affected} cut",
-            SentKind.SlowOrb => $"Slow orb: {affected} slowed",
-            SentKind.Interceptor => affected > 0 ? $"Interceptor: {affected} zapped" : "Interceptor: nothing to zap",
+            SentKind.Alarmbot => affected > 0
+                ? (es ? $"ALARMBOT · {affected} vulnerables" : $"ALARMBOT · {affected} vulnerable")
+                : (es ? "Alarmbot activado" : "Alarmbot went off"),
+            SentKind.Turret => es ? "TORRETA · contacto" : "TURRET · contact",
+            SentKind.Trapwire => es ? "TRAMPA · uno atrapado" : "TRAPWIRE · caught one",
+            SentKind.SonicSensor => affected > 0
+                ? (es ? $"SENSOR SÓNICO · {affected} aturdidos" : $"SONIC SENSOR · {affected} concussed")
+                : (es ? "Sensor sónico activado" : "Sonic sensor fired"),
+            SentKind.Shear => es ? "SHEAR · muro arriba" : "SHEAR · wall up",
+            SentKind.Chokehold => es ? $"CHOKEHOLD · {affected} retenidos" : $"CHOKEHOLD · {affected} held",
+            SentKind.Trademark => es ? "TRADEMARK · marcado" : "TRADEMARK · tagged",
+            SentKind.Razorvine => es ? $"Razorvine: {affected} cortados" : $"Razorvine: {affected} cut",
+            SentKind.SlowOrb => es ? $"Orbe ralentizador: {affected} frenados" : $"Slow orb: {affected} slowed",
+            SentKind.Interceptor => affected > 0
+                ? (es ? $"Interceptor: {affected} alcanzados" : $"Interceptor: {affected} zapped")
+                : (es ? "Interceptor: nada que alcanzar" : "Interceptor: nothing to zap"),
             _ => d.A.Ability,
         };
         if (d.A.Kind != SentKind.Turret || affected > 0) Note(what, d.A.Color);
@@ -499,10 +512,10 @@ public sealed partial class AnchorMode : MapMode
 
     void OnDeviceDestroyed(Device d)
     {
-        if (d is SageSegDev or MeshOrbDev) { Event("util_broken", (int)d.A.Kind); Note($"{d.A.Ability} broken", UiTheme.Warn); return; }
+        if (d is SageSegDev or MeshOrbDev) { Event("util_broken", (int)d.A.Kind); Note(Loc.Spanish ? $"{d.A.Ability} rota" : $"{d.A.Ability} broken", UiTheme.Warn); return; }
         destroyedByEnemy++;
         Event("util_destroyed", (int)d.A.Kind);
-        Note($"{d.A.Ability} destroyed", UiTheme.Warn);
+        Note(Loc.Spanish ? $"{d.A.Ability} destruida" : $"{d.A.Ability} destroyed", UiTheme.Warn);
         SentinelSfx.PlayAt(G, "broken", d.AimPoint, 0.9f);
     }
 
@@ -511,7 +524,9 @@ public sealed partial class AnchorMode : MapMode
         utilDirectKills++;
         Score += 100;
         Event("util_kill_direct", src != null ? (int)src.A.Kind : -1);
-        Note($"{src?.A.Ability ?? "Utility"} got a kill", UiTheme.Good);
+        Note(Loc.Spanish
+            ? $"{src?.A.Ability ?? "La utilidad"} consiguió una baja"
+            : $"{src?.A.Ability ?? "Utility"} got a kill", UiTheme.Good);
     }
 
     void Tracer(Vector3 a, Vector3 b, Color c, float life = 0.06f, float radius = 0.015f) => Effects.Tracer(a, b, c);
@@ -577,8 +592,10 @@ public sealed partial class AnchorMode : MapMode
                 var ic = devices.OfType<InterceptorDev>().FirstOrDefault(v => v.CanActivate);
                 var kv = kits.FirstOrDefault(x => x.A.Kind == SentKind.Razorvine);
                 var ki = kits.FirstOrDefault(x => x.A.Kind == SentKind.Interceptor);
-                if (vine != null && kv != null && attackers.Any(a => a.Alive && a.Feet.DistanceTo(vine.Pos) < 7f)) return $"{kv.KeyText}: activate Razorvine now";
-                if (ic != null && ki != null && orb != null) return $"{ki.KeyText}: switch the Interceptor on";
+                if (vine != null && kv != null && attackers.Any(a => a.Alive && a.Feet.DistanceTo(vine.Pos) < 7f))
+                    return $"{kv.KeyText}: {(Loc.Spanish ? "activa la Zarza ya" : "activate Razorvine now")}";
+                if (ic != null && ki != null && orb != null)
+                    return $"{ki.KeyText}: {(Loc.Spanish ? "enciende el Interceptor" : "switch the Interceptor on")}";
             }
             return null;
         }
@@ -588,11 +605,11 @@ public sealed partial class AnchorMode : MapMode
     {
         if (phase == Phase.Setup)
         {
-            if (kits.Count == 0) { yield return "Hold your angle — listen for the push"; yield break; }
+            if (kits.Count == 0) { yield return Loc.Spanish ? "Aguanta tu ángulo — escucha la entrada" : "Hold your angle — listen for the push"; yield break; }
             foreach (var k in kits)
             {
                 bool placed = devices.Any(d => d.A == k.A && !d.Dead) || k.Charges < k.A.Charges;
-                yield return $"[{k.KeyText}] {k.A.Ability}{(placed ? " — placed" : "")}";
+                yield return $"[{k.KeyText}] {k.A.Ability}{(placed ? (Loc.Spanish ? " — colocada" : " — placed") : "")}";
             }
             if (rounds == 0)
                 foreach (var k in kits) yield return k.A.HowTo;
@@ -600,10 +617,16 @@ public sealed partial class AnchorMode : MapMode
         }
         if (phase == Phase.Live)
         {
-            yield return $"Attackers left: {attackers.Count(a => a.Alive)}";
+            yield return Loc.Spanish
+                ? $"Atacantes restantes: {attackers.Count(a => a.Alive)}"
+                : $"Attackers left: {attackers.Count(a => a.Alive)}";
             var planter = attackers.FirstOrDefault(a => a.Alive && a.State == Attacker.St.Plant);
-            if (planter != null) yield return $"SPIKE BEING PLANTED  {SpikePlantTime - planter.PlantT:0.0}s";
-            if (kits.Count > 0 && caughtPairs.Count > 0) yield return $"Caught by your setup: {caughtPairs.Count}";
+            if (planter != null)
+                yield return Loc.Spanish
+                    ? $"SPIKE COLOCÁNDOSE  {SpikePlantTime - planter.PlantT:0.0}s"
+                    : $"SPIKE BEING PLANTED  {SpikePlantTime - planter.PlantT:0.0}s";
+            if (kits.Count > 0 && caughtPairs.Count > 0)
+                yield return Loc.Spanish ? $"Atrapados por tu setup: {caughtPairs.Count}" : $"Caught by your setup: {caughtPairs.Count}";
         }
         foreach (var n in notes) yield return n.Text;
     }
@@ -621,7 +644,10 @@ public sealed partial class AnchorMode : MapMode
         float left = Mathf.Max(0, setupLen - phaseT);
         int fs = UiTheme.Fs(30, k), ss = UiTheme.Fs(14, k);
         float cx = size.X / 2, y = 150 * k;
-        Gfx.TextC(c, UiTheme.Display, kits.Count > 0 ? $"SETUP  {left:0}" : $"GET READY  {left:0}", cx, y, fs, UiTheme.Text);
+        Gfx.TextC(c, UiTheme.Display,
+            kits.Count > 0
+                ? (Loc.Spanish ? $"PREPARACIÓN  {left:0}" : $"SETUP  {left:0}")
+                : (Loc.Spanish ? $"PREPÁRATE  {left:0}" : $"GET READY  {left:0}"), cx, y, fs, UiTheme.Text);
         Gfx.TextC(c, UiTheme.HudWide, kits.Count > 0 ? "PLACE YOUR UTILITY — THE PUSH COMES AFTER THE SETUP" : "THE ATTACKERS EXECUTE THROUGH THE CHOKE", cx, y + 24 * k, ss, UiTheme.Dim);
         float w = 320 * k;
         c.DrawRect(new Rect2(cx - w / 2, y + 36 * k, w, 3 * k), new Color(1, 1, 1, 0.12f));
@@ -647,12 +673,16 @@ public sealed partial class AnchorMode : MapMode
         float tx = key.End.X + 12 * k;
         Gfx.Text(c, UiTheme.HudWide, kit.A.Ability.ToUpperInvariant(), tx, Gfx.Mid(r.Position.Y + 22 * k, ns), ns, UiTheme.Text);
         var out_ = devices.FirstOrDefault(d => d.A == kit.A && !d.Dead && !d.Spent);
+        bool es = Loc.Spanish;
         string state = kit.State switch
         {
-            SentinelKit.Phase.Equipping => "EQUIPPING…",
-            SentinelKit.Phase.Equipped => kit.A.Kind == SentKind.BarrierOrb ? $"PLACE · {(kit.Alt ? "ROTATED" : "ACROSS")}" : "PLACE IT",
-            _ => out_ is RazorvineDev { CanActivate: true } || out_ is InterceptorDev { CanActivate: true } ? "OUT · KEY TO ACTIVATE"
-                 : out_ != null ? "OUT" : ready ? "READY" : "USED",
+            SentinelKit.Phase.Equipping => es ? "EQUIPANDO…" : "EQUIPPING…",
+            SentinelKit.Phase.Equipped => kit.A.Kind == SentKind.BarrierOrb
+                ? (es ? $"COLOCAR · {(kit.Alt ? "GIRADO" : "AL OTRO LADO")}" : $"PLACE · {(kit.Alt ? "ROTATED" : "ACROSS")}")
+                : (es ? "COLÓCALO" : "PLACE IT"),
+            _ => out_ is RazorvineDev { CanActivate: true } || out_ is InterceptorDev { CanActivate: true }
+                ? (es ? "FUERA · TECLA PARA ACTIVAR" : "OUT · KEY TO ACTIVATE")
+                : out_ != null ? (es ? "FUERA" : "OUT") : ready ? (es ? "LISTA" : "READY") : (es ? "USADA" : "USED"),
         };
         Gfx.Text(c, UiTheme.HudWide, state, tx, Gfx.Mid(r.Position.Y + 44 * k, ss), ss, kit.State != SentinelKit.Phase.Ready ? accent : UiTheme.Dim);
         for (int j = 0; j < kit.A.Charges; j++)
@@ -701,24 +731,29 @@ public sealed partial class AnchorMode : MapMode
 
     public override IEnumerable<(string Label, string Value)> ResultLines()
     {
-        yield return ("Map", $"{MapSpot.Map} · {anchorName}");
-        if (Agent.Length > 0) yield return ("Agent", $"{AgentName} — {string.Join(" + ", Kit.Select(k => k.Ability))}");
-        yield return ("Rounds held / lost", $"{held} / {lost}" + (plants > 0 ? $"  ({plants} planted)" : ""));
+        bool es = Loc.Spanish;
+        yield return (es ? "Mapa" : "Map", $"{MapSpot.Map} · {anchorName}");
+        if (Agent.Length > 0) yield return (es ? "Agente" : "Agent", $"{AgentName} — {string.Join(" + ", Kit.Select(k => k.Ability))}");
+        yield return (es ? "Rondas aguantadas / perdidas" : "Rounds held / lost",
+            $"{held} / {lost}" + (plants > 0 ? (es ? $"  ({plants} plantadas)" : $"  ({plants} planted)") : ""));
         int played = held + lost;
-        if (played > 0) yield return ("First blood", $"{100f * firstBloods / played:0}% of rounds");
-        if (timeAlive.Count > 0) yield return ("Avg time alive", $"{timeAlive.Average():0.0} s per round");
-        yield return ("Kills / deaths", $"{Kills} / {Deaths}");
-        if (Hits > 0) yield return ("Headshot %", $"{100f * HeadHits / Hits:0}%");
+        if (played > 0) yield return (es ? "Primera sangre" : "First blood", es ? $"{100f * firstBloods / played:0}% de las rondas" : $"{100f * firstBloods / played:0}% of rounds");
+        if (timeAlive.Count > 0) yield return (es ? "Tiempo medio vivo" : "Avg time alive", es ? $"{timeAlive.Average():0.0} s por ronda" : $"{timeAlive.Average():0.0} s per round");
+        yield return (es ? "Bajas / muertes" : "Kills / deaths", $"{Kills} / {Deaths}");
+        if (Hits > 0) yield return (es ? "Tiros a la cabeza" : "Headshot %", $"{100f * HeadHits / Hits:0}%");
         if (Agent.Length > 0)
         {
-            yield return ("Caught by your setup", $"{caughtCount}" + (caughtBy.Count > 0 ? "  (" + string.Join(", ", caughtBy.Select(kv => $"{Label(kv.Key)} {kv.Value}")) + ")" : ""));
-            if (reveals > 0) yield return ("Enemies revealed", reveals.ToString());
-            yield return ("Utility-assisted kills", $"{utilKills} of {Kills}" + (utilDirectKills > 0 ? $" (+{utilDirectKills} by it)" : ""));
-            if (flashesThrown > 0 && kits.Any(k => k.A.Kind == SentKind.Interceptor)) yield return ("Flashes intercepted", $"{intercepted} of {flashesThrown}");
-            if (destroyedByEnemy > 0) yield return ("Utility they destroyed", destroyedByEnemy.ToString());
+            yield return (es ? "Atrapados por tu setup" : "Caught by your setup", $"{caughtCount}" + (caughtBy.Count > 0 ? "  (" + string.Join(", ", caughtBy.Select(kv => $"{Label(kv.Key)} {kv.Value}")) + ")" : ""));
+            if (reveals > 0) yield return (es ? "Enemigos revelados" : "Enemies revealed", reveals.ToString());
+            yield return (es ? "Bajas con utilidad" : "Utility-assisted kills",
+                (es ? $"{utilKills} de {Kills}" : $"{utilKills} of {Kills}") + (utilDirectKills > 0 ? (es ? $" (+{utilDirectKills} por ella)" : $" (+{utilDirectKills} by it)") : ""));
+            if (flashesThrown > 0 && kits.Any(k => k.A.Kind == SentKind.Interceptor))
+                yield return (es ? "Flashes interceptadas" : "Flashes intercepted", es ? $"{intercepted} de {flashesThrown}" : $"{intercepted} of {flashesThrown}");
+            if (destroyedByEnemy > 0) yield return (es ? "Utilidad que destruyeron" : "Utility they destroyed", destroyedByEnemy.ToString());
         }
-        else if (flashesThrown > 0) yield return ("Flashed by their entry", $"{flashedFull} of {flashesThrown}");
-        yield return ("Accuracy", $"{Accuracy * 100:0.0}%");
+        else if (flashesThrown > 0)
+            yield return (es ? "Cegado por su entrada" : "Flashed by their entry", es ? $"{flashedFull} de {flashesThrown}" : $"{flashedFull} of {flashesThrown}");
+        yield return (es ? "Precisión" : "Accuracy", $"{Accuracy * 100:0.0}%");
     }
 
     static string Label(SentKind k) => SentinelAbility.All.First(a => a.Kind == k).Ability;

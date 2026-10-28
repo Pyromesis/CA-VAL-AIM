@@ -54,7 +54,11 @@ public sealed class JumpPeekMode : OpAngleMode
         Score += 100;
         if (airborne) { jumpSpots++; Score += 50; }
         Event("spot", Bot != null ? Bot.Head.DistanceTo(G.View.Eye) : 0, airborne ? 1 : 0);
-        G.Banner(airborne ? $"JUMP-SPOT · OP {SpotName.ToUpperInvariant()}" : $"SPOTTED · OP {SpotName.ToUpperInvariant()}",
+        bool es = Loc.Spanish;
+        string spot = SpotName.ToUpperInvariant();
+        G.Banner(es
+                ? airborne ? $"VISTO EN SALTO · OP {spot}" : $"VISTO · OP {spot}"
+                : airborne ? $"JUMP-SPOT · OP {spot}" : $"SPOTTED · OP {spot}",
             airborne ? UiTheme.Good : UiTheme.Warn);
     }
 
@@ -65,19 +69,20 @@ public sealed class JumpPeekMode : OpAngleMode
         if (s.Hit)
         {
             Score -= (int)Mathf.Min(s.Damage, 150f);
-            if (s.Zone == HitZone.Legs) G.Banner("LEG SHOT — 120 damage. Shorter peeks!", UiTheme.Warn);
+            if (s.Zone == HitZone.Legs)
+                G.Banner(Loc.Spanish ? "TIRO A LA PIERNA — 120 de daño. ¡Asomadas más cortas!" : "LEG SHOT — 120 damage. Shorter peeks!", UiTheme.Warn);
             return;
         }
         dodged++;
         if (s.TargetAirborne) airDodged++;
         Score += 50;
-        G.Banner("OP MISSED — SWING NOW", UiTheme.Good);
+        G.Banner(Loc.Spanish ? "EL OP FALLA — ASÓMATE YA" : "OP MISSED — SWING NOW", UiTheme.Good);
     }
 
     protected override void OnOpKilled(bool inPunishWindow)
     {
-        if (inPunishWindow) { plays++; Score += 200; G.Banner("PLAY MADE — punished the missed shot", UiTheme.Good); }
-        else { Score += 100; G.Banner("OP DOWN — risky swing, but it worked", UiTheme.Warn); }
+        if (inPunishWindow) { plays++; Score += 200; G.Banner(Loc.Spanish ? "BUENA JUGADA — castigaste el fallo" : "PLAY MADE — punished the missed shot", UiTheme.Good); }
+        else { Score += 100; G.Banner(Loc.Spanish ? "OP ABAJO — asomada arriesgada, pero salió bien" : "OP DOWN — risky swing, but it worked", UiTheme.Warn); }
         FinishRound();
     }
 
@@ -99,13 +104,13 @@ public sealed class JumpPeekMode : OpAngleMode
     {
         heldFire++;
         Score += 25;
-        if (Between < 0) G.Banner("CLEAN PEEK — he couldn't get the shot off", UiTheme.Good);
+        if (Between < 0) G.Banner(Loc.Spanish ? "ASOMADA LIMPIA — no llegó a disparar" : "CLEAN PEEK — he couldn't get the shot off", UiTheme.Good);
     }
 
     protected override void OnRoundTimeout()
     {
         FinishRound();
-        if (!roundSpotted) G.Banner("NO INFO — the Op repositioned", UiTheme.Warn);
+        if (!roundSpotted) G.Banner(Loc.Spanish ? "SIN INFO — el Op se ha recolocado" : "NO INFO — the Op repositioned", UiTheme.Warn);
     }
 
     public override void Update(float dt)
@@ -115,16 +120,24 @@ public sealed class JumpPeekMode : OpAngleMode
         if (Between < 0 && roundSpotted && Now - spotAt > 4.5f && !PunishWindow && Op is { SeesPlayer: false })
         {
             FinishRound();
-            G.Banner($"INFO: OP {SpotName.ToUpperInvariant()} — he repositions", UiTheme.Text);
+            G.Banner(Loc.Spanish
+                ? $"INFO: OP {SpotName.ToUpperInvariant()} — se recoloca"
+                : $"INFO: OP {SpotName.ToUpperInvariant()} — he repositions", UiTheme.Text);
             EndRound(0.8f);
         }
     }
 
     public override IEnumerable<string> HudLines()
     {
-        yield return $"Spots {spots} ({jumpSpots} mid-jump) · Op misses {dodged} · Deaths {Deaths}";
-        if (lastExposure >= 0) yield return $"Last peek: seen for {lastExposure * 1000:0} ms{(lastExposureAir ? " (jumping)" : " (on the ground)")}";
-        if (G.Mover is { Grounded: false }) yield return "AIRBORNE — inaccurate";
+        bool es = Loc.Spanish;
+        yield return es
+            ? $"Avisos {spots} ({jumpSpots} en salto) · Fallos del Op {dodged} · Muertes {Deaths}"
+            : $"Spots {spots} ({jumpSpots} mid-jump) · Op misses {dodged} · Deaths {Deaths}";
+        if (lastExposure >= 0)
+            yield return es
+                ? $"Última asomada: {lastExposure * 1000:0} ms a la vista{(lastExposureAir ? " (en salto)" : " (en el suelo)")}"
+                : $"Last peek: seen for {lastExposure * 1000:0} ms{(lastExposureAir ? " (jumping)" : " (on the ground)")}";
+        if (G.Mover is { Grounded: false }) yield return es ? "EN EL AIRE — precisión reducida" : "AIRBORNE — inaccurate";
     }
 
     public override string? Prompt
@@ -133,22 +146,31 @@ public sealed class JumpPeekMode : OpAngleMode
         {
             if (Between >= 0 || Bot == null) return null;
             var k = Main.I.Valorant;
-            if (PunishWindow) return "He missed — swing out and kill him before he re-chambers";
-            if (roundSpotted) return "Spotted. Re-peek to bait a shot, or wait — he repositions";
-            return $"Jump-peek: {k.KeyRight} + {k.KeyJump} out, {k.KeyLeft} back before you land";
+            bool es = Loc.Spanish;
+            if (PunishWindow)
+                return es ? "Ha fallado: asómate y mátalo antes de que recargue" : "He missed — swing out and kill him before he re-chambers";
+            if (roundSpotted)
+                return es ? "Visto. Vuelve a asomarte para provocar un disparo, o espera: se recoloca" : "Spotted. Re-peek to bait a shot, or wait — he repositions";
+            return es
+                ? $"Salto-asomada: {k.KeyRight} + {k.KeyJump} para salir, {k.KeyLeft} para volver antes de aterrizar"
+                : $"Jump-peek: {k.KeyRight} + {k.KeyJump} out, {k.KeyLeft} back before you land";
         }
     }
 
     public override IEnumerable<(string Label, string Value)> ResultLines()
     {
-        yield return ("Rounds with the Op spotted and you alive", $"{safeRounds} of {finishedRounds}");
-        yield return ("Spots (mid-jump)", $"{spots} ({jumpSpots})");
-        yield return ("Op shots that missed you", $"{dodged} of {opShots}{(airDodged > 0 ? $" ({airDodged} while airborne)" : "")}");
-        yield return ("Peeks he reacted to but couldn't shoot", heldFire.ToString());
-        yield return ("Plays: kills after a miss", plays.ToString());
-        if (Kills > plays) yield return ("Other kills", (Kills - plays).ToString());
-        yield return ("Damage taken / deaths", $"{DamageTaken:0} / {Deaths}");
-        if (Exposures.Count > 0) yield return ("Avg time seen per peek", $"{Exposures.Average() * 1000:0} ms (shorter = safer)");
+        bool es = Loc.Spanish;
+        yield return (es ? "Rondas con el Op visto y tú vivo" : "Rounds with the Op spotted and you alive", $"{safeRounds} {(es ? "de" : "of")} {finishedRounds}");
+        yield return (es ? "Avisos (en salto)" : "Spots (mid-jump)", $"{spots} ({jumpSpots})");
+        yield return (es ? "Disparos del Op que fallaron" : "Op shots that missed you",
+            $"{dodged} {(es ? "de" : "of")} {opShots}{(airDodged > 0 ? (es ? $" ({airDodged} en el aire)" : $" ({airDodged} while airborne)") : "")}");
+        yield return (es ? "Asomadas a las que reaccionó sin disparar" : "Peeks he reacted to but couldn't shoot", heldFire.ToString());
+        yield return (es ? "Jugadas: bajas tras un fallo" : "Plays: kills after a miss", plays.ToString());
+        if (Kills > plays) yield return (es ? "Otras bajas" : "Other kills", (Kills - plays).ToString());
+        yield return (es ? "Daño recibido / muertes" : "Damage taken / deaths", $"{DamageTaken:0} / {Deaths}");
+        if (Exposures.Count > 0)
+            yield return (es ? "Tiempo medio a la vista por asomada" : "Avg time seen per peek",
+                es ? $"{Exposures.Average() * 1000:0} ms (menos es más seguro)" : $"{Exposures.Average() * 1000:0} ms (shorter = safer)");
         foreach (var l in MovementLines()) yield return l;
     }
 
@@ -234,14 +256,14 @@ public sealed class JigglePeekMode : OpAngleMode
         baits++;
         baitedThisRound = true;
         Score += 50;
-        G.Banner("BAITED — WIDE SWING NOW", UiTheme.Good);
+        G.Banner(Loc.Spanish ? "¡CEBO! ASÓMATE ANCHO YA" : "BAITED — WIDE SWING NOW", UiTheme.Good);
     }
 
     protected override void OnOpKilled(bool inPunishWindow)
     {
         finishedRounds++;
-        if (inPunishWindow) { punishes++; Score += 200; G.Banner("PUNISHED", UiTheme.Good); }
-        else { riskyWins++; Score += 75; G.Banner("KILL — but he wasn't baited (risky)", UiTheme.Warn); }
+        if (inPunishWindow) { punishes++; Score += 200; G.Banner(Loc.Spanish ? "CASTIGADO" : "PUNISHED", UiTheme.Good); }
+        else { riskyWins++; Score += 75; G.Banner(Loc.Spanish ? "BAJA — pero no picó el cebo (arriesgado)" : "KILL — but he wasn't baited (risky)", UiTheme.Warn); }
     }
 
     public override void OnPlayerDied()
@@ -251,7 +273,7 @@ public sealed class JigglePeekMode : OpAngleMode
         base.OnPlayerDied();
     }
 
-    protected override void OnRoundTimeout() { finishedRounds++; G.Banner("TIME — he repositions", UiTheme.Warn); }
+    protected override void OnRoundTimeout() { finishedRounds++; G.Banner(Loc.Spanish ? "TIEMPO — se recoloca" : "TIME — he repositions", UiTheme.Warn); }
 
     public override void Update(float dt)
     {
@@ -267,7 +289,7 @@ public sealed class JigglePeekMode : OpAngleMode
         if (PunishWindow) { headSeen = false; return; } // the swing after a bait isn't a jiggle
         peeks++;
         if (!headSeen) cleanPeeks++;
-        lastPeekNote = headSeen ? "head shown" : "shoulder only";
+        lastPeekNote = Loc.Spanish ? (headSeen ? "cabeza a la vista" : "solo el hombro") : headSeen ? "head shown" : "shoulder only";
         headSeen = false;
         if (!ReactedThisPeek && Op is { State: OpBotBrain.St.Holding })
         {
@@ -276,8 +298,11 @@ public sealed class JigglePeekMode : OpAngleMode
             if (Now > noteCooldown)
             {
                 noteCooldown = Now + 2.5f;
-                G.Banner(Op.ShoulderSight ? "NO REACTION — too quick for him: show the shoulder a bit longer"
-                                          : "NO REACTION — this Op ignores a lone shoulder: show a bit more of you", UiTheme.Warn);
+                G.Banner(Loc.Spanish
+                    ? Op.ShoulderSight ? "SIN REACCIÓN — demasiado rápido: enseña el hombro un poco más"
+                                        : "SIN REACCIÓN — este Op ignora un hombro suelto: asómate un poco más"
+                    : Op.ShoulderSight ? "NO REACTION — too quick for him: show the shoulder a bit longer"
+                                        : "NO REACTION — this Op ignores a lone shoulder: show a bit more of you", UiTheme.Warn);
             }
         }
     }
@@ -287,14 +312,27 @@ public sealed class JigglePeekMode : OpAngleMode
         if (PunishWindow) return;
         heldFire++;
         autoHold += 0.03f;
-        if (Now > noteCooldown) { noteCooldown = Now + 2.5f; G.Banner("HE HELD FIRE — you hid too early: stay out a touch longer", UiTheme.Warn); }
+        if (Now > noteCooldown)
+        {
+            noteCooldown = Now + 2.5f;
+            G.Banner(Loc.Spanish ? "NO DISPARÓ — te escondiste pronto: aguanta un poco más" : "HE HELD FIRE — you hid too early: stay out a touch longer", UiTheme.Warn);
+        }
     }
 
     public override IEnumerable<string> HudLines()
     {
-        yield return $"Baits {baits} · Punishes {punishes} · Deaths {Deaths}";
-        if (lastExposure >= 0) yield return $"Last peek: seen for {lastExposure * 1000:0} ms · {lastPeekNote}";
-        if (Op != null && Op.State == OpBotBrain.St.Cycling) yield return $"Op re-chambering: {Mathf.Max(0, Op.ReadyAt - Now):0.0} s";
+        bool es = Loc.Spanish;
+        yield return es
+            ? $"Cebos {baits} · Castigos {punishes} · Muertes {Deaths}"
+            : $"Baits {baits} · Punishes {punishes} · Deaths {Deaths}";
+        if (lastExposure >= 0)
+            yield return es
+                ? $"Última asomada: {lastExposure * 1000:0} ms a la vista · {lastPeekNote}"
+                : $"Last peek: seen for {lastExposure * 1000:0} ms · {lastPeekNote}";
+        if (Op != null && Op.State == OpBotBrain.St.Cycling)
+            yield return es
+                ? $"El Op está recargando: {Mathf.Max(0, Op.ReadyAt - Now):0.0} s"
+                : $"Op re-chambering: {Mathf.Max(0, Op.ReadyAt - Now):0.0} s";
     }
 
     public override string? Prompt
@@ -303,22 +341,28 @@ public sealed class JigglePeekMode : OpAngleMode
         {
             if (Between >= 0 || Bot == null) return null;
             var k = Main.I.Valorant;
-            if (PunishWindow) return $"Baited! Wide-swing ({k.KeyRight}), stop, kill him before he re-chambers";
+            bool es = Loc.Spanish;
+            if (PunishWindow)
+                return es ? $"¡Cebo! Asómate ancho ({k.KeyRight}), frena y mátalo antes de que recargue" : $"Baited! Wide-swing ({k.KeyRight}), stop, kill him before he re-chambers";
             if (Op is { State: OpBotBrain.St.Engaging }) return null;
-            return $"Tap {k.KeyRight} to show a shoulder, {k.KeyLeft} back — bait the shot without showing your head";
+            return es
+                ? $"Toca {k.KeyRight} para enseñar el hombro, {k.KeyLeft} para volver — provoca el disparo sin enseñar la cabeza"
+                : $"Tap {k.KeyRight} to show a shoulder, {k.KeyLeft} back — bait the shot without showing your head";
         }
     }
 
     public override IEnumerable<(string Label, string Value)> ResultLines()
     {
-        yield return ("Punishes (kills after a bait)", $"{punishes} of {finishedRounds} rounds");
-        yield return ("Baits (Op shots that missed)", baits.ToString());
-        yield return ("Kills without a bait (risky)", riskyWins.ToString());
-        yield return ("Times the Op hit you", hitsTaken.ToString());
-        yield return ("Clean shoulder peeks", $"{cleanPeeks} of {peeks}");
-        yield return ("Peeks he ignored / reacted to but held fire", $"{ignored} / {heldFire}");
-        if (Exposures.Count > 0) yield return ("Avg time seen per peek", $"{Exposures.Average() * 1000:0} ms");
-        yield return ("Damage taken / deaths", $"{DamageTaken:0} / {Deaths}");
+        bool es = Loc.Spanish;
+        yield return (es ? "Castigos (bajas tras un cebo)" : "Punishes (kills after a bait)", $"{punishes} {(es ? "de" : "of")} {finishedRounds} {(es ? "rondas" : "rounds")}");
+        yield return (es ? "Cebos (disparos del Op que fallaron)" : "Baits (Op shots that missed)", baits.ToString());
+        yield return (es ? "Bajas sin cebo (arriesgadas)" : "Kills without a bait (risky)", riskyWins.ToString());
+        yield return (es ? "Veces que el Op te dio" : "Times the Op hit you", hitsTaken.ToString());
+        yield return (es ? "Asomadas limpias de hombro" : "Clean shoulder peeks", $"{cleanPeeks} {(es ? "de" : "of")} {peeks}");
+        yield return (es ? "Asomadas que ignoró / sin disparar" : "Peeks he ignored / reacted to but held fire", $"{ignored} / {heldFire}");
+        if (Exposures.Count > 0)
+            yield return (es ? "Tiempo medio a la vista por asomada" : "Avg time seen per peek", $"{Exposures.Average() * 1000:0} ms");
+        yield return (es ? "Daño recibido / muertes" : "Damage taken / deaths", $"{DamageTaken:0} / {Deaths}");
         foreach (var l in MovementLines()) yield return l;
     }
 

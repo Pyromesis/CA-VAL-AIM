@@ -192,22 +192,32 @@ public sealed class TargetSwitchMode : BotMode
 
     float PerMinute => Kills * 60f / Mathf.Max(Now, 1f);
 
-    public override string? Prompt => Kills == 0 && Now < 4f ? "Kill one, switch to the next — stop on the body, don't flick past it" : null;
+    public override string? Prompt => Kills == 0 && Now < 4f
+        ? (Loc.Spanish ? "Mata a uno, salta al siguiente — párate en el cuerpo, no te pases" : "Kill one, switch to the next — stop on the body, don't flick past it")
+        : null;
 
     public override IEnumerable<string> HudLines()
     {
-        if (lastSwitchMs >= 0) yield return $"Last switch {lastSwitchMs:0} ms";
-        if (judged > 0) yield return $"Overflicks {overflicks} / {judged} switches";
+        bool es = Loc.Spanish;
+        if (lastSwitchMs >= 0) yield return es ? $"Último cambio {lastSwitchMs:0} ms" : $"Last switch {lastSwitchMs:0} ms";
+        if (judged > 0) yield return es ? $"Pasadas de más {overflicks} / {judged} cambios" : $"Overflicks {overflicks} / {judged} switches";
     }
 
     public override IEnumerable<(string Label, string Value)> ResultLines()
     {
-        yield return ("Kills", $"{Kills}  ({PerMinute:0.0} per minute)");
-        yield return ("Accuracy", $"{Accuracy * 100:0.0}%  ({Hits}/{Shots})" + (Hits > 0 ? $"  ·  {100f * HeadHits / Hits:0}% headshots" : ""));
-        yield return ("Switch time", switchMs.Count > 0 ? $"{Median(switchMs):0} ms median (kill → next hit)" : "—");
-        yield return ("Time per kill", KillTimes.Count > 0 ? $"{Median(KillTimes):0} ms median" + (engageMs.Count > 0 ? $" (first hit → kill {Median(engageMs):0} ms)" : "") : "—");
-        yield return ("Overflick on switch", judged == 0 ? "—" : overflicks == 0 ? $"none in {judged} switches"
-            : $"{100f * overflicks / judged:0}% of switches, {overDeg.Average():0.0}° past");
+        bool es = Loc.Spanish;
+        yield return (es ? "Bajas" : "Kills", es ? $"{Kills}  ({PerMinute:0.0} por minuto)" : $"{Kills}  ({PerMinute:0.0} per minute)");
+        yield return (es ? "Precisión" : "Accuracy", $"{Accuracy * 100:0.0}%  ({Hits}/{Shots})" + (Hits > 0 ? (es ? $"  ·  {100f * HeadHits / Hits:0}% a la cabeza" : $"  ·  {100f * HeadHits / Hits:0}% headshots") : ""));
+        yield return (es ? "Tiempo de cambio" : "Switch time", switchMs.Count > 0
+            ? (es ? $"{Median(switchMs):0} ms de mediana (baja → siguiente acierto)" : $"{Median(switchMs):0} ms median (kill → next hit)")
+            : "—");
+        yield return (es ? "Tiempo por baja" : "Time per kill", KillTimes.Count > 0
+            ? (es ? $"{Median(KillTimes):0} ms de mediana" : $"{Median(KillTimes):0} ms median") +
+              (engageMs.Count > 0 ? (es ? $" (primer acierto → baja {Median(engageMs):0} ms)" : $" (first hit → kill {Median(engageMs):0} ms)") : "")
+            : "—");
+        yield return (es ? "Pasadas de más al cambiar" : "Overflick on switch", judged == 0 ? "—" : overflicks == 0
+            ? (es ? $"ninguna en {judged} cambios" : $"none in {judged} switches")
+            : (es ? $"{100f * overflicks / judged:0}% de los cambios, {overDeg.Average():0.0}° de más" : $"{100f * overflicks / judged:0}% of switches, {overDeg.Average():0.0}° past"));
     }
 
     /// <summary>Kills per minute (needs ≥ 30% accuracy and 3 kills), thresholds per tier played.</summary>

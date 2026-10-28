@@ -1,4 +1,5 @@
 using Godot;
+using ValTrainer.Core;
 using ValTrainer.Maps;
 using ValTrainer.UI;
 using ValTrainer.Valorant;
@@ -319,7 +320,7 @@ public static class XfShapes
         s.CenterDotOpacity = 1;
         s.Inner = CrosshairCode.DefaultStyle().Inner; // lines off; untouched sub-settings keep the code minimal
         s.Inner.Show = false;
-        return Make("dot", "Dot", "covers the least of the target", s);
+        return Make("dot", Loc.Spanish ? "Punto" : "Dot", Loc.Spanish ? "es lo que menos tapa del objetivo" : "covers the least of the target", s);
     }
 
     /// <summary>Small static cross 2×4, gap 2 (the most common pro crosshair, e.g. TenZ without firing error).</summary>
@@ -327,7 +328,7 @@ public static class XfShapes
     {
         var s = Base(c, o);
         s.Inner.Thickness = 2; s.Inner.Length = 4; s.Inner.Offset = 2;
-        return Make("cross", "Small cross", "the most common pro shape", s);
+        return Make("cross", Loc.Spanish ? "Cruz pequeña" : "Small cross", Loc.Spanish ? "la forma de pro más común" : "the most common pro shape", s);
     }
 
     /// <summary>Framed dot: a dot inside a wider gap, so a far head fits between the lines instead of under them.</summary>
@@ -336,7 +337,7 @@ public static class XfShapes
         var s = Base(c, o);
         s.CenterDot = true; s.CenterDotSize = 2; s.CenterDotOpacity = 1;
         s.Inner.Thickness = 2; s.Inner.Length = 3; s.Inner.Offset = 4;
-        return Make("framed", "Framed dot", "the head sits inside the gap", s);
+        return Make("framed", Loc.Spanish ? "Punto enmarcado" : "Framed dot", Loc.Spanish ? "la cabeza queda dentro del hueco" : "the head sits inside the gap", s);
     }
 
     /// <summary>Dynamic cross: a static inner cross plus outer lines that spread with firing error (spray feedback).</summary>
@@ -346,7 +347,7 @@ public static class XfShapes
         s.Inner.Thickness = 2; s.Inner.Length = 4; s.Inner.Offset = 2;
         s.Outer.Show = true; s.Outer.Thickness = 2; s.Outer.Length = 2; s.Outer.Offset = 7;
         s.Outer.Opacity = 0.6f; s.Outer.ShowShootingError = true; s.Outer.FiringErrorScale = 1; s.Outer.ShowMovementError = true;
-        return Make("dynamic", "Dynamic cross", "outer lines show your spread", s, fade: true);
+        return Make("dynamic", Loc.Spanish ? "Cruz dinámica" : "Dynamic cross", Loc.Spanish ? "las líneas exteriores muestran tu dispersión" : "outer lines show your spread", s, fade: true);
     }
 
     // VALORANT can't draw a real circle or box: the community "circle" / "hollow square" crosshairs are four very short
@@ -359,7 +360,7 @@ public static class XfShapes
     {
         var s = Base(c, o);
         s.Inner.Thickness = 2; s.Inner.Length = 3; s.Inner.Offset = 0;
-        return Make("plus", "Closed plus", "one solid point that's easy to see", s);
+        return Make("plus", Loc.Spanish ? "Cruz cerrada" : "Closed plus", Loc.Spanish ? "un punto sólido fácil de ver" : "one solid point that's easy to see", s);
     }
 
     /// <summary>Plus + dot: a closed plus with a 4 px dot on top, a bold centre with short arms.</summary>
@@ -368,7 +369,7 @@ public static class XfShapes
         var s = Base(c, o);
         s.CenterDot = true; s.CenterDotSize = 4; s.CenterDotOpacity = 1;
         s.Inner.Thickness = 2; s.Inner.Length = 4; s.Inner.Offset = 0;
-        return Make("plusdot", "Plus + dot", "a bold centre that stays visible on busy walls", s);
+        return Make("plusdot", Loc.Spanish ? "Cruz + punto" : "Plus + dot", Loc.Spanish ? "un centro grueso que se ve sobre muros cargados" : "a bold centre that stays visible on busy walls", s);
     }
 
     /// <summary>Circle (small ring): 1 px lines 4 px thick at offset 2, a 6 px ring around a 4 px hole (the
@@ -377,7 +378,7 @@ public static class XfShapes
     {
         var s = Base(c, o);
         s.Inner.Thickness = o ? 6 : 4; s.Inner.Length = 1; s.Inner.Offset = o ? 3 : 2;
-        return Make("circle", "Circle", "the head sits inside the ring: good for taps and far heads", s);
+        return Make("circle", Loc.Spanish ? "Círculo" : "Circle", Loc.Spanish ? "la cabeza queda dentro del anillo: bueno para taps y cabezas lejanas" : "the head sits inside the ring: good for taps and far heads", s);
     }
 
     /// <summary>Circle + dot: an 8 px ring with a 2 px dot in the middle; outlined: a 10 px ring.</summary>
@@ -386,7 +387,7 @@ public static class XfShapes
         var s = Base(c, o);
         s.CenterDot = true; s.CenterDotSize = 2; s.CenterDotOpacity = 1;
         s.Inner.Thickness = o ? 8 : 6; s.Inner.Length = 1; s.Inner.Offset = o ? 4 : 3;
-        return Make("circledot", "Circle + dot", "a dot to aim with, a ring to frame the head", s);
+        return Make("circledot", Loc.Spanish ? "Círculo + punto" : "Circle + dot", Loc.Spanish ? "un punto para apuntar y un anillo que enmarca la cabeza" : "a dot to aim with, a ring to frame the head", s);
     }
 
     /// <summary>Hollow square (box): thickness = 2·(offset + length) closes the corners (the community "medium hollow
@@ -395,7 +396,7 @@ public static class XfShapes
     {
         var s = Base(c, o);
         s.Inner.Thickness = o ? 8 : 6; s.Inner.Length = 1; s.Inner.Offset = o ? 3 : 2;
-        return Make("box", "Hollow square", "a crisp box the head fits inside", s);
+        return Make("box", Loc.Spanish ? "Cuadrado hueco" : "Hollow square", Loc.Spanish ? "una caja nítida en la que cabe la cabeza" : "a crisp box the head fits inside", s);
     }
 
     /// <summary>Every shape of the pick screen, in card order.</summary>

@@ -1,3 +1,5 @@
+using ValTrainer.Core;
+
 namespace ValTrainer.Agents;
 
 public enum AgentRole { Duelist, Initiator, Controller, Sentinel }
@@ -267,13 +269,41 @@ public static class AgentRoles
 
     public static string Name(AgentRole r) => r.ToString();
 
-    public static string Summary(AgentRole r) => r switch
+    /// <summary>The role in Spanish prose ("duelista"), for sentences that name it.</summary>
+    public static string NameEs(AgentRole r) => r switch
     {
-        AgentRole.Duelist => "Takes the first fight: makes space with movement and wins the opening duel.",
-        AgentRole.Initiator => "Finds and flushes defenders with recon, flashes and stuns, then trades in behind.",
-        AgentRole.Controller => "Cuts sightlines with smokes and walls so fights happen where the team wants them.",
-        _ => "Locks down a site or a flank with traps and holds angles on their own.",
+        AgentRole.Duelist => "duelista",
+        AgentRole.Initiator => "iniciador",
+        AgentRole.Controller => "controlador",
+        _ => "centinela",
     };
+
+    /// <summary>The tracked-out role card heading ("DUELISTS" / "DUELISTAS").</summary>
+    public static string Heading(AgentRole r) => Loc.Spanish
+        ? r switch
+        {
+            AgentRole.Duelist => "DUELISTAS",
+            AgentRole.Initiator => "INICIADORES",
+            AgentRole.Controller => "CONTROLADORES",
+            _ => "CENTINELAS",
+        }
+        : r.ToString().ToUpperInvariant() + "S";
+
+    public static string Summary(AgentRole r) => Loc.Spanish
+        ? r switch
+        {
+            AgentRole.Duelist => "Busca el primer duelo: crea espacio con el movimiento y gana el enfrentamiento inicial.",
+            AgentRole.Initiator => "Localiza y desaloja a los defensores con reconocimiento, destellos y aturdimientos, y luego entra al intercambio.",
+            AgentRole.Controller => "Corta las líneas de visión con humos y muros para que los duelos ocurran donde quiere el equipo.",
+            _ => "Cierra un sitio o un flanco con trampas y aguanta ángulos por su cuenta.",
+        }
+        : r switch
+        {
+            AgentRole.Duelist => "Takes the first fight: makes space with movement and wins the opening duel.",
+            AgentRole.Initiator => "Finds and flushes defenders with recon, flashes and stuns, then trades in behind.",
+            AgentRole.Controller => "Cuts sightlines with smokes and walls so fights happen where the team wants them.",
+            _ => "Locks down a site or a flank with traps and holds angles on their own.",
+        };
 
     /// <summary>General drills for the role, most important first (agent pages list them; missing keys are skipped).</summary>
     public static string[] Drills(AgentRole r) => r switch

@@ -68,10 +68,13 @@ public abstract class TrackingDrill : TrainingMode
 
     public override IEnumerable<(string Label, string Value)> ResultLines()
     {
-        yield return ("On target while firing", $"{Accuracy * 100:0.0}%");
-        yield return ("Time on target", $"{onTarget:0.0} s of {Duration:0} s");
+        bool es = Loc.Spanish;
+        yield return (es ? "En el objetivo mientras disparas" : "On target while firing", $"{Accuracy * 100:0.0}%");
+        yield return (es ? "Tiempo en el objetivo" : "Time on target", es ? $"{onTarget:0.0} s de {Duration:0} s" : $"{onTarget:0.0} s of {Duration:0} s");
         if (Reacquire.Count > 0)
-            yield return ("Re-acquire after a change", $"{ReacquireMedian:0} ms median · lost it {lostAfterChange} of {Reacquire.Count} times");
+            yield return (es ? "Recuperación tras un cambio" : "Re-acquire after a change", es
+                ? $"{ReacquireMedian:0} ms de mediana · perdido {lostAfterChange} de {Reacquire.Count} veces"
+                : $"{ReacquireMedian:0} ms median · lost it {lostAfterChange} of {Reacquire.Count} times");
     }
 
     public override IEnumerable<(string Key, float Value)> ExtraMetrics()

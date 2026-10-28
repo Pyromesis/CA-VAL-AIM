@@ -55,6 +55,8 @@ public sealed class RunReview
     public Dictionary<string, float> Metrics = new();
     /// <summary>Aim Lab-style overshoot / undershoot / tremor evidence from this run.</summary>
     public SensFeedback? Sens;
+    /// <summary>Every play of the run, judged on its own (see <see cref="PlayByPlay"/>).</summary>
+    public PlayAnalysis? Plays;
 }
 
 /// <summary>
@@ -80,6 +82,7 @@ public static class Coach
         review.Issues = a.Issues.Take(3).Select(i => i.D).ToList();
         review.Strengths = a.Strengths.Take(2).Select(s => s.Text).ToList();
         review.Summary = RunSummary.Write(t.Mode, tier, metrics, a);
+        review.Plays = PlayByPlay.Analyze(t);
         return review;
     }
 

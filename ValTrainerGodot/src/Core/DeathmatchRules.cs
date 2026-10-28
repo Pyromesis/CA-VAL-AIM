@@ -50,6 +50,21 @@ public static class DeathmatchRules
         _ => "Beyond Radiant: 150 ms reactions and they hear every running step",
     };
 
+    /// <summary>Difficulty name in the current language (menus, mode description, result rows).</summary>
+    public static string NameLocal(DmDifficulty d) => !Loc.Spanish ? Name(d) : d switch
+    {
+        DmDifficulty.Easy => "Fácil", DmDifficulty.Medium => "Medio", DmDifficulty.Hard => "Difícil", _ => "Pesadilla",
+    };
+
+    /// <summary>One-line difficulty explanation in the current language.</summary>
+    public static string BlurbLocal(DmDifficulty d) => !Loc.Spanish ? Blurb(d) : d switch
+    {
+        DmDifficulty.Easy => "Bots Hierro–Bronce: reaccionan lento y disparan corriendo",
+        DmDifficulty.Medium => "Bots Platino–Diamante: se paran para disparar y apuntan donde estabas",
+        DmDifficulty.Hard => "Bots Ascendente–Inmortal: jiggle peeks, ángulos aguantados, ráfagas agachados",
+        _ => "Más allá de Radiante: 150 ms de reacción y oyen cada paso que das corriendo",
+    };
+
     /// <summary>Kill target for a lobby: VALORANT's 40 in 9 minutes, scaled to the run length and lobby size.</summary>
     public static int KillTarget(float seconds, int players)
     {

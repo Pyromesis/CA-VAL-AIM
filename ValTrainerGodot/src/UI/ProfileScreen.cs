@@ -87,6 +87,7 @@ public partial class ProfileScreen : ScreenBase
         left.AddChild(SkillsPanel(p));
         if (Plan(p) is { Count: > 0 } plan) right.AddChild(PlanPanel(plan));
         right.AddChild(ProblemsPanel(p));
+        right.AddChild(PlaysPanel());
         right.AddChild(SensPanel(p));
     }
 
@@ -224,7 +225,7 @@ public partial class ProfileScreen : ScreenBase
         var age = DateTime.Now - u;
         if (age.TotalMinutes < 1) return Loc.Spanish ? "AHORA MISMO" : "JUST NOW";
         if (u.Date == DateTime.Today) return (Loc.Spanish ? "HOY " : "TODAY ") + u.ToString("HH:mm", Inv);
-        return u.ToString("MMM d", Inv).ToUpperInvariant();
+        return (Loc.Spanish ? $"{u.Day} {Loc.MonthShort(u)}" : u.ToString("MMM d", Inv)).ToUpperInvariant();
     }
 
     // ---------------- skills ----------------
@@ -323,6 +324,61 @@ public partial class ProfileScreen : ScreenBase
             row.AddChild(b);
         }
         return panel;
+    }
+
+    // ---------------- play by play ----------------
+
+    /// <summary>The newest recorded run that has plays to show (skips finder runs and pruned files).</summary>
+    static (RunTelemetry Run, PlayAnalysis Plays)? LatestRun()
+    {
+        foreach (var r in Main.I.Stats.Runs.OrderByDescending(r => r.When).Take(12))
+        {
+            if (string.IsNullOrEmpty(r.TelemetryFile) || !File.Exists(r.TelemetryFile)) continue;
+            RunTelemetry? run = null;
+            try { run = RunTelemetry.Load(r.TelemetryFile!); } catch { /* unreadable: try the next one */ }
+            if (run == null) continue;
+            var plays = PlayByPlay.Analyze(run);
+            if (plays.HasData) return (run, plays);
+        }
+        return null;
+    }
+
+    Control PlaysPanel()
+    {
+        float k = K;
+        var panel = new VPanel
+        {
+            Title = "PLAY BY PLAY",
+            Caption = Loc.Spanish ? "tu última partida, jugada a jugada" : "your last run, play by play",
+            K = k,
+        };
+        var row = HBox(14 * k);
+        row.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        panel.AddChild(row);
+        var status = Lbl("", UiTheme.Body, 13.5f, UiTheme.Dim);
+        status.SizeFlagsVertical = SizeFlags.ShrinkCenter;
+        status.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        status.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+        status.CustomMinimumSize = new Vector2(60 * k, 0);
+        var b = Btn(Loc.Spanish ? "VER ÚLTIMA PARTIDA" : "OPEN LAST RUN", VButton.Look.Secondary,
+            () => OpenLastPlays(status), 230, 44, 16);
+        b.TooltipText = Loc.Spanish
+            ? "Cada duelo, spray, reacción o round de tu última partida, con su consejo"
+            : "Every engagement, spray, reaction or round of your last run, with its advice";
+        row.AddChild(b);
+        row.AddChild(status);
+        return panel;
+    }
+
+    void OpenLastPlays(Label status)
+    {
+        var found = LatestRun();
+        if (found is not { } f)
+        {
+            status.Text = Loc.Spanish ? "Aún no hay ninguna partida grabada." : "No recorded run yet.";
+            return;
+        }
+        PlaysScreen.Open(Main.I, f.Run, f.Plays);
     }
 
     // ---------------- problems & strengths ----------------
@@ -493,7 +549,9 @@ public partial class ProfileScreen : ScreenBase
         searchFor = null;
         if (IsInstanceValid(sf.Btn)) { sf.Btn.Disabled = false; sf.Btn.Label = "SHOW ME"; sf.Btn.QueueRedraw(); }
         if (found is { } f) RewindScreen.Open(Main.I, f.Run, f.Ins, sf.Code); // not a child: a resize rebuilds this screen
-        else if (IsInstanceValid(sf.Status)) sf.Status.Text = $"No recorded example yet. Play {sf.Drill}.";
+        else if (IsInstanceValid(sf.Status)) sf.Status.Text = Loc.Spanish
+            ? $"Aún no hay un ejemplo grabado. Juega {sf.Drill}."
+            : $"No recorded example yet. Play {sf.Drill}.";
     }
 
     Control GetRated(SkillProfile p, bool partial)
@@ -502,8 +560,11 @@ public partial class ProfileScreen : ScreenBase
         var v = VBox(10 * k);
         int need = CoachData.RunsNeeded();
         if (partial) v.AddChild(new SectionLabel { Text = "UNLOCK YOUR OVERALL RANK", K = k });
+        string runs = $"{(need > 0 ? need : 3)}";
         v.AddChild(Para(
-            $"Play Head Flicks, Strafe Tracking, Peek Practice, Counter-Strafe and Vandal Spray a few times — the coach needs about {(need > 0 ? need : 3)} more run{(need == 1 ? "" : "s")} to estimate your rank. Every run is analysed automatically.",
+            Loc.Spanish
+                ? $"Juega Flicks a la cabeza, Seguimiento en strafe, Práctica de asome, Contra-Strafe y Ráfaga Vandal unas cuantas veces: el coach necesita unas {runs} partidas más para estimar tu rango. Cada partida se analiza automáticamente."
+                : $"Play Head Flicks, Strafe Tracking, Peek Practice, Counter-Strafe and Vandal Spray a few times — the coach needs about {runs} more run{(need == 1 ? "" : "s")} to estimate your rank. Every run is analysed automatically.",
             UiTheme.Body, 16, UiTheme.Text));
         var grid = new GridContainer { Columns = 2, SizeFlagsHorizontal = SizeFlags.ExpandFill };
         grid.AddThemeConstantOverride("h_separation", (int)(10 * k));
@@ -512,7 +573,7 @@ public partial class ProfileScreen : ScreenBase
             if (CoachData.HasDrill(key))
                 grid.AddChild(new DrillTile { Key = key, Target = target, Rates = rates, Runs = CoachData.CoachedRuns(key), K = k });
         v.AddChild(grid);
-        if (Main.I.Dev && CoachData.LastError is { } err) v.AddChild(Para($"Coach error: {err}", UiTheme.Body, 13, UiTheme.Warn));
+        if (Main.I.Dev && CoachData.LastError is { } err) v.AddChild(Para($"{(Loc.Spanish ? "Error del coach" : "Coach error")}: {err}", UiTheme.Body, 13, UiTheme.Warn));
         return v;
     }
 
@@ -580,8 +641,8 @@ public partial class ProfileScreen : ScreenBase
         bool on = TryActive(a);
         b.Kind = on ? VButton.Look.Select : VButton.Look.Primary;
         b.Selected = on;
-        b.Label = on ? (Loc.Spanish ? "ACTIVA EN CA-VAL-AIM" : "ACTIVE IN CA-VAL-AIM") : (Loc.Spanish ? "PROBARLA EN CA-VAL-AIM" : "TRY IT IN CA-VAL-AIM");
-        b.Sub = on ? (Loc.Spanish ? "clic para volver" : "click to switch back") : null;
+        b.Label = on ? (Loc.Spanish ? "ACTIVA" : "ACTIVE") : (Loc.Spanish ? "PROBARLA" : "TRY IT");
+        b.Sub = on ? (Loc.Spanish ? "clic para volver" : "click to switch back") : (Loc.Spanish ? "en CA-VAL-AIM" : "in CA-VAL-AIM");
         b.TooltipText = on
             ? (Loc.Spanish ? "CA-VAL-AIM usa la sensibilidad recomendada. Haz clic para volver a la anterior."
                 : "CA-VAL-AIM is using the recommended sens. Click to go back to your previous sens.")

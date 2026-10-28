@@ -36,11 +36,25 @@ From 1.18.0 the app is called **CA-VAL-AIM**: window, menu, installer, Start men
 | GitHub repository | `Pyromesis/CA-VAL-AIM` | Renamed with the app (it was `Pyromesis/ValTraining`). GitHub redirects the old links, so bookmarks and issue links keep working. 1.16.1–1.17.0 may offer **OPEN DOWNLOAD** instead of an automatic update once, because GitHub rewrites release download URLs after a rename. |
 | Install folder | your existing folder | An in-app update installs over the previous version, in the same folder and mode. New installs go to `C:\Program Files\CA-VAL-AIM` (all users); `/CURRENTUSER` keeps a per-user copy in `%LOCALAPPDATA%\Programs`. |
 
-**Updates:** CA-VAL-AIM updates itself. At startup and every 6 hours it asks GitHub for the newest release, shows it in
-the menu and downloads it in the background; the update installs when you restart. Settings and stats are kept. A new
-release also appears in the always-visible **UPDATE** button, which checks and downloads on demand and turns into
-**RESTART TO UPDATE** once the download is verified against `SHA256SUMS.txt`. You can turn automatic checks off in
-Settings → About; the app only contacts `api.github.com` and the release download URLs.
+**Updates:** CA-VAL-AIM updates itself. At startup and every 6 hours it asks GitHub for the newest release. When one
+exists, a window opens with **UPDATE NOW** and **LATER**: UPDATE NOW downloads it, verifies the SHA-256 and restarts
+into the new version; LATER keeps a banner under the header and nothing is installed until you say so. Settings, stats,
+maps and recordings are kept. A new release also appears in the always-visible **UPDATE** button, which checks and
+downloads on demand and turns into **RESTART TO UPDATE** once verified against `SHA256SUMS.txt`. You can turn automatic
+checks off in Settings → About; the app only contacts `api.github.com` and the release download URLs.
+
+## Screenshots
+
+The English interface at 2048×1152; the same screens switch to Spanish with the **EN / ES** footer toggle.
+
+| | |
+|---|---|
+| <img src="docs/screenshots/01-menu-principal.jpg" alt="Main menu" width="100%"> **Main menu:** drills, tier, map and Deathmatch lobby in one place. | <img src="docs/screenshots/03-menu-coach.jpg" alt="Aim coach" width="100%"> **Aim coach:** your estimated rank, the problems holding you back and the drill that fixes each one. |
+| <img src="docs/screenshots/07-play-by-play.jpg" alt="Play-by-play review" width="100%"> **Play-by-play:** every engagement graded on its own, with WATCH and PRACTISE. | <img src="docs/screenshots/08-rewind.jpg" alt="Rewind" width="100%"> **Rewind:** the exact moment in 3D, with the crosshair path and the shot that followed. |
+| <img src="docs/screenshots/09-ventana-actualizacion.jpg" alt="Update window" width="100%"> **Update window:** a new release can't be missed; UPDATE NOW or LATER. | <img src="docs/screenshots/06-menu-lockin.jpg" alt="Lock-In warm-up" width="100%"> **Lock-In:** the guided warm-up that checks your setup before the first match. |
+| <img src="docs/screenshots/10-juego-haven.jpg" alt="Site Clear on Haven" width="100%"> **Site Clear · Haven:** real angles, real cover and bots that hold them. | <img src="docs/screenshots/10-juego-ascent.jpg" alt="Site Clear on Ascent" width="100%"> **Site Clear · Ascent:** the same drill on the full extracted map set. |
+
+More screens in [`docs/screenshots`](docs/screenshots): Settings, Stats, Agents and Site Clear on Bind.
 
 ## System requirements
 
@@ -152,6 +166,9 @@ recent runs are kept). The coach analyses them:
 
 - **Coach screen:** an estimated rank overall and for 8 skills (flicking, precision/micro-adjust, tracking, reaction,
   crosshair placement, spray, movement, utility), each with a confidence level.
+- **Play-by-play:** every engagement of the run is graded on its own (reaction, flick, settle, click, overshoot, first
+  shot), with a verdict, what went wrong and the drill that fixes it; **WATCH** opens that moment in Rewind and
+  **PRACTISE** launches the drill. Up to 48 plays are kept, worst first.
 - **Problems** sorted by importance, each with your numbers, why it happens, how to fix it and drills to practise.
 - **Direction, tremor and flick error:** it separates left, right, up and down flicks (hit rate, error and the side you
   miss), flags aim tremor, under- and overshooting and reaction time, and points to a drill for each.
@@ -167,6 +184,11 @@ recent runs are kept). The coach analyses them:
   changed.
 
 The ratings need data: play Head Flicks, Strafe Tracking, Peek Practice, Counter-Strafe and Vandal Spray a few times each.
+
+## How it works
+
+The startup and update flow, the drill → recording → coach → Rewind pipeline, the layer map and the release pipeline
+are documented with diagrams in **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
 
 ## Privacy
 
@@ -186,7 +208,8 @@ The ratings need data: play Head Flicks, Strafe Tracking, Peek Practice, Counter
 - **Where things are:** settings and stats are in `%APPDATA%\ValTrainer`; logs are in
   `%APPDATA%\Godot\app_userdata\ValTrainer\logs`. Settings → About has buttons to open both and to copy your system info.
 - A damaged settings or stats file is kept as `*.corrupt` and the app starts fresh.
-- Numbers always use "." as the decimal point, regardless of Windows region settings.
+- Numbers use "." as the decimal point in settings, stats files and exports. In Spanish, numbers written inside
+  sentences (warm-up scores, measurements) use the comma.
 - Still stuck? [Open a GitHub issue](https://github.com/Pyromesis/CA-VAL-AIM/issues/new/choose) and attach `godot.log`.
 
 ## Building from source

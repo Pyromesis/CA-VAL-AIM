@@ -23,7 +23,9 @@ public sealed class FlashPeekMode : InitiatorDrill
 
     public override string Key => "flashpeek:" + Agent;
     public override string Name => "Flash & Peek";
-    public override string Description => "Throw your own flash, then peek and kill the defenders while they are blind.";
+    public override string Description => Loc.Spanish
+        ? "Lanza tu propia flash y luego asómate y mata a los defensores mientras están ciegos."
+        : "Throw your own flash, then peek and kill the defenders while they are blind.";
     protected override bool CountsDryPeeks => true;
 
     bool ViewFlash => Ability.Kind is not (UtilKind.Dizzy or UtilKind.Leer or UtilKind.Paranoia);
@@ -31,21 +33,27 @@ public sealed class FlashPeekMode : InitiatorDrill
     protected override IEnumerable<string> StatusLines()
     {
         if (casts == 0) yield break;
+        bool es = Loc.Spanish;
         yield return Ability.IsNearsight
-            ? $"Nearsighted: {nearsighted} · utility kills: {utilKills}"
-            : $"Flashed: {blindFull + blindPartial} · flash kills: {utilKills}";
+            ? (es ? $"Miopía: {nearsighted} · bajas con utilidad: {utilKills}" : $"Nearsighted: {nearsighted} · utility kills: {utilKills}")
+            : (es ? $"Cegados: {blindFull + blindPartial} · bajas con flash: {utilKills}" : $"Flashed: {blindFull + blindPartial} · flash kills: {utilKills}");
     }
 
     public override IEnumerable<(string Label, string Value)> ResultLines()
     {
+        bool es = Loc.Spanish;
         foreach (var l in CommonResultLines()) yield return l;
-        if (Ability.IsNearsight) yield return ("Defenders nearsighted", $"{nearsighted}  ({casts} cast{(casts == 1 ? "" : "s")})");
-        else yield return ("Defenders flashed", $"{blindFull} full + {blindPartial} partial  ({casts} thrown)");
-        yield return (Ability.IsNearsight ? "Kills on nearsighted enemies" : "Kills on blinded enemies", $"{utilKills} of {Kills}");
-        if (popToKillMs.Count > 0) yield return ("Avg pop → kill", $"{popToKillMs.Average():0} ms");
-        if (ViewFlash) yield return ("Self-flashes", selfFlashes.ToString());
-        yield return ("Dry peeks (no utility on them)", dryPeeks.ToString());
-        if (destroyedUtil > 0) yield return ("Shot down by defenders", destroyedUtil.ToString());
+        if (Ability.IsNearsight)
+            yield return (es ? "Defensores con miopía" : "Defenders nearsighted", es ? $"{nearsighted}  ({casts} lanzamiento{(casts == 1 ? "" : "s")})" : $"{nearsighted}  ({casts} cast{(casts == 1 ? "" : "s")})");
+        else
+            yield return (es ? "Defensores cegados" : "Defenders flashed", es ? $"{blindFull} completos + {blindPartial} parciales  ({casts} lanzadas)" : $"{blindFull} full + {blindPartial} partial  ({casts} thrown)");
+        yield return (Ability.IsNearsight
+            ? (es ? "Bajas en enemigos con miopía" : "Kills on nearsighted enemies")
+            : (es ? "Bajas en enemigos cegados" : "Kills on blinded enemies"), es ? $"{utilKills} de {Kills}" : $"{utilKills} of {Kills}");
+        if (popToKillMs.Count > 0) yield return (es ? "Media detonación → baja" : "Avg pop → kill", $"{popToKillMs.Average():0} ms");
+        if (ViewFlash) yield return (es ? "Autociegos" : "Self-flashes", selfFlashes.ToString());
+        yield return (es ? "Asomadas sin utilidad" : "Dry peeks (no utility on them)", dryPeeks.ToString());
+        if (destroyedUtil > 0) yield return (es ? "Derribadas por los defensores" : "Shot down by defenders", destroyedUtil.ToString());
         foreach (var l in DuelResultLines()) yield return l;
     }
 
@@ -74,20 +82,24 @@ public sealed class ReconMode : InitiatorDrill
 
     public override string Key => "recon:" + Agent;
     public override string Name => "Recon & Clear";
-    public override string Description => "Use your recon to find the defenders, then clear the site.";
+    public override string Description => Loc.Spanish
+        ? "Usa tu reconocimiento para encontrar a los defensores y luego limpia el sitio."
+        : "Use your recon to find the defenders, then clear the site.";
 
     protected override IEnumerable<string> StatusLines()
     {
-        if (casts > 0) yield return $"Revealed: {revealed} of {defendersSpawned}";
+        if (casts > 0)
+            yield return Loc.Spanish ? $"Revelados: {revealed} de {defendersSpawned}" : $"Revealed: {revealed} of {defendersSpawned}";
     }
 
     public override IEnumerable<(string Label, string Value)> ResultLines()
     {
+        bool es = Loc.Spanish;
         foreach (var l in CommonResultLines()) yield return l;
-        yield return ("Enemies revealed", $"{revealed} of {defendersSpawned}  ({casts} cast{(casts == 1 ? "" : "s")})");
-        if (preaimRevealed.Count > 0) yield return ("Pre-aim error on revealed enemies", $"{preaimRevealed.Average():0.0}°");
-        if (preaimOther.Count > 0) yield return ("Pre-aim error on the others", $"{preaimOther.Average():0.0}°");
-        if (destroyedUtil > 0) yield return ("Recon shot down", destroyedUtil.ToString());
+        yield return (es ? "Enemigos revelados" : "Enemies revealed", es ? $"{revealed} de {defendersSpawned}  ({casts} lanzamiento{(casts == 1 ? "" : "s")})" : $"{revealed} of {defendersSpawned}  ({casts} cast{(casts == 1 ? "" : "s")})");
+        if (preaimRevealed.Count > 0) yield return (es ? "Error de pre-aim en revelados" : "Pre-aim error on revealed enemies", $"{preaimRevealed.Average():0.0}°");
+        if (preaimOther.Count > 0) yield return (es ? "Error de pre-aim en el resto" : "Pre-aim error on the others", $"{preaimOther.Average():0.0}°");
+        if (destroyedUtil > 0) yield return (es ? "Reconocimiento derribado" : "Recon shot down", destroyedUtil.ToString());
         foreach (var l in DuelResultLines()) yield return l;
     }
 

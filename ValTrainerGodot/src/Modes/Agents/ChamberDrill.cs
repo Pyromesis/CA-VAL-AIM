@@ -309,35 +309,48 @@ public sealed partial class ChamberMode
 
     public override IEnumerable<string> HudLines()
     {
+        bool es = Loc.Spanish;
         if (rounds <= 1)
         {
-            if (Tdf) { yield return "RMB: scope (2.5×) — any body hit kills."; yield return "0.9 shots a second: make the first one count."; }
-            else { yield return "RMB: aim down sights (1.5×, perfect first shot)."; yield return "Space your taps — spamming blooms the spread to 3°."; }
+            if (Tdf)
+            {
+                yield return es ? "RMB: mira (2,5×) — cualquier impacto en el cuerpo mata." : "RMB: scope (2.5×) — any body hit kills.";
+                yield return es ? "0,9 disparos por segundo: que el primero cuente." : "0.9 shots a second: make the first one count.";
+            }
+            else
+            {
+                yield return es ? "RMB: apuntar (1,5×, primer disparo perfecto)." : "RMB: aim down sights (1.5×, perfect first shot).";
+                yield return es ? "Espacia los toques — spamear abre el dispersión a 3°." : "Space your taps — spamming blooms the spread to 3°.";
+            }
         }
-        if (st != St.Between) yield return $"{GunName}: {AmmoLeft} / {MagSize} this round · attackers left {attackersLeft + (attacker != null ? 1 : 0)}";
+        if (st != St.Between)
+            yield return es
+                ? $"{GunName}: {AmmoLeft} / {MagSize} esta ronda · atacantes restantes {attackersLeft + (attacker != null ? 1 : 0)}"
+                : $"{GunName}: {AmmoLeft} / {MagSize} this round · attackers left {attackersLeft + (attacker != null ? 1 : 0)}";
     }
 
     // ------------------------------------------------------------------ results
 
     public override IEnumerable<(string Label, string Value)> ResultLines()
     {
-        yield return ("Map", $"{MapSpot.Map} {MapSpot.Name}");
-        yield return ("Gun", GunName);
-        yield return ("Kills / attackers", $"{Kills} / {spawned}");
-        if (escaped > 0) yield return ("Got past you", escaped.ToString());
-        if (Kills > 0) yield return ("One-taps", $"{oneTaps} of {Kills}  ({100f * oneTaps / Kills:0}%)");
-        if (shotsPerKill.Count > 0) yield return ("Shots per kill", $"{shotsPerKill.Average():0.0}");
-        if (ttkMs.Count > 0) yield return ("Median time to kill", $"{Median(ttkMs):0} ms");
-        yield return ("Accuracy", $"{Accuracy * 100:0.0}%  ({Hits}/{Shots})");
-        if (Hits > 0) yield return ("Headshot %", $"{100f * HeadHits / Hits:0}%");
-        if (!Tdf) yield return ("Spam taps (<0.35 s)", spam.ToString());
+        bool es = Loc.Spanish;
+        yield return (es ? "Mapa" : "Map", $"{MapSpot.Map} {MapSpot.Name}");
+        yield return (es ? "Arma" : "Gun", GunName);
+        yield return (es ? "Bajas / atacantes" : "Kills / attackers", $"{Kills} / {spawned}");
+        if (escaped > 0) yield return (es ? "Se te colaron" : "Got past you", escaped.ToString());
+        if (Kills > 0) yield return (es ? "De un toque" : "One-taps", es ? $"{oneTaps} de {Kills}  ({100f * oneTaps / Kills:0}%)" : $"{oneTaps} of {Kills}  ({100f * oneTaps / Kills:0}%)");
+        if (shotsPerKill.Count > 0) yield return (es ? "Disparos por baja" : "Shots per kill", $"{shotsPerKill.Average():0.0}");
+        if (ttkMs.Count > 0) yield return (es ? "Tiempo medio de baja" : "Median time to kill", $"{Median(ttkMs):0} ms");
+        yield return (es ? "Precisión" : "Accuracy", $"{Accuracy * 100:0.0}%  ({Hits}/{Shots})");
+        if (Hits > 0) yield return (es ? "Tiros a la cabeza" : "Headshot %", $"{100f * HeadHits / Hits:0}%");
+        if (!Tdf) yield return (es ? "Toques spameados (<0,35 s)" : "Spam taps (<0.35 s)", spam.ToString());
         else
         {
-            if (unscoped > 0) yield return ("Unscoped shots", unscoped.ToString());
-            if (legOnly > 0) yield return ("Leg hits, no kill", legOnly.ToString());
+            if (unscoped > 0) yield return (es ? "Disparos sin mirar" : "Unscoped shots", unscoped.ToString());
+            if (legOnly > 0) yield return (es ? "Impactos en pierna sin baja" : "Leg hits, no kill", legOnly.ToString());
         }
-        if (outOfAmmo > 0) yield return ("Ran out of bullets", outOfAmmo.ToString());
-        yield return ("Rounds held / died", $"{roundsSurvived} / {Deaths}");
+        if (outOfAmmo > 0) yield return (es ? "Te quedaste sin balas" : "Ran out of bullets", outOfAmmo.ToString());
+        yield return (es ? "Rondas aguantadas / muerto" : "Rounds held / died", $"{roundsSurvived} / {Deaths}");
         foreach (var l in MovementLines()) yield return l;
     }
 

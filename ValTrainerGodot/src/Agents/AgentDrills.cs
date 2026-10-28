@@ -166,9 +166,9 @@ public static class AgentRoutines
         return s;
     }
 
-    const string CueTrack = WarmupPresets.CueTrack;
-    const string CueFlick = WarmupPresets.CueFlick;
-    const string CueDm = WarmupPresets.CueDm;
+    static string CueTrack => WarmupPresets.CueTrack;
+    static string CueFlick => WarmupPresets.CueFlick;
+    static string CueDm => WarmupPresets.CueDm;
 
     public static WarmupPreset Build(AgentInfo a)
     {

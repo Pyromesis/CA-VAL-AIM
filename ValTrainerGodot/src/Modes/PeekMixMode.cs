@@ -29,6 +29,7 @@ public sealed class PeekMixMode : BotMode
     // Peek kinds (telemetry v3, peek_trial kind 0–7).
     const int KShort = 0, KWide = 1, KCrouch = 2, KDouble = 3, KJiggle = 4, KShoulder = 5, KShift = 6, KRepeek = 7;
     static readonly string[] names = { "Short", "Wide", "Crouch", "Double", "Jiggle", "Shoulder", "Shift walk", "Repeek" };
+    static readonly string[] namesEs = { "Corta", "Ancha", "Agachado", "Doble", "Jiggle", "Hombro", "Andando", "Repique" };
     static readonly float[] timeouts = { 5f, 5f, 5f, 5f, 8f, 7f, 7f, 8f };
 
     // Difficulty (tier 0 Rookie … 4 Pro). The duel itself (reaction, accuracy) is BotBrain's tier skill; these set
@@ -423,19 +424,29 @@ public sealed class PeekMixMode : BotMode
         return distance;
     }
     public override void OnPlayerDied() { Deaths++; Finish(false, 3); }
-    public override string? Prompt => active ? null : "Hold either edge; the next peek is unpredictable";
+    public override string? Prompt => active ? null : (Loc.Spanish ? "Aguanta cualquiera de los dos bordes; la siguiente asomada es imprevisible" : "Hold either edge; the next peek is unpredictable");
     public override IEnumerable<string> HudLines()
     {
-        yield return $"Won {wins.Sum()}/{attempts.Sum()} | lost {losses.Sum()}";
-        yield return $"HP {G.Player.Hp:0} + shield {G.Player.Shield:0}";
+        bool es = Loc.Spanish;
+        yield return es
+            ? $"Ganadas {wins.Sum()}/{attempts.Sum()} | perdidas {losses.Sum()}"
+            : $"Won {wins.Sum()}/{attempts.Sum()} | lost {losses.Sum()}";
+        yield return es ? $"PV {G.Player.Hp:0} + escudo {G.Player.Shield:0}" : $"HP {G.Player.Hp:0} + shield {G.Player.Shield:0}";
     }
     public override IEnumerable<(string Label, string Value)> ResultLines()
     {
+        bool es = Loc.Spanish;
         for (int i = 0; i < 8; i++)
-            if (attempts[i] > 0) yield return (names[i], $"won {wins[i]}/{attempts[i]}, lost {losses[i]}, unfinished {attempts[i] - wins[i] - losses[i]}");
-        yield return ("Accuracy", $"{Hits}/{Shots} ({Accuracy * 100:0.0}%)");
-        yield return ("Visible head to first hit", firstHitMs.Count > 0 ? $"{Median(firstHitMs):0} ms median ({firstHitMs.Count} hit targets only)" : "No hits");
-        yield return ("Kill to next first hit", transferMs.Count > 0 ? $"{Median(transferMs):0} ms median ({transferMs.Count} transfers)" : "No transfers");
+            if (attempts[i] > 0) yield return (es ? namesEs[i] : names[i], es
+                ? $"ganadas {wins[i]}/{attempts[i]}, perdidas {losses[i]}, sin terminar {attempts[i] - wins[i] - losses[i]}"
+                : $"won {wins[i]}/{attempts[i]}, lost {losses[i]}, unfinished {attempts[i] - wins[i] - losses[i]}");
+        yield return (es ? "Precisión" : "Accuracy", $"{Hits}/{Shots} ({Accuracy * 100:0.0}%)");
+        yield return (es ? "Cabeza visible → primer impacto" : "Visible head to first hit", firstHitMs.Count > 0
+            ? (es ? $"{Median(firstHitMs):0} ms de mediana (solo {firstHitMs.Count} objetivos acertados)" : $"{Median(firstHitMs):0} ms median ({firstHitMs.Count} hit targets only)")
+            : (es ? "Sin aciertos" : "No hits"));
+        yield return (es ? "Baja → siguiente primer impacto" : "Kill to next first hit", transferMs.Count > 0
+            ? (es ? $"{Median(transferMs):0} ms de mediana ({transferMs.Count} transferencias)" : $"{Median(transferMs):0} ms median ({transferMs.Count} transfers)")
+            : (es ? "Sin transferencias" : "No transfers"));
     }
     public override int Badge()
     {

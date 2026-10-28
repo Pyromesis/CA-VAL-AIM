@@ -184,10 +184,12 @@ public partial class RoleHeader : Control
         var col = AgentArt.RoleColor(Role);
         AgentArt.RoleGlyph(this, new Vector2(8 * k, cy), 7.5f * k, Role, col);
         int fs = UiTheme.Fs(14, k), ns = UiTheme.Fs(13, k);
-        string t = Role.ToString().ToUpperInvariant() + "S";
+        string t = AgentRoles.Heading(Role);
         float w = Gfx.TextW(UiTheme.HudWide, t, fs);
         Gfx.Text(this, UiTheme.HudWide, t, 24 * k, Gfx.Mid(cy, fs), fs, UiTheme.Dim);
-        string note = Shown >= 0 && Shown < Count ? $"{Shown} of {Count} agents" : Count == 1 ? "1 agent" : $"{Count} agents";
+        string note = Shown >= 0 && Shown < Count
+            ? Loc.Spanish ? $"{Shown} de {Count} agentes" : $"{Shown} of {Count} agents"
+            : Count == 1 ? (Loc.Spanish ? "1 agente" : "1 agent") : Loc.Spanish ? $"{Count} agentes" : $"{Count} agents";
         float nw = Gfx.TextR(this, UiTheme.Body, note, Size.X, Gfx.Mid(cy, ns), ns, UiTheme.Faint);
         float x0 = 24 * k + w + 14 * k, x1 = Size.X - nw - 14 * k;
         if (x1 > x0) DrawRect(new Rect2(x0, cy, x1 - x0, 1), new Color(UiTheme.Text, 0.08f));
@@ -207,7 +209,9 @@ public partial class RoleChip : BaseButton
         Role = role;
         FocusMode = FocusModeEnum.None;
         MouseDefaultCursorShape = CursorShape.PointingHand;
-        TooltipText = role == null ? "Every agent" : $"Only {role.Value.ToString().ToLowerInvariant()}s";
+        TooltipText = role == null
+            ? (Loc.Spanish ? "Todos los agentes" : "Every agent")
+            : Loc.Spanish ? $"Solo {AgentRoles.NameEs(role.Value)}s" : $"Only {role.Value.ToString().ToLowerInvariant()}s";
     }
 
     public override void _Ready()
@@ -342,7 +346,7 @@ public partial class RoleCard : BaseButton
         this.withSignature = withSignature;
         FocusMode = FocusModeEnum.None;
         MouseDefaultCursorShape = CursorShape.PointingHand;
-        TooltipText = $"Show only the {role.ToString().ToLowerInvariant()}s";
+        TooltipText = Loc.Spanish ? $"Ver solo los {AgentRoles.NameEs(role)}s" : $"Show only the {role.ToString().ToLowerInvariant()}s";
     }
 
     public override void _Ready()
@@ -368,15 +372,18 @@ public partial class RoleCard : BaseButton
 
         AgentArt.RoleGlyph(this, new Vector2(pad + 26 * k, pad + 26 * k), 24 * k, role, col);
         int ts = UiTheme.Fs(40, k);
-        Gfx.Text(this, UiTheme.Light, role.ToString().ToUpperInvariant() + "S", pad + 66 * k, Gfx.Mid(pad + 26 * k, ts), ts, UiTheme.Text);
+        Gfx.Text(this, UiTheme.Light, AgentRoles.Heading(role), pad + 66 * k, Gfx.Mid(pad + 26 * k, ts), ts, UiTheme.Text);
         int cs = UiTheme.Fs(12, k);
-        string count = $"{agents} AGENTS · {withSignature} WITH SIGNATURE DRILLS";
+        string count = Loc.Spanish
+            ? $"{agents} AGENTES · {withSignature} CON EJERCICIOS DE FIRMA"
+            : $"{agents} AGENTS · {withSignature} WITH SIGNATURE DRILLS";
         Gfx.TextFit(this, UiTheme.HudWide, count, pad + 66 * k, pad + 62 * k, cs, col, r.Size.X - pad * 2 - 66 * k);
 
         int ss = UiTheme.Fs(16, k);
         float w = r.Size.X - pad * 2, y = pad + 88 * k;
-        DrawMultilineString(UiTheme.Body, new Vector2(pad, y + UiTheme.Body.GetAscent(ss)), AgentRoles.Summary(role), HorizontalAlignment.Left, w, ss, 2, UiTheme.Text);
-        y += UiTheme.Body.GetMultilineStringSize(AgentRoles.Summary(role), HorizontalAlignment.Left, w, ss, 2).Y + 18 * k;
+        string summary = AgentRoles.Summary(role);
+        DrawMultilineString(UiTheme.Body, new Vector2(pad, y + UiTheme.Body.GetAscent(ss)), summary, HorizontalAlignment.Left, w, ss, 2, UiTheme.Text);
+        y += UiTheme.Body.GetMultilineStringSize(summary, HorizontalAlignment.Left, w, ss, 2).Y + 18 * k;
         int ls = UiTheme.Fs(11, k), ds = UiTheme.Fs(14, k);
         foreach (var (label, text) in sections)
         {
@@ -433,7 +440,9 @@ public partial class AgentsLinkCard : BaseButton
         int ns = UiTheme.Fs(23, k);
         Gfx.TextFit(this, UiTheme.Light, "AGENT TRAINING", pad, Gfx.Mid(24 * k, ns), ns, UiTheme.Text, gx - pad);
         int ds = UiTheme.Fs(13.5f, k);
-        string d = $"All {AgentRoster.All.Length} agents: signature drills with their own utility, role drills and a 10-minute Lock-In.";
+        string d = Loc.Spanish
+            ? $"Los {AgentRoster.All.Length} agentes: ejercicios de firma con su propia utilidad, ejercicios por rol y un Lock-In de 10 minutos."
+            : $"All {AgentRoster.All.Length} agents: signature drills with their own utility, role drills and a 10-minute Lock-In.";
         if (TwoLines)
             DrawMultilineString(UiTheme.Body, new Vector2(pad, 42 * k + UiTheme.Body.GetAscent(ds)), d, HorizontalAlignment.Left, r.Size.X - pad * 2, ds, 2, UiTheme.Dim);
         else

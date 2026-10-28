@@ -82,10 +82,12 @@ public partial class AgentsScreen : ScreenBase
 
         // ---- header: title, tier in effect, map, back ----
         var head = HBox(20 * k);
-        var title = Heading("AGENTS", "SIGNATURE DRILLS WITH EACH AGENT'S OWN UTILITY · ROLE DRILLS · A 10-MINUTE AGENT LOCK-IN");
+        var title = Heading("AGENTS", Loc.Spanish
+            ? "EJERCICIOS DE FIRMA CON LA UTILIDAD DE CADA AGENTE · EJERCICIOS DE ROL · UN LOCK-IN DE AGENTE DE 10 MINUTOS"
+            : "SIGNATURE DRILLS WITH EACH AGENT'S OWN UTILITY · ROLE DRILLS · A 10-MINUTE AGENT LOCK-IN");
         title.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         head.AddChild(title);
-        var tier = new DrawBox { CustomMinimumSize = new Vector2(180 * k, 52 * k), SizeFlagsVertical = SizeFlags.ShrinkCenter, OnDraw = DrawTier };
+        var tier = new DrawBox { CustomMinimumSize = new Vector2(210 * k, 52 * k), SizeFlagsVertical = SizeFlags.ShrinkCenter, OnDraw = DrawTier };
         tier.MouseFilter = MouseFilterEnum.Pass;
         tier.TooltipText = "Drills run at the tier picked on the menu";
         head.AddChild(tier);
@@ -129,7 +131,9 @@ public partial class AgentsScreen : ScreenBase
         var t = Difficulty.Get(Main.I.Tier);
         RankEmblem.Draw(d, new Vector2(15 * k, cy), 14 * k, t.Id);
         int fs = UiTheme.Fs(16, k), ss = UiTheme.Fs(11.5f, k);
-        Gfx.TextFit(d, UiTheme.HudWide, t.Name.ToUpperInvariant() + " TIER", 38 * k, Gfx.Mid(cy - 9 * k, fs), fs, UiTheme.TierColor(t.Id), d.Size.X - 38 * k);
+        string tierName = Loc.T(t.Name).ToUpperInvariant();
+        Gfx.TextFit(d, UiTheme.HudWide, Loc.Spanish ? $"NIVEL · {tierName}" : $"{tierName} TIER",
+            38 * k, Gfx.Mid(cy - 9 * k, fs), fs, UiTheme.TierColor(t.Id), d.Size.X - 38 * k);
         Gfx.TextFit(d, UiTheme.Body, "set on the menu", 38 * k, Gfx.Mid(cy + 11 * k, ss), ss, UiTheme.Faint, d.Size.X - 38 * k);
     }
 
@@ -141,7 +145,9 @@ public partial class AgentsScreen : ScreenBase
         var filter = HBox(6 * k);
         searchBox = new LineEdit
         {
-            Text = search, PlaceholderText = "Search agents, abilities or utility", ClearButtonEnabled = true,
+            Text = search,
+            PlaceholderText = Loc.Spanish ? "Busca agentes, habilidades o utilidad" : "Search agents, abilities or utility",
+            ClearButtonEnabled = true,
             SizeFlagsHorizontal = SizeFlags.ExpandFill, CustomMinimumSize = new Vector2(0, 42 * k),
         };
         StyleSearch(searchBox, k);
@@ -197,10 +203,14 @@ public partial class AgentsScreen : ScreenBase
             OnDraw = d =>
             {
                 int fs = UiTheme.Fs(16, k);
-                Gfx.TextFit(d, UiTheme.Body, $"No agent or ability matches \"{search.Trim()}\"{(roleFilter is { } rf ? $" among the {rf.ToString().ToLowerInvariant()}s" : "")}.",
+                Gfx.TextFit(d, UiTheme.Body,
+                    Loc.Spanish
+                        ? $"Ningún agente o habilidad coincide con \"{search.Trim()}\"{(roleFilter is { } sf ? $" entre los {AgentRoles.NameEs(sf)}s" : "")}."
+                        : $"No agent or ability matches \"{search.Trim()}\"{(roleFilter is { } rf ? $" among the {rf.ToString().ToLowerInvariant()}s" : "")}.",
                     0, Gfx.Mid(20 * k, fs), fs, UiTheme.Dim, d.Size.X);
-                Gfx.TextFit(d, UiTheme.Body, "Try a name (Sova), an ability (Updraft) or what it does (smoke, flash, wall).", 0, Gfx.Mid(46 * k, UiTheme.Fs(14, k)),
-                    UiTheme.Fs(14, k), UiTheme.Faint, d.Size.X);
+                Gfx.TextFit(d, UiTheme.Body,
+                    Loc.Spanish ? "Prueba un nombre (Sova), una habilidad (Updraft) o lo que hace (humo, destello, muro)." : "Try a name (Sova), an ability (Updraft) or what it does (smoke, flash, wall).",
+                    0, Gfx.Mid(46 * k, UiTheme.Fs(14, k)), UiTheme.Fs(14, k), UiTheme.Faint, d.Size.X);
             },
         };
         roster.AddChild(none);
@@ -230,8 +240,9 @@ public partial class AgentsScreen : ScreenBase
             d.DrawRect(new Rect2(4 * k, y + 9 * k, 7 * k, 2 * k), UiTheme.Accent);
             Gfx.Text(d, UiTheme.HudWide, h, 16 * k, Gfx.Mid(y + 10 * k, hs), hs, UiTheme.Text);
             float x = 16 * k + hw + 12 * k;
-            d.DrawMultilineString(UiTheme.Body, new Vector2(x, y + 10 * k + ts * 0.36f), t, HorizontalAlignment.Left, d.Size.X - x, ts, 2, UiTheme.Dim);
-            float lines = UiTheme.Body.GetMultilineStringSize(t, HorizontalAlignment.Left, d.Size.X - x, ts, 2).Y;
+            string text = Loc.T(t);
+            d.DrawMultilineString(UiTheme.Body, new Vector2(x, y + 10 * k + ts * 0.36f), text, HorizontalAlignment.Left, d.Size.X - x, ts, 2, UiTheme.Dim);
+            float lines = UiTheme.Body.GetMultilineStringSize(text, HorizontalAlignment.Left, d.Size.X - x, ts, 2).Y;
             y += Mathf.Max(24 * k, lines) + 12 * k;
         }
     }
@@ -342,8 +353,11 @@ public partial class AgentsScreen : ScreenBase
                 int ts = UiTheme.Fs(56, k), ss = UiTheme.Fs(17, k);
                 Gfx.Text(d, UiTheme.Display, "CHOOSE AN AGENT", 0, 54 * k, ts, UiTheme.Text);
                 d.DrawMultilineString(UiTheme.Body, new Vector2(0, 76 * k + UiTheme.Body.GetAscent(ss)),
-                    "Every agent has a page: what each ability does and which drill trains it, signature drills played with that agent's utility, " +
-                    "the drills for the role, and a 10-minute Lock-In. Pick a role below to filter the list.",
+                    Loc.Spanish
+                        ? "Cada agente tiene su página: qué hace cada habilidad y qué ejercicio la entrena, ejercicios de firma con la utilidad de ese agente, " +
+                          "los ejercicios del rol y un Lock-In de 10 minutos. Elige un rol abajo para filtrar la lista."
+                        : "Every agent has a page: what each ability does and which drill trains it, signature drills played with that agent's utility, " +
+                          "the drills for the role, and a 10-minute Lock-In. Pick a role below to filter the list.",
                     HorizontalAlignment.Left, d.Size.X, ss, 2, UiTheme.Dim);
             },
         });
@@ -356,8 +370,9 @@ public partial class AgentsScreen : ScreenBase
             var agents = AgentRoster.OfRole(r).ToList();
             int withSig = agents.Count(a => AgentDrills.Signature(a).Count > 0);
             string names = string.Join(" · ", agents.Select(a => a.Name));
-            var sigDrills = agents.SelectMany(AgentDrills.Signature).GroupBy(AgentDrills.Base).Select(g => AgentDrills.Name(g.First())).Distinct().ToList();
-            string drills = string.Join(" · ", AgentRoles.Drills(r).Where(AgentDrills.Exists).Select(AgentDrills.Name));
+            var sigDrills = agents.SelectMany(AgentDrills.Signature).GroupBy(AgentDrills.Base)
+                .Select(g => Loc.T(AgentDrills.Name(g.First()))).Distinct().ToList();
+            string drills = string.Join(" · ", AgentRoles.Drills(r).Where(AgentDrills.Exists).Select(k => Loc.T(AgentDrills.Name(k))));
             var sections = new List<(string, string)> { ("AGENTS", names) };
             if (sigDrills.Count > 0) sections.Add(("SIGNATURE DRILLS", string.Join(" · ", sigDrills)));
             sections.Add(("ROLE DRILLS", drills));
@@ -401,12 +416,21 @@ public partial class AgentsScreen : ScreenBase
         var drills = new VPanel
         {
             Title = "DRILLS", K = k, SizeFlagsHorizontal = SizeFlags.ExpandFill, SizeFlagsStretchRatio = 1.55f,
-            Caption = sig.Count > 0 ? $"{sig.Count} signature · {role.Count} {a.Role.ToString().ToLowerInvariant()}" : $"{role.Count} {a.Role.ToString().ToLowerInvariant()} drills",
+            Caption = Loc.Spanish
+                ? sig.Count > 0 ? $"{sig.Count} de firma · {role.Count} de {AgentRoles.NameEs(a.Role)}" : $"{role.Count} ejercicios de {AgentRoles.NameEs(a.Role)}"
+                : sig.Count > 0 ? $"{sig.Count} signature · {role.Count} {a.Role.ToString().ToLowerInvariant()}" : $"{role.Count} {a.Role.ToString().ToLowerInvariant()} drills",
         };
         row.AddChild(drills);
         var dv = VBox(8 * k);
         drills.AddChild(dv);
-        dv.AddChild(new SectionLabel { Text = "SIGNATURE", Note = sig.Count > 0 ? $"with {a.Name}'s own utility" : "none yet", K = k });
+        dv.AddChild(new SectionLabel
+        {
+            Text = "SIGNATURE",
+            Note = sig.Count > 0
+                ? Loc.Spanish ? $"con la utilidad de {a.Name}" : $"with {a.Name}'s own utility"
+                : Loc.Spanish ? "aún ninguno" : "none yet",
+            K = k,
+        });
         if (sig.Count > 0) dv.AddChild(CardGrid(sig, a, true));
         else
             dv.AddChild(new DrawBox
@@ -417,12 +441,22 @@ public partial class AgentsScreen : ScreenBase
                     Mn.Card(d, new Rect2(Vector2.Zero, d.Size), k);
                     int fs = UiTheme.Fs(15, k), ss = UiTheme.Fs(13.5f, k);
                     d.DrawRect(new Rect2(16 * k, 24 * k - 1 * k, 7 * k, 2 * k), new Color(UiTheme.Teal, 0.8f));
-                    Gfx.TextFit(d, UiTheme.Body, $"No signature drill for {a.Name} yet.", 32 * k, Gfx.Mid(24 * k, fs), fs, UiTheme.Text, d.Size.X - 48 * k);
-                    Gfx.TextFit(d, UiTheme.Body, $"The {a.Role.ToString().ToLowerInvariant()} drills below train the fights that {a.Name}'s utility sets up.",
+                    Gfx.TextFit(d, UiTheme.Body,
+                        Loc.Spanish ? $"Aún no hay ejercicio de firma para {a.Name}." : $"No signature drill for {a.Name} yet.",
+                        32 * k, Gfx.Mid(24 * k, fs), fs, UiTheme.Text, d.Size.X - 48 * k);
+                    Gfx.TextFit(d, UiTheme.Body,
+                        Loc.Spanish
+                            ? $"Los ejercicios de {AgentRoles.NameEs(a.Role)} de abajo entrenan los duelos que prepara la utilidad de {a.Name}."
+                            : $"The {a.Role.ToString().ToLowerInvariant()} drills below train the fights that {a.Name}'s utility sets up.",
                         16 * k, Gfx.Mid(48 * k, ss), ss, UiTheme.Dim, d.Size.X - 32 * k);
                 },
             });
-        dv.AddChild(new SectionLabel { Text = $"ROLE · {a.Role.ToString().ToUpperInvariant()}", Note = "general drills for the role", K = k });
+        dv.AddChild(new SectionLabel
+        {
+            Text = Loc.Spanish ? $"ROL · {AgentRoles.NameEs(a.Role).ToUpperInvariant()}" : $"ROLE · {a.Role.ToString().ToUpperInvariant()}",
+            Note = Loc.Spanish ? "ejercicios generales del rol" : "general drills for the role",
+            K = k,
+        });
         dv.AddChild(CardGrid(role, a, false));
 
         var wu = new VPanel { Title = "AGENT LOCK-IN", K = k, SizeFlagsHorizontal = SizeFlags.ExpandFill, SizeFlagsStretchRatio = 1f };
@@ -461,7 +495,9 @@ public partial class AgentsScreen : ScreenBase
     {
         float k = K;
         var plan = AgentRoutines.Plan(a);
-        wu.Caption = $"≈{WarmupPlan.Minutes(plan.EstimatedSeconds).ToLowerInvariant()} · {plan.Steps.Count} drills";
+        wu.Caption = Loc.Spanish
+            ? $"≈{WarmupPlan.Minutes(plan.EstimatedSeconds).ToLowerInvariant()} · {plan.Steps.Count} ejercicios"
+            : $"≈{WarmupPlan.Minutes(plan.EstimatedSeconds).ToLowerInvariant()} · {plan.Steps.Count} drills";
         var v = VBox(10 * k);
         wu.AddChild(v);
         v.AddChild(new DrawBox
@@ -470,7 +506,9 @@ public partial class AgentsScreen : ScreenBase
             OnDraw = d =>
             {
                 int fs = UiTheme.Fs(14, k);
-                string text = plan.Preset.Blurb + ". Every drill is at your real sens and runs at its normal length except the deathmatch.";
+                string text = Loc.Spanish
+                    ? $"{WarmupPresets.BlurbOf(plan.Preset)}. Cada ejercicio va a tu sensibilidad real y dura lo normal salvo el deathmatch."
+                    : $"{plan.Preset.Blurb}. Every drill is at your real sens and runs at its normal length except the deathmatch.";
                 d.DrawMultilineString(UiTheme.Body, new Vector2(0, UiTheme.Body.GetAscent(fs)), text, HorizontalAlignment.Left, d.Size.X, fs, 2, UiTheme.Dim);
             },
         });
@@ -483,12 +521,17 @@ public partial class AgentsScreen : ScreenBase
             {
                 int fs = UiTheme.Fs(12, k), ns = UiTheme.Fs(13, k);
                 Gfx.Text(d, UiTheme.HudWide, "SAME LOCK-IN", 0, Gfx.Mid(10 * k, fs), fs, UiTheme.Dim);
-                Gfx.TextFit(d, UiTheme.Body, "Check-in first, your goal and cue at the end.", 0, Gfx.Mid(32 * k, ns), ns, UiTheme.Faint, d.Size.X);
+                Gfx.TextFit(d, UiTheme.Body,
+                    Loc.Spanish ? "Primero el chequeo; tu objetivo y tu consigna al final." : "Check-in first, your goal and cue at the end.",
+                    0, Gfx.Mid(32 * k, ns), ns, UiTheme.Faint, d.Size.X);
             },
         });
 
-        var start = Btn($"LOCK IN AS {a.Name.ToUpperInvariant()}", VButton.Look.Primary, () => AgentRoutines.Start(a), 0, 56, 21);
-        start.TooltipText = $"{plan.Preset.Blurb} · the same check-in, cards and hand-off as LOCK IN on the menu";
+        var start = Btn(Loc.Spanish ? $"LOCK-IN COMO {a.Name.ToUpperInvariant()}" : $"LOCK IN AS {a.Name.ToUpperInvariant()}",
+            VButton.Look.Primary, () => AgentRoutines.Start(a), 0, 56, 21);
+        start.TooltipText = Loc.Spanish
+            ? $"{WarmupPresets.BlurbOf(plan.Preset)} · el mismo chequeo, tarjetas y cierre que el LOCK-IN del menú"
+            : $"{plan.Preset.Blurb} · the same check-in, cards and hand-off as LOCK IN on the menu";
         v.AddChild(start);
     }
 

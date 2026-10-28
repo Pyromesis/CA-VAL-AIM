@@ -1,4 +1,5 @@
 using Godot;
+using ValTrainer.Core;
 using ValTrainer.UI;
 
 namespace ValTrainer.Modes;
@@ -43,29 +44,46 @@ public sealed partial class SensFinderMode
         float x = r.Position.X + 48 * k, y = r.Position.Y + 92 * k, w = pw - 96 * k;
         Gfx.Text(c, UiTheme.Display, "SENS FINDER", x, y, UiTheme.Fs(64, k), UiTheme.Text);
         y += 36 * k;
-        Gfx.Text(c, UiTheme.HudWide, $"BLIND A/B TEST · ABOUT {Mathf.Max(1, Mathf.RoundToInt(cfg.EstimatedMinutes))} MINUTES", x, y, UiTheme.Fs(14, k), UiTheme.Dim);
+        int mins = Mathf.Max(1, Mathf.RoundToInt(cfg.EstimatedMinutes));
+        Gfx.Text(c, UiTheme.HudWide, Loc.Spanish
+            ? $"PRUEBA A CIEGAS A/B · UNOS {mins} MINUTOS"
+            : $"BLIND A/B TEST · ABOUT {mins} MINUTES", x, y, UiTheme.Fs(14, k), UiTheme.Dim);
         y += 50 * k;
         int fs = UiTheme.Fs(21, k);
-        string[] lines =
-        {
-            "Finds the sensitivity you actually aim best with, not the one that feels best.",
-            $"You'll play short rounds with two hidden settings, A and B. Each round: {cfg.FlicksPerBlock} head flicks",
-            $"(click the head), then {cfg.TrackSec:0} s of tracking (keep your crosshair on the strafing target).",
-            "Don't try to work out which setting is which. Just aim as well as you can.",
-            $"{cfg.Steps} steps of {cfg.BlocksPerStage} rounds narrow it down, then a final check against your current sens.",
-            "The numbers are revealed at the end. Esc pauses; the current round is then replayed.",
-        };
+        string[] lines = Loc.Spanish
+            ? new[]
+            {
+                "Encuentra la sensibilidad con la que de verdad apuntas mejor, no la que más te gusta.",
+                $"Jugarás rondas cortas con dos ajustes ocultos, A y B. En cada ronda: {cfg.FlicksPerBlock} flicks a la cabeza",
+                $"(haz clic en la cabeza) y luego {cfg.TrackSec:0} s de seguimiento (mantén la mira en el objetivo que se mueve).",
+                "No intentes averiguar qué ajuste es cuál. Solo apunta lo mejor que puedas.",
+                $"{cfg.Steps} pasos de {cfg.BlocksPerStage} rondas lo acotan y al final hay una comprobación contra tu sensibilidad actual.",
+                "Los números se revelan al final. Esc pausa; la ronda actual se repite después.",
+            }
+            : new[]
+            {
+                "Finds the sensitivity you actually aim best with, not the one that feels best.",
+                $"You'll play short rounds with two hidden settings, A and B. Each round: {cfg.FlicksPerBlock} head flicks",
+                $"(click the head), then {cfg.TrackSec:0} s of tracking (keep your crosshair on the strafing target).",
+                "Don't try to work out which setting is which. Just aim as well as you can.",
+                $"{cfg.Steps} steps of {cfg.BlocksPerStage} rounds narrow it down, then a final check against your current sens.",
+                "The numbers are revealed at the end. Esc pauses; the current round is then replayed.",
+            };
         foreach (var l in lines)
         {
             Gfx.TextFit(c, UiTheme.Body, l, x, y, fs, UiTheme.Text, w);
             y += 36 * k;
         }
         y += 14 * k;
-        Gfx.Text(c, UiTheme.Body, $"Starting from your current sens {current:0.000} ({Cm(current):0.0} cm/360 at {dpi} DPI).", x, y, UiTheme.Fs(17, k), UiTheme.Dim);
+        Gfx.Text(c, UiTheme.Body,
+            Loc.Spanish
+                ? $"Empiezas desde tu sensibilidad actual {current:0.000} ({Cm(current):0.0} cm/360 a {dpi} DPI)."
+                : $"Starting from your current sens {current:0.000} ({Cm(current):0.0} cm/360 at {dpi} DPI).",
+            x, y, UiTheme.Fs(17, k), UiTheme.Dim);
         if (phaseT > 2f)
         {
             float a = 0.55f + 0.45f * Mathf.Sin(RealNow * 4f);
-            Gfx.TextC(c, UiTheme.HudWide, "CLICK TO START", r.GetCenter().X, r.End.Y - 34 * k, UiTheme.Fs(20, k), new Color(UiTheme.Accent, a));
+            Gfx.TextC(c, UiTheme.HudWide, Loc.Spanish ? "HAZ CLIC PARA EMPEZAR" : "CLICK TO START", r.GetCenter().X, r.End.Y - 34 * k, UiTheme.Fs(20, k), new Color(UiTheme.Accent, a));
         }
     }
 
@@ -76,12 +94,17 @@ public sealed partial class SensFinderMode
         char label = block!.Label;
         var col = label == 'A' ? ColA : ColB;
         float cx = size.X / 2, cy = size.Y * 0.42f;
-        Gfx.TextC(c, UiTheme.HudWide, "NEXT ROUND", cx, cy - 150 * k, UiTheme.Fs(18, k), UiTheme.Dim);
-        Gfx.TextC(c, UiTheme.Display, $"SETTING {label}", cx, cy + 40 * k, UiTheme.Fs(150, k), col);
-        string sub = st.Confirm ? $"FINAL CHECK · ROUND {blockIdx + 1} / {st.Order.Length}"
-            : $"STEP {st.Step + 1} / {cfg.Steps} · ROUND {blockIdx + 1} / {st.Order.Length}";
+        Gfx.TextC(c, UiTheme.HudWide, Loc.Spanish ? "SIGUIENTE RONDA" : "NEXT ROUND", cx, cy - 150 * k, UiTheme.Fs(18, k), UiTheme.Dim);
+        Gfx.TextC(c, UiTheme.Display, Loc.Spanish ? $"AJUSTE {label}" : $"SETTING {label}", cx, cy + 40 * k, UiTheme.Fs(150, k), col);
+        string sub = st.Confirm
+            ? Loc.Spanish ? $"COMPROBACIÓN FINAL · RONDA {blockIdx + 1} / {st.Order.Length}" : $"FINAL CHECK · ROUND {blockIdx + 1} / {st.Order.Length}"
+            : Loc.Spanish ? $"PASO {st.Step + 1} / {cfg.Steps} · RONDA {blockIdx + 1} / {st.Order.Length}" : $"STEP {st.Step + 1} / {cfg.Steps} · ROUND {blockIdx + 1} / {st.Order.Length}";
         Gfx.TextC(c, UiTheme.HudWide, sub, cx, cy + 100 * k, UiTheme.Fs(18, k), UiTheme.Text);
-        Gfx.TextC(c, UiTheme.Body, $"{cfg.FlicksPerBlock} flicks, then {cfg.TrackSec:0} s tracking. Move your mouse to get a feel for it.", cx, cy + 140 * k, UiTheme.Fs(19, k), UiTheme.Dim);
+        Gfx.TextC(c, UiTheme.Body,
+            Loc.Spanish
+                ? $"{cfg.FlicksPerBlock} flicks y luego {cfg.TrackSec:0} s de seguimiento. Mueve el ratón para cogerle el tacto."
+                : $"{cfg.FlicksPerBlock} flicks, then {cfg.TrackSec:0} s tracking. Move your mouse to get a feel for it.",
+            cx, cy + 140 * k, UiTheme.Fs(19, k), UiTheme.Dim);
         float left = Mathf.Max(0, cfg.RestSec - phaseT);
         float bw = 360 * k, by = cy + 178 * k;
         c.DrawRect(new Rect2(cx - bw / 2, by, bw, 4 * k), new Color(1, 1, 1, 0.12f));
@@ -106,13 +129,17 @@ public sealed partial class SensFinderMode
 
         // header
         int hs = UiTheme.Fs(13, k);
-        string tagText = aborted ? "ABORTED" : "SENS FINDER RESULT";
+        string tagText = aborted ? (Loc.Spanish ? "ABORTADO" : "ABORTED") : Loc.Spanish ? "RESULTADO DEL BUSCADOR" : "SENS FINDER RESULT";
         var tag = new Rect2(x0, y + 30 * k, Gfx.TextW(UiTheme.HudWide, tagText, hs) + 18 * k, 22 * k);
         c.DrawRect(tag, aborted ? UiTheme.Warn : UiTheme.Accent);
         Gfx.Text(c, UiTheme.HudWide, tagText, tag.Position.X + 9 * k, Gfx.Mid(tag.GetCenter().Y, hs), hs, aborted ? Colors.Black : UiTheme.Text);
-        string title = aborted ? (KeepSens ? $"KEEP {current:0.000} FOR NOW" : $"PROVISIONAL {rec:0.000}: KEEP {current:0.000} FOR NOW")
-            : KeepSens ? $"KEEP YOUR SENSITIVITY: {rec:0.000}"
-            : $"SET VALORANT SENSITIVITY TO {rec:0.000}  (WAS {current:0.000})";
+        string title = aborted
+            ? (KeepSens
+                ? Loc.Spanish ? $"CONSERVA {current:0.000} POR AHORA" : $"KEEP {current:0.000} FOR NOW"
+                : Loc.Spanish ? $"PROVISIONAL {rec:0.000}: CONSERVA {current:0.000} POR AHORA" : $"PROVISIONAL {rec:0.000}: KEEP {current:0.000} FOR NOW")
+            : KeepSens
+                ? Loc.Spanish ? $"CONSERVA TU SENSIBILIDAD: {rec:0.000}" : $"KEEP YOUR SENSITIVITY: {rec:0.000}"
+                : Loc.Spanish ? $"PON LA SENSIBILIDAD DE VALORANT EN {rec:0.000}  (ANTES {current:0.000})" : $"SET VALORANT SENSITIVITY TO {rec:0.000}  (WAS {current:0.000})";
         Gfx.TextFit(c, UiTheme.Display, title, x0, y + 100 * k, UiTheme.Fs(52, k), UiTheme.Text, x1 - x0);
         c.DrawRect(new Rect2(x0, y + 122 * k, x1 - x0, 1), new Color(UiTheme.Text, 0.1f));
 
@@ -127,16 +154,22 @@ public sealed partial class SensFinderMode
         c.DrawRect(new Rect2(x0, ny - 22 * k, x1 - x0, 1), new Color(UiTheme.Text, 0.1f));
         int ns = UiTheme.Fs(18, k);
         string n1 = aborted ? abortWhy
-            : "VALORANT isn't changed automatically: set it yourself in VALORANT › Settings › General › Mouse › Sensitivity: Aim.";
+            : Loc.Spanish
+                ? "VALORANT no se cambia solo: ponla tú en VALORANT › Ajustes › General › Ratón › Sensibilidad: apuntado."
+                : "VALORANT isn't changed automatically: set it yourself in VALORANT › Settings › General › Mouse › Sensitivity: Aim.";
         Gfx.TextFit(c, UiTheme.Body, n1, x0, ny, ns, aborted ? UiTheme.Warn : UiTheme.Text, x1 - x0);
         string n2 = atLimit
-            ? $"Every step pointed {(lastDir < 0 ? "lower" : "higher")}: your best may be beyond one run's reach (±50%). Use this for a few days, then run the finder again."
-            : "Run the Sens Finder again on another day. If both runs agree within 10%, use the average of the two.";
+            ? Loc.Spanish
+                ? $"Cada paso apuntó {(lastDir < 0 ? "más bajo" : "más alto")}: tu mejor valor puede quedar fuera del alcance de una prueba (±50%). Úsala unos días y repite el buscador."
+                : $"Every step pointed {(lastDir < 0 ? "lower" : "higher")}: your best may be beyond one run's reach (±50%). Use this for a few days, then run the finder again."
+            : Loc.Spanish
+                ? "Repite el Buscador otro día. Si las dos pruebas coinciden dentro del 10%, usa la media de las dos."
+                : "Run the Sens Finder again on another day. If both runs agree within 10%, use the average of the two.";
         Gfx.TextFit(c, UiTheme.Body, n2, x0, ny + 30 * k, ns, atLimit ? UiTheme.Warn : UiTheme.Dim, x1 - x0);
         if (phaseT > 3f)
         {
             float a = 0.55f + 0.45f * Mathf.Sin(RealNow * 4f);
-            Gfx.TextC(c, UiTheme.HudWide, "CLICK TO CONTINUE", r.GetCenter().X, r.End.Y - 26 * k, UiTheme.Fs(18, k), new Color(UiTheme.Accent, a));
+            Gfx.TextC(c, UiTheme.HudWide, Loc.Spanish ? "HAZ CLIC PARA CONTINUAR" : "CLICK TO CONTINUE", r.GetCenter().X, r.End.Y - 26 * k, UiTheme.Fs(18, k), new Color(UiTheme.Accent, a));
         }
     }
 
@@ -151,22 +184,36 @@ public sealed partial class SensFinderMode
             Gfx.TextFit(c, UiTheme.Body, sub, x, y + 74 * k, ss, UiTheme.Dim, w);
             y += 92 * k;
         }
-        Row("VALORANT SENSITIVITY", rec.ToString("0.000", Inv), $"was {current.ToString("0.000", Inv)}", aborted ? UiTheme.Warn : UiTheme.Text);
-        Row("EDPI · CM/360", $"{rec * dpi:0} · {Cm(rec):0.0} cm", $"was {current * dpi:0} · {Cm(current):0.0} cm  ({dpi} DPI)", UiTheme.Text);
-        Row("CHANGE", $"{ChangePct:+0.0;-0.0}%", KeepSens ? "within 2%: keep your sens" : ChangePct < 0 ? "lower sens (more arm)" : "higher sens (less arm)",
+        bool es = Loc.Spanish;
+        Row(es ? "SENSIBILIDAD VALORANT" : "VALORANT SENSITIVITY", rec.ToString("0.000", Inv), es ? $"antes {current.ToString("0.000", Inv)}" : $"was {current.ToString("0.000", Inv)}", aborted ? UiTheme.Warn : UiTheme.Text);
+        Row("EDPI · CM/360", $"{rec * dpi:0} · {Cm(rec):0.0} cm", es ? $"antes {current * dpi:0} · {Cm(current):0.0} cm  ({dpi} DPI)" : $"was {current * dpi:0} · {Cm(current):0.0} cm  ({dpi} DPI)", UiTheme.Text);
+        Row(es ? "CAMBIO" : "CHANGE", $"{ChangePct:+0.0;-0.0}%", KeepSens
+                ? (es ? "dentro del 2%: conserva tu sensibilidad" : "within 2%: keep your sens")
+                : ChangePct < 0
+                    ? (es ? "sensibilidad más baja (más brazo)" : "lower sens (more arm)")
+                    : (es ? "sensibilidad más alta (menos brazo)" : "higher sens (less arm)"),
             KeepSens ? UiTheme.Good : UiTheme.Text);
         var cc = confidence == "High" ? UiTheme.Good : confidence == "Medium" ? UiTheme.Warn : UiTheme.Accent;
-        Row("CONFIDENCE", confidence.ToUpperInvariant(), confidenceWhy, cc);
+        string confLabel = es
+            ? confidence switch { "High" => "ALTA", "Medium" => "MEDIA", _ => "BAJA" }
+            : confidence.ToUpperInvariant();
+        Row(es ? "CONFIANZA" : "CONFIDENCE", confLabel, confidenceWhy, cc);
         float proCm = SfUnits.Cm360(240f / dpi, dpi);
-        string cmp = rec * dpi > 240 * 1.05f ? "faster than the pro median" : rec * dpi < 240 / 1.05f ? "slower than the pro median" : "right at the pro median";
-        Row("PRO MEDIAN", $"eDPI 240 · {proCm:0} cm", $"yours is {cmp} (pros: 150–400 eDPI)", UiTheme.Text);
+        string cmp = rec * dpi > 240 * 1.05f
+            ? (es ? "más rápida que la mediana pro" : "faster than the pro median")
+            : rec * dpi < 240 / 1.05f
+                ? (es ? "más lenta que la mediana pro" : "slower than the pro median")
+                : (es ? "justo en la mediana pro" : "right at the pro median");
+        Row(es ? "MEDIANA PRO" : "PRO MEDIAN", $"eDPI 240 · {proCm:0} cm",
+            es ? $"la tuya es {cmp} (pros: 150-400 eDPI)" : $"yours is {cmp} (pros: 150–400 eDPI)", UiTheme.Text);
     }
 
     void DrawFunnel(CanvasItem c, Rect2 r, float k)
     {
         var rows = stages.Where(s => s.Result != null).ToList();
         int ls = UiTheme.Fs(12, k), ts = UiTheme.Fs(15, k);
-        Gfx.Text(c, UiTheme.HudWide, "WHAT WON EACH STEP (HIGHER SENS →)", r.Position.X, r.Position.Y + 12 * k, ls, UiTheme.Dim);
+        bool es = Loc.Spanish;
+        Gfx.Text(c, UiTheme.HudWide, es ? "QUÉ GANÓ CADA PASO (SENS MÁS ALTA →)" : "WHAT WON EACH STEP (HIGHER SENS →)", r.Position.X, r.Position.Y + 12 * k, ls, UiTheme.Dim);
         if (rows.Count == 0) return;
 
         // log-sens axis over everything tested
@@ -190,7 +237,7 @@ public sealed partial class SensFinderMode
             var s = rows[i];
             float cy = top + rowH * (i + 0.5f);
             if (i % 2 == 0) c.DrawRect(new Rect2(r.Position.X, cy - rowH / 2, r.Size.X, rowH), new Color(1, 1, 1, 0.025f));
-            string name = s.Confirm ? "CHECK" : $"STEP {s.Step + 1} ±{(s.HalfWidth - 1) * 100:0}%";
+            string name = s.Confirm ? (es ? "COMPROB." : "CHECK") : es ? $"PASO {s.Step + 1} ±{(s.HalfWidth - 1) * 100:0}%" : $"STEP {s.Step + 1} ±{(s.HalfWidth - 1) * 100:0}%";
             Gfx.Text(c, UiTheme.HudWide, name, r.Position.X + 8 * k, Gfx.Mid(cy, ls), ls, UiTheme.Text);
             float xa = X(s.Sens[0]), xb = X(s.Sens[1]);
             c.DrawLine(new Vector2(Mathf.Min(xa, xb), cy), new Vector2(Mathf.Max(xa, xb), cy), new Color(UiTheme.Text, 0.25f), Mathf.Max(1, 2 * k));
@@ -215,15 +262,22 @@ public sealed partial class SensFinderMode
                 bool w = win == cnd;
                 if (w) { c.DrawCircle(p, 9 * k, UiTheme.Good); c.DrawArc(p, 9 * k, 0, Mathf.Tau, 24, new Color(1, 1, 1, 0.8f), Mathf.Max(1, 1.5f * k), true); }
                 else c.DrawArc(p, 6.5f * k, 0, Mathf.Tau, 24, win < 0 ? UiTheme.Warn : UiTheme.Faint, Mathf.Max(1, 2 * k), true);
-                string lbl = s.Confirm ? (cnd == 0 ? "new" : "current") : s.Sens[cnd].ToString("0.00", Inv);
+                string lbl = s.Confirm ? (cnd == 0 ? (es ? "nueva" : "new") : (es ? "actual" : "current")) : s.Sens[cnd].ToString("0.00", Inv);
                 Gfx.TextC(c, UiTheme.Body, lbl, p.X, cy - 13 * k, UiTheme.Fs(13, k), w ? UiTheme.Text : UiTheme.Dim);
             }
-            string verdict = s.Confirm ? (win == 0 ? $"NEW HOLDS {t:+0.0;-0.0}σ" : $"SPLIT {t:+0.0;-0.0}σ")
-                : win == 0 ? $"LOWER {t:+0.0;-0.0}σ" : win == 1 ? $"HIGHER {t:+0.0;-0.0}σ" : $"TIE {t:+0.0;-0.0}σ";
+            string verdict = s.Confirm
+                ? win == 0 ? (es ? $"LA NUEVA AGUANTA {t:+0.0;-0.0}σ" : $"NEW HOLDS {t:+0.0;-0.0}σ")
+                           : (es ? $"EMPATE {t:+0.0;-0.0}σ" : $"SPLIT {t:+0.0;-0.0}σ")
+                : win == 0 ? (es ? $"MÁS BAJA {t:+0.0;-0.0}σ" : $"LOWER {t:+0.0;-0.0}σ")
+                : win == 1 ? (es ? $"MÁS ALTA {t:+0.0;-0.0}σ" : $"HIGHER {t:+0.0;-0.0}σ")
+                : (es ? $"IGUAL {t:+0.0;-0.0}σ" : $"TIE {t:+0.0;-0.0}σ");
             var vc = win < 0 || (s.Confirm && win == 1) ? UiTheme.Warn : UiTheme.Good;
             Gfx.TextR(c, UiTheme.HudWide, verdict, r.End.X - 8 * k, Gfx.Mid(cy - 8 * k, ts), ts, vc);
             var res = s.Result;
-            Gfx.TextR(c, UiTheme.Body, $"flicks {res.DFlick:+0.00;-0.00} · micro {res.DMicro:+0.00;-0.00} · tracking {res.DTrack:+0.00;-0.00}", r.End.X - 8 * k, Gfx.Mid(cy + 12 * k, UiTheme.Fs(12, k)),
+            Gfx.TextR(c, UiTheme.Body,
+                es ? $"flicks {res.DFlick:+0.00;-0.00} · micro {res.DMicro:+0.00;-0.00} · seguimiento {res.DTrack:+0.00;-0.00}"
+                   : $"flicks {res.DFlick:+0.00;-0.00} · micro {res.DMicro:+0.00;-0.00} · tracking {res.DTrack:+0.00;-0.00}",
+                r.End.X - 8 * k, Gfx.Mid(cy + 12 * k, UiTheme.Fs(12, k)),
                 UiTheme.Fs(12, k), UiTheme.Faint);
         }
 
@@ -238,7 +292,7 @@ public sealed partial class SensFinderMode
             Gfx.TextC(c, UiTheme.Body, s.ToString("0.000", Inv), xx, ay + 22 * k, UiTheme.Fs(13, k), UiTheme.Dim);
             Gfx.TextC(c, UiTheme.Body, $"{Cm(s):0} cm", xx, ay + 40 * k, UiTheme.Fs(12, k), UiTheme.Faint);
         }
-        Gfx.TextC(c, UiTheme.HudWide, "CURRENT", xs, top - 14 * k, UiTheme.Fs(11, k), UiTheme.Dim);
-        Gfx.TextC(c, UiTheme.HudWide, "RECOMMENDED", xr, Mathf.Abs(xr - xs) < 90 * k ? top - 28 * k : top - 14 * k, UiTheme.Fs(11, k), UiTheme.Accent);
+        Gfx.TextC(c, UiTheme.HudWide, es ? "ACTUAL" : "CURRENT", xs, top - 14 * k, UiTheme.Fs(11, k), UiTheme.Dim);
+        Gfx.TextC(c, UiTheme.HudWide, es ? "RECOMENDADA" : "RECOMMENDED", xr, Mathf.Abs(xr - xs) < 90 * k ? top - 28 * k : top - 14 * k, UiTheme.Fs(11, k), UiTheme.Accent);
     }
 }

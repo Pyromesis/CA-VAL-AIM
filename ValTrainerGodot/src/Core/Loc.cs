@@ -35,6 +35,11 @@ public static class Loc
         return new string(a);
     }
 
+    static readonly string[] MonthsEs = { "ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic" };
+
+    /// <summary>Three-letter month in the selected language ("Oct" / "oct"). Dates keep the app's invariant layout.</summary>
+    public static string MonthShort(DateTime d) => Spanish ? MonthsEs[d.Month - 1] : d.ToString("MMM", CultureInfo.InvariantCulture);
+
     public static string Normalize(string? lang) => string.Equals(lang, "es", StringComparison.OrdinalIgnoreCase) ? "es" : "en";
 
     public static void SetLanguage(string? lang)
@@ -114,7 +119,10 @@ public static class Loc
         // run the English phrase table over it: words like "en" or "con" also exist as English keys and
         // would otherwise be swapped inside an already-Spanish sentence.
         if (LooksSpanish(s)) return s;
-        string r = PhraseRegex.Replace(s, m =>
+        var verbatim = new List<string>();
+        string work = ProtectVerbatim(s, verbatim);
+        if (!FullyCovered(work)) return s; // half-English is worse than English: exact entries handle these
+        string r = PhraseRegex.Replace(work, m =>
         {
             string key = m.Value;
             if (!Phrases.TryGetValue(key, out var val)) return key;
@@ -122,8 +130,53 @@ public static class Loc
             if (char.IsUpper(key[0]) && key.Skip(1).All(c => !char.IsLetter(c) || char.IsLower(c))) return char.ToUpperInvariant(val[0]) + val[1..];
             return val;
         });
-        return r;
+        return UnprotectVerbatim(r, verbatim);
     }
+
+    /// <summary>
+    /// True when every word of <paramref name="s"/> is part of a known phrase: the word-by-word fallback must never
+    /// leave "risky swing" or "locked en" in the middle of a sentence. Words that no entry covers abort the fallback
+    /// (the caller then keeps the English text until an exact translation exists).
+    /// </summary>
+    static bool FullyCovered(string s)
+    {
+        var covered = new bool[s.Length];
+        foreach (Match m in PhraseRegex.Matches(s))
+            for (int i = m.Index; i < m.Index + m.Length; i++) covered[i] = true;
+        foreach (Match w in WordRegex.Matches(s))
+        {
+            if (w.Length < 2 || Keep.Contains(w.Value)) continue;
+            for (int i = w.Index; i < w.Index + w.Length; i++)
+                if (!covered[i]) return false;
+        }
+        return true;
+    }
+
+    // "CA-VAL-AIM 2.2.0 IS AVAILABLE" must not become "CA-VAL-PUNTERÍA …" ("aim" is a translated word): brand
+    // names and hyphenated product terms are swapped out for tokens before the phrase pass and put back afterwards.
+    static readonly string[] Verbatim = { "LOCK-INS", "LOCK-IN", "CA-VAL-AIM", "ValTraining", "ValTrainer" };
+
+    static string ProtectVerbatim(string s, List<string> kept)
+    {
+        foreach (var brand in Verbatim)
+        {
+            int from = 0;
+            while (true)
+            {
+                int at = s.IndexOf(brand, from, StringComparison.OrdinalIgnoreCase);
+                if (at < 0) break;
+                string token = "\u0001" + kept.Count.ToString(CultureInfo.InvariantCulture) + "\u0002";
+                kept.Add(s.Substring(at, brand.Length));
+                s = s[..at] + token + s[(at + brand.Length)..];
+                from = at + token.Length;
+            }
+        }
+        return s;
+    }
+
+    static string UnprotectVerbatim(string s, List<string> kept) => kept.Count == 0
+        ? s
+        : Regex.Replace(s, "\u0001(\\d+)\u0002", m => kept[int.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture)]);
 
     static bool LooksSpanish(string s)
     {
@@ -382,11 +435,11 @@ public static class Loc
         ["PRACTICE DEFAULTS"] = "VALORES DE PRÁCTICA",
         ["Primary rifle"] = "Rifle principal",
         ["Ammo in drills"] = "Balas en los drills",
-        ["Drill default"] = "Según el drill",
+        ["Drill default"] = "Según el ejercicio",
         ["Infinite"] = "Infinitas",
         ["Real magazines"] = "Cargadores reales",
-        ["Rifle drills use this weapon. The Vandal Spray and Phantom Spray keep their own gun."] = "Los drills de rifle usan esta arma. Vandal Spray y Phantom Spray mantienen su arma.",
-        ["Infinite: no reloads. Real: magazine + reserve. Drill default keeps each drill's own rule."] = "Infinitas: sin recargar. Reales: cargador + reserva. Según el drill mantiene la regla de cada drill.",
+        ["Rifle drills use this weapon. The Vandal Spray and Phantom Spray keep their own gun."] = "Los ejercicios de rifle usan esta arma. Ráfaga Vandal y Ráfaga Phantom mantienen su arma.",
+        ["Infinite: no reloads. Real: magazine + reserve. Drill default keeps each drill's own rule."] = "Infinitas: sin recargar. Reales: cargador + reserva. Según el ejercicio se mantiene la regla de cada uno.",
         ["APPLIES TO RIFLE DRILLS"] = "SE APLICA A LOS DRILLS DE RIFLE",
         ["LANGUAGE"] = "IDIOMA",
         ["Language"] = "Idioma",
@@ -453,7 +506,19 @@ public static class Loc
         ["OPEN DOWNLOAD"] = "ABRIR DESCARGA",
         ["DOWNLOAD"] = "DESCARGAR",
         ["RESTART TO UPDATE"] = "REINICIAR PARA ACTUALIZAR",
+        ["RESTART NOW"] = "REINICIAR AHORA",
+        ["UPDATE NOW"] = "ACTUALIZAR AHORA",
+        ["Update available"] = "Actualización disponible",
+        ["WHAT'S NEW"] = "NOVEDADES",
         ["SKIP THIS VERSION"] = "SALTAR ESTA VERSIÓN",
+        ["Downloads and installs the new version in place."] =
+            "Descarga e instala la nueva versión en el sitio.",
+        ["CA-VAL-AIM closes for a few seconds and opens again on the new version."] =
+            "CA-VAL-AIM se cierra unos segundos y se vuelve a abrir con la nueva versión.",
+        ["LATER leaves it in the strip under the header; nothing is forced now."] =
+            "Si eliges MÁS TARDE, la actualización queda en la franja bajo la cabecera; no se instala nada ahora.",
+        ["Windows will ask for administrator permission to install it."] =
+            "Windows pedirá permiso de administrador para instalarla.",
         ["GET"] = "OBTENER",
         ["SUPPORT"] = "APOYO",
         ["Support reminders"] = "Recordatorios de apoyo",
@@ -497,6 +562,30 @@ public static class Loc
         ["Bullets on target"] = "Balas en el objetivo",
         ["Best spray"] = "Mejor ráfaga",
         ["Short sprays (not counted)"] = "Ráfagas cortas (no contadas)",
+        ["Shots"] = "Disparos",
+        ["Hits"] = "Aciertos",
+        ["Headshots"] = "Tiros a la cabeza",
+        ["Agent"] = "Agente",
+        ["Escaped"] = "Escapados",
+        ["Bots that got away"] = "Bots que se escaparon",
+        ["Bots that timed out"] = "Bots que no llegaron a tiempo",
+        ["Duels won / lost"] = "Duelos ganados / perdidos",
+        ["Median time to kill"] = "Tiempo medio de baja",
+        ["Rounds won"] = "Rondas ganadas",
+        ["Median clear time"] = "Tiempo medio de despeje",
+        ["Kills / deaths"] = "Bajas / muertes",
+        ["Rounds won / lost"] = "Rondas ganadas / perdidas",
+        ["Avg clear time"] = "Tiempo medio de despeje",
+        ["Peeks"] = "Asomadas",
+        ["Pre-aim error"] = "Error de preapuntado",
+        ["Fakes read"] = "Fintas leídas",
+        ["First sight → first hit"] = "Primera vista → primer impacto",
+        ["On the angle (≤ 10°)"] = "En el ángulo (≤ 10°)",
+        ["Visible head to first hit"] = "Cabeza visible → primer impacto",
+        ["Kill to next first hit"] = "Baja → siguiente primer impacto",
+        ["On target while firing"] = "En el objetivo mientras disparas",
+        ["Time on target"] = "Tiempo en el objetivo",
+        ["Re-acquire after a change"] = "Recuperación tras un cambio",
         ["NEW PERSONAL BEST"] = "NUEVO RÉCORD PERSONAL",
         ["FIRST RUN AT"] = "PRIMERA PARTIDA EN",
         ["previous best"] = "récord anterior",
@@ -530,11 +619,44 @@ public static class Loc
         ["MENU"] = "MENÚ",
         ["RETRY"] = "REINTENTAR",
         ["NEXT"] = "SIGUIENTE",
+        ["LAST"] = "ÚLTIMA",
         ["REWIND"] = "REBOBINAR",
         ["SHARE"] = "COMPARTIR",
         ["SAVE"] = "GUARDAR",
         ["CANCEL"] = "CANCELAR",
         ["CLOSE"] = "CERRAR",
+        ["SHORT TITLE"] = "TÍTULO CORTO",
+        ["WHAT HAPPENED?"] = "¿QUÉ PASÓ?",
+        ["STEPS TO REPRODUCE"] = "PASOS PARA REPRODUCIRLO",
+        ["WHAT DID YOU EXPECT?"] = "¿QUÉ ESPERABAS?",
+        ["WHAT'S YOUR IDEA?"] = "¿CUÁL ES TU IDEA?",
+        ["WHY WOULD IT HELP?"] = "¿POR QUÉ AYUDARÍA?",
+        ["DISCORD USERNAME"] = "USUARIO DE DISCORD",
+        ["Your Discord username"] = "Tu usuario de Discord",
+        ["optional"] = "opcional",
+        ["optional, so we can reply"] = "opcional, para poder responderte",
+        ["COPY REPORT"] = "COPIAR REPORTE",
+        ["COPY IDEA"] = "COPIAR IDEA",
+        ["OPEN DISCORD"] = "ABRIR DISCORD",
+        ["VIEW MY REPORT"] = "VER MI REPORTE",
+        ["VIEW MY IDEA"] = "VER MI IDEA",
+        ["OPEN ON GITHUB"] = "ABRIR EN GITHUB",
+        ["Short title, e.g. \"Crosshair is missing in Gridshot\""] =
+            "Título corto, p. ej. \"Falta la mira en Gridshot\"",
+        ["Short title, e.g. \"Drill with crouch-spamming bots\""] =
+            "Título corto, p. ej. \"Ejercicio con bots que spamean agacharse\"",
+        ["Posts the report and the info on the right to #bug-reports on the CA-VAL-AIM Discord"] =
+            "Publica el reporte y la información de la derecha en #bug-reports del Discord de CA-VAL-AIM",
+        ["This build can't send reports itself: copies the report, then opens the Discord invite so you can paste it in #bug-reports"] =
+            "Esta versión no puede enviar reportes sola: copia el reporte y abre la invitación de Discord para que lo pegues en #bug-reports",
+        ["Copies your idea as text, to paste anywhere"] = "Copia tu idea como texto, para pegarla donde quieras",
+        ["Copies the report and the info on the right as text, to paste anywhere"] =
+            "Copia el reporte y la información de la derecha como texto, para pegarlos donde quieras",
+        ["Opens the CA-VAL-AIM Discord invite in your browser"] = "Abre la invitación del Discord de CA-VAL-AIM en tu navegador",
+        ["Opens GitHub's issue form in your browser instead (needs a GitHub account; attach godot.log there)"] =
+            "Abre el formulario de issues de GitHub en tu navegador (necesitas cuenta de GitHub; adjunta allí godot.log)",
+        ["Dev run: prints the JSON to the log instead of sending it"] =
+            "Ejecución dev: imprime el JSON en el log en vez de enviarlo",
         ["YES"] = "SÍ",
         ["NO"] = "NO",
         ["OK"] = "OK",
@@ -1254,7 +1376,7 @@ public static class Loc
         ["RIFLE"] = "RIFLE",
         ["AMMO"] = "MUNICIÓN",
         ["LANGUAGE"] = "IDIOMA",
-        ["DEFAULT"] = "DEFECTO",
+        ["DEFAULT"] = "POR DEFECTO",
         ["REAL"] = "REAL",
         ["INFINITE"] = "INFINITA",
         ["ENGLISH"] = "INGLÉS",
@@ -1492,6 +1614,9 @@ public static class Loc
             "Mata a todos los agentes con una ráfaga continua de rifle: controla el retroceso mientras arrastras entre objetivos.",
         ["Blind A/B test of sensitivities with flicks + tracking. Finds the sens you actually perform best with."] =
             "Prueba A/B a ciegas de sensibilidades con flicks y seguimiento. Encuentra la sensibilidad con la que realmente rindes mejor.",
+        ["Blind A/B test of sensitivities with flicks, micro-adjustments and tracking. Finds the sens you perform best with, then fine-tunes it on the small corrections."] =
+            "Prueba A/B a ciegas de sensibilidades con flicks, microajustes y seguimiento. Encuentra la sensibilidad con la que rindes mejor y luego la afina en las correcciones pequeñas.",
+        ["Blind A/B test"] = "Prueba A/B a ciegas",
         ["The spike is down: hold your post-plant angle while defenders retake. Play the defuse, not the peek."] =
             "La spike está plantada: mantén tu ángulo post-plantada mientras los defensores recapturan. Juega el defuse, no la asomada.",
 
@@ -1516,7 +1641,7 @@ public static class Loc
         ["SHORT"] = "CORTO",
         ["TREMOR"] = "TEMBLOR",
         ["TRACKING"] = "TRACKING",
-        ["RUN SENS FINDER"] = "ABRIR SENS FINDER",
+        ["RUN SENS FINDER"] = "BUSCADOR DE SENS",
         ["AIM COACH"] = "COACH DE PUNTERÍA",
 
         // ---- coach / profile ----
@@ -1606,6 +1731,10 @@ public static class Loc
         ["Shooting while moving"] = "Disparas en movimiento",
         ["Spray drifts sideways"] = "Spray lateral",
         ["Late flash turns"] = "Giros tardíos",
+        ["Weaker flicks to the left"] = "Flicks más flojos a la izquierda",
+        ["Weaker flicks to the right"] = "Flicks más flojos a la derecha",
+        ["Weaker flicks upward"] = "Flicks más flojos hacia arriba",
+        ["Weaker flicks downward"] = "Flicks más flojos hacia abajo",
 
         // issue explanations
         ["The flick is planned too long, or the arm is tense and brakes late. Undoing an overshoot costs more time than finishing a short flick: you have to stop, reverse and re-aim."] =
@@ -1654,6 +1783,8 @@ public static class Loc
             "No estás compensando la deriva lateral que empieza hacia la bala 8.",
         ["Waiting to see the flash instead of reacting to the throw sound."] =
             "Esperas a ver el flash en vez de reaccionar al sonido del lanzamiento.",
+        ["The arm has less room on one side (the mouse sits off-centre or the pad is too small), so the same flick is planned differently depending on where the target appears."] =
+            "El brazo tiene menos recorrido hacia un lado (el ratón está descentrado o la alfombrilla es pequeña), así que el mismo flick se planifica distinto según dónde aparezca el objetivo.",
 
         // issue fixes
         ["Aim to land about 90% of the way there and finish with one small micro-adjustment."] =
@@ -1762,6 +1893,14 @@ public static class Loc
             "Mira el gráfico después de cada spray e imita el patrón gris a la inversa.",
         ["Use the same pull every time: start by bullet 2–3 and keep a steady speed."] =
             "Usa el mismo control siempre: empieza en la bala 2–3 y mantén una velocidad constante.",
+        ["Centre the mouse on the pad and give yourself the same room to both sides."] =
+            "Centra el ratón en la alfombrilla y darte el mismo recorrido hacia ambos lados.",
+        ["Turn the keyboard slightly so the arm sweeps freely in both directions."] =
+            "Gira el teclado un poco para que el brazo barra con libertad en ambas direcciones.",
+        ["Practise the weak side deliberately: overshoot it by a little, then settle back."] =
+            "Entrena el lado flojo a propósito: pásate un poco y luego vuelve al objetivo.",
+        ["Keep the wrist loose on the cramped side instead of steering with the fingertips."] =
+            "Mantén la muñeca suelta en el lado con menos espacio en vez de guiar con las puntas de los dedos.",
         ["Rest the crosshair on the target before each spray so every spray starts the same way."] =
             "Deja la mira sobre el objetivo antes de cada spray para que todos empiecen igual.",
         ["Pull less: match the climb, don't beat it."] =
@@ -1849,6 +1988,12 @@ public static class Loc
         ["Flicking"] = "Flick",
         ["Precision"] = "Precisión",
         ["Reaction"] = "Reacción",
+        ["Listen…"] = "Escucha…",
+        ["Eyes on the centre"] = "Ojos en el centro",
+        ["Green = click · Red = wait"] = "Verde = clic · Rojo = espera",
+        ["Get ready to flick"] = "Prepárate para el flick",
+        ["Wait for it…"] = "Espera…",
+        ["Too early!"] = "¡Demasiado pronto!",
         ["Crosshair placement"] = "Colocación de mira",
         ["Movement"] = "Movimiento",
         ["Utility"] = "Utilidad",
@@ -1864,6 +2009,421 @@ public static class Loc
         ["PERFORMED AT"] = "RENDIMIENTO EN",
         ["FULL COACH PROFILE  ›"] = "PERFIL DEL COACH  ›",
         ["FULL COACH PROFILE"] = "PERFIL DEL COACH",
+
+        // ---- UI sweep: labels and sentences that used to fall through to the word-by-word table ----
+        ["DONE"] = "HECHO",
+        ["SKIP"] = "SALTAR",
+        ["GOT IT"] = "ENTENDIDO",
+        ["Close"] = "Cerrar",
+        ["PICK"] = "ELIGE",
+        ["PICKED"] = "ELEGIDA",
+        ["PLAYER"] = "JUGADOR",
+        ["MATCHES"] = "PARTIDAS",
+        ["RESULT"] = "RESULTADO",
+        ["ROUTINE"] = "RUTINA",
+        ["CAREER"] = "CARRERA",
+        ["PLAYLISTS"] = "LISTAS",
+        ["CATEGORY"] = "CATEGORÍA",
+        ["TIMELINE"] = "CRONOLOGÍA",
+        ["USUAL"] = "HABITUAL",
+        ["PASSIVE"] = "PASIVA",
+        ["TRAINED BY"] = "ENTRENADO POR",
+        ["NO DATA"] = "SIN DATOS",
+        ["NO TARGET"] = "SIN OBJETIVO",
+        ["NO FRAMES RECORDED"] = "SIN FOTOGRAMAS GRABADOS",
+        ["THIS RUN"] = "ESTA PARTIDA",
+        ["THIS ENGAGEMENT"] = "ESTE ENCUENTRO",
+        ["this engagement"] = "este encuentro",
+        // ---- Rewind review: frame overlays, engagement tiles and the flick rose ----
+        ["PLAYER'S VIEW · 1×"] = "VISTA DEL JUGADOR · 1×",
+        ["CLOSE-UP · 4×"] = "PRIMER PLANO · 4×",
+        ["FIRST SHOT"] = "PRIMER DISPARO",
+        ["FIRST BULLET"] = "PRIMERA BALA",
+        ["WHILE MOVING"] = "EN MOVIMIENTO",
+        ["SHOTS WHILE MOVING"] = "DISPAROS EN MOVIMIENTO",
+        ["ALL SHOTS"] = "TODOS LOS DISPAROS",
+        ["TYPICAL"] = "HABITUAL",
+        ["no shot"] = "sin disparo",
+        ["SETTLE"] = "AJUSTE",
+        ["mostly overshoot"] = "casi siempre se pasa",
+        ["mostly short"] = "casi siempre se queda corto",
+        ["about right"] = "en su punto",
+        ["No target at this point of the run."] = "No hay objetivo en este punto de la partida.",
+        ["EASIER"] = "MÁS FÁCIL",
+        ["LEVEL"] = "NIVEL",
+        ["SENS"] = "SENS",
+        ["VIEW"] = "VISTA",
+        ["IN"] = "DENTRO",
+        ["OUT"] = "FUERA",
+        ["DETAILS  (D)"] = "DETALLES  (D)",
+        ["JOIN DISCORD"] = "UNIRSE A DISCORD",
+        ["SEND"] = "ENVIAR",
+        ["SENDING."] = "ENVIANDO.",
+        ["SENT"] = "ENVIADO",
+        ["WHAT GETS SENT"] = "QUÉ SE ENVÍA",
+        ["COPY REPORT & OPEN DISCORD"] = "COPIAR REPORTE Y ABRIR DISCORD",
+        ["COPY IDEA & OPEN DISCORD"] = "COPIAR IDEA Y ABRIR DISCORD",
+        ["LAUNCH VALORANT"] = "ABRIR VALORANT",
+        ["STARTING VALORANT."] = "ABRIENDO VALORANT.",
+        ["Starts VALORANT through the Riot Client"] = "Abre VALORANT a través del Riot Client",
+        ["BREATHING GUIDE"] = "GUÍA DE RESPIRACIÓN",
+        ["4 seconds in, 6 seconds out."] = "4 segundos dentro, 6 segundos fuera.",
+        ["LOCK IN · BREATHE"] = "LOCK-IN · RESPIRA",
+        ["LOCK IN AGAIN"] = "LOCK-IN OTRA VEZ",
+        ["LOCK-IN DETAILS"] = "DETALLES DEL LOCK-IN",
+        ["LOCK-IN GRAPH"] = "GRÁFICA DEL LOCK-IN",
+        ["LOCK-IN TIMELINE (PLAY TIME)"] = "CRONOLOGÍA DEL LOCK-IN (TIEMPO JUGADO)",
+        ["CONTINUE  (SPACE)"] = "CONTINUAR  (ESPACIO)",
+        ["ESC PAUSES · IN A DRILL, ESC → BACK TO MENU ENDS THE LOCK-IN"] =
+            "ESC PAUSA · EN UN EJERCICIO, ESC → MENÚ TERMINA EL LOCK-IN",
+        ["PAUSED · SPACE TO START · ESC AGAIN TO QUIT THE LOCK-IN"] =
+            "EN PAUSA · ESPACIO PARA EMPEZAR · ESC OTRA VEZ PARA SALIR DEL LOCK-IN",
+        ["YOUR CALL · SPACE STARTS THE NEXT DRILL"] = "TU TURNO · ESPACIO EMPIEZA EL SIGUIENTE EJERCICIO",
+        ["VS YOUR USUAL · LAST 20"] = "FRENTE A TU HABITUAL · ÚLTIMAS 20",
+        ["PERFORMANCE PER DRILL · % OF YOUR USUAL"] = "RENDIMIENTO POR EJERCICIO · % DE TU HABITUAL",
+        ["WHAT WORKS FOR YOU"] = "LO QUE TE FUNCIONA",
+        ["WHY THIS WORKS"] = "POR QUÉ FUNCIONA",
+        ["Finish a Lock-In to see how each one compares with your usual."] =
+            "Termina un Lock-In para ver cómo se compara cada uno con tu habitual.",
+        ["No study has tested an aim-trainer warm-up on ranked results yet."] =
+            "Ningún estudio ha medido todavía un calentamiento con aim trainer en resultados de ranked.",
+        ["Space starts · a 30-second check-in comes first · Esc pauses a drill"] =
+            "Espacio empieza · antes va un check-in de 30 segundos · Esc pausa un ejercicio",
+        ["same setup as your match · nothing here is required"] =
+            "misma configuración que en tu partida · nada de esto es obligatorio",
+        ["SETUP CHECK"] = "REVISIÓN DE CONFIGURACIÓN",
+        ["The lock-in graph and every drill's result"] = "La gráfica del lock-in y el resultado de cada ejercicio",
+        ["YOUR GOAL"] = "TU OBJETIVO",
+        ["YOUR CUE"] = "TU SEÑAL",
+        ["EVERY BUY PHASE"] = "CADA FASE DE COMPRA",
+        ["A small personal sample, not proof."] = "Una muestra personal pequeña, no una prueba.",
+        ["A match depends on much more than a warm-up."] = "Una partida depende de mucho más que un calentamiento.",
+        ["TILTED OR ANNOYED"] = "TILTADO O MOLESTO",
+        ["FELT LOCKED IN"] = "TE SENTISTE CONECTADO",
+        ["FELT LOCKED IN?"] = "¿TE SENTISTE CONECTADO?",
+        ["WON"] = "GANADA",
+        ["none yet"] = "ninguna todavía",
+        ["CALIBRATION TODAY   "] = "CALIBRACIÓN HOY   ",
+        ["BACK TO YOUR REAL SENS FROM HERE ON"] = "VUELTA A TU SENSIBILIDAD REAL DESDE AQUÍ",
+        ["SKIP  (SPACE)"] = "SALTAR  (ESPACIO)",
+        ["SKIP DRILL"] = "SALTAR EJERCICIO",
+        ["FINISH NOW"] = "TERMINAR AHORA",
+        ["START NOW  (SPACE)"] = "EMPEZAR AHORA  (ESPACIO)",
+        ["YOUR LOCK-INS"] = "TUS LOCK-INS",
+        ["AGENT LOCK-IN"] = "LOCK-IN DE AGENTE",
+        ["SAME LOCK-IN"] = "MISMO LOCK-IN",
+        ["AGENT TRAINING"] = "ENTRENAMIENTO DE AGENTES",
+        ["CHOOSE AN AGENT"] = "ELIGE UN AGENTE",
+        ["CHOOSE A MAP"] = "ELIGE UN MAPA",
+        ["No drill yet"] = "Todavía sin ejercicio",
+        ["SIGNATURE DRILLS WITH EACH AGENT'S OWN UTILITY · ROLE DRILLS · A 10-MINUTE AGENT LOCK-IN"] =
+            "EJERCICIOS DE HABILIDADES CON LA UTILIDAD DE CADA AGENTE · EJERCICIOS POR ROL · UN LOCK-IN DE AGENTE DE 10 MINUTOS",
+        ["PLAY BY PLAY"] = "JUGADA A JUGADA",
+        ["OPEN LAST RUN"] = "ABRIR ÚLTIMA PARTIDA",
+        ["UNLOCK YOUR OVERALL RANK"] = "DESBLOQUEA TU RANGO GENERAL",
+        ["SEARCHING."] = "BUSCANDO.",
+        ["SEARCHING…"] = "BUSCANDO…",
+        ["SENDING…"] = "ENVIANDO…",
+        ["LOADING RUN."] = "CARGANDO PARTIDA.",
+        ["LOADING RUN…"] = "CARGANDO PARTIDA…",
+        ["LOADING."] = "CARGANDO.",
+        ["LOADING…"] = "CARGANDO…",
+        ["Analysing."] = "Analizando.",
+        ["Analysing…"] = "Analizando…",
+        ["STARTING VALORANT…"] = "ABRIENDO VALORANT…",
+        ["UPDATING CA-VAL-AIM"] = "ACTUALIZANDO CA-VAL-AIM",
+        ["Your settings and stats are kept."] = "Tus ajustes y estadísticas se conservan.",
+        ["Blind A/B test of sensitivities with flicks + tracking (about 15 minutes)"] =
+            "Prueba ciega A/B de sensibilidades con flicks + tracking (unos 15 minutos)",
+        ["An aim-only estimate: CA-VAL-AIM rates your mechanics (aim, movement, flash dodging).\nYour in-game rank also depends on game sense, comms and utility."] =
+            "Estimación solo de puntería: CA-VAL-AIM valora tu mecánica (puntería, movimiento, esquiva de flashes).\nTu rango en partida también depende de la lectura, las comunicaciones y la utilidad.",
+        ["Overshoot, undershoot, tremor and tracking evidence accumulated per sensitivity. CA-VAL-AIM can't change Valorant's settings — set it in Valorant: Settings → General → Mouse → Sensitivity."] =
+            "Evidencia de pasarse, quedarse corto, temblor y tracking acumulada por sensibilidad. CA-VAL-AIM no puede cambiar los ajustes de VALORANT: cámbiala en VALORANT → Ajustes → General → Ratón → Sensibilidad.",
+        ["Replay a moment from your recent runs where this happened"] =
+            "Reproduce un momento de tus partidas recientes en el que pasó esto",
+        ["The VALORANT code of this crosshair: paste it in VALORANT → Settings → Crosshair → Import Profile Code"] =
+            "El código de VALORANT de esta mira: pégalo en VALORANT → Ajustes → Mira → Importar código de perfil",
+        ["Copy, then paste it in VALORANT: Settings → Crosshair → Import Profile Code"] =
+            "Cópialo y pégalo en VALORANT: Ajustes → Mira → Importar código de perfil",
+        ["Uses the crosshair code on your clipboard in ValTrainer (Crosshair → CUSTOM). VALORANT isn't changed."] =
+            "Usa en ValTrainer el código de mira de tu portapapeles (Mira → PERSONALIZADA). VALORANT no cambia.",
+        ["Version, renderer, GPU and folders, for a bug report"] =
+            "Versión, renderizador, GPU y carpetas, para un reporte de fallo",
+        ["Weapon for every drill · click for the full arsenal"] =
+            "Arma para cada ejercicio · clic para ver todo el arsenal",
+        ["Free-for-all against bots on the selected map, with the difficulty, lobby and length above"] =
+            "Todos contra todos con bots en el mapa elegido, con la dificultad, el lobby y la duración de arriba",
+        ["Lock-In: about 12 minutes before ranked. A check-in, aim drills that adapt to you, a deathmatch, then your goal and cue"] =
+            "Lock-In: unos 12 minutos antes de ranked. Un check-in, ejercicios de puntería adaptados a ti, un deathmatch y tu objetivo y señal.",
+        ["Deletes every Rewind recording. Your stats, scores and coach results are kept."] =
+            "Borra todas las grabaciones de Rewind. Tus estadísticas, puntuaciones y resultados del coach se conservan.",
+        ["ALL RELEASES ON GITHUB"] = "TODAS LAS VERSIONES EN GITHUB",
+        ["What's new"] = "Novedades",
+        ["Updates"] = "Actualizaciones",
+        ["Opens the releases page in your browser"] = "Abre la página de versiones en tu navegador",
+        ["Opens the release notes in your browser"] = "Abre las notas de la versión en tu navegador",
+        ["Opens the Crosshair Finder (leaves this screen)"] = "Abre el Buscador de mira (sale de esta pantalla)",
+        ["Opens the CA-VAL-AIM Discord invite in your browser"] =
+            "Abre la invitación de Discord de CA-VAL-AIM en tu navegador",
+        ["Opens GitHub's issue form in your browser instead (needs a GitHub account; attach godot.log there)"] =
+            "Abre el formulario de incidencias de GitHub en tu navegador (necesita cuenta de GitHub; adjunta allí godot.log)",
+        ["Check GitHub for new versions?"] = "¿Buscar versiones nuevas en GitHub?",
+        ["Check GitHub for new versions and download them in the background"] =
+            "Buscar versiones nuevas en GitHub y descargarlas en segundo plano",
+        ["ENABLE UPDATES"] = "ACTIVAR ACTUALIZACIONES",
+        ["NOT NOW"] = "AHORA NO",
+        ["ask github.com for the latest CA-VAL-AIM release, at startup and every 6 hours"] =
+            "preguntar a github.com por la última versión de CA-VAL-AIM, al arrancar y cada 6 horas",
+        ["download a newer version in the background and install it when you restart CA-VAL-AIM"] =
+            "descargar una versión nueva en segundo plano e instalarla al reiniciar CA-VAL-AIM",
+        ["send nothing about you: no settings, stats, recordings or IDs (GitHub sees an ordinary web request)"] =
+            "no enviar nada sobre ti: ni ajustes, ni estadísticas, ni grabaciones, ni identificadores (GitHub ve una petición web normal)",
+        ["No update checks; you can turn them on later in Settings → About"] =
+            "Sin búsqueda de actualizaciones; puedes activarla luego en Ajustes → Acerca de",
+        ["Downloads, verifies and installs the update"] = "Descarga, verifica e instala la actualización",
+        ["Keeps training now; the update stays in the strip under the header"] =
+            "Sigue entrenando; la actualización queda en la franja bajo la cabecera",
+
+        // ---- rewind / results ----
+        ["No shots or flicks were recorded in this run."] = "No se grabaron disparos ni flicks en esta partida.",
+        ["MEDIAN TIME TO HIT"] = "TIEMPO MEDIANO HASTA IMPACTAR",
+        ["length = how many flicks"] = "longitud = cuántos flicks",
+        ["% = past (+) or short (-)"] = "% = pasado (+) o corto (-)",
+        ["% = past (+) or short (−)"] = "% = pasado (+) o corto (−)",
+        ["  ·  FIRING"] = "  ·  DISPARANDO",
+        ["PLAYS WHEN READY · PRESS V FOR 2D NOW"] = "REPRODUCE AL CARGAR · PULSA V PARA 2D",
+
+        // ---- crosshair finder / sens finder ----
+        ["CROSSHAIR FINDER"] = "BUSCADOR DE MIRA",
+        ["VISIBILITY + SHAPE TEST · VALORANT CODE AT THE END"] = "PRUEBA DE VISIBILIDAD Y FORMA · CÓDIGO DE VALORANT AL FINAL",
+        ["VISIBILITY"] = "VISIBILIDAD",
+        ["DOT SIZE"] = "TAMAÑO DEL PUNTO",
+        ["PART 1 · HOW FAST YOU SPOTTED EACH COLOUR"] = "PARTE 1 · QUÉ RÁPIDO DISTINGUISTE CADA COLOR",
+        ["TIME TO SPOT (SHORTER = BETTER) · CONTRAST (LONGER = BETTER)"] =
+            "TIEMPO EN VERLA (MENOS = MEJOR) · CONTRASTE (MÁS = MEJOR)",
+        ["×3 · REAL SIZE ON HAVEN, SPLIT, AN AGENT"] = "×3 · TAMAÑO REAL EN HAVEN, SPLIT, UN AGENTE",
+        ["PART 1 RESULT · MOST VISIBLE FOR YOU"] = "RESULTADO DE LA PARTE 1 · LA MÁS VISIBLE PARA TI",
+        ["  (yours)"] = "  (tuya)",
+        ["WHICH CROSSHAIR? SHOOT ONE TO START"] = "¿QUÉ MIRA? DISPARA A UNA PARA EMPEZAR",
+        ["CLICK TO START"] = "HAZ CLIC PARA EMPEZAR",
+        ["CLICK TO CONTINUE"] = "HAZ CLIC PARA CONTINUAR",
+        ["SHOOT TO START"] = "DISPARA PARA EMPEZAR",
+        ["YOURS NOW"] = "AHORA ES TUYA",
+        ["FINAL CHECK"] = "COMPROBACIÓN FINAL",
+        ["PART 2 · HEAD-TO-HEAD (AIM SCORE, THEN YOUR PICK)"] =
+            "PARTE 2 · CARA A CARA (PUNTUACIÓN DE PUNTERÍA Y LUEGO TU ELECCIÓN)",
+        ["Shoot A, SAME or B. Your aim decides; this breaks ties."] =
+            "Dispara a A, IGUAL o B. Tu puntería decide; esto rompe empates.",
+        ["WHICH FELT BETTER?"] = "¿CUÁL SE SINTIÓ MEJOR?",
+        ["START BRACKET"] = "EMPEZAR EL CUADRO",
+        ["SEMI-FINAL"] = "SEMIFINAL",
+        ["SEMI-FINAL 1"] = "SEMIFINAL 1",
+        ["SEMI-FINAL 2"] = "SEMIFINAL 2",
+        ["WIN · "] = "GANADOR · ",
+        ["YOUR CROSSHAIR AS A VALORANT CODE"] = "TU MIRA COMO CÓDIGO DE VALORANT",
+        ["×8 ZOOM · THEN REAL SIZE ON EACH MAP"] = "ZOOM ×8 · LUEGO TAMAÑO REAL EN CADA MAPA",
+        ["NEXT ROUND"] = "SIGUIENTE RONDA",
+        ["WHAT WON EACH STEP (HIGHER SENS →)"] = "QUÉ GANÓ EN CADA PASO (SENSIBILIDAD MÁS ALTA →)",
+        ["SENS FINDER"] = "BUSCADOR DE SENSIBILIDAD",
+        ["Below Rookie"] = "Por debajo de Novato",
+
+        // ---- in-game HUD / agent drills ----
+        ["BAITED — WIDE SWING NOW"] = "CEBADO — ASÓMATE AHORA",
+        ["CLEAN PEEK — he couldn't get the shot off"] = "ASOMADA LIMPIA: no pudo disparar",
+        ["HE HELD FIRE — you hid too early: stay out a touch longer"] =
+            "NO DISPARÓ: te escondiste demasiado pronto, aguanta un poco más",
+        ["KILL — but he wasn't baited (risky)"] = "BAJA, pero no picó (arriesgado)",
+        ["LEG SHOT — 120 damage. Shorter peeks!"] = "DISPARO A LA PIERNA: 120 de daño. ¡Asomadas más cortas!",
+        ["NO INFO — the Op repositioned"] = "SIN INFO: el Op se recolocó",
+        ["NO REACTION — too quick for him: show the shoulder a bit longer"] =
+            "SIN REACCIÓN: demasiado rápido para él, enseña el hombro un poco más",
+        ["OP DOWN — risky swing, but it worked"] = "OP ABAJO: asomada arriesgada, pero salió bien",
+        ["OP MISSED — SWING NOW"] = "OP FALLÓ: ASÓMATE AHORA",
+        ["PLAY MADE — punished the missed shot"] = "JUGADA: castigaste el disparo fallado",
+        ["PUNISHED"] = "CASTIGADO",
+        ["TIME — he repositions"] = "TIEMPO: se recoloca",
+        ["YOU DIED — the Op saw too much of you"] = "HAS MUERTO: el Op te vio demasiado",
+        ["SITE CLEAR — DEFUSE!"] = "SITIO LIMPIO: ¡DESACTIVA!",
+        ["PLACE YOUR UTILITY — THE PUSH COMES AFTER THE SETUP"] =
+            "COLOCA TU UTILIDAD: LA PUSH VIENE DESPUÉS DEL SETUP",
+        ["THEY'RE COMING"] = "YA VIENEN",
+        ["CUT THESE SIGHTLINES"] = "CORTA ESTAS LÍNEAS DE VISIÓN",
+        ["SIGHTLINES CUT"] = "LÍNEAS CORTADAS",
+        ["Entry denied"] = "Entrada denegada",
+        ["They didn't swing"] = "No se asomaron",
+        ["Too slow — the entry survived"] = "Demasiado lento: la entrada sobrevivió",
+        ["NO SMOKES OUT"] = "SIN HUMOS",
+        ["ENTERED BEFORE YOUR SMOKES WERE UP"] = "ENTRARON ANTES DE QUE ESTUVIERAN TUS HUMOS",
+        ["EXECUTE"] = "EJECUTA",
+        ["YOUR SMOKES VS THE STANDARD SPOTS"] = "TUS HUMOS FRENTE A LOS PUNTOS ESTÁNDAR",
+        ["SMOKE REPLAY"] = "REPETICIÓN DEL HUMO",
+        ["SMOKE  |  KILL  |  ◆ ENTRY"] = "HUMO  |  BAJA  |  ◆ ENTRADA",
+        ["standard smoke (shown at Rookie / Regular)"] = "humo estándar (se muestra en Novato / Regular)",
+        ["defender sightline onto your entry"] = "línea del defensor hacia tu entrada",
+        ["X  ASTRAL FORM — PLACE YOUR STARS"] = "X  FORMA ASTRAL: COLOCA TUS ESTRELLAS",
+        ["E  NEBULA   ·   F  DISSIPATE"] = "E  NEBULOSA   ·   F  DISIPAR",
+        ["YOUR KIT"] = "TU KIT",
+        ["LEGEND"] = "LEYENDA",
+        ["FLASH INTERCEPTED"] = "FLASH INTERCEPTADO",
+        ["Flash was blocked"] = "El flash fue bloqueado",
+        ["Recoil pattern reconstructed (Riot publishes none)"] =
+            "Patrón de retroceso reconstruido (Riot no publica ninguno)",
+        ["Spray broken — keep holding until everyone is down"] =
+            "Spray roto: sigue manteniendo hasta que caigan todos",
+        ["TOO FAST — NO POINTS"] = "DEMASIADO RÁPIDO: SIN PUNTOS",
+        ["TIME TO KILL (150 HP)"] = "TIEMPO HASTA MATAR (150 PV)",
+        ["Round held"] = "Ronda aguantada",
+        ["Out of bullets"] = "Sin balas",
+        ["out of bullets"] = "sin balas",
+        ["Out of energy"] = "Sin energía",
+        ["Scan: nobody seen"] = "Escaneo: nadie visto",
+        ["No wall hit — the shard faded"] = "No dio en la pared: la esquirla se desvaneció",
+        ["Lost it off the map"] = "Se perdió fuera del mapa",
+        ["Refract beacon faded"] = "Baliza de Refract desvanecida",
+        ["Tether faded"] = "Tether desvanecida",
+        ["Tailwind faded"] = "Tailwind desvanecida",
+        ["Curveball recharged (2 kills)"] = "Curveball recargada (2 bajas)",
+        ["Gatecrash recharged (2 kills)"] = "Gatecrash recargada (2 bajas)",
+        ["Refract recharged (2 kills)"] = "Refract recargada (2 bajas)",
+        ["Slide recharged (2 kills)"] = "Slide recargada (2 bajas)",
+        ["Tailwind recharged (2 kills)"] = "Tailwind recargada (2 bajas)",
+        ["at the end · B"] = "al final · B",
+        ["↑↓ pick a row · ←→ or 1–9 change it · Space continues"] =
+            "↑↓ elige una fila · ←→ o 1–9 la cambian · Espacio continúa",
+
+        // ---- settings: notes, option values and status lines ----
+        ["Live coach"] = "Coach en vivo",
+        ["The whole interface changes immediately"] = "Toda la interfaz cambia al instante",
+        ["No Valorant config folder found on this PC"] = "No se ha encontrado la configuración de VALORANT en este PC",
+        ["Only for showing eDPI and cm/360"] = "Solo para mostrar eDPI y cm/360",
+        ["Valorant: \"Hide outlines and fresnel\" off = ON"] =
+            "VALORANT: con \"Ocultar contornos y fresnel\" desactivado = SÍ",
+        ["Solid spheres in the highlight colour"] = "Esferas sólidas del color de resalte",
+        ["Dark body + highlight outline, like VALORANT enemies"] =
+            "Cuerpo oscuro + contorno resaltado, como los enemigos de VALORANT",
+        ["Run the Crosshair Finder (Coach) or paste a code below for a second option"] =
+            "Abre el Buscador de mira (Coach) o pega un código abajo para una segunda opción",
+        ["Your imported VALORANT crosshair"] = "Tu mira importada de VALORANT",
+        ["Applies on next drill"] = "Se aplica en el siguiente ejercicio",
+        ["Used by every drill that accepts a rifle; Vandal Spray and Phantom Spray keep their own"] =
+            "Se usa en todo ejercicio que admita rifle; Ráfaga Vandal y Ráfaga Phantom usan la suya",
+        ["Drill default"] = "Según el ejercicio",
+        ["Real magazines"] = "Cargadores reales",
+        ["Infinite"] = "Infinito",
+        ["Each drill decides (aim drills: infinite; bot drills: reloads)"] =
+            "Cada ejercicio decide (puntería: infinito; bots: recargas)",
+        ["Magazines and reserve run out"] = "Se acaban los cargadores y la reserva",
+        ["No reloading, unlimited reserve"] = "Sin recargas, reserva ilimitada",
+        ["No guide"] = "Sin línea",
+        ["A line from the crosshair to the nearest target"] = "Una línea de la mira al objetivo más cercano",
+        ["Aim line, plus the shortest route to the nearest enemy on map drills"] =
+            "Línea de mira y la ruta más corta al enemigo más cercano en los ejercicios de mapa",
+        ["Short cues during the run: what is going wrong and how to fix it"] =
+            "Avisos breves durante la partida: qué va mal y cómo corregirlo",
+        ["The coach only reviews the run at the end"] = "El coach solo revisa la partida al final",
+        ["A soft click on buttons and a quiet chime on confirmations; hover is silent"] =
+            "Un clic suave en los botones y un tono discreto al confirmar; el hover es silencioso",
+        ["Menus make no sound"] = "Los menús no suenan",
+        ["Relative to the volume above"] = "Relativo al volumen de arriba",
+        ["Custom — type a value or use the arrows (Shift ±0.001)"] =
+            "Personalizada: escribe un valor o usa las flechas (Mayús ±0.001)",
+        ["From VALORANT — type a value or use the arrows to set your own"] =
+            "Desde VALORANT: escribe un valor o usa las flechas para poner la tuya",
+        ["Not available: this build has no GitHub page set"] =
+            "No disponible: esta compilación no tiene página de GitHub",
+        ["On by default: at startup and every 6 hours, asks GitHub whether a newer release is out (nothing about you is sent)"] =
+            "Activado por defecto: al arrancar y cada 6 horas pregunta a GitHub si hay una versión nueva (no se envía nada sobre ti)",
+        ["Off: CA-VAL-AIM makes no network requests. ON asks GitHub at startup and every 6 hours; CHECK NOW asks once"] =
+            "Desactivado: CA-VAL-AIM no hace peticiones de red. ACTIVADO pregunta a GitHub al arrancar y cada 6 horas; COMPROBAR AHORA pregunta una vez",
+        ["Checking GitHub…"] = "Comprobando GitHub…",
+        ["You have the latest version"] = "Tienes la última versión",
+        ["Couldn't check for updates"] = "No se pudo comprobar si hay actualizaciones",
+        ["just now"] = "ahora mismo",
+        ["Ask GitHub once now whether a newer release is out"] =
+            "Pregunta a GitHub ahora si hay una versión nueva",
+        ["Installs the update and restarts CA-VAL-AIM"] = "Instala la actualización y reinicia CA-VAL-AIM",
+        ["Downloads the installer, verifies it against SHA256SUMS.txt and offers to restart; opens the release page if this copy can't update itself"] =
+            "Descarga el instalador, lo verifica con SHA256SUMS.txt y ofrece reiniciar; abre la página de la versión si esta copia no puede actualizarse sola",
+
+        // ---- coach quick-start tiles ----
+        ["Rates flicking · precision"] = "Valora flick · precisión",
+        ["Rates tracking"] = "Valora seguimiento",
+        ["Rates crosshair placement"] = "Valora colocación de mira",
+        ["Rates movement"] = "Valora movimiento",
+        ["Rates spray control"] = "Valora control de spray",
+
+        // ---- agents ----
+        ["SIGNATURE DRILLS"] = "EJERCICIOS DE FIRMA",
+        ["ROLE DRILLS"] = "EJERCICIOS DE ROL",
+        ["Mobility Entry"] = "Entrada con movilidad",
+        ["Flash & Peek"] = "Destello y asomada",
+        ["Flash & Clear"] = "Destello y limpieza",
+        ["Recon & Clear"] = "Reconocimiento y limpieza",
+        ["Smoke Execute"] = "Ejecución con humo",
+        ["Chamber Guns"] = "Armas de Chamber",
+        ["drills played with the agent's own utility: flash and swing, recon and clear, smoke and execute, dash in, anchor a site."] =
+            "ejercicios con la utilidad del propio agente: destello y asomada, reconocimiento y limpieza, humo y ejecución, entrada con dash, anclar un sitio.",
+        ["drills for the gunfights the role takes most, from opening duels to post-plant holds."] =
+            "ejercicios para los duelos que más toma el rol, desde el duelo inicial hasta la defensa tras plantar.",
+        ["a check-in, aim, role and signature drills and a deathmatch in about 10 minutes, then your goal and cue."] =
+            "un chequeo, ejercicios de puntería, rol y firma y un deathmatch en unos 10 minutos; al final, tu objetivo y tu consigna.",
+        ["everything runs at your tier and map"] = "todo va a tu nivel y en tu mapa",
+
+        // ---- lock-in / warm-up ----
+        ["SHORT AND AT YOUR REAL SENS"] = "CORTO Y A TU SENSIBILIDAD REAL",
+        ["A warm-up wakes up skill you already have. About 10 to 15 minutes at the sens you play with is enough; longer mostly adds fatigue."] =
+            "Un calentamiento activa una habilidad que ya tienes. Con unos 10 a 15 minutos a la sensibilidad con la que juegas basta; más tiempo sobre todo añade fatiga.",
+        ["SIMPLE TO GAME-LIKE"] = "DE LO SIMPLE A LO REAL",
+        ["Easy drills first, then drills that adapt to keep you near 8 of 10 hits, then bots and a deathmatch. Its last minute is easier, so the session ends on a good note."] =
+            "Primero ejercicios fáciles, luego ejercicios que se adaptan para mantenerte cerca de 8 aciertos de cada 10, después bots y un deathmatch. Su último minuto es más fácil para que la sesión termine bien.",
+        ["CARRY IT INTO THE MATCH"] = "LLÉVALO A LA PARTIDA",
+        ["The effect fades after a 5 to 15 minute break, so queue right away. One goal and one cue word give you something simple to come back to each round."] =
+            "El efecto se desvanece tras un descanso de 5 a 15 minutos, así que entra a cola enseguida. Un objetivo y una palabra clave te dan algo simple al que volver cada round.",
+        ["what the research supports"] = "lo que respalda la investigación",
+        ["COMPARED WITH VALORANT"] = "COMPARADO CON VALORANT",
+        ["BEFORE YOU START"] = "ANTES DE EMPEZAR",
+        ["Same headset and volume as in VALORANT"] = "Los mismos auriculares y volumen que en VALORANT",
+        ["A lamp on, not a dark room"] = "Una lámpara encendida, no una habitación a oscuras",
+        ["Hands warm"] = "Manos calientes",
+        ["Sens · FOV"] = "Sens · FOV",
+        ["Display"] = "Pantalla",
+        ["VSync · FPS cap"] = "VSync · límite FPS",
+        ["ADAPTIVE: LEVEL HELD"] = "ADAPTATIVO: NIVEL FIJO",
+        ["% OF YOUR USUAL"] = "% DE TU HABITUAL",
+        ["SENSITIVITY (RIGHT AXIS)"] = "SENSIBILIDAD (EJE DERECHO)",
+        ["YOUR SENS"] = "TU SENS",
+        ["SHIFTED SENS"] = "SENS CAMBIADA",
+        ["one tier below yours"] = "un nivel por debajo del tuyo",
+        ["gets harder or easier to keep you near 80% hits"] = "sube o baja para mantenerte cerca del 80% de aciertos",
+        ["the deathmatch's last minute has easier bots"] = "el último minuto del deathmatch tiene bots más fáciles",
+
+        // ---- match log / what works for you ----
+        ["After a Lock-In, the menu asks how your first match went. One tap, optional."] =
+            "Tras un Lock-In, el menú pregunta cómo fue tu primera partida. Un toque, opcional.",
+        ["Rate your first match after a Lock-In when the menu asks."] =
+            "Valora tu primera partida tras un Lock-In cuando el menú te pregunte.",
+        ["ENERGY"] = "ENERGÍA",
+        ["BREATHING"] = "RESPIRACIÓN",
+        ["ROUTINE"] = "RUTINA",
+        ["Low (1-3)"] = "Baja (1-3)",
+        ["Mid (4-6)"] = "Media (4-6)",
+        ["High (7-9)"] = "Alta (7-9)",
+        ["With"] = "Con",
+        ["Without"] = "Sin",
+        ["Full routine"] = "Rutina completa",
+        ["Ended early"] = "Terminada antes",
+        ["MATCHES"] = "PARTIDAS",
+        ["WON"] = "GANADAS",
+        ["FELT LOCKED IN"] = "EN FOCUS",
+        ["FELT LOCKED IN?"] = "¿EN FOCUS?",
+        ["RESULT"] = "RESULTADO",
+        ["How did your first match after Lock-In go?"] = "¿Cómo fue tu primera partida tras el Lock-In?",
+        ["Next time you open CA-VAL-AIM it asks how your match went (optional)."] =
+            "La próxima vez que abras CA-VAL-AIM te preguntará cómo fue tu partida (opcional).",
+        ["Don't ask about this Lock-In again"] = "No volver a preguntar por este Lock-In",
+        ["Saved. Thanks."] = "Guardado. Gracias.",
+        ["Optional. Saved on this PC only."] = "Opcional. Solo se guarda en este PC.",
+        ["too few to say"] = "muy pocas para decir",
     };
 
     static readonly HashSet<string> SpanishValues = new(Exact.Values.Concat(Overrides.Values), StringComparer.Ordinal);

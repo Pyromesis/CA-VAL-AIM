@@ -116,20 +116,27 @@ public sealed class MicroshotMode : TrainingMode
 
     float OverPct => judged == 0 ? 0 : 100f * overs / judged;
 
-    public override string? Prompt => Now < 2.5f && Hits == 0 ? "Small moves: stop ON the head, then click" : null;
+    public override string? Prompt => Now < 2.5f && Hits == 0
+        ? (Loc.Spanish ? "Movimientos cortos: párate EN la cabeza y haz clic" : "Small moves: stop ON the head, then click")
+        : null;
 
     public override IEnumerable<string> HudLines()
     {
-        if (lastMs >= 0) yield return $"Last head {lastMs:0} ms";
-        if (judged >= 3) yield return $"Overshoot {OverPct:0}% of heads";
+        bool es = Loc.Spanish;
+        if (lastMs >= 0) yield return es ? $"Última cabeza {lastMs:0} ms" : $"Last head {lastMs:0} ms";
+        if (judged >= 3) yield return es ? $"Pasadas de más {OverPct:0}% de las cabezas" : $"Overshoot {OverPct:0}% of heads";
     }
 
     public override IEnumerable<(string Label, string Value)> ResultLines()
     {
-        yield return ("Accuracy", $"{Accuracy * 100:0.0}%  ({Hits}/{Shots})");
-        yield return ("Median time to hit", KillTimes.Count > 0 ? $"{Median(KillTimes):0} ms" : "—");
-        if (judged > 0) yield return ("Overshoot", $"{OverPct:0}% of heads ({overs}/{judged}) — lower is better");
-        if (AimPlusTiers.MicroLifetime(Tier) > 0) yield return ("Expired heads", expired.ToString());
+        bool es = Loc.Spanish;
+        yield return (es ? "Precisión" : "Accuracy", $"{Accuracy * 100:0.0}%  ({Hits}/{Shots})");
+        yield return (es ? "Tiempo medio de impacto" : "Median time to hit", KillTimes.Count > 0 ? $"{Median(KillTimes):0} ms" : "—");
+        if (judged > 0)
+            yield return (es ? "Pasadas de más" : "Overshoot",
+                es ? $"{OverPct:0}% de las cabezas ({overs}/{judged}) — menos es mejor"
+                   : $"{OverPct:0}% of heads ({overs}/{judged}) — lower is better");
+        if (AimPlusTiers.MicroLifetime(Tier) > 0) yield return (es ? "Cabezas caducadas" : "Expired heads", expired.ToString());
     }
 
     /// <summary>Median time to hit (needs ≥ 70% accuracy), thresholds per tier played.</summary>

@@ -70,16 +70,22 @@ public sealed partial class DeathmatchMode : MapMode
     public override string Key => "deathmatch";
     public override string Name => "Deathmatch";
     public override string Description => difficulty is { } d
-        ? $"VALORANT free-for-all: {lobby} players, first to {killTarget}. {DeathmatchRules.Name(d)} bots hunt you across the whole map."
-        : "Free-for-all against bots at your tier on a VALORANT map. They hunt you and shoot back; respawn and keep fighting.";
+        ? Loc.Spanish
+            ? $"Todos contra todos de VALORANT: {lobby} jugadores, primero en llegar a {killTarget}. Los bots {DeathmatchRules.NameLocal(d).ToLowerInvariant()} te buscan por todo el mapa."
+            : $"VALORANT free-for-all: {lobby} players, first to {killTarget}. {DeathmatchRules.Name(d)} bots hunt you across the whole map."
+        : Loc.Spanish
+            ? "Todos contra todos contra bots de tu nivel en un mapa de VALORANT. Te buscan y disparan; reapareces y sigues."
+            : "Free-for-all against bots at your tier on a VALORANT map. They hunt you and shoot back; respawn and keep fighting.";
     public override bool Timed => true;
     public override float Duration => duration;
     public override WeaponKind Weapon => weapon;
     public override bool Done => winner != null;
     public override int? PreferredTier => difficulty is { } d ? DeathmatchRules.Tier(d) : null;
     public override string? Subtitle => difficulty is { } d
-        ? $"{MapSpot.Map} — Deathmatch · {lobby} players · {DeathmatchRules.Name(d)} · first to {killTarget}"
-        : $"{MapSpot.Map} — Deathmatch · first to {killTarget}";
+        ? Loc.Spanish
+            ? $"{MapSpot.Map} — Deathmatch · {lobby} jugadores · {DeathmatchRules.NameLocal(d)} · primero a {killTarget}"
+            : $"{MapSpot.Map} — Deathmatch · {lobby} players · {DeathmatchRules.Name(d)} · first to {killTarget}"
+        : Loc.Spanish ? $"{MapSpot.Map} — Deathmatch · primero a {killTarget}" : $"{MapSpot.Map} — Deathmatch · first to {killTarget}";
     public int KillTarget => killTarget;
     /// <summary>Behaviour level of the bots: the tier, 5 = Nightmare.</summary>
     internal int AiLevel => difficulty is { } d ? DeathmatchRules.AiLevel(d) : Tier;
@@ -231,8 +237,10 @@ public sealed partial class DeathmatchMode : MapMode
         var skill = BotSkillNow;
         foreach (var b in bots) b.SetSkill(skill);
         float left = G.RunLength - Now;
-        string when = Mathf.Abs(G.EaseLastSeconds - 60f) < 8f ? "LAST MINUTE" : $"LAST {Mathf.Round(G.EaseLastSeconds)} SECONDS";
-        G.Banner($"{when} · FINISH STRONG", UiTheme.Good);
+        string when = Loc.Spanish
+            ? Mathf.Abs(G.EaseLastSeconds - 60f) < 8f ? "ÚLTIMO MINUTO" : $"ÚLTIMOS {Mathf.Round(G.EaseLastSeconds)} SEGUNDOS"
+            : Mathf.Abs(G.EaseLastSeconds - 60f) < 8f ? "LAST MINUTE" : $"LAST {Mathf.Round(G.EaseLastSeconds)} SECONDS";
+        G.Banner($"{when} · {(Loc.Spanish ? "TERMINA FUERTE" : "FINISH STRONG")}", UiTheme.Good);
         G.Sound("go", 0.6f);
         Log.Info($"[dm] finisher: bots eased to tier {Math.Max(0, Tier - 1)}{(Tier == 0 ? " (slower Rookie)" : "")} at {Now:0.0}s, {left:0} s left " +
                  $"(react {skill.ReactMs:0} ms, first-shot hit {skill.PHit1:0.00})");
@@ -335,8 +343,10 @@ public sealed partial class DeathmatchMode : MapMode
             if (d < bd) { bd = d; killer = b; }
         }
         if (killer != null) { killer.Kills++; killer.ForgetPlayer(); }
-        AddFeed($"{killer?.Name ?? "?"} killed You");
-        G.Banner($"KILLED BY {killer?.Name.ToUpperInvariant() ?? "A BOT"}", UiTheme.Accent);
+        string killerName = killer?.Name ?? "?";
+        AddFeed(Loc.Spanish ? $"{killerName} te eliminó" : $"{killerName} killed You");
+        string bannerName = killer?.Name.ToUpperInvariant() ?? (Loc.Spanish ? "UN BOT" : "A BOT");
+        G.Banner(Loc.Spanish ? $"ELIMINADO POR {bannerName}" : $"KILLED BY {bannerName}", UiTheme.Accent);
         DropPack(PlayerFeet);
     }
 
@@ -352,13 +362,15 @@ public sealed partial class DeathmatchMode : MapMode
             if (headshot) headKills++;
             // VALORANT DM: every kill reloads your gun.
             if (G is GameSession s && s.Gun != null) { s.Gun.Ammo = s.Gun.Def.Mag; s.Gun.ReloadLeft = 0; }
-            AddFeed($"You killed {victim.Name}{(headshot ? " · headshot" : "")}");
+            AddFeed(Loc.Spanish
+                ? $"Eliminaste a {victim.Name}{(headshot ? " · a la cabeza" : "")}"
+                : $"You killed {victim.Name}{(headshot ? " · headshot" : "")}");
         }
         else
         {
             killer.Kills++;
             botBotKills++;
-            AddFeed($"{killer.Name} killed {victim.Name}");
+            AddFeed(Loc.Spanish ? $"{killer.Name} eliminó a {victim.Name}" : $"{killer.Name} killed {victim.Name}");
         }
         DropPack(feet);
     }
@@ -448,16 +460,28 @@ public sealed partial class DeathmatchMode : MapMode
 
     public override IEnumerable<string> HudLines()
     {
-        yield return $"Kills {Kills} / {killTarget}   Deaths {Deaths}   K/D {KD:0.00}";
+        bool es = Loc.Spanish;
+        yield return es
+            ? $"Bajas {Kills} / {killTarget}   Muertes {Deaths}   K/D {KD:0.00}"
+            : $"Kills {Kills} / {killTarget}   Deaths {Deaths}   K/D {KD:0.00}";
         var top = bots.OrderByDescending(b => b.Kills).FirstOrDefault();
-        if (top != null) yield return top.Kills > Kills ? $"Leader: {top.Name} ({top.Kills})" : top.Kills == Kills ? $"Tied for the lead ({Kills})" : $"You lead by {Kills - top.Kills}";
-        if (PlayerAlive && Now < G.Player.ProtectedUntil) yield return "Spawn protection";
-        if (eased) yield return "Finish strong · bots are easier now";
+        if (top != null)
+            yield return top.Kills > Kills
+                ? (es ? $"Líder: {top.Name} ({top.Kills})" : $"Leader: {top.Name} ({top.Kills})")
+                : top.Kills == Kills
+                    ? (es ? $"Empatados en cabeza ({Kills})" : $"Tied for the lead ({Kills})")
+                    : (es ? $"Vas {Kills - top.Kills} por delante" : $"You lead by {Kills - top.Kills}");
+        if (PlayerAlive && Now < G.Player.ProtectedUntil) yield return es ? "Protección al reaparecer" : "Spawn protection";
+        if (eased) yield return es ? "Termina fuerte · los bots ahora son más fáciles" : "Finish strong · bots are easier now";
         for (int i = feed.Count - 1, n = 0; i >= 0 && n < 4; i--)
             if (Now - feed[i].T < 5f) { yield return feed[i].Text; n++; }
     }
 
-    public override string? Prompt => G.Player.Dead && playerRespawnAt > 0 ? $"Respawning in {Mathf.Max(0, playerRespawnAt - Now):0.0}s" : null;
+    public override string? Prompt => G.Player.Dead && playerRespawnAt > 0
+        ? Loc.Spanish
+            ? $"Reapareciendo en {Mathf.Max(0, playerRespawnAt - Now):0.0}s"
+            : $"Respawning in {Mathf.Max(0, playerRespawnAt - Now):0.0}s"
+        : null;
 
     /// <summary>Respawn reveal: red markers around the crosshair toward every living enemy (fades over 2 s); Tab (VALORANT's
     /// scoreboard key) shows the lobby's scoreboard.</summary>
@@ -528,14 +552,26 @@ public sealed partial class DeathmatchMode : MapMode
 
     public override IEnumerable<(string Label, string Value)> ResultLines()
     {
+        bool es = Loc.Spanish;
         yield return ("Map", $"{MapSpot.Map} {MapSpot.Name}");
-        if (difficulty is { } d) yield return ("Lobby", $"{bots.Count + 1} players · {DeathmatchRules.Name(d)} bots");
-        yield return ("Kills / deaths", $"{Kills} / {Deaths}  (K/D {KD:0.00})");
-        yield return ("Placement", winner == "You" ? $"1st of {bots.Count + 1} — first to {killTarget}" : $"{Ordinal(Placement)} of {bots.Count + 1}" + (winner != null ? $" ({winner} reached {killTarget})" : ""));
-        if (Hits > 0) yield return ("Headshot %", $"{100f * HeadHits / Hits:0}%  ({headKills} headshot kills)");
-        yield return ("Accuracy", $"{Accuracy * 100:0.0}%  ({Hits}/{Shots})");
-        if (KillTimes.Count > 0) yield return ("Avg time to kill", $"{KillTimes.Average():0} ms from first sight");
-        if (packsTaken > 0) yield return ("Health packs", packsTaken.ToString());
+        if (difficulty is { } d)
+            yield return (es ? "Sala" : "Lobby",
+                es ? $"{bots.Count + 1} jugadores · bots {DeathmatchRules.NameLocal(d).ToLowerInvariant()}"
+                   : $"{bots.Count + 1} players · {DeathmatchRules.Name(d)} bots");
+        yield return (es ? "Bajas / muertes" : "Kills / deaths", $"{Kills} / {Deaths}  (K/D {KD:0.00})");
+        yield return (es ? "Puesto" : "Placement",
+            winner == "You"
+                ? (es ? $"1.º de {bots.Count + 1} — primero a {killTarget}" : $"1st of {bots.Count + 1} — first to {killTarget}")
+                : (es ? $"{(Placement == 1 ? "1.º" : $"{Placement}.º")} de {bots.Count + 1}" : $"{Ordinal(Placement)} of {bots.Count + 1}")
+                  + (winner != null ? (es ? $" ({winner} llegó a {killTarget})" : $" ({winner} reached {killTarget})") : ""));
+        if (Hits > 0)
+            yield return (es ? "Tiros a la cabeza" : "Headshot %",
+                es ? $"{100f * HeadHits / Hits:0}%  ({headKills} bajas a la cabeza)" : $"{100f * HeadHits / Hits:0}%  ({headKills} headshot kills)");
+        yield return (es ? "Precisión" : "Accuracy", $"{Accuracy * 100:0.0}%  ({Hits}/{Shots})");
+        if (KillTimes.Count > 0)
+            yield return (es ? "Tiempo medio de baja" : "Avg time to kill",
+                es ? $"{KillTimes.Average():0} ms desde el primer avistamiento" : $"{KillTimes.Average():0} ms from first sight");
+        if (packsTaken > 0) yield return (es ? "Botiquines" : "Health packs", packsTaken.ToString());
         foreach (var l in MovementLines()) yield return l;
     }
 

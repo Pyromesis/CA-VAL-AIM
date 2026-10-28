@@ -269,13 +269,13 @@ public abstract partial class InitiatorDrill : MapMode
             case UtilEventKind.Fizzle:
                 fizzles++;
                 Event("util_fizzle", (int)Ability.Kind);
-                if (u is Blindside) G.Banner("No wall hit — the shard faded", UiTheme.Dim);
-                else if (u is ReconBolt or Haunt) G.Banner("Lost it off the map", UiTheme.Dim);
+                if (u is Blindside) G.Banner(Loc.Spanish ? "No dio en un muro: el fragmento se desvaneció" : "No wall hit — the shard faded", UiTheme.Dim);
+                else if (u is ReconBolt or Haunt) G.Banner(Loc.Spanish ? "Se perdió fuera del mapa" : "Lost it off the map", UiTheme.Dim);
                 break;
             case UtilEventKind.Destroyed:
                 destroyedUtil++;
                 Event("util_destroyed", (int)Ability.Kind);
-                G.Banner($"They shot your {Ability.Ability}", UiTheme.Warn);
+                G.Banner(Loc.Spanish ? $"Te dispararon tu {Ability.Ability}" : $"They shot your {Ability.Ability}", UiTheme.Warn);
                 if (u is LeerEye)
                     foreach (var d in Touched(u)) d.Brain.NearsightUntil = Mathf.Min(d.Brain.NearsightUntil, Now + 0.25f);
                 break;
@@ -356,8 +356,12 @@ public abstract partial class InitiatorDrill : MapMode
             Event("self_flash", ps);
         }
         G.SoundAt(FlashSlug is { } slug ? slug + "_pop" : "flashpop", pop, maxRange: 50f, floor: 0.6f);
-        string who = full + part == 0 ? "Nobody flashed" : $"{full + part} FLASHED" + (part > 0 ? $" ({part} partial)" : "");
-        G.Banner(pg is BlindGrade.Flashed or BlindGrade.Partial ? $"{who} · you flashed yourself" : who,
+        string who = full + part == 0
+            ? (Loc.Spanish ? "Nadie cegado" : "Nobody flashed")
+            : (Loc.Spanish ? $"{full + part} CEGADOS" : $"{full + part} FLASHED") + (part > 0 ? (Loc.Spanish ? $" ({part} parcial)" : $" ({part} partial)") : "");
+        G.Banner(pg is BlindGrade.Flashed or BlindGrade.Partial
+                ? (Loc.Spanish ? $"{who} · te cegaste a ti mismo" : $"{who} · you flashed yourself")
+                : who,
             pg is BlindGrade.Flashed or BlindGrade.Partial ? UiTheme.Accent : full + part > 0 ? UiTheme.Good : UiTheme.Dim);
         Event("flash_pop", full + part, ps);
     }
@@ -387,7 +391,9 @@ public abstract partial class InitiatorDrill : MapMode
         Event("bot_revealed", count, haunt ? 1 : 0);
         AbilitySfx.PlayAt(G, "recon_ping", at, 0.9f, maxRange: 60f, floor: 0.7f);
         if (count > 0) AbilitySfx.Play(G, "reveal", 0.6f);
-        G.Banner(count == 0 ? "Scan: nobody seen" : $"{count} REVEALED", count == 0 ? UiTheme.Dim : UiTheme.Good);
+        G.Banner(count == 0
+            ? (Loc.Spanish ? "Escaneo: a nadie visto" : "Scan: nobody seen")
+            : (Loc.Spanish ? $"{count} REVELADOS" : $"{count} REVEALED"), count == 0 ? UiTheme.Dim : UiTheme.Good);
     }
 
     void UtilHit(Defender d, bool full, float seconds, string ev, bool nearsight = false)
@@ -571,7 +577,7 @@ public abstract partial class InitiatorDrill : MapMode
             if (Ability.Kind == UtilKind.Curveball && roundKills % 2 == 0 && Kit.Charges < Ability.Charges)
             {
                 Kit.AddCharge();
-                G.Banner("Curveball recharged (2 kills)", UiTheme.Teal);
+                G.Banner(Loc.Spanish ? "Curveball recargada (2 bajas)" : "Curveball recharged (2 kills)", UiTheme.Teal);
             }
         }
         return dist;
@@ -585,12 +591,17 @@ public abstract partial class InitiatorDrill : MapMode
         {
             if (between > 0) return null;
             if (Kit.RefusalT > 0 && Kit.Refusal != null) return Kit.Refusal;
+            bool es = Loc.Spanish;
             return Kit.State switch
             {
                 AbilityKit.Phase.Equipping or AbilityKit.Phase.Equipped => Ability.Alt != null ? $"{Ability.Primary}   ·   {Ability.Alt}" : Ability.Primary,
-                AbilityKit.Phase.Charging => $"Release LMB to shoot   ·   RMB: bounces ({Kit.Bounces})",
-                AbilityKit.Phase.Steering => $"Steering — {Kit.KeyText} to pop it",
-                _ => utils.Any(u => u.CanRecast) ? Ability.Kind == UtilKind.Haunt ? $"{Kit.KeyText}: drop the watcher now" : $"{Kit.KeyText}: pop the flash" : null,
+                AbilityKit.Phase.Charging => es ? $"Suelta el clic izquierdo para disparar   ·   CLIC DERECHO: rebotes ({Kit.Bounces})" : $"Release LMB to shoot   ·   RMB: bounces ({Kit.Bounces})",
+                AbilityKit.Phase.Steering => es ? $"Dirigiendo — {Kit.KeyText} para detonarla" : $"Steering — {Kit.KeyText} to pop it",
+                _ => utils.Any(u => u.CanRecast)
+                    ? Ability.Kind == UtilKind.Haunt
+                        ? (es ? $"{Kit.KeyText}: suelta el vigía ya" : $"{Kit.KeyText}: drop the watcher now")
+                        : (es ? $"{Kit.KeyText}: detona la flash" : $"{Kit.KeyText}: pop the flash")
+                    : null,
             };
         }
     }
@@ -600,7 +611,9 @@ public abstract partial class InitiatorDrill : MapMode
         if (between > 0) yield break;
         if (!castThisRun && rounds <= 2)
             foreach (var s in Ability.HowTo.Split(". ", StringSplitOptions.RemoveEmptyEntries)) yield return s.TrimEnd('.') + ".";
-        yield return $"Defenders left: {defenders.Count(d => d.Alive)}";
+        yield return Loc.Spanish
+            ? $"Defensores restantes: {defenders.Count(d => d.Alive)}"
+            : $"Defenders left: {defenders.Count(d => d.Alive)}";
         foreach (var l in StatusLines()) yield return l;
     }
 
@@ -633,15 +646,17 @@ public abstract partial class InitiatorDrill : MapMode
         int ns = UiTheme.Fs(18, k), ss = UiTheme.Fs(12, k);
         float tx = key.End.X + 12 * k;
         Gfx.Text(c, UiTheme.HudWide, Ability.Ability.ToUpperInvariant(), tx, Gfx.Mid(r.Position.Y + 22 * k, ns), ns, UiTheme.Text);
+        bool es = Loc.Spanish;
         string state = Kit.State switch
         {
-            AbilityKit.Phase.Equipping => "EQUIPPING…",
-            AbilityKit.Phase.Equipped => "READY TO CAST",
-            AbilityKit.Phase.Charging => $"CHARGE {ReconBolt.BarsFor(Kit.ChargeHeld)}/3 · BOUNCES {Kit.Bounces}",
-            AbilityKit.Phase.Steering => "STEERING",
-            _ => utils.Any(u => !u.Done && u is not PlasmaShot) ? "OUT" : ready ? "READY" : "NO CHARGES",
+            AbilityKit.Phase.Equipping => es ? "EQUIPANDO…" : "EQUIPPING…",
+            AbilityKit.Phase.Equipped => es ? "LISTA PARA LANZAR" : "READY TO CAST",
+            AbilityKit.Phase.Charging => es ? $"CARGA {ReconBolt.BarsFor(Kit.ChargeHeld)}/3 · REBOTES {Kit.Bounces}" : $"CHARGE {ReconBolt.BarsFor(Kit.ChargeHeld)}/3 · BOUNCES {Kit.Bounces}",
+            AbilityKit.Phase.Steering => es ? "DIRIGIENDO" : "STEERING",
+            _ => utils.Any(u => !u.Done && u is not PlasmaShot) ? (es ? "FUERA" : "OUT") : ready ? (es ? "LISTA" : "READY") : (es ? "SIN CARGAS" : "NO CHARGES"),
         };
-        if (Ability.Kind == UtilKind.ReconBolt && Kit.State == AbilityKit.Phase.Equipped) state = $"READY · BOUNCES {Kit.Bounces}";
+        if (Ability.Kind == UtilKind.ReconBolt && Kit.State == AbilityKit.Phase.Equipped)
+            state = es ? $"LISTA · REBOTES {Kit.Bounces}" : $"READY · BOUNCES {Kit.Bounces}";
         Gfx.Text(c, UiTheme.HudWide, state, tx, Gfx.Mid(r.Position.Y + 44 * k, ss), ss, Kit.State != AbilityKit.Phase.Ready ? accent : UiTheme.Dim);
         // charges (pips)
         for (int i = 0; i < Ability.Charges; i++)

@@ -62,7 +62,9 @@ public partial class WarmupScreen : ScreenBase
 
         var head = HBox(16 * k);
         var tier = Difficulty.Get(Main.I.Tier);
-        var title = Heading("LOCK IN", $"A SHORT ROUTINE BEFORE RANKED · {tier.Name.ToUpperInvariant()} TIER · EVERYTHING AT YOUR REAL SENS · ENDS WITH YOUR GOAL AND CUE");
+        var title = Heading("LOCK IN", Loc.Spanish
+            ? $"UNA RUTINA CORTA ANTES DE RANKED · NIVEL {Loc.T(tier.Name).ToUpperInvariant()} · TODO A TU SENSIBILIDAD REAL · TERMINA CON TU OBJETIVO Y TU CONSIGNA"
+            : $"A SHORT ROUTINE BEFORE RANKED · {tier.Name.ToUpperInvariant()} TIER · EVERYTHING AT YOUR REAL SENS · ENDS WITH YOUR GOAL AND CUE");
         title.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         head.AddChild(title);
         var back = Btn("BACK", VButton.Look.Secondary, Main.I.ShowMenu, 160, 52, 22);
@@ -88,9 +90,11 @@ public partial class WarmupScreen : ScreenBase
             var pp = WarmupPlan.Build(p, ShiftMode.Off, 0, Main.I.Sens, false);
             var b = new VButton
             {
-                Kind = VButton.Look.Select, K = k, Label = p.Name.ToUpperInvariant(),
-                Sub = $"≈{WarmupPlan.Minutes(pp.EstimatedSeconds)} · {p.Steps.Length} DRILLS" + (p.Key == WarmupPresets.DefaultKey ? " · DEFAULT" : ""),
-                TooltipText = p.Blurb + (p.Note.Length > 0 ? $" ({p.Note})" : ""),
+                Kind = VButton.Look.Select, K = k, Label = WarmupPresets.NameOf(p).ToUpperInvariant(),
+                Sub = Loc.Spanish
+                    ? $"≈{WarmupPlan.Minutes(pp.EstimatedSeconds)} · {p.Steps.Length} EJERCICIOS" + (p.Key == WarmupPresets.DefaultKey ? " · POR DEFECTO" : "")
+                    : $"≈{WarmupPlan.Minutes(pp.EstimatedSeconds)} · {p.Steps.Length} DRILLS" + (p.Key == WarmupPresets.DefaultKey ? " · DEFAULT" : ""),
+                TooltipText = WarmupPresets.BlurbOf(p) + (p.Note.Length > 0 ? $" ({WarmupPresets.NoteOf(p)})" : ""),
                 FontPx = 26, SubPx = 13, CustomMinimumSize = new Vector2(0, 72 * k), SizeFlagsHorizontal = SizeFlags.ExpandFill,
                 Selected = p.Key == plan.Preset.Key,
             };
@@ -105,10 +109,11 @@ public partial class WarmupScreen : ScreenBase
             OnDraw = d =>
             {
                 int fs = UiTheme.Fs(16, k);
-                float w = Gfx.TextW(UiTheme.Body, plan.Preset.Blurb + ".", fs);
-                Gfx.Text(d, UiTheme.Body, plan.Preset.Blurb + ".", 0, Gfx.Mid(d.Size.Y / 2, fs), fs, UiTheme.Text);
+                string blurb = WarmupPresets.BlurbOf(plan.Preset) + ".";
+                float w = Gfx.TextW(UiTheme.Body, blurb, fs);
+                Gfx.Text(d, UiTheme.Body, blurb, 0, Gfx.Mid(d.Size.Y / 2, fs), fs, UiTheme.Text);
                 if (plan.Preset.Note.Length > 0)
-                    Gfx.TextFit(d, UiTheme.HudWide, "  ·  " + plan.Preset.Note.ToUpperInvariant(), w, Gfx.Mid(d.Size.Y / 2, UiTheme.Fs(14, k)), UiTheme.Fs(14, k), UiTheme.Warn, d.Size.X - w);
+                    Gfx.TextFit(d, UiTheme.HudWide, "  ·  " + WarmupPresets.NoteOf(plan.Preset).ToUpperInvariant(), w, Gfx.Mid(d.Size.Y / 2, UiTheme.Fs(14, k)), UiTheme.Fs(14, k), UiTheme.Warn, d.Size.X - w);
             },
         });
 
@@ -116,7 +121,9 @@ public partial class WarmupScreen : ScreenBase
         var chartPanel = new VPanel
         {
             Title = "TIMELINE", K = k,
-            Caption = $"{plan.Steps.Count} drills · {WarmupPlan.Clock(plan.PlaySeconds)} play · ≈{WarmupPlan.Minutes(plan.EstimatedSeconds).ToLowerInvariant()} in total",
+            Caption = Loc.Spanish
+                ? $"{plan.Steps.Count} ejercicios · {WarmupPlan.Clock(plan.PlaySeconds)} de juego · ≈{WarmupPlan.Minutes(plan.EstimatedSeconds).ToLowerInvariant()} en total"
+                : $"{plan.Steps.Count} drills · {WarmupPlan.Clock(plan.PlaySeconds)} play · ≈{WarmupPlan.Minutes(plan.EstimatedSeconds).ToLowerInvariant()} in total",
         };
         left.AddChild(chartPanel);
         chartPanel.AddChild(new DrawBox
@@ -128,7 +135,14 @@ public partial class WarmupScreen : ScreenBase
         // ---- sens shifter: Training day only ----
         if (plan.Preset.AllowShift)
         {
-            left.AddChild(new SectionLabel { Text = "SENS SHIFTER", Note = "training only · first phase only · back to your sens before the calibration", K = k });
+            left.AddChild(new SectionLabel
+            {
+                Text = "SENS SHIFTER",
+                Note = Loc.Spanish
+                    ? "solo entreno · solo la primera fase · vuelve a tu sensibilidad antes de la calibración"
+                    : "training only · first phase only · back to your sens before the calibration",
+                K = k,
+            });
             var row = HBox(10 * k);
             void ShiftBtn(string label, string sub, ShiftMode m)
             {
@@ -140,9 +154,9 @@ public partial class WarmupScreen : ScreenBase
                 b.Pressed += () => { Store.ShiftMode = m; Store.Save(); Callable.From(Rebuild).CallDeferred(); };
                 row.AddChild(b);
             }
-            ShiftBtn("OFF", "default · every drill at your sens", ShiftMode.Off);
-            ShiftBtn("HIGHER → YOUR SENS", "start a little faster", ShiftMode.HighToNormal);
-            ShiftBtn("LOWER → YOUR SENS", "start a little slower", ShiftMode.LowToNormal);
+            ShiftBtn("OFF", Loc.Spanish ? "por defecto · cada ejercicio a tu sensibilidad" : "default · every drill at your sens", ShiftMode.Off);
+            ShiftBtn(Loc.Spanish ? "MÁS ALTA → TU SENS" : "HIGHER → YOUR SENS", Loc.Spanish ? "empieza algo más rápido" : "start a little faster", ShiftMode.HighToNormal);
+            ShiftBtn(Loc.Spanish ? "MÁS BAJA → TU SENS" : "LOWER → YOUR SENS", Loc.Spanish ? "empieza algo más lento" : "start a little slower", ShiftMode.LowToNormal);
             row.AddChild(Spacer(10 * k, 0));
             foreach (int pct in WarmupPresets.ShiftOptions)
             {
@@ -167,13 +181,15 @@ public partial class WarmupScreen : ScreenBase
         var startRow = HBox(16 * k);
         var start = Btn("START LOCK-IN", VButton.Look.Primary, StartRoutine, 340, 62, 26);
         startRow.AddChild(start);
-        var note = Lbl("Space starts · a 30-second check-in comes first · Esc pauses a drill", UiTheme.Body, 15, UiTheme.Dim);
+        var note = Lbl(Loc.Spanish
+            ? "Espacio empieza · primero un chequeo de 30 segundos · Esc pausa el ejercicio"
+            : "Space starts · a 30-second check-in comes first · Esc pauses a drill", UiTheme.Body, 15, UiTheme.Dim);
         note.SizeFlagsVertical = SizeFlags.ShrinkCenter;
         startRow.AddChild(note);
         left.AddChild(startRow);
 
         // ---- right: why + history ----
-        var why = new VPanel { Title = "WHY THIS WORKS", K = k, Caption = "what the research supports" };
+        var why = new VPanel { Title = "WHY THIS WORKS", K = k, Caption = Loc.Spanish ? "lo que respalda la investigación" : "what the research supports" };
         right.AddChild(why);
         var wv = VBox(8 * k);
         why.AddChild(wv);
@@ -190,7 +206,13 @@ public partial class WarmupScreen : ScreenBase
         honest.CustomMinimumSize = new Vector2(440 * k, 0);
         wv.AddChild(honest);
 
-        var hist = new VPanel { Title = "YOUR LOCK-INS", K = k, Caption = Store.Warmups.Count == 0 ? "none yet" : $"{Store.Warmups.Count} saved", SizeFlagsVertical = SizeFlags.ExpandFill };
+        var hist = new VPanel
+        {
+            Title = "YOUR LOCK-INS", K = k, SizeFlagsVertical = SizeFlags.ExpandFill,
+            Caption = Store.Warmups.Count == 0
+                ? (Loc.Spanish ? "aún ninguno" : "none yet")
+                : Loc.Spanish ? $"{Store.Warmups.Count} guardados" : $"{Store.Warmups.Count} saved",
+        };
         right.AddChild(hist);
         var hv = VBox(14 * k);
         hist.AddChild(hv);
@@ -215,17 +237,21 @@ public partial class WarmupScreen : ScreenBase
         int ls = UiTheme.Fs(12, k), fs = UiTheme.Fs(15, k);
         if (Store.Warmups.Count == 0)
         {
-            Gfx.TextFit(d, UiTheme.Body, "Finish a Lock-In to see how each one compares with your usual.", 0, Gfx.Mid(20 * k, fs), fs, UiTheme.Dim, d.Size.X);
+            Gfx.TextFit(d, UiTheme.Body,
+                Loc.Spanish ? "Termina un Lock-In para ver cómo vas frente a tu nivel." : "Finish a Lock-In to see how each one compares with your usual.",
+                0, Gfx.Mid(20 * k, fs), fs, UiTheme.Dim, d.Size.X);
             return;
         }
         var lastW = Store.Warmups[^1];
-        Gfx.Text(d, UiTheme.HudWide, "LAST", 0, Gfx.Mid(14 * k, ls), ls, UiTheme.Faint);
-        string lastText = $"{lastW.When:MMM d, HH:mm} · {WarmupPresets.Get(lastW.Preset).Name}" +
-                          (lastW.Readiness >= 0 ? $" · {lastW.Readiness:0}% of usual" : "") + (lastW.Cue.Length > 0 ? $" · cue \"{lastW.Cue}\"" : "");
+        Gfx.Text(d, UiTheme.HudWide, Loc.Spanish ? "ÚLTIMA" : "LAST", 0, Gfx.Mid(14 * k, ls), ls, UiTheme.Faint);
+        string lastPreset = WarmupPresets.NameOf(WarmupPresets.Get(lastW.Preset));
+        string lastText = (Loc.Spanish ? $"{lastW.When:dd/MM, HH:mm}" : $"{lastW.When:MMM d, HH:mm}") + $" · {lastPreset}" +
+                          (lastW.Readiness >= 0 ? (Loc.Spanish ? $" · {lastW.Readiness:0}% de lo habitual" : $" · {lastW.Readiness:0}% of usual") : "") +
+                          (lastW.Cue.Length > 0 ? (Loc.Spanish ? $" · consigna \"{lastW.Cue}\"" : $" · cue \"{lastW.Cue}\"") : "");
         Gfx.TextFit(d, UiTheme.Body, lastText, 54 * k, Gfx.Mid(14 * k, fs), fs, UiTheme.Text, d.Size.X - 54 * k);
         if (list.Count >= 2)
         {
-            Gfx.Text(d, UiTheme.HudWide, "VS YOUR USUAL · LAST 20", 0, Gfx.Mid(44 * k, ls), ls, UiTheme.Faint);
+            Gfx.Text(d, UiTheme.HudWide, Loc.Spanish ? "VS TU NIVEL · ÚLTIMOS 20" : "VS YOUR USUAL · LAST 20", 0, Gfx.Mid(44 * k, ls), ls, UiTheme.Faint);
             Sparkline.Draw(d, new Rect2(0, 58 * k, d.Size.X, Mathf.Max(20 * k, d.Size.Y - 66 * k)), list.Select(w => w.Readiness).ToList(), k, UiTheme.Teal);
         }
     }

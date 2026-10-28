@@ -188,8 +188,8 @@ public sealed partial class CrosshairFinderMode : TrainingMode
     /// <summary>Short description of the player's crosshair in a tab (log and start screen).</summary>
     string CurrentLook(XfTab t) => t switch
     {
-        XfTab.Sniper => XfDot.Describe(cur.SniperDotFor()) + (cur.SniperIsOwn ? "" : " (VALORANT's default)"),
-        XfTab.Ads when !cur.AdsIsOwn => "copies your primary",
+        XfTab.Sniper => XfDot.Describe(cur.SniperDotFor()) + (cur.SniperIsOwn ? "" : (Loc.Spanish ? " (la de por defecto de VALORANT)" : " (VALORANT's default)")),
+        XfTab.Ads when !cur.AdsIsOwn => Loc.Spanish ? "copia tu principal" : "copies your primary",
         _ => CrosshairCode.ColorName(XfTabs.Style(t, cur).Color),
     };
 
@@ -427,7 +427,7 @@ public sealed partial class CrosshairFinderMode : TrainingMode
     int PickedCount => sel.Count(b => b);
     /// <summary>The recommended candidates (picked when the pick screen opens).</summary>
     string[] Defaults => tab == XfTab.Sniper ? XfDots.Defaults : XfShapes.Defaults;
-    string ShapeWord => tab == XfTab.Sniper ? "dot" : "shape";
+    string ShapeWord => tab == XfTab.Sniper ? (Loc.Spanish ? "punto" : "dot") : (Loc.Spanish ? "forma" : "shape");
     int StartCard => shapes.Count;
 
     /// <summary>Card <paramref name="i"/> (the last index is START) on the plane: centre and size (right / up, in units
@@ -545,8 +545,8 @@ public sealed partial class CrosshairFinderMode : TrainingMode
             StartBracket();
             return float.PositiveInfinity;
         }
-        if (sel[i] && PickedCount <= 2) { Notice($"Keep at least 2 {ShapeWord}s"); G.Sound("fail", 0.4f); }
-        else if (!sel[i] && PickedCount >= 4) { Notice($"Up to 4 {ShapeWord}s: shoot a picked one to drop it first"); G.Sound("fail", 0.4f); }
+        if (sel[i] && PickedCount <= 2) { Notice(Loc.Spanish ? $"Deja al menos 2 {ShapeWord}s" : $"Keep at least 2 {ShapeWord}s"); G.Sound("fail", 0.4f); }
+        else if (!sel[i] && PickedCount >= 4) { Notice(Loc.Spanish ? $"Máximo 4 {ShapeWord}s: dispara a una elegida para quitarla primero" : $"Up to 4 {ShapeWord}s: shoot a picked one to drop it first"); G.Sound("fail", 0.4f); }
         else
         {
             sel[i] = !sel[i];
@@ -899,7 +899,9 @@ public sealed partial class CrosshairFinderMode : TrainingMode
         if (m.Accuracy < cfg.MinAccuracy && !simPlayer)
         {
             aborted = true;
-            abortWhy = $"Accuracy fell to {m.Accuracy * 100:0}% (below {cfg.MinAccuracy * 100:0}%). Take a break and run it again later; this result is provisional.";
+            abortWhy = Loc.Spanish
+                ? $"La precisión cayó al {m.Accuracy * 100:0}% (por debajo del {cfg.MinAccuracy * 100:0}%). Descansa y repítelo más tarde; este resultado es provisional."
+                : $"Accuracy fell to {m.Accuracy * 100:0}% (below {cfg.MinAccuracy * 100:0}%). Take a break and run it again later; this result is provisional.";
             GD.Print($"[xf] ABORT: {abortWhy}");
             Finish();
             return;
@@ -980,19 +982,30 @@ public sealed partial class CrosshairFinderMode : TrainingMode
     /// <summary>Short values (≤ 24 chars); the code itself, the bracket and the colour test are on the summary screen.</summary>
     public override IEnumerable<(string Label, string Value)> ResultLines()
     {
+        bool es = Loc.Spanish;
         if (phase != Ph.Summary || result == null) yield break;
-        if (aborted) yield return ("Result", "provisional (fatigue)");
-        yield return ("Tested", tab switch { XfTab.Ads => "ADS crosshair", XfTab.Sniper => "sniper scope dot", _ => "primary crosshair" });
-        yield return (tab == XfTab.Sniper ? "Dot" : "Crosshair", keepCurrent ? "keep yours" : Short(ResultName));
+        if (aborted) yield return (es ? "Resultado" : "Result", es ? "provisional (fatiga)" : "provisional (fatigue)");
+        yield return (es ? "Probado" : "Tested", tab switch
+        {
+            XfTab.Ads => es ? "mira ADS" : "ADS crosshair",
+            XfTab.Sniper => es ? "punto de la mira sniper" : "sniper scope dot",
+            _ => es ? "mira principal" : "primary crosshair",
+        });
+        yield return (tab == XfTab.Sniper ? (es ? "Punto" : "Dot") : (es ? "Mira" : "Crosshair"), keepCurrent ? (es ? "quédate la tuya" : "keep yours") : Short(ResultName));
         bool outline = tab != XfTab.Sniper && XfTabs.Style(tab, result.Xhair).HasOutline;
-        yield return ("Colour", Short($"{CrosshairCode.ColorName(XfTabs.ColorOf(tab, result.Xhair))}{(outline ? " + outline" : "")}"));
-        if (chosen != null && !float.IsNaN(chosen.MedianMs)) yield return ("Spotted in", $"{chosen.MedianMs:0} ms (median)");
+        yield return (es ? "Color" : "Colour", Short($"{CrosshairCode.ColorName(XfTabs.ColorOf(tab, result.Xhair))}{(outline ? (es ? " + contorno" : " + outline") : "")}"));
+        if (chosen != null && !float.IsNaN(chosen.MedianMs)) yield return (es ? "Vista en" : "Spotted in", es ? $"{chosen.MedianMs:0} ms (mediana)" : $"{chosen.MedianMs:0} ms (median)");
         var fin = matches.LastOrDefault(m => m.Result != null);
-        if (fin != null) yield return ("Decided by", fin.DecidedBy);
-        yield return ("In VALORANT", keepCurrent ? "nothing to change" : "Import Profile Code");
-        if (!keepCurrent) yield return ("Code changes", $"{XfTabs.Name(tab)} tab only");
-        if (!keepCurrent && tab != XfTab.Primary) yield return ("Advanced Options", "on after import");
-        yield return ("Code", "Copy it with the button");
+        if (fin != null) yield return (es ? "Decidido por" : "Decided by", fin.DecidedBy switch
+        {
+            "performance" => es ? "rendimiento" : "performance",
+            "your preference" => es ? "tu preferencia" : "your preference",
+            _ => es ? "ligera ventaja" : "slight edge",
+        });
+        yield return (es ? "En VALORANT" : "In VALORANT", keepCurrent ? (es ? "nada que cambiar" : "nothing to change") : (es ? "Importar código de perfil" : "Import Profile Code"));
+        if (!keepCurrent) yield return (es ? "Cambios de código" : "Code changes", es ? $"solo la pestaña {XfTabs.Name(tab)}" : $"{XfTabs.Name(tab)} tab only");
+        if (!keepCurrent && tab != XfTab.Primary) yield return (es ? "Opciones avanzadas" : "Advanced Options", es ? "activadas tras importar" : "on after import");
+        yield return (es ? "Código" : "Code", es ? "Cópialo con el botón" : "Copy it with the button");
     }
 
     static string Short(string s) => s.Length <= 24 ? s : s[..23] + "…";

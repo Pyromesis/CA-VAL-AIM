@@ -265,14 +265,17 @@ public sealed class PeekMode : BotMode
 
     public override IEnumerable<string> HudLines()
     {
-        if (placementErr.Count > 0) yield return $"Last pre-aim error {placementErr[^1]:0.0}°";
+        if (placementErr.Count > 0) yield return Loc.Spanish
+            ? $"Último error de preapuntado {placementErr[^1]:0.0}°"
+            : $"Last pre-aim error {placementErr[^1]:0.0}°";
     }
 
     public override IEnumerable<(string Label, string Value)> ResultLines()
     {
         foreach (var l in base.ResultLines()) yield return l;
-        yield return ("Escaped", escaped.ToString());
-        if (placementErr.Count > 0) yield return ("Avg crosshair placement error", $"{placementErr.Average():0.0}° (lower = better)");
+        yield return (Loc.Spanish ? "Escapados" : "Escaped", escaped.ToString());
+        if (placementErr.Count > 0) yield return (Loc.Spanish ? "Error medio de colocación de mira" : "Avg crosshair placement error",
+            Loc.Spanish ? $"{placementErr.Average():0.0}° (menos es mejor)" : $"{placementErr.Average():0.0}° (lower = better)");
     }
 
     public override int Badge()

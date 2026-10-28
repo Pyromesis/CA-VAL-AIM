@@ -234,6 +234,17 @@ if (-not $SkipSmoke) {
   }
 }
 
+# ---- 4b. A dev run must not rewrite an existing settings.json (startup Reimport used to save before read-only) ----
+$settingsFile = Join-Path $data "settings.json"
+Set-Content -LiteralPath $settingsFile -Value '{"Language":"es","CheckUpdates":false}' -NoNewline -Encoding utf8
+$before = (Get-FileHash $settingsFile).Hash
+$r = Invoke-Godot "dev-readonly-settings" (@("--headless", "--quit-after", "90", "--path", $Project, "--") + $sandbox)
+$after = (Get-FileHash $settingsFile).Hash
+$lang = ($r.Text -split "`r?`n" | Where-Object { $_ -match '; language (\w+);' } | Select-Object -First 1)
+Report "dev run kept settings.json and read its language" ($before -eq $after -and $lang -match 'language es') `
+  ("settings changed: $($before -ne $after); $lang") $r
+Remove-Item -LiteralPath $settingsFile -Force -ErrorAction SilentlyContinue
+
 # ---- 5. Dev runs must never write user data ----
 $written = @(Get-ChildItem $data -Recurse -File -ErrorAction SilentlyContinue)
 Report "dev runs wrote no data" ($written.Count -eq 0) ("wrote: " + (($written | ForEach-Object { $_.FullName.Substring($data.Length) }) -join ", ")) $null

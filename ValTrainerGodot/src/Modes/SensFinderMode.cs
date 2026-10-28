@@ -141,7 +141,7 @@ public sealed partial class SensFinderMode : TrainingMode
         // A pause (Esc / focus loss) inside a block invalidates it: replay the block after a rest.
         if (phase is Ph.Flick or Ph.TrackReady or Ph.Track && realGap > dt + 0.75f)
         {
-            Notice("Round restarted after the pause");
+            Notice(Loc.Spanish ? "Ronda reiniciada tras la pausa" : "Round restarted after the pause");
             StartRest(blockIdx);
             return;
         }
@@ -336,7 +336,9 @@ public sealed partial class SensFinderMode : TrainingMode
         if (acc < cfg.MinAccuracy)
         {
             aborted = true;
-            abortWhy = $"Accuracy fell to {acc * 100:0}% (below {cfg.MinAccuracy * 100:0}%). You're probably tired. Take a break and run it again later.";
+            abortWhy = Loc.Spanish
+            ? $"La precisión bajó al {acc * 100:0}% (por debajo del {cfg.MinAccuracy * 100:0}%). Probablemente estés cansado. Descansa y vuelve a hacerlo más tarde."
+            : $"Accuracy fell to {acc * 100:0}% (below {cfg.MinAccuracy * 100:0}%). You're probably tired. Take a break and run it again later.";
             GD.Print($"[sf] ABORT (fatigue): {abortWhy}");
             Finish();
             return;
@@ -544,12 +546,13 @@ public sealed partial class SensFinderMode : TrainingMode
         if (aborted || flips >= 3 || bigReject) confidence = "Low";
         else if (flips <= 1 && decisive >= 2 && adoptC && (!confirmed || confT >= 0f)) confidence = "High";
         else confidence = "Medium";
+        bool es = Loc.Spanish;
         var why = new List<string>();
-        if (aborted) why.Add("aborted");
-        why.Add($"{decisive}/{Steps.Count()} decisive");
-        why.Add(flips == 1 ? "1 flip" : $"{flips} flips");
-        if (confirmed) why.Add($"confirm {confT:+0.0;-0.0}σ");
-        if (atLimit) why.Add("at search limit");
+        if (aborted) why.Add(es ? "abortado" : "aborted");
+        why.Add(es ? $"{decisive}/{Steps.Count()} decisivos" : $"{decisive}/{Steps.Count()} decisive");
+        why.Add(es ? (flips == 1 ? "1 vuelta" : $"{flips} vueltas") : flips == 1 ? "1 flip" : $"{flips} flips");
+        if (confirmed) why.Add(es ? $"confirmación {confT:+0.0;-0.0}σ" : $"confirm {confT:+0.0;-0.0}σ");
+        if (atLimit) why.Add(es ? "en el límite de búsqueda" : "at search limit");
         confidenceWhy = string.Join(" · ", why);
 
         Event("sens_result", rec, confidence == "High" ? 2 : confidence == "Medium" ? 1 : 0);
@@ -565,11 +568,13 @@ public sealed partial class SensFinderMode : TrainingMode
     {
         if (phase is Ph.Intro or Ph.Summary || stage == null) yield break;
         var st = stage;
-        yield return st.Confirm ? $"Confirmation · round {blockIdx + 1} / {st.Order.Length}"
-            : $"Step {st.Step + 1} / {cfg.Steps} · round {blockIdx + 1} / {st.Order.Length}";
-        yield return $"Setting {block?.Label}";
-        if (phase == Ph.Flick) yield return $"Flick {Math.Min(flickIdx + 1, seq.Count)} / {seq.Count}";
-        else if (phase is Ph.TrackReady or Ph.Track) yield return $"Tracking · {Mathf.Max(0, cfg.TrackSec - (phase == Ph.Track ? phaseT : 0)):0} s";
+        bool es = Loc.Spanish;
+        yield return st.Confirm
+            ? (es ? $"Confirmación · ronda {blockIdx + 1} / {st.Order.Length}" : $"Confirmation · round {blockIdx + 1} / {st.Order.Length}")
+            : (es ? $"Paso {st.Step + 1} / {cfg.Steps} · ronda {blockIdx + 1} / {st.Order.Length}" : $"Step {st.Step + 1} / {cfg.Steps} · round {blockIdx + 1} / {st.Order.Length}");
+        yield return es ? $"Ajuste {block?.Label}" : $"Setting {block?.Label}";
+        if (phase == Ph.Flick) yield return es ? $"Flick {Math.Min(flickIdx + 1, seq.Count)} / {seq.Count}" : $"Flick {Math.Min(flickIdx + 1, seq.Count)} / {seq.Count}";
+        else if (phase is Ph.TrackReady or Ph.Track) yield return es ? $"Seguimiento · {Mathf.Max(0, cfg.TrackSec - (phase == Ph.Track ? phaseT : 0)):0} s" : $"Tracking · {Mathf.Max(0, cfg.TrackSec - (phase == Ph.Track ? phaseT : 0)):0} s";
         if (Now < noticeUntil) yield return notice;
     }
 
@@ -586,16 +591,22 @@ public sealed partial class SensFinderMode : TrainingMode
     public override IEnumerable<(string Label, string Value)> ResultLines()
     {
         if (phase != Ph.Summary) yield break;
-        if (aborted) yield return ("Result", "aborted (fatigue)");
-        yield return (aborted ? "Provisional" : "VALORANT sens", $"{rec.ToString("0.000", Inv)}  (was {current.ToString("0.000", Inv)})");
-        yield return ("eDPI", $"{rec * dpi:0}  (was {current * dpi:0})");
-        yield return ("cm/360", $"{Cm(rec):0.0}  (was {Cm(current):0.0})");
-        yield return ("Change", KeepSens ? $"{ChangePct:+0.0;-0.0}% · keep yours" : $"{ChangePct:+0.0;-0.0}%");
-        yield return ("Confidence", flips > 0 ? $"{confidence} · {flips} flip{(flips == 1 ? "" : "s")}" : confidence);
-        yield return ("Pro median", "eDPI 240 ≈ 54 cm/360");
-        yield return ("Run again", atLimit ? "in a few days" : "another day");
-        yield return (atLimit ? "Then" : "If within 10%", atLimit ? "start from the new sens" : "use the average");
-        yield return ("In VALORANT", "set it yourself");
+        bool es = Loc.Spanish;
+        if (aborted) yield return (es ? "Resultado" : "Result", es ? "abortado (fatiga)" : "aborted (fatigue)");
+        yield return (aborted ? (es ? "Provisional" : "Provisional") : (es ? "Sens de VALORANT" : "VALORANT sens"), es
+            ? $"{rec.ToString("0.000", Inv)}  (antes {current.ToString("0.000", Inv)})"
+            : $"{rec.ToString("0.000", Inv)}  (was {current.ToString("0.000", Inv)})");
+        yield return ("eDPI", es ? $"{rec * dpi:0}  (antes {current * dpi:0})" : $"{rec * dpi:0}  (was {current * dpi:0})");
+        yield return ("cm/360", es ? $"{Cm(rec):0.0}  (antes {Cm(current):0.0})" : $"{Cm(rec):0.0}  (was {Cm(current):0.0})");
+        yield return (es ? "Cambio" : "Change", KeepSens ? (es ? $"{ChangePct:+0.0;-0.0}% · quédate la tuya" : $"{ChangePct:+0.0;-0.0}% · keep yours") : $"{ChangePct:+0.0;-0.0}%");
+        yield return (es ? "Confianza" : "Confidence", flips > 0
+            ? (es ? $"{confidence} · {flips} vuelta{(flips == 1 ? "" : "s")}" : $"{confidence} · {flips} flip{(flips == 1 ? "" : "s")}")
+            : confidence);
+        yield return (es ? "Media de pros" : "Pro median", es ? "eDPI 240 ≈ 54 cm/360" : "eDPI 240 ≈ 54 cm/360");
+        yield return (es ? "Repetir" : "Run again", atLimit ? (es ? "en unos días" : "in a few days") : (es ? "otro día" : "another day"));
+        yield return (atLimit ? (es ? "Después" : "Then") : (es ? "Si está dentro del 10%" : "If within 10%"),
+            atLimit ? (es ? "parte de la nueva sens" : "start from the new sens") : (es ? "usa la media" : "use the average"));
+        yield return (es ? "En VALORANT" : "In VALORANT", es ? "cámbiala tú" : "set it yourself");
     }
 
     public override IEnumerable<(string Label, Action Act)> ResultButtons()
@@ -604,7 +615,7 @@ public sealed partial class SensFinderMode : TrainingMode
         if (!aborted && !KeepSens)
         {
             float r = rec;
-            yield return ($"Use {r.ToString("0.000", Inv)} in CA-VAL-AIM", () =>
+            yield return (Loc.Spanish ? $"Usar {r.ToString("0.000", Inv)} en CA-VAL-AIM" : $"Use {r.ToString("0.000", Inv)} in CA-VAL-AIM", () =>
             {
                 var s = Main.I.Settings;
                 s.UseSensOverride = true;
@@ -613,7 +624,7 @@ public sealed partial class SensFinderMode : TrainingMode
             });
         }
         // Undoes "Use …" if it was clicked; otherwise nothing changes.
-        yield return ("Keep my sens", () =>
+        yield return (Loc.Spanish ? "Mantener mi sens" : "Keep my sens", () =>
         {
             var s = Main.I.Settings;
             if (s.UseSensOverride == origUseOverride && s.SensOverride == origOverride) return;

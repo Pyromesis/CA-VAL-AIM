@@ -355,7 +355,9 @@ public partial class Hud : Control
         int accTenths = (int)(m.Accuracy * 1000);
         string right = m.UsesHeadshots ? cRight.Get(m.Kills, v => v.ToString(Inv)) : cRight.Get(accTenths + 1_000_000L, v => $"{(v - 1_000_000) / 10f:0}%");
         TC(UiTheme.Display, right, rr.GetCenter().X - 8 * k, Gfx.Mid(top + bh / 2, vs), vs, UiTheme.Text);
-        string rl = m.UsesHeadshots ? cRightLabel.Get(accTenths / 10, v => $"KILLS · {v}% ACC") : "ACCURACY";
+        string rl = m.UsesHeadshots
+            ? cRightLabel.Get(accTenths / 10, v => Loc.Spanish ? $"BAJAS · {v}% PREC." : $"KILLS · {v}% ACC")
+            : "ACCURACY";
         TC(UiTheme.HudWide, rl, rr.GetCenter().X - 8 * k, top + bh + 18 * k, ls, UiTheme.Accent);
     }
 
@@ -550,7 +552,9 @@ public partial class Hud : Control
         if (mv.LastStopMs >= 0)
         {
             long key = (long)mv.LastStopMs * 2 + (mv.LastStopWasCounter ? 1 : 0);
-            string t = cStop.Get(key, v => $"LAST STOP {v / 2} MS · {((v & 1) == 1 ? "COUNTER-STRAFE" : "RELEASED KEYS")}");
+            string t = cStop.Get(key, v => Loc.Spanish
+                ? $"ÚLTIMA PARADA {v / 2} MS · {((v & 1) == 1 ? "CONTRA-STRIFE" : "TECLAS SOLTADAS")}"
+                : $"LAST STOP {v / 2} MS · {((v & 1) == 1 ? "COUNTER-STRAFE" : "RELEASED KEYS")}");
             float age = RealNow - stopPopAt, sc = age < 0.22f ? 1.25f - 0.25f * Gfx.EaseOut(age / 0.22f) : 1f;
             int fs = UiTheme.Fs(17, k);
             ScaledTextC(UiTheme.HudWide, t, new Vector2(cx, plate.Position.Y - 22 * k), fs, mv.LastStopWasCounter ? UiTheme.Good : UiTheme.Warn, sc);
@@ -1249,7 +1253,7 @@ public partial class Hud : Control
                 string.Join(" · ", live.History.Where(h => !h.Positive).Select(h => h.Headline).Distinct().DefaultIfEmpty(live.History[^1].Headline))));
         if (s.ProgressiveFrom is int pf && s.ProgressiveTo is int pt)
             resultLines.Add((L("Progressive difficulty", "Dificultad progresiva"),
-                $"{(pt > pf ? "↑" : "↓")}  {Difficulty.Get(pf).Name} → {Difficulty.Get(pt).Name}  ·  " +
+                $"{(pt > pf ? "↑" : "↓")}  {Loc.T(Difficulty.Get(pf).Name)} → {Loc.T(Difficulty.Get(pt).Name)}  ·  " +
                 L("applies to the next run", "se aplica en la próxima partida")));
         var rec = s.Record;
         int prev = s.PrevBest;
@@ -1292,7 +1296,8 @@ public partial class Hud : Control
         float extraH = extra.Count > 0 ? 72 * k : 0;
         float maxH = size.Y - 60 * k;
         float ph = Mathf.Min(maxH, 120 * k + scoreH + lineRows * 40 * k + 40 * k + 104 * k + extraH + sensH);
-        var rl = hasReview ? LayoutReview(review!, rw, maxH - 22 * k, k, showable, OpenRewind) : null;
+        var rl = hasReview ? LayoutReview(review!, rw, maxH - 22 * k, k, showable, OpenRewind,
+            review!.Plays is { HasData: true } ? () => OpenPlays(review.Plays!) : null) : null;
         if (rl != null) ph = Mathf.Min(maxH, Mathf.Max(ph, rl.Height + 22 * k));
         float left = size.X / 2 - (pw + gap + rw) / 2;
         var panel = new Rect2(left, size.Y / 2 - ph / 2, pw, ph);
@@ -1623,6 +1628,22 @@ public partial class Hud : Control
         RewindScreen.Open(s.World, s.Telemetry, null, code);
     }
 
+    /// <summary>Play-by-play over the results: the results panel hides and stops taking input while the list is up
+    /// (it comes back when the list closes, so PLAY AGAIN / REWIND / MENU are still there).</summary>
+    void OpenPlays(PlayAnalysis plays)
+    {
+        if (!plays.HasData) return;
+        if (overlay != null) overlay.Visible = false;
+        SetProcessInput(false);
+        var list = PlaysScreen.Open(this, s.Telemetry, plays, RewindData.Ready(s.Telemetry));
+        list.Closed = () =>
+        {
+            if (!IsInstanceValid(this)) return;
+            SetProcessInput(true);
+            if (overlay != null) overlay.Visible = true;
+        };
+    }
+
     static List<(string Label, Action Act)> ExtraButtons(TrainingMode m)
     {
         List<(string Label, Action Act)> list;
@@ -1649,20 +1670,21 @@ public partial class Hud : Control
     }
 
     /// <summary>Lays the review out, dropping detail (cues, issues, strengths, summary lines) until it fits <paramref name="maxH"/>.</summary>
-    static ReviewLayout LayoutReview(RunReview rv, float w, float maxH, float k, Func<string, bool>? showable = null, Action<string>? showMe = null)
+    static ReviewLayout LayoutReview(RunReview rv, float w, float maxH, float k, Func<string, bool>? showable = null, Action<string>? showMe = null,
+        Action? playByPlay = null)
     {
         (int Issues, int Cues, int Strengths, int SumLines)[] variants = { (3, 2, 3, 6), (3, 1, 2, 5), (2, 2, 2, 5), (2, 1, 1, 4), (1, 1, 1, 3), (1, 0, 0, 3) };
         ReviewLayout? l = null;
         foreach (var v in variants)
         {
-            l = TryLayoutReview(rv, w, k, v.Issues, v.Cues, v.Strengths, v.SumLines, showable, showMe);
+            l = TryLayoutReview(rv, w, k, v.Issues, v.Cues, v.Strengths, v.SumLines, showable, showMe, playByPlay);
             if (l.Height <= maxH) break;
         }
         return l!;
     }
 
     static ReviewLayout TryLayoutReview(RunReview rv, float w, float k, int maxIssues, int maxCues, int maxStrengths, int sumLines,
-        Func<string, bool>? showable = null, Action<string>? showMe = null)
+        Func<string, bool>? showable = null, Action<string>? showMe = null, Action? playByPlay = null)
     {
         var L = new ReviewLayout();
         var body = UiTheme.Body;
@@ -1780,6 +1802,12 @@ public partial class Hud : Control
         }
 
         y += 10 * k;
+        if (rv.Plays is { HasData: true } plays && playByPlay != null)
+        {
+            string label = (Loc.Spanish ? "JUGADA A JUGADA" : "PLAY BY PLAY") + $"  ({plays.Plays.Count})  ›";
+            L.Buttons.Add((new Rect2(x - 2 * k, y, 360 * k, 32 * k), label, null, playByPlay, VButton.Look.Ghost));
+            y += 32 * k + 9 * k;
+        }
         L.Buttons.Add((new Rect2(x - 2 * k, y, 300 * k, 32 * k), "FULL COACH PROFILE  ›", null, () => Main.I.ShowProfile(), VButton.Look.Ghost));
         y += 32 * k + 26 * k;
         L.Height = y;

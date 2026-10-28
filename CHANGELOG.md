@@ -2,6 +2,31 @@
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-10-28
+
+### Added
+
+- **Play-by-play coach.** The results screen now grades every engagement of the run on its own: reaction, flick,
+  settle, click, overshoot and first shot, each with a verdict, what went wrong and the drill that fixes it. Up to 48
+  plays are kept, worst first; **WATCH** opens that exact moment in Rewind and **PRACTISE** starts the drill.
+- **A startup update window you cannot miss.** When a new release exists, CA-VAL-AIM opens a window with **UPDATE NOW**
+  and **LATER**. UPDATE NOW downloads it, verifies the SHA-256 and restarts into the new version; LATER leaves a banner
+  under the header and never interrupts the session again.
+
+### Changed
+
+- **Spanish, end to end.** Menus, Settings, Coach, Agents, Lock-In, warm-up details, drills, results, Rewind, the
+  crosshair finder, the bug report and the update window are translated, including dynamic counts and sentences built
+  in code. Brand names (`CA-VAL-AIM`, `LOCK-IN`) are never translated, and a sentence is left in English rather than
+  shown half-translated.
+- Warm-up scores and measurements use the decimal comma in Spanish; settings, stats files and exports keep the dot.
+- The warm-up timeline axis sits below the phase labels instead of crossing them.
+
+### Fixed
+
+- Spanish no longer says `Lock-Ins` in the middle of a sentence, and the Settings selectors no longer leak
+  `Valorant (On)`, `(default)` or `On + Boost` into an otherwise Spanish screen.
+
 ### Packaging
 
 - **A release can no longer be built without the maps.** `tools\build-release.ps1` checks the 13-map set, copies it

@@ -177,9 +177,10 @@ public sealed class FlickMode : TrainingMode
 
     public override IEnumerable<(string Label, string Value)> ResultLines()
     {
-        yield return ("Accuracy", $"{Accuracy * 100:0.0}%  ({Hits}/{Shots})");
-        yield return ("Median time to hit", KillTimes.Count > 0 ? $"{Median(KillTimes):0} ms" : "—");
-        if (Adapt != null ? expired > 0 : Difficulty.FlickLifetime(Tier) > 0) yield return ("Expired targets", expired.ToString());
+        bool es = Loc.Spanish;
+        yield return (es ? "Precisión" : "Accuracy", $"{Accuracy * 100:0.0}%  ({Hits}/{Shots})");
+        yield return (es ? "Tiempo medio de impacto" : "Median time to hit", KillTimes.Count > 0 ? $"{Median(KillTimes):0} ms" : "—");
+        if (Adapt != null ? expired > 0 : Difficulty.FlickLifetime(Tier) > 0) yield return (es ? "Objetivos caducados" : "Expired targets", expired.ToString());
         if (AdaptiveResult() is { } ar) yield return ar;
     }
 
@@ -312,8 +313,9 @@ public sealed class TrackingMode : TrainingMode
 
     public override IEnumerable<(string Label, string Value)> ResultLines()
     {
-        yield return ("On target while firing", $"{Accuracy * 100:0.0}%");
-        yield return ("Time on target", $"{onTarget:0.0} s of {Duration:0} s");
+        bool es = Loc.Spanish;
+        yield return (es ? "En el objetivo al disparar" : "On target while firing", $"{Accuracy * 100:0.0}%");
+        yield return (es ? "Tiempo en el objetivo" : "Time on target", es ? $"{onTarget:0.0} s de {Duration:0} s" : $"{onTarget:0.0} s of {Duration:0} s");
     }
 
     public override int Badge()
@@ -376,9 +378,10 @@ public sealed class ReactionMode : TrainingMode
 
     public override IEnumerable<(string Label, string Value)> ResultLines()
     {
-        yield return ("Average reaction", $"{KillTimes.Average():0} ms");
-        yield return ("Best", $"{KillTimes.Min():0} ms");
-        yield return ("Early clicks", early.ToString());
+        bool es = Loc.Spanish;
+        yield return (es ? "Reacción media" : "Average reaction", $"{KillTimes.Average():0} ms");
+        yield return (es ? "Mejor" : "Best", $"{KillTimes.Min():0} ms");
+        yield return (es ? "Clics anticipados" : "Early clicks", early.ToString());
     }
 
     public override int Badge() => KillTimes.Count == 0 ? -1 : Difficulty.BadgeLower(KillTimes.Average(), Difficulty.ReactionMs);
@@ -387,7 +390,8 @@ public sealed class ReactionMode : TrainingMode
     {
         var bg = st switch { St.Go => G.Enemy, St.Early => new Color(0.24f, 0.12f, 0.12f), _ => new Color(0.09f, 0.12f, 0.16f) };
         c.DrawRect(new Rect2(Vector2.Zero, size), bg);
-        string big = st switch { St.Wait => "Wait for it…", St.Go => "CLICK!", St.Show => $"{lastMs:0} ms", _ => "Too early!" };
+        bool es = Loc.Spanish;
+        string big = st switch { St.Wait => es ? "Espera…" : "Wait for it…", St.Go => es ? "¡YA!" : "CLICK!", St.Show => $"{lastMs:0} ms", _ => es ? "¡Demasiado pronto!" : "Too early!" };
         var col = st == St.Go ? Colors.Black : UI.UiTheme.Text;
         float k = size.Y / 1080f;
         void Center(string s, float y, int fs, Color cc)
@@ -396,7 +400,7 @@ public sealed class ReactionMode : TrainingMode
             c.DrawString(UI.UiTheme.Display, new Vector2(size.X / 2 - w / 2, y), s, HorizontalAlignment.Left, -1, fs, cc);
         }
         Center(big, size.Y / 2 + 20 * k, (int)(96 * k), col);
-        Center($"Trial {Math.Min(KillTimes.Count + 1, Trials)} / {Trials}", size.Y / 2 + 90 * k, (int)(30 * k), st == St.Go ? Colors.Black : UI.UiTheme.Dim);
-        if (KillTimes.Count > 0) Center($"Average {KillTimes.Average():0} ms", size.Y / 2 + 130 * k, (int)(26 * k), st == St.Go ? Colors.Black : UI.UiTheme.Dim);
+        Center(es ? $"Intento {Math.Min(KillTimes.Count + 1, Trials)} / {Trials}" : $"Trial {Math.Min(KillTimes.Count + 1, Trials)} / {Trials}", size.Y / 2 + 90 * k, (int)(30 * k), st == St.Go ? Colors.Black : UI.UiTheme.Dim);
+        if (KillTimes.Count > 0) Center(es ? $"Media {KillTimes.Average():0} ms" : $"Average {KillTimes.Average():0} ms", size.Y / 2 + 130 * k, (int)(26 * k), st == St.Go ? Colors.Black : UI.UiTheme.Dim);
     }
 }

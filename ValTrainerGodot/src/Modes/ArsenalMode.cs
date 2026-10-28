@@ -164,32 +164,37 @@ public sealed class ArsenalMode : BotMode
         }
         if (w.Melee)
         {
-            Row("Damage", "50 per slash · 2.5 m reach");
-            Row("Run speed", $"{w.RunSpeed.ToString("0.00", inv)} m/s (fastest)");
+            Row(Loc.Spanish ? "Daño" : "Damage", Loc.Spanish ? "50 por corte · 2,5 m de alcance" : "50 per slash · 2.5 m reach");
+            Row(Loc.Spanish ? "Velocidad al correr" : "Run speed", Loc.Spanish ? $"{w.RunSpeed.ToString("0.00", inv)} m/s (la más rápida)" : $"{w.RunSpeed.ToString("0.00", inv)} m/s (fastest)");
         }
         else
         {
+            bool es = Loc.Spanish;
             string dmg = string.Join("  ", Enumerable.Range(0, w.DamageRangeEnd.Length).Select(i =>
                 $"{w.DamageHead[i]:0}/{w.DamageBody[i]:0}/{w.DamageLegs[i]:0}" + (w.DamageRangeEnd[i] < 900 ? $" ≤{w.DamageRangeEnd[i]:0}m" : "")));
-            Row("Head / body / legs", dmg + (w.Pellets > 1 ? $" ×{w.Pellets}" : ""));
-            Row("Fire rate", $"{w.Rps.ToString("0.##", inv)} /s{(w.Auto ? " auto" : " semi")}{(w.Zoom > 1 ? $" · {w.Zoom.ToString("0.##", inv)}× zoom" : "")}");
-            Row("Magazine / reload", $"{w.Mag} · {w.Reload.ToString("0.##", inv)} s");
-            Row("Run speed", $"{w.RunSpeed.ToString("0.00", inv)} m/s · aimed {(w.RunSpeed * w.AdsMoveMul).ToString("0.00", inv)}");
-            Row("First shot", $"{w.FirstShotHip.ToString("0.###", inv)}° hip{(w.Zoom > 1 ? $" · {w.FirstShotAds.ToString("0.###", inv)}° aimed" : "")}");
+            Row(es ? "Cabeza / cuerpo / piernas" : "Head / body / legs", dmg + (w.Pellets > 1 ? $" ×{w.Pellets}" : ""));
+            Row(es ? "Cadencia" : "Fire rate", $"{w.Rps.ToString("0.##", inv)} /s{(w.Auto ? (es ? " auto" : " auto") : (es ? " semiauto" : " semi"))}{(w.Zoom > 1 ? $" · {w.Zoom.ToString("0.##", inv)}× {(es ? "zoom" : "zoom")}" : "")}");
+            Row(es ? "Cargador / recarga" : "Magazine / reload", $"{w.Mag} · {w.Reload.ToString("0.##", inv)} s");
+            Row(es ? "Velocidad al correr" : "Run speed", es
+                ? $"{w.RunSpeed.ToString("0.00", inv)} m/s · apuntando {(w.RunSpeed * w.AdsMoveMul).ToString("0.00", inv)}"
+                : $"{w.RunSpeed.ToString("0.00", inv)} m/s · aimed {(w.RunSpeed * w.AdsMoveMul).ToString("0.00", inv)}");
+            Row(es ? "Primer disparo" : "First shot", es
+                ? $"{w.FirstShotHip.ToString("0.###", inv)}° cadera{(w.Zoom > 1 ? $" · {w.FirstShotAds.ToString("0.###", inv)}° apuntando" : "")}"
+                : $"{w.FirstShotHip.ToString("0.###", inv)}° hip{(w.Zoom > 1 ? $" · {w.FirstShotAds.ToString("0.###", inv)}° aimed" : "")}");
             ty += 6 * k;
-            Gfx.Text(c, UiTheme.HudWide, "TIME TO KILL (150 HP)", x + 22 * k, ty, ls, UiTheme.Faint);
+            Gfx.Text(c, UiTheme.HudWide, es ? "TIEMPO DE BAJA (150 HP)" : "TIME TO KILL (150 HP)", x + 22 * k, ty, ls, UiTheme.Faint);
             ty += 24 * k;
             foreach (float d in Distances)
             {
                 var (hn, hms) = Ttk(w, 0, d);
                 var (bn, bms) = Ttk(w, 1, d);
                 Gfx.Text(c, UiTheme.Body, $"{d:0} m", x + 22 * k, ty, vs, UiTheme.Dim);
-                Gfx.TextR(c, UiTheme.BodySemi, $"head {hn} ({hms:0} ms)   body {bn} ({bms:0} ms)", x + pw - 20 * k, ty, vs, UiTheme.TextSoft);
+                Gfx.TextR(c, UiTheme.BodySemi, es ? $"cabeza {hn} ({hms:0} ms)   cuerpo {bn} ({bms:0} ms)" : $"head {hn} ({hms:0} ms)   body {bn} ({bms:0} ms)", x + pw - 20 * k, ty, vs, UiTheme.TextSoft);
                 ty += 24 * k;
             }
         }
         if (w.RecoilReconstructed)
-            Gfx.TextFit(c, UiTheme.Body, "Recoil pattern reconstructed (Riot publishes none)", x + 22 * k, panel.End.Y - 14 * k, UiTheme.Fs(12, k), UiTheme.Faint, pw - 40 * k);
+            Gfx.TextFit(c, UiTheme.Body, Loc.Spanish ? "Patrón de retroceso reconstruido (Riot no publica ninguno)" : "Recoil pattern reconstructed (Riot publishes none)", x + 22 * k, panel.End.Y - 14 * k, UiTheme.Fs(12, k), UiTheme.Faint, pw - 40 * k);
 
         // hit log under the crosshair
         float hy = size.Y * 0.62f;

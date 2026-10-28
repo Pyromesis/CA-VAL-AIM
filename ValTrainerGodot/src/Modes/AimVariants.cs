@@ -341,9 +341,10 @@ public sealed class FlickVariantMode : TrainingMode
 
     public override IEnumerable<(string Label, string Value)> ResultLines()
     {
-        yield return ("Accuracy", $"{Accuracy * 100:0.0}%  ({Hits}/{Shots})");
-        yield return ("Median time to hit", KillTimes.Count > 0 ? $"{Median(KillTimes):0} ms" : "—");
-        if (v.Life > 0) yield return ("Expired targets", expired.ToString());
+        bool es = Loc.Spanish;
+        yield return (es ? "Precisión" : "Accuracy", $"{Accuracy * 100:0.0}%  ({Hits}/{Shots})");
+        yield return (es ? "Tiempo medio de impacto" : "Median time to hit", KillTimes.Count > 0 ? $"{Median(KillTimes):0} ms" : "—");
+        if (v.Life > 0) yield return (es ? "Objetivos caducados" : "Expired targets", expired.ToString());
     }
 }
 
@@ -477,14 +478,15 @@ public sealed class MicroVariantMode : TrainingMode
 
     public override IEnumerable<string> HudLines()
     {
-        if (lastMs >= 0) yield return $"Last head {lastMs:0} ms";
+        if (lastMs >= 0) yield return Loc.Spanish ? $"Última cabeza {lastMs:0} ms" : $"Last head {lastMs:0} ms";
     }
 
     public override IEnumerable<(string Label, string Value)> ResultLines()
     {
-        yield return ("Accuracy", $"{Accuracy * 100:0.0}%  ({Hits}/{Shots})");
-        yield return ("Median time to hit", KillTimes.Count > 0 ? $"{Median(KillTimes):0} ms" : "—");
-        if (v.Life > 0) yield return ("Expired heads", expired.ToString());
+        bool es = Loc.Spanish;
+        yield return (es ? "Precisión" : "Accuracy", $"{Accuracy * 100:0.0}%  ({Hits}/{Shots})");
+        yield return (es ? "Tiempo medio de impacto" : "Median time to hit", KillTimes.Count > 0 ? $"{Median(KillTimes):0} ms" : "—");
+        if (v.Life > 0) yield return (es ? "Cabezas caducadas" : "Expired heads", expired.ToString());
     }
 }
 
@@ -614,15 +616,16 @@ public sealed class ReflexVariantMode : TrainingMode
 
     public override IEnumerable<string> HudLines()
     {
-        if (lastMs >= 0) yield return $"Last {lastMs:0} ms";
+        if (lastMs >= 0) yield return Loc.Spanish ? $"Último {lastMs:0} ms" : $"Last {lastMs:0} ms";
     }
 
     public override IEnumerable<(string Label, string Value)> ResultLines()
     {
-        yield return ("Hit", $"{Hits} of {shown} pop-ups");
-        yield return ("Median time to hit", KillTimes.Count > 0 ? $"{Median(KillTimes):0} ms" : "—");
-        yield return ("Accuracy", $"{Accuracy * 100:0.0}%  ({Hits}/{Shots})");
-        yield return ("Missed pop-ups", expired.ToString());
+        bool es = Loc.Spanish;
+        yield return (es ? "Aciertos" : "Hit", es ? $"{Hits} de {shown} cabezas" : $"{Hits} of {shown} pop-ups");
+        yield return (es ? "Tiempo medio de impacto" : "Median time to hit", KillTimes.Count > 0 ? $"{Median(KillTimes):0} ms" : "—");
+        yield return (es ? "Precisión" : "Accuracy", $"{Accuracy * 100:0.0}%  ({Hits}/{Shots})");
+        yield return (es ? "Cabezas perdidas" : "Missed pop-ups", expired.ToString());
     }
 }
 

@@ -67,14 +67,18 @@ public partial class LockInHandoff : ScreenBase
 
         var head = HBox(16 * k);
         var preset = WarmupPresets.Get(rec.Preset);
-        string who = rec.Preset.StartsWith(Agents.AgentRoutines.Prefix) ? $"AS {preset.Name.ToUpperInvariant()}" : preset.Name.ToUpperInvariant();
-        var title = Heading("YOU'RE LOCKED IN",
-            $"{who} · {Difficulty.Get(rec.Tier).Name.ToUpperInvariant()} TIER · {Clock(rec)} IN TOTAL · {rec.Steps.Count(s => !s.Skipped)} DRILLS" +
-            (Demo && !CmdLine.Showcase ? " · DEMO DATA" : ""));
+        bool es = Loc.Spanish;
+        string who = rec.Preset.StartsWith(Agents.AgentRoutines.Prefix)
+            ? $"{(es ? "COMO" : "AS")} {preset.Name.ToUpperInvariant()}"
+            : preset.Name.ToUpperInvariant();
+        string demoTag = Demo && !CmdLine.Showcase ? (es ? " · DATOS DEMO" : " · DEMO DATA") : "";
+        var title = Heading("YOU'RE LOCKED IN", es
+            ? $"{who} · NIVEL {Difficulty.Get(rec.Tier).Name.ToUpperInvariant()} · {Clock(rec)} EN TOTAL · {rec.Steps.Count(s => !s.Skipped)} EJERCICIOS{demoTag}"
+            : $"{who} · {Difficulty.Get(rec.Tier).Name.ToUpperInvariant()} TIER · {Clock(rec)} IN TOTAL · {rec.Steps.Count(s => !s.Skipped)} DRILLS{demoTag}");
         title.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         head.AddChild(title);
         var details = Btn("DETAILS  (D)", VButton.Look.Secondary, ShowDetails, 190, 52, 20);
-        details.TooltipText = "The lock-in graph and every drill's result";
+        details.TooltipText = es ? "La gráfica del Lock-In y el resultado de cada ejercicio" : "The lock-in graph and every drill's result";
         details.SizeFlagsVertical = SizeFlags.ShrinkCenter;
         head.AddChild(details);
         var menu = Btn("MENU", VButton.Look.Secondary, Main.I.ShowMenu, 150, 52, 22);
@@ -153,7 +157,9 @@ public partial class LockInHandoff : ScreenBase
     {
         float k = K, w = d.Size.X, y = 22 * k;
         int fs = UiTheme.Fs(20, k);
-        foreach (var line in new[] { "Queue now.", "Shoot bots in the Range while you wait.", "Take 3–5 deliberate flicks in the first buy phase." })
+        foreach (var line in Loc.Spanish
+            ? new[] { "Entra a cola ya.", "Dispara a los bots en el Campo de tiro mientras esperas.", "Haz 3–5 flicks deliberados en la primera fase de compra." }
+            : new[] { "Queue now.", "Shoot bots in the Range while you wait.", "Take 3–5 deliberate flicks in the first buy phase." })
         {
             Gfx.Diamond(d, new Vector2(6 * k, y - 7 * k), 4.5f * k, 4.5f * k, UiTheme.Accent);
             Gfx.TextFit(d, UiTheme.Body, line, 22 * k, y, fs, UiTheme.Text, w - 22 * k);
@@ -168,19 +174,25 @@ public partial class LockInHandoff : ScreenBase
     IEnumerable<string> WentWell()
     {
         var played = rec.Steps.Where(s => !s.Skipped).ToList();
+        bool es = Loc.Spanish;
         if (played.Where(s => !s.Adaptive && s.Index >= 0 && s.BaselineKind is "7d" or "recent").OrderByDescending(s => s.Index).FirstOrDefault() is { } best && best.Index >= 94)
-            yield return $"{WarmupDrills.Name(best.Mode)}: {best.Index:0}% of {WarmupScore.BaselineText(best.BaselineKind)}.";
+            yield return $"{Loc.T(WarmupDrills.Name(best.Mode))}: {best.Index:0}% {(es ? "de" : "of")} {WarmupScore.BaselineText(best.BaselineKind)}.";
         var adapt = played.Where(s => s.Adaptive && s.Level >= 0).ToList();
         if (adapt.Count > 0)
         {
             var a = adapt.OrderByDescending(s => s.PrevLevel >= 0 ? s.Level - s.PrevLevel : s.Level - 10).First();
-            string hits = a.HitRate >= 0 ? $"{a.HitRate * 100:0}% hits" : "your hits";
-            yield return $"{WarmupDrills.Name(a.Mode)}: held {hits} at level {WarmupScore.LevelText(a.Level)}" +
-                         (a.PrevLevel >= 0 ? $" (your last Lock-Ins: {a.PrevLevel.ToString("0.0", Inv)})." : ".");
+            string hits = a.HitRate >= 0 ? (es ? $"{a.HitRate * 100:0}% de aciertos" : $"{a.HitRate * 100:0}% hits") : (es ? "tus aciertos" : "your hits");
+            yield return es
+                ? $"{Loc.T(WarmupDrills.Name(a.Mode))}: mantienes {hits} en el nivel {WarmupScore.LevelText(a.Level)}" +
+                  (a.PrevLevel >= 0 ? $" (tus últimos Lock-Ins: {a.PrevLevel.ToString("0.0", Inv)})." : ".")
+                : $"{WarmupDrills.Name(a.Mode)}: held {hits} at level {WarmupScore.LevelText(a.Level)}" +
+                  (a.PrevLevel >= 0 ? $" (your last Lock-Ins: {a.PrevLevel.ToString("0.0", Inv)})." : ".");
         }
         if (played.FirstOrDefault(s => s.Mode == "deathmatch") is { } dm && dm.Kills > 0)
-            yield return $"Deathmatch: {dm.Kills} kills{(dm.Value > 0 ? $", {dm.Value.ToString("0.0", Inv)} per minute" : "")}.";
-        else if (rec.Completed) yield return $"All {played.Count} drills done.";
+            yield return es
+                ? $"Deathmatch: {dm.Kills} bajas{(dm.Value > 0 ? $", {dm.Value.ToString("0.0", Inv)} por minuto" : "")}."
+                : $"Deathmatch: {dm.Kills} kills{(dm.Value > 0 ? $", {dm.Value.ToString("0.0", Inv)} per minute" : "")}.";
+        else if (rec.Completed) yield return es ? $"Los {played.Count} ejercicios, completos." : $"All {played.Count} drills done.";
     }
 
     void DrawToday(DrawBox d)
@@ -206,10 +218,15 @@ public partial class LockInHandoff : ScreenBase
             }
         }
         // time: honest about long sessions
+        bool es = Loc.Spanish;
         float mins = (rec.TotalSeconds > 0 ? rec.TotalSeconds : rec.PlaySeconds) / 60f;
-        string time = mins > WarmupPlan.RemindMinutes
-            ? $"{Clock(rec)} in total. That's past 15 minutes. Next time, a shorter routine is enough."
-            : $"{Clock(rec)} in total.";
+        string time = es
+            ? mins > WarmupPlan.RemindMinutes
+                ? $"{Clock(rec)} en total. Pasas de 15 minutos. La próxima vez, una rutina más corta basta."
+                : $"{Clock(rec)} en total."
+            : mins > WarmupPlan.RemindMinutes
+                ? $"{Clock(rec)} in total. That's past 15 minutes. Next time, a shorter routine is enough."
+                : $"{Clock(rec)} in total.";
         float ty = Mathf.Max(y + 8 * k, d.Size.Y - 6 * k);
         Gfx.TextFit(d, UiTheme.Body, time, 0, ty, UiTheme.Fs(14, k), mins > WarmupPlan.RemindMinutes ? UiTheme.Warn : UiTheme.Faint, w);
     }

@@ -1,4 +1,5 @@
 using Godot;
+using ValTrainer.Core;
 using ValTrainer.Game.Fx;
 using ValTrainer.UI;
 
@@ -102,18 +103,20 @@ public partial class ControllerReplay : CanvasLayer
             Gfx.Diamond(view, new Vector2(x, tl.GetCenter().Y), 6 * k, 6 * k, UiTheme.Warn);
         }
         int ls = UiTheme.Fs(12, k);
+        bool es = Loc.Spanish;
         Gfx.Text(view, UiTheme.HudWide, $"{t:0.0} S", tl.Position.X, tl.End.Y + 20 * k, ls, UiTheme.Dim);
-        Gfx.TextR(view, UiTheme.HudWide, "SMOKE  |  KILL  |  ◆ ENTRY", tl.End.X, tl.End.Y + 20 * k, ls, UiTheme.Dim);
+        Gfx.TextR(view, UiTheme.HudWide, es ? "HUMO  |  BAJA  |  ◆ ENTRADA" : "SMOKE  |  KILL  |  ◆ ENTRY", tl.End.X, tl.End.Y + 20 * k, ls, UiTheme.Dim);
 
         // info column
         Gfx.Plate(view, info, 18 * k, new Color(0.04f, 0.07f, 0.1f, 0.95f), new Color(UiTheme.Text, 0.12f));
         var inner = info.Grow(-26 * k);
         int hs = UiTheme.Fs(13, k), ts = UiTheme.Fs(40, k), ss = UiTheme.Fs(15, k);
-        var tag = new Rect2(inner.Position, new Vector2(Gfx.TextW(UiTheme.HudWide, "SMOKE REPLAY", hs) + 18 * k, 22 * k));
+        string tagText = es ? "REPETICIÓN DEL HUMO" : "SMOKE REPLAY";
+        var tag = new Rect2(inner.Position, new Vector2(Gfx.TextW(UiTheme.HudWide, tagText, hs) + 18 * k, 22 * k));
         view.DrawRect(tag, UiTheme.Accent);
-        Gfx.Text(view, UiTheme.HudWide, "SMOKE REPLAY", tag.Position.X + 9 * k, Gfx.Mid(tag.GetCenter().Y, hs), hs, UiTheme.Text);
-        string res = r.Won ? $"SITE TAKEN · {r.ExecTime:0.0} S" : r.Result;
-        Gfx.TextFit(view, UiTheme.Display, $"ROUND {r.Index} — {res}", inner.Position.X, inner.Position.Y + 66 * k, ts, UiTheme.Text, inner.Size.X);
+        Gfx.Text(view, UiTheme.HudWide, tagText, tag.Position.X + 9 * k, Gfx.Mid(tag.GetCenter().Y, hs), hs, UiTheme.Text);
+        string res = r.Won ? (es ? $"SITIO TOMADO · {r.ExecTime:0.0} S" : $"SITE TAKEN · {r.ExecTime:0.0} S") : r.Result;
+        Gfx.TextFit(view, UiTheme.Display, es ? $"RONDA {r.Index} — {res}" : $"ROUND {r.Index} — {res}", inner.Position.X, inner.Position.Y + 66 * k, ts, UiTheme.Text, inner.Size.X);
         Gfx.TextFit(view, UiTheme.HudWide, $"{m.Kit.Agent.ToUpperInvariant()} · {m.Spot.Map.ToUpperInvariant()} {m.Spot.Name.ToUpperInvariant()}", inner.Position.X, inner.Position.Y + 92 * k, ss, UiTheme.Dim, inner.Size.X);
         float y = ControllerDraw.RoundStats(view, k, m, r, inner.Position.X, inner.Position.Y + 136 * k, inner.Size.X);
         y += 6 * k;

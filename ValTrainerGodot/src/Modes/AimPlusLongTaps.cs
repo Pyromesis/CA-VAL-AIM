@@ -229,7 +229,7 @@ public sealed class LongTapsMode : BotMode
             if (tooFast)
             {
                 wastedKills++;
-                G.Banner("TOO FAST — NO POINTS", UiTheme.Warn);
+                G.Banner(Loc.Spanish ? "DEMASIADO RÁPIDO — SIN PUNTOS" : "TOO FAST — NO POINTS", UiTheme.Warn);
             }
             else Score += (zone == HitZone.Head ? 150 : 80) + (int)Mathf.Max(0, (2500 - KillTimes[^1]) / 20) + (firstBullet && zone == HitZone.Head ? 25 : 0);
             bot = null; // death animation, then it frees itself
@@ -242,23 +242,33 @@ public sealed class LongTapsMode : BotMode
     int Resolved => Kills + escaped;
 
     public override string? Prompt =>
-        Now < tooFastUntil ? $"Too fast — let the recoil reset (≈ {Recovery * 1000:0} ms between taps)"
-        : Shots == 0 ? "Tap the head once, then wait for the recoil to reset before the next tap" : null;
+        Now < tooFastUntil
+            ? (Loc.Spanish
+                ? $"Demasiado rápido — deja que el retroceso se recupere (≈ {Recovery * 1000:0} ms entre toques)"
+                : $"Too fast — let the recoil reset (≈ {Recovery * 1000:0} ms between taps)")
+            : Shots == 0
+                ? (Loc.Spanish ? "Toca la cabeza una vez y espera a que el retroceso se recupere antes del siguiente toque" : "Tap the head once, then wait for the recoil to reset before the next tap")
+                : null;
 
     public override IEnumerable<string> HudLines()
     {
-        if (Alive(bot)) yield return $"Distance {dist:0} m";
-        if (taps > 0) yield return $"Tap discipline {Discipline * 100:0}%";
-        if (firstShots > 0) yield return $"First-bullet heads {firstHeads} / {firstShots}";
+        bool es = Loc.Spanish;
+        if (Alive(bot)) yield return es ? $"Distancia {dist:0} m" : $"Distance {dist:0} m";
+        if (taps > 0) yield return es ? $"Disciplina de toques {Discipline * 100:0}%" : $"Tap discipline {Discipline * 100:0}%";
+        if (firstShots > 0) yield return es ? $"Primeras balas a la cabeza {firstHeads} / {firstShots}" : $"First-bullet heads {firstHeads} / {firstShots}";
     }
 
     public override IEnumerable<(string Label, string Value)> ResultLines()
     {
-        yield return ("Kills", Resolved == 0 ? "—" : $"{Kills} / {Resolved} agents  ·  {headKills} headshots");
-        yield return ("First-bullet headshots", firstShots == 0 ? "—" : $"{100f * firstHeads / firstShots:0}%  ({firstHeads}/{firstShots})");
-        yield return ("Tap discipline", taps == 0 ? "—" : $"{Discipline * 100:0}%  ({taps - disciplined} too fast" + (wastedKills > 0 ? $", {wastedKills} kills wasted)" : ")"));
-        yield return ("Median time to kill", KillTimes.Count > 0 ? $"{Median(KillTimes):0} ms" : "—");
-        yield return ("Accuracy", $"{Accuracy * 100:0.0}%  ({Hits}/{Shots})  ·  {escaped} escaped");
+        bool es = Loc.Spanish;
+        yield return (es ? "Bajas" : "Kills", Resolved == 0 ? "—" : es
+            ? $"{Kills} / {Resolved} agentes  ·  {headKills} a la cabeza"
+            : $"{Kills} / {Resolved} agents  ·  {headKills} headshots");
+        yield return (es ? "Primeras balas a la cabeza" : "First-bullet headshots", firstShots == 0 ? "—" : $"{100f * firstHeads / firstShots:0}%  ({firstHeads}/{firstShots})");
+        yield return (es ? "Disciplina de toques" : "Tap discipline", taps == 0 ? "—"
+            : $"{Discipline * 100:0}%  ({(es ? $"{taps - disciplined} demasiado rápido" : $"{taps - disciplined} too fast")}" + (wastedKills > 0 ? (es ? $", {wastedKills} bajas perdidas)" : $", {wastedKills} kills wasted)") : ")"));
+        yield return (es ? "Tiempo medio de baja" : "Median time to kill", KillTimes.Count > 0 ? $"{Median(KillTimes):0} ms" : "—");
+        yield return (es ? "Precisión" : "Accuracy", $"{Accuracy * 100:0.0}%  ({Hits}/{Shots})  ·  {escaped} {(es ? "escapados" : "escaped")}");
     }
 
     /// <summary>Median time from first sight to the kill (needs ≥ 60% kills of 5+ agents); poor tap discipline costs

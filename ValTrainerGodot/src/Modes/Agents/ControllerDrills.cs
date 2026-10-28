@@ -40,7 +40,9 @@ public sealed class SmokeExecuteMode : MapMode
 
     public override string Key => "smokeexec:" + Agent;
     public override string Name => "Smoke Execute";
-    public override string Description => "Place your smokes to cut the defenders' sightlines, then execute onto the site.";
+    public override string Description => Loc.Spanish
+        ? "Coloca tus humos para cortar las líneas de visión de los defensores y luego ejecuta el sitio."
+        : "Place your smokes to cut the defenders' sightlines, then execute onto the site.";
     public override string Category => "Agents";
     public override bool Timed => false;
     public override bool Done => finished || (Main.I.Dev && DevDuration is { } d && Now >= d);
@@ -285,7 +287,7 @@ public sealed class SmokeExecuteMode : MapMode
         phaseT = 0;
         execStart = Now;
         cur.ExecStart = Now;
-        G.Banner("EXECUTE", UiTheme.Accent);
+        G.Banner(Loc.Spanish ? "EJECUCIÓN" : "EXECUTE", UiTheme.Accent);
     }
 
     void EndRound(bool won, string why)
@@ -307,8 +309,8 @@ public sealed class SmokeExecuteMode : MapMode
         Score += pts;
         rounds.Add(cur);
         Event(won ? "round_won" : "round_lost", cur.ExecTime);
-        if (won) G.Banner($"SITE TAKEN  {cur.ExecTime:0.0}s", UiTheme.Good);
-        else if (!cur.Died) G.Banner(why, UiTheme.Warn);
+        if (won) G.Banner(Loc.Spanish ? $"SITIO TOMADO  {cur.ExecTime:0.0}s" : $"SITE TAKEN  {cur.ExecTime:0.0}s", UiTheme.Good);
+        else if (!cur.Died) G.Banner(Loc.Spanish ? (why == "TIME" ? "TIEMPO" : why) : why, UiTheme.Warn);
         phase = Phase.Summary;
         phaseT = 0;
         skip = false;
@@ -320,7 +322,7 @@ public sealed class SmokeExecuteMode : MapMode
         Deaths++;
         Score -= 100;
         cur.Died = true;
-        G.Banner("YOU DIED", UiTheme.Accent);
+        G.Banner(Loc.Spanish ? "HAS MUERTO" : "YOU DIED", UiTheme.Accent);
         if (Main.I.Dev)
         {
             var killer = defenders.Where(d => !d.Body.Dead && d.Brain.SeesPlayer).Select(d => d.Spot.Name).FirstOrDefault() ?? "?";
@@ -449,8 +451,10 @@ public sealed class SmokeExecuteMode : MapMode
         cur.EntryAt = Now - cur.Start;
         cur.SmokesAtEntry = roundSmokes.Count;
         cur.SmokesUpAtEntry = roundSmokes.Count(v => v.Up(Now));
-        if (cur.SmokesAtEntry > 0 && cur.SmokesUpAtEntry < cur.SmokesAtEntry) G.Banner("ENTERED BEFORE YOUR SMOKES WERE UP", UiTheme.Warn);
-        else if (cur.SmokesAtEntry == 0) G.Banner("NO SMOKES OUT", UiTheme.Warn);
+        if (cur.SmokesAtEntry > 0 && cur.SmokesUpAtEntry < cur.SmokesAtEntry)
+            G.Banner(Loc.Spanish ? "ENTRASTE ANTES DE QUE TUS HUMOS ESTUVIERAN PUESTOS" : "ENTERED BEFORE YOUR SMOKES WERE UP", UiTheme.Warn);
+        else if (cur.SmokesAtEntry == 0)
+            G.Banner(Loc.Spanish ? "SIN HUMOS PUESTOS" : "NO SMOKES OUT", UiTheme.Warn);
     }
 
     // =================================================================================================================
@@ -605,32 +609,44 @@ public sealed class SmokeExecuteMode : MapMode
 
     public override IEnumerable<string> HudLines()
     {
-        yield return $"Round {Math.Min(rounds.Count + (phase == Phase.Summary ? 0 : 1), RoundsTotal)} / {RoundsTotal}";
-        if (phase is Phase.Place or Phase.Execute) yield return $"Defenders left: {defenders.Count(d => !d.Body.Dead)}";
+        bool es = Loc.Spanish;
+        yield return es
+            ? $"Ronda {Math.Min(rounds.Count + (phase == Phase.Summary ? 0 : 1), RoundsTotal)} / {RoundsTotal}"
+            : $"Round {Math.Min(rounds.Count + (phase == Phase.Summary ? 0 : 1), RoundsTotal)} / {RoundsTotal}";
+        if (phase is Phase.Place or Phase.Execute)
+            yield return es
+                ? $"Defensores restantes: {defenders.Count(d => !d.Body.Dead)}"
+                : $"Defenders left: {defenders.Count(d => !d.Body.Dead)}";
     }
 
     public override void Draw2D(CanvasItem canvas, Vector2 size) => ControllerDraw.Draw(canvas, size, this);
 
     public override IEnumerable<(string Label, string Value)> ResultLines()
     {
-        yield return ("Agent", $"{Kit.Agent} · {Kit.Ability}{(Kit.HasWall ? " + " + Kit.WallAbility : "")}");
-        yield return ("Map", $"{MapSpot.Map} {MapSpot.Name}");
+        bool es = Loc.Spanish;
+        yield return (es ? "Agente" : "Agent", $"{Kit.Agent} · {Kit.Ability}{(Kit.HasWall ? " + " + Kit.WallAbility : "")}");
+        yield return (es ? "Mapa" : "Map", $"{MapSpot.Map} {MapSpot.Name}");
         int won = rounds.Count(r => r.Won);
-        yield return ("Rounds won / lost", $"{won} / {rounds.Count - won}");
+        yield return (es ? "Rondas ganadas / perdidas" : "Rounds won / lost", $"{won} / {rounds.Count - won}");
         if (rounds.Count > 0)
         {
-            yield return ("Sightlines cut", $"{rounds.Average(r => r.Coverage) * 100f:0}%  (standard smokes {StdCoverage * 100f:0}%)");
+            yield return (es ? "Líneas de visión cortadas" : "Sightlines cut",
+                es ? $"{rounds.Average(r => r.Coverage) * 100f:0}%  (humos estándar {StdCoverage * 100f:0}%)"
+                   : $"{rounds.Average(r => r.Coverage) * 100f:0}%  (standard smokes {StdCoverage * 100f:0}%)");
             var errs = rounds.SelectMany(r => r.Spots).Where(s => !float.IsInfinity(s.Error)).ToList();
             int missed = rounds.Sum(r => r.Spots.Count(s => float.IsInfinity(s.Error)));
-            yield return ("Off the standard spots", errs.Count > 0 ? $"{errs.Average(s => s.Error):0.0} m on average{(missed > 0 ? $" · {missed} not placed" : "")}" : "no smokes placed");
+            yield return (es ? "Fuera de los puntos estándar" : "Off the standard spots", errs.Count > 0
+                ? (es ? $"{errs.Average(s => s.Error):0.0} m de media{(missed > 0 ? $" · {missed} sin colocar" : "")}"
+                      : $"{errs.Average(s => s.Error):0.0} m on average{(missed > 0 ? $" · {missed} not placed" : "")}")
+                : (es ? "ningún humo colocado" : "no smokes placed"));
             int entries = rounds.Count(r => r.EntryAt >= 0);
-            yield return ("Smokes up when you entered", $"{rounds.Count(r => r.AllUpAtEntry)} of {entries} entries");
+            yield return (es ? "Humos listos al entrar" : "Smokes up when you entered", es ? $"{rounds.Count(r => r.AllUpAtEntry)} de {entries} entradas" : $"{rounds.Count(r => r.AllUpAtEntry)} of {entries} entries");
             var wins = rounds.Where(r => r.Won).ToList();
-            if (wins.Count > 0) yield return ("Avg execute time", $"{wins.Average(r => r.ExecTime):0.0} s");
-            yield return ("Blinded by your smokes", $"{rounds.Sum(r => r.SmokeSaves):0.0} s of enemy sight lines");
+            if (wins.Count > 0) yield return (es ? "Tiempo medio de ejecución" : "Avg execute time", es ? $"{wins.Average(r => r.ExecTime):0.0} s" : $"{wins.Average(r => r.ExecTime):0.0} s");
+            yield return (es ? "Cegado por tus humos" : "Blinded by your smokes", es ? $"{rounds.Sum(r => r.SmokeSaves):0.0} s de líneas de visión enemigas" : $"{rounds.Sum(r => r.SmokeSaves):0.0} s of enemy sight lines");
         }
-        yield return ("Kills / deaths", $"{Kills} / {Deaths}");
-        if (Hits > 0) yield return ("Headshot %", $"{100f * HeadHits / Hits:0}%");
+        yield return (es ? "Bajas / muertes" : "Kills / deaths", $"{Kills} / {Deaths}");
+        if (Hits > 0) yield return (es ? "Tiros a la cabeza" : "Headshot %", $"{100f * HeadHits / Hits:0}%");
     }
 
     public override IEnumerable<(string Label, Action Act)> ResultButtons()

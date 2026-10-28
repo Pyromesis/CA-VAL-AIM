@@ -1,4 +1,5 @@
 using Godot;
+using ValTrainer.Core;
 using ValTrainer.Game;
 using ValTrainer.Game.Fx;
 using ValTrainer.Valorant;
@@ -148,7 +149,7 @@ public sealed class SentinelKit
                 if (!keyEdge) break;
                 if (CanReuse?.Invoke() == true) { Reuse?.Invoke(); break; }
                 if (Charges <= 0 && A.Persistent && CanRecall?.Invoke() == true) { Recall?.Invoke(); Charges++; }
-                if (Charges <= 0) { SentinelSfx.Play(g, "reuse", 0.4f, 0.6f); Refuse($"No {A.Ability} charges left this round"); break; }
+                if (Charges <= 0) { SentinelSfx.Play(g, "reuse", 0.4f, 0.6f); Refuse(Loc.Spanish ? $"No quedan cargas de {A.Ability} esta ronda" : $"No {A.Ability} charges left this round"); break; }
                 Equip();
                 break;
             case Phase.Equipping:

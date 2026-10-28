@@ -1,5 +1,6 @@
 using System.Globalization;
 using Godot;
+using ValTrainer.Core;
 using ValTrainer.Valorant;
 
 namespace ValTrainer.UI;
@@ -401,22 +402,31 @@ public partial class CrosshairPreview : VBoxContainer
     /// <summary>What VALORANT draws in this tab, in one line.</summary>
     public static string Describe(CrosshairSettings p, CrosshairView.Mode m)
     {
+        bool es = Loc.Spanish;
         switch (m)
         {
             case CrosshairView.Mode.Ads:
-                if (p.AdsIsOwn) return $"Aiming down sights (Vandal, Phantom, Headhunter): your own ADS crosshair, {Colour(p.Ads.Color)}.";
+                if (p.AdsIsOwn) return es
+                    ? $"Apuntando (Vandal, Phantom, Headhunter): tu propia mira ADS, {Colour(p.Ads.Color)}."
+                    : $"Aiming down sights (Vandal, Phantom, Headhunter): your own ADS crosshair, {Colour(p.Ads.Color)}.";
                 return !p.UseAdvancedOptions && !p.UsePrimaryForAds
-                    ? "Aiming down sights: your primary. Use Advanced Options is off, so VALORANT ignores the ADS tab."
-                    : "Aiming down sights: your primary (Copy Primary Crosshair is on).";
+                    ? (es ? "Apuntando: tu principal. «Opciones avanzadas» está desactivado, así que VALORANT ignora la pestaña ADS." : "Aiming down sights: your primary. Use Advanced Options is off, so VALORANT ignores the ADS tab.")
+                    : (es ? "Apuntando: tu principal («Copiar mira principal» está activado)." : "Aiming down sights: your primary (Copy Primary Crosshair is on).");
             case CrosshairView.Mode.Sniper:
                 var d = p.SniperDotFor();
-                if (!p.SniperIsOwn) return "Scoped (Operator, Tour de Force): VALORANT's default red centre dot (Use Advanced Options is off).";
+                if (!p.SniperIsOwn) return es
+                    ? "Con mira (Operator, Tour de Force): el punto rojo central por defecto de VALORANT («Opciones avanzadas» está desactivado)."
+                    : "Scoped (Operator, Tour de Force): VALORANT's default red centre dot (Use Advanced Options is off).";
                 return d.Show
-                    ? $"Scoped (Operator, Tour de Force): your centre dot, {Colour(d.Color)}, size {d.Size.ToString("0.###", CultureInfo.InvariantCulture)}, opacity {d.Opacity.ToString("0.##", CultureInfo.InvariantCulture)}."
-                    : "Scoped (Operator, Tour de Force): no centre dot (turned off in your Sniper tab).";
+                    ? (es
+                        ? $"Con mira (Operator, Tour de Force): tu punto central, {Colour(d.Color)}, tamaño {d.Size.ToString("0.###", CultureInfo.InvariantCulture)}, opacidad {d.Opacity.ToString("0.##", CultureInfo.InvariantCulture)}."
+                        : $"Scoped (Operator, Tour de Force): your centre dot, {Colour(d.Color)}, size {d.Size.ToString("0.###", CultureInfo.InvariantCulture)}, opacity {d.Opacity.ToString("0.##", CultureInfo.InvariantCulture)}.")
+                    : (es ? "Con mira (Operator, Tour de Force): sin punto central (desactivado en tu pestaña Francotirador)." : "Scoped (Operator, Tour de Force): no centre dot (turned off in your Sniper tab).");
             default:
-                string split = p.AdsIsOwn ? " Your ADS crosshair is different: see ADS." : p.SniperIsOwn ? " Your sniper dot is your own: see SNIPER." : "";
-                return $"Hip fire with every gun: {Colour(p.Primary.Color)}.{split}";
+                string split = p.AdsIsOwn
+                    ? (es ? " Tu mira ADS es distinta: mira ADS." : " Your ADS crosshair is different: see ADS.")
+                    : p.SniperIsOwn ? (es ? " Tu punto de francotirador es propio: mira FRANCOTIRADOR." : " Your sniper dot is your own: see SNIPER.") : "";
+                return es ? $"Desde la cadera con cualquier arma: {Colour(p.Primary.Color)}.{split}" : $"Hip fire with every gun: {Colour(p.Primary.Color)}.{split}";
         }
     }
 

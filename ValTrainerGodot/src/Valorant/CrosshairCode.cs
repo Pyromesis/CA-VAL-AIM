@@ -77,6 +77,7 @@ public static class CrosshairCode
         Color.Color8(255, 255, 0), Color.Color8(0, 255, 255), Color.Color8(255, 0, 255), Color.Color8(255, 0, 0),
     };
     public static readonly string[] PresetNames = { "White", "Green", "Yellow Green", "Green Yellow", "Yellow", "Cyan", "Pink", "Red" };
+    static readonly string[] PresetNamesEs = { "Blanco", "Verde", "Verde amarillo", "Amarillo verde", "Amarillo", "Cian", "Rosa", "Rojo" };
 
     /// <summary>Preset index of a colour (exact RGB, opaque), or -1.</summary>
     public static int PresetIndex(Color c)
@@ -87,7 +88,9 @@ public static class CrosshairCode
         return -1;
     }
 
-    public static string ColorName(Color c) => PresetIndex(c) is var i and >= 0 ? PresetNames[i] : "#" + Hex(c)[..6];
+    public static string ColorName(Color c) => PresetIndex(c) is var i and >= 0
+        ? (Loc.Spanish ? PresetNamesEs[i] : PresetNames[i])
+        : "#" + Hex(c)[..6];
 
     // =====================================================================================
     // Defaults (what an omitted key means)

@@ -13,26 +13,46 @@ public enum Phase { CheckIn, Activation, Calibration, Mechanics, Deathmatch, Loc
 
 public static class Phases
 {
-    public static string Name(Phase p) => p switch
-    {
-        Phase.CheckIn => "CHECK-IN",
-        Phase.Activation => "ACTIVATION",
-        Phase.Calibration => "CALIBRATION",
-        Phase.Mechanics => "MECHANICS",
-        Phase.Deathmatch => "DEATHMATCH",
-        _ => "LOCK IN",
-    };
+    public static string Name(Phase p) => Loc.Spanish
+        ? p switch
+        {
+            Phase.CheckIn => "CHEQUEO",
+            Phase.Activation => "ACTIVACIÓN",
+            Phase.Calibration => "CALIBRACIÓN",
+            Phase.Mechanics => "MECÁNICA",
+            Phase.Deathmatch => "DEATHMATCH",
+            _ => "LOCK-IN",
+        }
+        : p switch
+        {
+            Phase.CheckIn => "CHECK-IN",
+            Phase.Activation => "ACTIVATION",
+            Phase.Calibration => "CALIBRATION",
+            Phase.Mechanics => "MECHANICS",
+            Phase.Deathmatch => "DEATHMATCH",
+            _ => "LOCK IN",
+        };
 
     /// <summary>One short line per phase (setup timeline).</summary>
-    public static string Blurb(Phase p) => p switch
-    {
-        Phase.CheckIn => "how you feel",
-        Phase.Activation => "easy start, one tier down",
-        Phase.Calibration => "adapts to ~80% hits",
-        Phase.Mechanics => "bots and movement",
-        Phase.Deathmatch => "last minute easier",
-        _ => "goal and cue",
-    };
+    public static string Blurb(Phase p) => Loc.Spanish
+        ? p switch
+        {
+            Phase.CheckIn => "cómo te sientes",
+            Phase.Activation => "inicio fácil, un nivel menos",
+            Phase.Calibration => "se adapta a ~80% de aciertos",
+            Phase.Mechanics => "bots y movimiento",
+            Phase.Deathmatch => "el último minuto más fácil",
+            _ => "objetivo y consigna",
+        }
+        : p switch
+        {
+            Phase.CheckIn => "how you feel",
+            Phase.Activation => "easy start, one tier down",
+            Phase.Calibration => "adapts to ~80% hits",
+            Phase.Mechanics => "bots and movement",
+            Phase.Deathmatch => "last minute easier",
+            _ => "goal and cue",
+        };
 }
 
 /// <summary>One drill of a preset: mode key, planned seconds (the drill's own length except deathmatch), a focus cue, its
@@ -56,17 +76,29 @@ public sealed record WarmupPreset(string Key, string Name, string Blurb, int Shi
 public static class WarmupPresets
 {
     // Cues point at the target or the crosshair (external focus), never at the hand or wrist.
-    public const string CueTrack = "Keep the crosshair on the target's head. Smooth, no rushing.";
-    const string CueGrid = "Find a rhythm. Land on each target, then click.";
-    const string CueSpider = "Out to the target, back to the centre. Land on it, then click.";
-    public const string CueFlick = "One motion to the head. Stop on it, then click.";
-    const string CueFlick2 = "Crisp flicks at your real speed. Land on the head first.";
-    const string CueBots = "Crosshair at head height. Let it meet the target, then shoot.";
-    const string CueCounter = "Come to a full stop, then shoot. Moving shots miss.";
-    const string CuePeek = "Crosshair on the edge at head height before they appear.";
-    const string CueDuel = "Swing wide with the crosshair at head height. Stop, then shoot.";
-    const string CueSpray = "Pull the crosshair down against the pattern. The first bullets matter most.";
-    public const string CueDm = "Play it like the first round: crosshair at head height, one angle at a time.";
+    static string Cue(string en, string es) => Loc.Spanish ? es : en;
+    public static string CueTrack => Cue("Keep the crosshair on the target's head. Smooth, no rushing.",
+        "Mantén la mira en la cabeza del objetivo. Fluido, sin prisas.");
+    static string CueGrid => Cue("Find a rhythm. Land on each target, then click.",
+        "Encuentra un ritmo. Llega a cada objetivo y luego haz clic.");
+    static string CueSpider => Cue("Out to the target, back to the centre. Land on it, then click.",
+        "Sal al objetivo y vuelve al centro. Llega a él y luego haz clic.");
+    public static string CueFlick => Cue("One motion to the head. Stop on it, then click.",
+        "Un solo movimiento a la cabeza. Detente en ella y luego haz clic.");
+    static string CueFlick2 => Cue("Crisp flicks at your real speed. Land on the head first.",
+        "Flicks secos a tu velocidad real. Llega primero a la cabeza.");
+    static string CueBots => Cue("Crosshair at head height. Let it meet the target, then shoot.",
+        "Mira a la altura de la cabeza. Deja que se cruce con el objetivo y luego dispara.");
+    static string CueCounter => Cue("Come to a full stop, then shoot. Moving shots miss.",
+        "Detente del todo y luego dispara. Los tiros en movimiento fallan.");
+    static string CuePeek => Cue("Crosshair on the edge at head height before they appear.",
+        "Mira en el borde a la altura de la cabeza antes de que aparezcan.");
+    static string CueDuel => Cue("Swing wide with the crosshair at head height. Stop, then shoot.",
+        "Asómate amplio con la mira a la altura de la cabeza. Detente y luego dispara.");
+    static string CueSpray => Cue("Pull the crosshair down against the pattern. The first bullets matter most.",
+        "Baja la mira siguiendo el patrón. Las primeras balas son las que más importan.");
+    public static string CueDm => Cue("Play it like the first round: crosshair at head height, one angle at a time.",
+        "Juega como el primer round: mira a la altura de la cabeza y un ángulo cada vez.");
 
     static WarmupStepDef Act(string mode, string cue) => new(mode, 60, cue, Phase.Activation, TierOffset: -1);
     static WarmupStepDef Cal(string mode, string cue) => new(mode, 60, cue, Phase.Calibration, Adaptive: true);
@@ -74,6 +106,24 @@ public static class WarmupPresets
     static WarmupStepDef Dm(float secs, float ease) => new("deathmatch", secs, CueDm, Phase.Deathmatch, EaseLast: ease);
 
     public const string DefaultKey = "standard";
+
+    /// <summary>Preset name in the current language (the record keeps the English original).</summary>
+    public static string NameOf(WarmupPreset p) => !Loc.Spanish ? p.Name : p.Key switch
+    {
+        "short" => "Corta",
+        "standard" => "Lock-In",
+        _ => "Día de entreno",
+    };
+
+    public static string BlurbOf(WarmupPreset p) => !Loc.Spanish ? p.Blurb : p.Key switch
+    {
+        "short" => "Un Lock-In rápido cuando no hay tiempo",
+        "standard" => "El Lock-In completo antes de ranked",
+        _ => "Todas las habilidades y un deathmatch largo",
+    };
+
+    public static string NoteOf(WarmupPreset p) => Loc.Spanish && p.Note.Length > 0
+        ? "para días de práctica, no justo antes de ranked" : p.Note;
 
     public static readonly WarmupPreset[] All =
     {

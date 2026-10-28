@@ -510,7 +510,7 @@ public partial class MapSelector : HBoxContainer
     /// <summary>RANDOM, then every map once (MapSpots.All order).</summary>
     public static List<(string Key, string Name)> Options()
     {
-        var list = new List<(string Key, string Name)> { ("random", "RANDOM") };
+        var list = new List<(string Key, string Name)> { ("random", Loc.Spanish ? "ALEATORIO" : "RANDOM") };
         list.AddRange(MapSpots.All.Select(m => (m.Key, m.Map.ToUpperInvariant())).DistinctBy(m => m.Key));
         return list;
     }
@@ -530,8 +530,9 @@ public partial class MapSelector : HBoxContainer
     public static int ArtCount => MapSpots.All.Select(m => m.Key).Distinct().Count(HasArt);
 
     /// <summary>Short art-status tag for the selector button and the map tiles.</summary>
-    public static string ArtLabel(string key) => key == "random" ? $"{MapCount} MAPS" :
-        !HasArt(key) ? "TRACED" : FullArt(key) ? "REAL ART" : "PARTIAL ART";
+    public static string ArtLabel(string key) => key == "random"
+        ? (Loc.Spanish ? $"{MapCount} MAPAS" : $"{MapCount} MAPS")
+        : !HasArt(key) ? Loc.T("TRACED") : FullArt(key) ? Loc.T("REAL ART") : Loc.T("PARTIAL ART");
 
     /// <summary>Tag colour: teal for complete art, amber for a partial extraction, grey for a traced fallback.</summary>
     public static Color ArtColor(string key) => key == "random" ? UiTheme.Dim :
@@ -928,16 +929,18 @@ public partial class UpdateBanner : Control
         string v = Version.ToUpperInvariant();
         string head = Kind switch
         {
-            Stage.Ready => $"CA-VAL-AIM {v} IS READY",
-            Stage.Applying => $"INSTALLING CA-VAL-AIM {v}…",
-            _ => $"CA-VAL-AIM {v} IS AVAILABLE",
+            Stage.Ready => Loc.Spanish ? $"CA-VAL-AIM {v} ESTÁ LISTO" : $"CA-VAL-AIM {v} IS READY",
+            Stage.Applying => Loc.Spanish ? $"INSTALANDO CA-VAL-AIM {v}…" : $"INSTALLING CA-VAL-AIM {v}…",
+            _ => Loc.Spanish ? $"CA-VAL-AIM {v} DISPONIBLE" : $"CA-VAL-AIM {v} IS AVAILABLE",
         };
         string sub = Kind switch
         {
-            Stage.Downloading => $"Downloading update {Updater.Progress * 100:0}%",
-            Stage.Ready => "restart to update · you have " + AppInfo.Version + (Updater.NeedsElevation ? " · Windows will ask for permission" : ""),
-            Stage.Applying => "CA-VAL-AIM restarts by itself",
-            _ => $"you have {AppInfo.Version}",
+            Stage.Downloading => Loc.Spanish ? $"Descargando actualización {Updater.Progress * 100:0}%" : $"Downloading update {Updater.Progress * 100:0}%",
+            Stage.Ready => Loc.Spanish
+                ? "reinicia para actualizar · tienes " + AppInfo.Version + (Updater.NeedsElevation ? " · Windows pedirá permiso" : "")
+                : "restart to update · you have " + AppInfo.Version + (Updater.NeedsElevation ? " · Windows will ask for permission" : ""),
+            Stage.Applying => Loc.Spanish ? "CA-VAL-AIM se reinicia solo" : "CA-VAL-AIM restarts by itself",
+            _ => Loc.Spanish ? $"tienes {AppInfo.Version}" : $"you have {AppInfo.Version}",
         };
         Gfx.Text(this, UiTheme.HudWide, head, 42 * k, Gfx.Mid(cy, fs), fs, UiTheme.Text);
         Gfx.Text(this, UiTheme.HudWide, "›", 42 * k + Gfx.TextW(UiTheme.HudWide, head, fs) + 2 * k, Gfx.Mid(cy, fs), fs, new Color(acc, 0.55f));
@@ -1054,8 +1057,10 @@ public partial class UpdateNowButton : VButton
             label = canDownload ? Loc.T("UPDATE TO") + " " + UpdateCheck.Latest : Loc.T("OPEN DOWNLOAD");
             look = Look.Secondary;
             tip = canDownload
-                ? $"Downloads CA-VAL-AIM {UpdateCheck.Latest} and verifies it against SHA256SUMS.txt, then offers to restart"
-                : "Opens the release page so you can download the installer";
+                ? (Loc.Spanish
+                    ? $"Descarga CA-VAL-AIM {UpdateCheck.Latest} y la verifica con SHA256SUMS.txt; luego ofrece reiniciar"
+                    : $"Downloads CA-VAL-AIM {UpdateCheck.Latest} and verifies it against SHA256SUMS.txt, then offers to restart")
+                : (Loc.Spanish ? "Abre la página de la versión para que descargues el instalador" : "Opens the release page so you can download the installer");
         }
         else if (UpdateCheck.Status == UpdateCheck.State.UpToDate)
         {
@@ -1132,7 +1137,7 @@ public readonly record struct SessionSummary(
         int days = (now.Date - when.Date).Days;
         if (days == 1) return Loc.Spanish ? "AYER" : "YESTERDAY";
         if (days < 7) return Loc.Spanish ? $"HACE {days} DÍAS" : $"{days} DAYS AGO";
-        return when.ToString("d MMM", CultureInfo.InvariantCulture).ToUpperInvariant();
+        return $"{when.Day} {Loc.MonthShort(when)}".ToUpperInvariant();
     }
 }
 

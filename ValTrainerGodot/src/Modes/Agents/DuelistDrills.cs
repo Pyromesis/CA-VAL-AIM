@@ -35,7 +35,9 @@ public sealed partial class MobilityEntryMode : MapMode
 
     public override string Key => "mobility:" + Agent;
     public override string Name => "Mobility Entry";
-    public override string Description => "Use your movement ability to enter the site and take the first duel.";
+    public override string Description => Loc.Spanish
+        ? "Usa tu habilidad de movimiento para entrar al sitio y ganar el primer duelo."
+        : "Use your movement ability to enter the site and take the first duel.";
     public override string Category => "Agents";
     public override string SimKind => "bot";
     public override float Duration => 120f;
@@ -322,7 +324,9 @@ public sealed partial class MobilityEntryMode : MapMode
         if (between > 0 || Kit == null) yield break;
         if (rounds <= 1 || (Kit.RoundsUsed == 0 && rounds <= 3))
             foreach (var s in Kit.HowTo.Split(". ", StringSplitOptions.RemoveEmptyEntries)) yield return s.TrimEnd('.') + ".";
-        yield return $"Defenders left: {defenders.Count(d => d.Alive)}";
+        yield return Loc.Spanish
+            ? $"Defensores restantes: {defenders.Count(d => d.Alive)}"
+            : $"Defenders left: {defenders.Count(d => d.Alive)}";
         foreach (var l in Kit.StatusLines()) yield return l;
     }
 
@@ -374,25 +378,26 @@ public sealed partial class MobilityEntryMode : MapMode
 
     public override IEnumerable<(string Label, string Value)> ResultLines()
     {
-        yield return ("Map", $"{MapSpot.Map} {MapSpot.Name}");
-        yield return ("Agent", $"{AgentTitle} — {AbilityTitle}");
-        yield return ("Rounds won / lost", $"{won} / {lost}");
+        bool es = Loc.Spanish;
+        yield return (es ? "Mapa" : "Map", $"{MapSpot.Map} {MapSpot.Name}");
+        yield return (es ? "Agente" : "Agent", $"{AgentTitle} — {AbilityTitle}");
+        yield return (es ? "Rondas ganadas / perdidas" : "Rounds won / lost", $"{won} / {lost}");
         int duels = firstWon + firstLost;
-        if (duels > 0) yield return ("First duels won", $"{firstWon} of {duels}  ({100f * firstWon / duels:0}%)");
-        if (entryTimes.Count > 0) yield return ("Time to enter site", $"{entryTimes.Average():0.0} s  ({entered} of {rounds})");
+        if (duels > 0) yield return (es ? "Primeros duelos ganados" : "First duels won", es ? $"{firstWon} de {duels}  ({100f * firstWon / duels:0}%)" : $"{firstWon} of {duels}  ({100f * firstWon / duels:0}%)");
+        if (entryTimes.Count > 0) yield return (es ? "Tiempo hasta entrar al sitio" : "Time to enter site", es ? $"{entryTimes.Average():0.0} s  ({entered} de {rounds})" : $"{entryTimes.Average():0.0} s  ({entered} of {rounds})");
         if (Kit != null)
         {
-            yield return ("Ability used", $"{Kit.RoundsUsed} of {rounds} rounds");
-            if (duels > 0) yield return ("Used before 1st duel", $"{firstWithAbility} of {duels}");
-            if (abilityToKillMs.Count > 0) yield return ("Ability → kill", $"{abilityToKillMs.Average():0} ms  ({abilityKills} kill{(abilityKills == 1 ? "" : "s")})");
-            if (seenBeforeAbility > 0) yield return ("Spotted before using it", seenBeforeAbility.ToString());
+            yield return (es ? "Habilidad usada" : "Ability used", es ? $"{Kit.RoundsUsed} de {rounds} rondas" : $"{Kit.RoundsUsed} of {rounds} rounds");
+            if (duels > 0) yield return (es ? "Usada antes del 1er duelo" : "Used before 1st duel", es ? $"{firstWithAbility} de {duels}" : $"{firstWithAbility} of {duels}");
+            if (abilityToKillMs.Count > 0) yield return (es ? "Habilidad → baja" : "Ability → kill", es ? $"{abilityToKillMs.Average():0} ms  ({abilityKills} baja{(abilityKills == 1 ? "" : "s")})" : $"{abilityToKillMs.Average():0} ms  ({abilityKills} kill{(abilityKills == 1 ? "" : "s")})");
+            if (seenBeforeAbility > 0) yield return (es ? "Te vieron antes de usarla" : "Spotted before using it", seenBeforeAbility.ToString());
             foreach (var l in Kit.ResultLines()) yield return l;
         }
-        if (dodged > 0) yield return ("Hits dodged (speed)", dodged.ToString());
-        if (alertsHeard > 0) yield return ("Heard your ability", $"{alertsHeard} defender{(alertsHeard == 1 ? "" : "s")}");
-        if (clearTimes.Count > 0) yield return ("Avg clear time", $"{clearTimes.Average():0.0} s");
-        yield return ("Kills / deaths", $"{Kills} / {Deaths}");
-        if (Hits > 0) yield return ("Headshot %", $"{100f * HeadHits / Hits:0}%");
+        if (dodged > 0) yield return (es ? "Impactos esquivados (velocidad)" : "Hits dodged (speed)", dodged.ToString());
+        if (alertsHeard > 0) yield return (es ? "Oyeron tu habilidad" : "Heard your ability", es ? $"{alertsHeard} defensor{(alertsHeard == 1 ? "" : "es")}" : $"{alertsHeard} defender{(alertsHeard == 1 ? "" : "s")}");
+        if (clearTimes.Count > 0) yield return (es ? "Tiempo medio de limpieza" : "Avg clear time", es ? $"{clearTimes.Average():0.0} s" : $"{clearTimes.Average():0.0} s");
+        yield return (es ? "Bajas / muertes" : "Kills / deaths", $"{Kills} / {Deaths}");
+        if (Hits > 0) yield return (es ? "Tiros a la cabeza" : "Headshot %", $"{100f * HeadHits / Hits:0}%");
         foreach (var l in MovementLines()) yield return l;
     }
 
@@ -426,6 +431,8 @@ public sealed partial class ChamberMode : MapMode
     }
     public override string Key => "chamber:" + Variant;
     public override string Name => "Chamber Guns";
-    public override string Description => "One-tap drills with Headhunter and Tour De Force.";
+    public override string Description => Loc.Spanish
+        ? "Ejercicios de one-tap con Headhunter y Tour De Force."
+        : "One-tap drills with Headhunter and Tour De Force.";
     public override string Category => "Agents";
 }

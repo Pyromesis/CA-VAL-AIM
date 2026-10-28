@@ -122,19 +122,21 @@ public partial class WarmupCard : ScreenBase
     {
         col = UiTheme.Text;
         var parts = new List<string> { WarmupPlan.Clock(st.Seconds) };
-        string tier = Difficulty.Get(st.Tier).Name.ToUpperInvariant();
-        if (st.Adaptive) { parts.Add("ADAPTIVE: TARGETS ADJUST TO KEEP YOU NEAR 80% HITS"); col = UiTheme.Teal; }
-        else if (st.Easier) { parts.Add($"{tier}, ONE TIER DOWN"); col = UiTheme.Teal; }
+        bool es = Loc.Spanish;
+        string tier = Loc.T(Difficulty.Get(st.Tier).Name).ToUpperInvariant();
+        if (st.Adaptive) { parts.Add(es ? "ADAPTATIVO: LOS OBJETIVOS SE AJUSTAN PARA MANTENERTE CERCA DEL 80% DE ACIERTOS" : "ADAPTIVE: TARGETS ADJUST TO KEEP YOU NEAR 80% HITS"); col = UiTheme.Teal; }
+        else if (st.Easier) { parts.Add(es ? $"{tier}, UN NIVEL MENOS" : $"{tier}, ONE TIER DOWN"); col = UiTheme.Teal; }
         else parts.Add(tier);
-        if (st.EaseLast > 0) parts.Add($"LAST {WarmupPlan.Clock(st.EaseLast)} EASIER");
+        if (st.EaseLast > 0) parts.Add(es ? $"ÚLTIMOS {WarmupPlan.Clock(st.EaseLast)} MÁS FÁCIL" : $"LAST {WarmupPlan.Clock(st.EaseLast)} EASIER");
         if (st.Shifted) { parts.Add($"SENS {st.Sens.ToString("0.000", Inv)} ({st.OffsetPct:+0;-0}%)"); col = WarmupCharts.ShiftCol; }
-        else if (run.Plan.ShiftedCount > 0) parts.Add("YOUR SENS");
+        else if (run.Plan.ShiftedCount > 0) parts.Add(es ? "TU SENS" : "YOUR SENS");
         return string.Join("  ·  ", parts);
     }
 
     void DrawCard(DrawBox d)
     {
         float k = K;
+        bool es = Loc.Spanish;
         var size = d.Size;
         var plan = run.Plan;
         var st = run.NextStep;
@@ -143,8 +145,12 @@ public partial class WarmupCard : ScreenBase
 
         // header + a thin progress strip (no labels: focus mode)
         int hs = UiTheme.Fs(15, k);
-        string who = plan.Preset.Key.StartsWith(Agents.AgentRoutines.Prefix) ? $"LOCK-IN AS {plan.Preset.Name.ToUpperInvariant()}" : "LOCK-IN";
-        Gfx.TextC(d, UiTheme.HudWide, $"{who} · {Phases.Name(st.Phase)} · DRILL {st.Index + 1} OF {plan.Steps.Count}", cx, 70 * k, hs, UiTheme.Dim);
+        string who = plan.Preset.Key.StartsWith(Agents.AgentRoutines.Prefix)
+            ? $"{(es ? "LOCK-IN COMO" : "LOCK-IN AS")} {plan.Preset.Name.ToUpperInvariant()}"
+            : "LOCK-IN";
+        Gfx.TextC(d, UiTheme.HudWide, es
+            ? $"{who} · {Phases.Name(st.Phase)} · EJERCICIO {st.Index + 1} DE {plan.Steps.Count}"
+            : $"{who} · {Phases.Name(st.Phase)} · DRILL {st.Index + 1} OF {plan.Steps.Count}", cx, 70 * k, hs, UiTheme.Dim);
         float sw = Mathf.Min(size.X - 160 * k, 900 * k), sx = cx - sw / 2, sy = 92 * k, sh = 8 * k;
         float total = plan.PlaySeconds, t0 = 0;
         foreach (var s in plan.Steps)
@@ -162,13 +168,18 @@ public partial class WarmupCard : ScreenBase
         if (run.LastResult is { } last && run.NextIndex > 0)
         {
             var prevStep = plan.Steps[run.NextIndex - 1];
-            string res = last.Skipped ? "skipped"
-                : last.Adaptive ? last.Level >= 0 ? $"level {WarmupScore.LevelText(last.Level)} at {last.HitRate * 100:0}% hits" : "no level (too few shots)"
-                : last.Value < 0 ? "no result"
+            string res = last.Skipped ? (es ? "omitido" : "skipped")
+                : last.Adaptive
+                    ? last.Level >= 0
+                        ? (es ? $"nivel {WarmupScore.LevelText(last.Level)} con {last.HitRate * 100:0}% de aciertos" : $"level {WarmupScore.LevelText(last.Level)} at {last.HitRate * 100:0}% hits")
+                        : (es ? "sin nivel (muy pocos disparos)" : "no level (too few shots)")
+                : last.Value < 0 ? (es ? "sin resultado" : "no result")
                 : $"{WarmupScore.Label(last.Mode)} {WarmupScore.Format(last.Mode, last.Value)}" +
-                  (last.Index >= 0 && last.BaselineKind != "today" ? $" · {last.Index:0}% of {WarmupScore.BaselineText(last.BaselineKind)}" : "");
+                  (last.Index >= 0 && last.BaselineKind != "today"
+                      ? (es ? $" · {last.Index:0}% de {WarmupScore.BaselineText(last.BaselineKind)}" : $" · {last.Index:0}% of {WarmupScore.BaselineText(last.BaselineKind)}")
+                      : "");
             int ps = UiTheme.Fs(18, k);
-            string head = $"DONE  {prevStep.Name.ToUpperInvariant()}   ";
+            string head = es ? $"HECHO  {prevStep.Name.ToUpperInvariant()}   " : $"DONE  {prevStep.Name.ToUpperInvariant()}   ";
             float w1 = Gfx.TextW(UiTheme.HudWide, head, UiTheme.Fs(14, k)), w2 = Gfx.TextW(UiTheme.Body, res, ps);
             float x0 = cx - (w1 + w2) / 2;
             Gfx.Text(d, UiTheme.HudWide, head, x0, y, UiTheme.Fs(14, k), UiTheme.Good);
@@ -176,7 +187,7 @@ public partial class WarmupCard : ScreenBase
         }
 
         // next drill, one cue in large type
-        Gfx.TextC(d, UiTheme.HudWide, "NEXT", cx, 290 * k, UiTheme.Fs(18, k), UiTheme.Accent);
+        Gfx.TextC(d, UiTheme.HudWide, es ? "SIGUIENTE" : "NEXT", cx, 290 * k, UiTheme.Fs(18, k), UiTheme.Accent);
         Gfx.TextC(d, UiTheme.Display, st.Name.ToUpperInvariant(), cx, 390 * k, UiTheme.Fs(104, k), UiTheme.Text);
         string tag = TagLine(st, out var tagCol);
         Gfx.TextFit(d, UiTheme.HudWide, tag, cx - (size.X - 160 * k) / 2, 440 * k, UiTheme.Fs(20, k), tagCol, size.X - 160 * k, HorizontalAlignment.Center);
@@ -188,23 +199,26 @@ public partial class WarmupCard : ScreenBase
         {
             var br = new Rect2(cx - cw / 2, 474 * k, cw, 40 * k);
             d.DrawRect(br, new Color(WarmupCharts.RealCol, 0.12f));
-            Gfx.TextFit(d, UiTheme.HudWide, "BACK TO YOUR REAL SENS FROM HERE ON", br.Position.X + 18 * k,
+            Gfx.TextFit(d, UiTheme.HudWide, es ? "VUELVES A TU SENS REAL A PARTIR DE AQUÍ" : "BACK TO YOUR REAL SENS FROM HERE ON", br.Position.X + 18 * k,
                 Gfx.Mid(br.GetCenter().Y, UiTheme.Fs(15, k)), UiTheme.Fs(15, k), WarmupCharts.RealCol, br.Size.X - 30 * k, HorizontalAlignment.Center);
             cueY = 580 * k;
         }
         Gfx.TextFit(d, UiTheme.Body, st.Cue, cx - cw / 2, cueY, UiTheme.Fs(34, k), UiTheme.Text, cw, HorizontalAlignment.Center);
         if (st.Phase == Phase.Deathmatch && (run.Check.Goal.Length > 0 || run.Check.Cue.Length > 0))
         {
-            string carry = $"YOUR GOAL: {run.Check.Goal.ToUpperInvariant()}   ·   YOUR CUE: {run.Check.Cue.ToUpperInvariant()}";
+            string carry = es
+                ? $"TU OBJETIVO: {run.Check.Goal.ToUpperInvariant()}   ·   TU CLAVE: {run.Check.Cue.ToUpperInvariant()}"
+                : $"YOUR GOAL: {run.Check.Goal.ToUpperInvariant()}   ·   YOUR CUE: {run.Check.Cue.ToUpperInvariant()}";
             Gfx.TextFit(d, UiTheme.HudWide, carry, cx - cw / 2, cueY + 50 * k, UiTheme.Fs(17, k), UiTheme.Dim, cw, HorizontalAlignment.Center);
         }
 
         // ready offer: today's calibration levels next to the usual range (the button itself is in Build)
         if (offer != null)
         {
-            string lv = string.Join("   ·   ", offer.Drills.Select(x =>
-                $"{WarmupDrills.Name(x.Mode).ToUpperInvariant()} {x.Level.ToString("0.0", Inv)} (USUAL {Mathf.Max(0, x.Low).ToString("0.0", Inv)}–{Mathf.Min(4, x.High).ToString("0.0", Inv)})"));
-            Gfx.TextFit(d, UiTheme.HudWide, "CALIBRATION TODAY   " + lv, cx - cw / 2, size.Y - 404 * k, UiTheme.Fs(14, k), UiTheme.Dim, cw, HorizontalAlignment.Center);
+            string lv = string.Join("   ·   ", offer.Drills.Select(x => es
+                ? $"{WarmupDrills.Name(x.Mode).ToUpperInvariant()} {x.Level.ToString("0.0", Inv)} (HABITUAL {Mathf.Max(0, x.Low).ToString("0.0", Inv)}–{Mathf.Min(4, x.High).ToString("0.0", Inv)})"
+                : $"{WarmupDrills.Name(x.Mode).ToUpperInvariant()} {x.Level.ToString("0.0", Inv)} (USUAL {Mathf.Max(0, x.Low).ToString("0.0", Inv)}–{Mathf.Min(4, x.High).ToString("0.0", Inv)})"));
+            Gfx.TextFit(d, UiTheme.HudWide, (es ? "CALIBRACIÓN DE HOY   " : "CALIBRATION TODAY   ") + lv, cx - cw / 2, size.Y - 404 * k, UiTheme.Fs(14, k), UiTheme.Dim, cw, HorizontalAlignment.Center);
         }
 
         // 15 / 20 minute reminders
@@ -212,7 +226,9 @@ public partial class WarmupCard : ScreenBase
         if (mins >= WarmupPlan.RemindMinutes && run.Results.Any(r => !r.Skipped))
         {
             bool ready = mins >= WarmupPlan.ReadyMinutes;
-            string text = ready ? "YOU'RE READY · 20 MINUTES IN · FINISH NOW AND QUEUE" : "15 MINUTES IN · THE REST IS OPTIONAL · FINISH WHEN YOU LIKE";
+            string text = ready
+                ? (es ? "LISTO · 20 MINUTOS · TERMINA AHORA Y ENTRA A PARTIDA" : "YOU'RE READY · 20 MINUTES IN · FINISH NOW AND QUEUE")
+                : (es ? "15 MINUTOS · EL RESTO ES OPCIONAL · TERMINA CUANDO QUIERAS" : "15 MINUTES IN · THE REST IS OPTIONAL · FINISH WHEN YOU LIKE");
             var c = ready ? UiTheme.Teal : UiTheme.Warn;
             int rs = UiTheme.Fs(16, k);
             float rw = Gfx.TextW(UiTheme.HudWide, text, rs) + 60 * k;
@@ -224,17 +240,19 @@ public partial class WarmupCard : ScreenBase
 
         // countdown
         float ty = size.Y - 200 * k;
-        if (going) Gfx.TextC(d, UiTheme.HudWide, "LOADING…", cx, ty, UiTheme.Fs(20, k), UiTheme.Dim);
-        else if (hold) Gfx.TextC(d, UiTheme.HudWide, "YOUR CALL · SPACE STARTS THE NEXT DRILL", cx, ty, UiTheme.Fs(18, k), UiTheme.Dim);
+        if (going) Gfx.TextC(d, UiTheme.HudWide, es ? "CARGANDO…" : "LOADING…", cx, ty, UiTheme.Fs(20, k), UiTheme.Dim);
+        else if (hold) Gfx.TextC(d, UiTheme.HudWide, es ? "TÚ DECIDES · ESPACIO EMPIEZA EL SIGUIENTE EJERCICIO" : "YOUR CALL · SPACE STARTS THE NEXT DRILL", cx, ty, UiTheme.Fs(18, k), UiTheme.Dim);
         else if (paused)
-            Gfx.TextC(d, UiTheme.HudWide, "PAUSED · SPACE TO START · ESC AGAIN TO QUIT THE LOCK-IN", cx, ty, UiTheme.Fs(18, k), UiTheme.Warn);
+            Gfx.TextC(d, UiTheme.HudWide, es ? "EN PAUSA · ESPACIO PARA EMPEZAR · ESC OTRA VEZ PARA SALIR DEL LOCK-IN" : "PAUSED · SPACE TO START · ESC AGAIN TO QUIT THE LOCK-IN", cx, ty, UiTheme.Fs(18, k), UiTheme.Warn);
         else
         {
-            Gfx.TextC(d, UiTheme.HudWide, $"STARTING IN {Mathf.CeilToInt(Mathf.Max(0, left))}", cx, ty, UiTheme.Fs(20, k), UiTheme.Text);
+            Gfx.TextC(d, UiTheme.HudWide, es ? $"EMPIEZA EN {Mathf.CeilToInt(Mathf.Max(0, left))}" : $"STARTING IN {Mathf.CeilToInt(Mathf.Max(0, left))}", cx, ty, UiTheme.Fs(20, k), UiTheme.Text);
             float bw = 360 * k;
             d.DrawRect(new Rect2(cx - bw / 2, ty + 14 * k, bw, 3 * k), new Color(UiTheme.Text, 0.12f));
             d.DrawRect(new Rect2(cx - bw / 2, ty + 14 * k, bw * Mathf.Clamp(left / autoStart, 0, 1), 3 * k), UiTheme.Accent);
         }
-        Gfx.TextC(d, UiTheme.HudWide, "ESC PAUSES · IN A DRILL, ESC → BACK TO MENU ENDS THE LOCK-IN", cx, size.Y - 40 * k, UiTheme.Fs(12, k), UiTheme.Faint);
+        Gfx.TextC(d, UiTheme.HudWide, es
+            ? "ESC PAUSA · DENTRO DE UN EJERCICIO, ESC → MENÚ TERMINA EL LOCK-IN"
+            : "ESC PAUSES · IN A DRILL, ESC → BACK TO MENU ENDS THE LOCK-IN", cx, size.Y - 40 * k, UiTheme.Fs(12, k), UiTheme.Faint);
     }
 }

@@ -110,18 +110,21 @@ public partial class DrillPreview : Control
 
         if (sub != null) right.AddChild(Text(sub, 16, UiTheme.Warn));
         right.AddChild(Text(info.Description, 17, UiTheme.Text));
-        if (info.MadeBy is { } by) right.AddChild(Text($"Made by the community: @{by}", 15, UiTheme.Teal));
+        if (info.MadeBy is { } by)
+            right.AddChild(Text(Loc.Spanish ? $"Hecho por la comunidad: @{by}" : $"Made by the community: @{by}", 15, UiTheme.Teal));
         right.AddChild(new Control { CustomMinimumSize = new Vector2(0, 4 * k), MouseFilter = MouseFilterEnum.Ignore });
 
         void Row(string label, string value) =>
             right.AddChild(new InfoRow { K = k, H = 32, Label = label, Value = () => value });
-        Row("Length", info.Timed ? $"{info.Duration:0} s" : "Until you finish it");
+        Row("Length", info.Timed ? $"{info.Duration:0} s" : (Loc.Spanish ? "Hasta que lo termines" : "Until you finish it"));
         if (!info.Is2D && info.SelectedWeapon != WeaponKind.None) Row("Weapon", WeaponName(info.SelectedWeapon));
         // the map the demo is playing (a random map pick changes per run); RANDOM tag when the map picker is on random
         whereRow = new InfoRow
         {
             K = k, H = 32, Label = "Where",
-            Value = () => (demo?.Mode?.Map ?? info.Map) is { } m ? $"{Cap(m.Map)} · {m.Name}" : info.Is2D ? "On screen" : "Shooting range",
+            Value = () => (demo?.Mode?.Map ?? info.Map) is { } m
+                ? $"{Cap(m.Map)} · {m.Name}"
+                : Loc.Spanish ? (info.Is2D ? "En pantalla" : "Campo de tiro") : (info.Is2D ? "On screen" : "Shooting range"),
             Tag = () => info.Map != null && Main.I.MapKey == "random" ? "RANDOM" : null,
         };
         right.AddChild(whereRow);
@@ -135,8 +138,8 @@ public partial class DrillPreview : Control
         right.AddChild(new MSegment
         {
             K = k, Px = 12f, Gap = 18, MaxWidth = rightW,
-            Options = Difficulty.Tiers.Select(t => t.Name.ToUpperInvariant()).ToArray(),
-            Tips = Difficulty.Tiers.Select(t => $"{t.Name} · {t.Ranks}").ToArray(),
+            Options = Difficulty.Tiers.Select(t => Loc.T(t.Name).ToUpperInvariant()).ToArray(),
+            Tips = Difficulty.Tiers.Select(t => Loc.Spanish ? $"{Loc.T(t.Name)} · {t.Ranks}" : $"{t.Name} · {t.Ranks}").ToArray(),
             Selected = Main.I.Tier, Changed = SelectTier,
         });
         tierInfo = new DrawBox
@@ -146,7 +149,7 @@ public partial class DrillPreview : Control
             {
                 var t = Difficulty.Get(Main.I.Tier);
                 int fs = UiTheme.Fs(14, k);
-                Gfx.Text(d, UiTheme.Body, $"{t.Name} · {t.Ranks}", 2 * k, Gfx.Mid(d.Size.Y / 2, fs), fs, UiTheme.TierColor(t.Id));
+                Gfx.Text(d, UiTheme.Body, Loc.Spanish ? $"{Loc.T(t.Name)} · {t.Ranks}" : $"{t.Name} · {t.Ranks}", 2 * k, Gfx.Mid(d.Size.Y / 2, fs), fs, UiTheme.TierColor(t.Id));
             },
         };
         right.AddChild(tierInfo);
@@ -155,7 +158,11 @@ public partial class DrillPreview : Control
         var foot = new HBoxContainer();
         foot.AddThemeConstantOverride("separation", (int)(12 * k));
         col.AddChild(foot);
-        var hint = Text(CanDemo(info) ? $"Preview: the built-in simulated player, muted. Space / Enter starts,{(onFreePlay != null ? " F free play," : "")} Esc goes back." : "Space / Enter starts, Esc goes back.", 14, UiTheme.Faint);
+        var hint = Text(CanDemo(info)
+            ? Loc.Spanish
+                ? $"Vista previa: el jugador simulado integrado, sin sonido. Espacio / Enter empieza,{(onFreePlay != null ? " F juego libre," : "")} Esc vuelve."
+                : $"Preview: the built-in simulated player, muted. Space / Enter starts,{(onFreePlay != null ? " F free play," : "")} Esc goes back."
+            : Loc.Spanish ? "Espacio / Enter empieza, Esc vuelve." : "Space / Enter starts, Esc goes back.", 14, UiTheme.Faint);
         hint.SizeFlagsVertical = SizeFlags.ShrinkCenter;
         foot.AddChild(hint);
         hint.SizeFlagsHorizontal = SizeFlags.ExpandFill;
@@ -166,7 +173,9 @@ public partial class DrillPreview : Control
         if (onFreePlay != null)
         {
             var free = new MAction { K = k, Label = "FREE PLAY", Px = 13f, Delay = 0.14f, CustomMinimumSize = new Vector2(200 * k, 52 * k) };
-            free.TooltipText = "Play it with no clock and no score, and nothing saved. It starts over when the time is up; Esc → menu to stop.";
+            free.TooltipText = Loc.Spanish
+                ? "Juégalo sin reloj ni puntuación y sin guardar nada. Se reinicia al acabar el tiempo; Esc → menú para parar."
+                : "Play it with no clock and no score, and nothing saved. It starts over when the time is up; Esc → menu to stop.";
             free.Pressed += () => Start(true);
             foot.AddChild(free);
         }
@@ -210,8 +219,8 @@ public partial class DrillPreview : Control
                     Gfx.Brackets(d, r.Grow(-1), 18 * k, new Color(UiTheme.Text, 0.3f), Mathf.Max(1, 2 * k));
                     int fs = UiTheme.Fs(22, k), bs = UiTheme.Fs(16, k);
                     var c = r.GetCenter();
-                    Gfx.TextC(d, UiTheme.DisplayWide, "NO PREVIEW FOR THIS ONE", c.X, Gfx.Mid(c.Y - 18 * k, fs), fs, UiTheme.Text);
-                    Gfx.TextC(d, UiTheme.Body, "It runs on your own picks and reactions. Press START to try it.", c.X, Gfx.Mid(c.Y + 20 * k, bs), bs, UiTheme.Dim);
+                    Gfx.TextC(d, UiTheme.DisplayWide, Loc.Spanish ? "ESTE NO TIENE VISTA PREVIA" : "NO PREVIEW FOR THIS ONE", c.X, Gfx.Mid(c.Y - 18 * k, fs), fs, UiTheme.Text);
+                    Gfx.TextC(d, UiTheme.Body, Loc.Spanish ? "Depende de tus decisiones y reacciones. Pulsa EMPEZAR para probarlo." : "It runs on your own picks and reactions. Press START to try it.", c.X, Gfx.Mid(c.Y + 20 * k, bs), bs, UiTheme.Dim);
                 },
             });
             return;
@@ -234,7 +243,7 @@ public partial class DrillPreview : Control
                 var r = new Rect2(Vector2.Zero, d.Size);
                 d.DrawRect(r, new Color(UiTheme.Text, 0.14f), false, 1f);
                 int ts = UiTheme.Fs(12, k);
-                string tag = "PREVIEW · SIMULATED PLAYER";
+                string tag = Loc.Spanish ? "VISTA PREVIA · JUGADOR SIMULADO" : "PREVIEW · SIMULATED PLAYER";
                 float tw = Gfx.TextW(UiTheme.HudWide, tag, ts) + 20 * k;
                 var tr = new Rect2(d.Size.X - tw - 12 * k, 12 * k, tw, 26 * k); // top right: clear of every drill's HUD
                 d.DrawRect(tr, new Color(0.04f, 0.07f, 0.1f, 0.78f));
@@ -290,17 +299,20 @@ public partial class DrillPreview : Control
         float y = 4 * k;
         int ls = UiTheme.Fs(13, k), vs = UiTheme.Fs(30, k), ss = UiTheme.Fs(14, k);
         var inv = CultureInfo.InvariantCulture;
-        Gfx.Text(d, UiTheme.HudWide, $"BEST · {Difficulty.Get(tier).Name.ToUpperInvariant()}", 2 * k, y + ls, ls, UiTheme.Dim);
+        bool es = Loc.Spanish;
+        Gfx.Text(d, UiTheme.HudWide, $"{(es ? "MEJOR" : "BEST")} · {Loc.T(Difficulty.Get(tier).Name).ToUpperInvariant()}", 2 * k, y + ls, ls, UiTheme.Dim);
         if (best >= 0)
         {
             Gfx.Text(d, UiTheme.Display, best.ToString("#,0", inv), 2 * k, y + ls + 8 * k + vs * 0.8f, vs, UiTheme.Good);
-            string meta = $"{runs.Count} run{(runs.Count == 1 ? "" : "s")} at this tier · last {Ago(runs[^1].When)}";
+            string meta = es
+                ? $"{runs.Count} {(runs.Count == 1 ? "partida" : "partidas")} en este nivel · última {Ago(runs[^1].When)}"
+                : $"{runs.Count} run{(runs.Count == 1 ? "" : "s")} at this tier · last {Ago(runs[^1].When)}";
             Gfx.TextFit(d, UiTheme.Body, meta, 2 * k, y + ls + vs + 22 * k, ss, UiTheme.Dim, d.Size.X * 0.55f);
         }
         else
         {
             Gfx.Text(d, UiTheme.Display, "—", 2 * k, y + ls + 8 * k + vs * 0.8f, vs, UiTheme.Faint);
-            Gfx.TextFit(d, UiTheme.Body, "Not played at this tier yet", 2 * k, y + ls + vs + 22 * k, ss, UiTheme.Dim, d.Size.X * 0.55f);
+            Gfx.TextFit(d, UiTheme.Body, es ? "Aún no lo has jugado en este nivel" : "Not played at this tier yet", 2 * k, y + ls + vs + 22 * k, ss, UiTheme.Dim, d.Size.X * 0.55f);
         }
         // best badge ever (any tier) + the last scores at this tier
         float bx = d.Size.X * 0.6f;
@@ -308,9 +320,9 @@ public partial class DrillPreview : Control
         {
             RankEmblem.Draw(d, new Vector2(bx + 16 * k, y + 26 * k), 16 * k, badge, badge >= 0 ? 1f : 0.55f);
             int ts = UiTheme.Fs(10, k);
-            Gfx.Text(d, UiTheme.HudWide, "BEST BADGE", bx + 40 * k, Gfx.Mid(y + 8 * k, ts), ts, UiTheme.Faint);
+            Gfx.Text(d, UiTheme.HudWide, es ? "MEJOR INSIGNIA" : "BEST BADGE", bx + 40 * k, Gfx.Mid(y + 8 * k, ts), ts, UiTheme.Faint);
             var bt = badge >= 0 ? Difficulty.Get(badge) : null;
-            Gfx.TextFit(d, UiTheme.Body, bt?.Name ?? "Below Rookie", bx + 40 * k, Gfx.Mid(y + 25 * k, ss), ss, bt != null ? UiTheme.TierColor(bt.Id) : UiTheme.Dim, d.Size.X - bx - 40 * k);
+            Gfx.TextFit(d, UiTheme.Body, bt != null ? Loc.T(bt.Name) : (es ? "Por debajo de Novato" : "Below Rookie"), bx + 40 * k, Gfx.Mid(y + 25 * k, ss), ss, bt != null ? UiTheme.TierColor(bt.Id) : UiTheme.Dim, d.Size.X - bx - 40 * k);
             if (bt != null) Gfx.TextFit(d, UiTheme.Body, bt.Ranks, bx + 40 * k, Gfx.Mid(y + 42 * k, ts + 2), ts + 2, UiTheme.Dim, d.Size.X - bx - 40 * k);
         }
         if (runs.Count >= 2)
@@ -320,10 +332,11 @@ public partial class DrillPreview : Control
     static string Ago(DateTime when)
     {
         var d = DateTime.Now - when;
-        if (d.TotalMinutes < 60) return "just now";
-        if (d.TotalHours < 24) return $"{(int)d.TotalHours} h ago";
-        if (d.TotalDays < 2) return "yesterday";
-        return $"{(int)d.TotalDays} days ago";
+        bool es = Loc.Spanish;
+        if (d.TotalMinutes < 60) return es ? "ahora mismo" : "just now";
+        if (d.TotalHours < 24) return es ? $"hace {(int)d.TotalHours} h" : $"{(int)d.TotalHours} h ago";
+        if (d.TotalDays < 2) return es ? "ayer" : "yesterday";
+        return es ? $"hace {(int)d.TotalDays} días" : $"{(int)d.TotalDays} days ago";
     }
 
     void SelectTier(int id)
@@ -344,10 +357,10 @@ public partial class DrillPreview : Control
         var skills = Enum.GetValues<Skill>().Where(s => CoachSkills.Drills(s).Contains(key)).Select(Coach.SkillName).ToList();
         return skills.Count > 0 ? string.Join(", ", skills) : m.Category switch
         {
-            "Agents" => "Agent abilities + aim",
-            "Map" => "Map play: angles, clearing, crosshair placement",
-            "Movement" => "Movement: peeks and stops",
-            "Coach" => "Your sens / crosshair",
+            "Agents" => Loc.Spanish ? "Habilidades de agente + puntería" : "Agent abilities + aim",
+            "Map" => Loc.Spanish ? "Juego de mapa: ángulos, limpieza, colocación de la mira" : "Map play: angles, clearing, crosshair placement",
+            "Movement" => Loc.Spanish ? "Movimiento: asomadas y frenadas" : "Movement: peeks and stops",
+            "Coach" => Loc.Spanish ? "Tu sensibilidad / mira" : "Your sens / crosshair",
             _ => m.Category,
         };
     }

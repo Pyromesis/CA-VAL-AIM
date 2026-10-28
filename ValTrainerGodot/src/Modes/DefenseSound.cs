@@ -509,9 +509,9 @@ public sealed class SoundLockMode : MapMode
         if (seen.Count > 0)
         {
             var w = seen[0];
-            string r = w.Hit ? $" · first hit {(reacts.Count > 0 ? reacts[^1] : 0):0} ms" : "";
-            lastLine = $"Pre-aim error {w.Err:0.0}°{r}";
-            G.Banner(cleared ? $"{w.Err:0.0}° OFF{r.ToUpperInvariant()}" : "THEY GOT AWAY", cleared ? (w.Err <= 10f ? UiTheme.Good : UiTheme.Warn) : UiTheme.Dim);
+            string r = w.Hit ? (Loc.Spanish ? $" · primer impacto {(reacts.Count > 0 ? reacts[^1] : 0):0} ms" : $" · first hit {(reacts.Count > 0 ? reacts[^1] : 0):0} ms") : "";
+            lastLine = Loc.Spanish ? $"Error de preapuntado {w.Err:0.0}°{r}" : $"Pre-aim error {w.Err:0.0}°{r}";
+            G.Banner(cleared ? $"{w.Err:0.0}° {(Loc.Spanish ? "DE DIFERENCIA" : "OFF")}{r.ToUpperInvariant()}" : (Loc.Spanish ? "SE ESCAPARON" : "THEY GOT AWAY"), cleared ? (w.Err <= 10f ? UiTheme.Good : UiTheme.Warn) : UiTheme.Dim);
         }
         Event(cleared ? "round_won" : "round_lost");
         foreach (var w in walkers) w.Brain.Enabled = false;
@@ -553,26 +553,28 @@ public sealed class SoundLockMode : MapMode
 
     public override IEnumerable<string> HudLines()
     {
-        yield return $"Rep {Math.Max(1, reps)} · on the angle {locked}/{errs.Count}";
-        if (ph == Ph.Live && walkers.All(w => !w.Seen)) yield return "Listen — where will they come from?";
+        bool es = Loc.Spanish;
+        yield return es ? $"Repetición {Math.Max(1, reps)} · en el ángulo {locked}/{errs.Count}" : $"Rep {Math.Max(1, reps)} · on the angle {locked}/{errs.Count}";
+        if (ph == Ph.Live && walkers.All(w => !w.Seen)) yield return es ? "Escucha: ¿por dónde van a venir?" : "Listen — where will they come from?";
         if (lastLine.Length > 0) yield return lastLine;
-        if (ents.Count == 0) yield return "No usable corners on this map spot";
+        if (ents.Count == 0) yield return es ? "No hay esquinas usables en este punto del mapa" : "No usable corners on this map spot";
     }
 
     public override IEnumerable<(string Label, string Value)> ResultLines()
     {
-        yield return ("Map", $"{MapSpot.Map} · {spotName} ({ents.Count} corners)");
-        yield return ("Peeks", $"{errs.Count} seen in {reps} reps");
+        bool es = Loc.Spanish;
+        yield return (es ? "Mapa" : "Map", $"{MapSpot.Map} · {spotName} ({(es ? $"{ents.Count} esquinas" : $"{ents.Count} corners")})");
+        yield return (es ? "Asomadas" : "Peeks", es ? $"{errs.Count} vistas en {reps} repeticiones" : $"{errs.Count} seen in {reps} reps");
         if (errs.Count > 0)
         {
-            yield return ("Pre-aim error", $"{Median(errs):0.0}° median");
-            yield return ("On the angle (≤ 10°)", $"{100f * locked / errs.Count:0}% of peeks");
+            yield return (es ? "Error de preapuntado" : "Pre-aim error", es ? $"{Median(errs):0.0}° de mediana" : $"{Median(errs):0.0}° median");
+            yield return (es ? "En el ángulo (≤ 10°)" : "On the angle (≤ 10°)", es ? $"{100f * locked / errs.Count:0}% de las asomadas" : $"{100f * locked / errs.Count:0}% of peeks");
         }
-        if (fakes > 0) yield return ("Fakes read", $"{fakesRead} of {fakes}");
-        if (reacts.Count > 0) yield return ("First sight → first hit", $"{Median(reacts):0} ms median");
-        yield return ("Kills / deaths", $"{Kills} / {Deaths}");
-        if (Hits > 0) yield return ("Headshot %", $"{100f * HeadHits / Hits:0}%");
-        yield return ("Accuracy", $"{Accuracy * 100:0.0}%");
+        if (fakes > 0) yield return (es ? "Fintas leídas" : "Fakes read", es ? $"{fakesRead} de {fakes}" : $"{fakesRead} of {fakes}");
+        if (reacts.Count > 0) yield return (es ? "Primera vista → primer impacto" : "First sight → first hit", es ? $"{Median(reacts):0} ms de mediana" : $"{Median(reacts):0} ms median");
+        yield return (es ? "Bajas / muertes" : "Kills / deaths", $"{Kills} / {Deaths}");
+        if (Hits > 0) yield return (es ? "% a la cabeza" : "Headshot %", $"{100f * HeadHits / Hits:0}%");
+        yield return (es ? "Precisión" : "Accuracy", $"{Accuracy * 100:0.0}%");
     }
 
     static readonly float[] ReactMs = { 1000, 800, 640, 520, 430 };

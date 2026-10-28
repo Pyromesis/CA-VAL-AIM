@@ -26,9 +26,11 @@ public sealed class PostPlantMode : TacticalMode
 {
     public override string Key => "postplant";
     public override string Name => "Post-Plant";
-    public override string Description => "The spike is down: hold your post-plant angle while defenders retake. Play the defuse, not the peek.";
+    public override string Description => Loc.Spanish
+        ? "La spike está plantada: aguanta tu ángulo post-plant mientras los defensores recuperan. Juega el defuse, no la asomada."
+        : "The spike is down: hold your post-plant angle while defenders retake. Play the defuse, not the peek.";
     public override string Category => "Map";
-    public override string? Subtitle => $"{MapSpot.Map} — Post-Plant";
+    public override string? Subtitle => Loc.Spanish ? $"{MapSpot.Map} — Post-Plant" : $"{MapSpot.Map} — Post-Plant";
     protected override string Side => "ATK";
     protected override string OtherSide => "DEF";
 
@@ -353,7 +355,7 @@ public sealed class PostPlantMode : TacticalMode
             wonKills++;
             wonPerKind[spotKind]++;
             Score += 300;
-            EndRound(true, "ALL DEFENDERS DOWN", UiTheme.Good, "eliminations");
+            EndRound(true, Loc.Spanish ? "TODOS LOS DEFENSORES ABAJO" : "ALL DEFENDERS DOWN", UiTheme.Good, "eliminations");
         }
     }
 
@@ -362,14 +364,14 @@ public sealed class PostPlantMode : TacticalMode
         if (G.Player.Dead) wonAfterDeath++; else wonDetonation++;
         wonPerKind[spotKind]++;
         Score += 300;
-        EndRound(true, "SPIKE DETONATED", UiTheme.Good, "detonation");
+        EndRound(true, Loc.Spanish ? "SPIKE DETONADA" : "SPIKE DETONATED", UiTheme.Good, "detonation");
     }
 
     protected override void OnDefused(bool byPlayer)
     {
         lostDefuse++;
         Score -= 50;
-        EndRound(false, "SPIKE DEFUSED", UiTheme.Accent, "defused");
+        EndRound(false, Loc.Spanish ? "SPIKE DESACTIVADA" : "SPIKE DEFUSED", UiTheme.Accent, "defused");
     }
 
     public override void OnPlayerDied()
@@ -378,7 +380,7 @@ public sealed class PostPlantMode : TacticalMode
         Score -= 100;
         if (leftEarly && !defuseHeard) earlyPeekDeaths++;
         DevDeathLog(spot.Name);
-        G.Banner("YOU DIED", UiTheme.Accent);
+        G.Banner(Loc.Spanish ? "HAS MUERTO" : "YOU DIED", UiTheme.Accent);
         resolveAt = Now + 1.6f;
     }
 
@@ -399,7 +401,7 @@ public sealed class PostPlantMode : TacticalMode
             lostDefuse++;
             SpikeNode?.Disarm();
             SpikeSfx.PlayAt(G.World, "defused", Spike, G.View.Eye, 1f, 90f, 0.6f);
-            EndRound(false, "SPIKE DEFUSED", UiTheme.Accent, "died, defused");
+            EndRound(false, Loc.Spanish ? "SPIKE DESACTIVADA" : "SPIKE DEFUSED", UiTheme.Accent, "died, defused");
         }
         else
         {
@@ -410,7 +412,7 @@ public sealed class PostPlantMode : TacticalMode
             wonAfterDeath++;
             wonPerKind[spotKind]++;
             Score += 150;
-            EndRound(true, "SPIKE DETONATED — THEY RAN OUT OF TIME", UiTheme.Good, "died, detonated");
+            EndRound(true, Loc.Spanish ? "SPIKE DETONADA — SE QUEDARON SIN TIEMPO" : "SPIKE DETONATED - THEY RAN OUT OF TIME", UiTheme.Good, "died, detonated");
         }
     }
 
@@ -422,8 +424,9 @@ public sealed class PostPlantMode : TacticalMode
         {
             if (G == null || !Live || G.Player.Dead) return null;
             if (Now < setupUntil)
-                return $"{spot.Name}  ·  switch: " + string.Join("  ", Enumerable.Range(0, 3).Where(k => offers[k] != null).Select(k => $"{k + 1} {TacticalSite.Kinds[k]}"));
-            if (!defuseHeard && Round <= 2 && RoundT < 9f) return "Hold the spike — don't peek until you hear the defuse";
+                return $"{spot.Name}  ·  {(Loc.Spanish ? "cambiar" : "switch")}: " + string.Join("  ", Enumerable.Range(0, 3).Where(k => offers[k] != null).Select(k => $"{k + 1} {TacticalSite.Kinds[k]}"));
+            if (!defuseHeard && Round <= 2 && RoundT < 9f)
+                return Loc.Spanish ? "Aguanta la spike: no te asomes hasta oír el defuse" : "Hold the spike — don't peek until you hear the defuse";
             return null;
         }
     }
@@ -431,8 +434,10 @@ public sealed class PostPlantMode : TacticalMode
     public override IEnumerable<string> HudLines()
     {
         if (Site == null) yield break;
-        yield return $"Round {Round}   Won {Won}  Lost {Lost}";
-        if (Live) yield return $"Your spot: {spot.Name}";
+        yield return Loc.Spanish
+            ? $"Ronda {Round}   Ganadas {Won}  Perdidas {Lost}"
+            : $"Round {Round}   Won {Won}  Lost {Lost}";
+        if (Live) yield return Loc.Spanish ? $"Tu puesto: {spot.Name}" : $"Your spot: {spot.Name}";
     }
 
     protected override void DrawMarkers(CanvasItem c, Camera3D cam, float k)
@@ -445,22 +450,25 @@ public sealed class PostPlantMode : TacticalMode
 
     public override IEnumerable<(string Label, string Value)> ResultLines()
     {
-        yield return ("Map", MapSpot.Map);
-        yield return ("Rounds won / lost", $"{Won} / {Lost}");
-        yield return ("Wins: detonation / kills", $"{wonDetonation} / {wonKills}");
-        if (wonAfterDeath > 0) yield return ("Won after dying", wonAfterDeath.ToString());
-        if (lostDefuse > 0) yield return ("Lost to the defuse", lostDefuse.ToString());
-        yield return ("Defusers killed", defuserKillMs.Count > 0 ? $"{defusersKilled} · {defuserKillMs.Average() / 1000f:0.0}s after sound" : defusersKilled.ToString());
+        bool es = Loc.Spanish;
+        yield return (es ? "Mapa" : "Map", MapSpot.Map);
+        yield return (es ? "Rondas ganadas / perdidas" : "Rounds won / lost", $"{Won} / {Lost}");
+        yield return (es ? "Victorias: detonación / bajas" : "Wins: detonation / kills", $"{wonDetonation} / {wonKills}");
+        if (wonAfterDeath > 0) yield return (es ? "Ganadas tras morir" : "Won after dying", wonAfterDeath.ToString());
+        if (lostDefuse > 0) yield return (es ? "Perdidas por el defuse" : "Lost to the defuse", lostDefuse.ToString());
+        yield return (es ? "Desactivadores abatidos" : "Defusers killed", defuserKillMs.Count > 0
+            ? (es ? $"{defusersKilled} · {defuserKillMs.Average() / 1000f:0.0}s tras el sonido" : $"{defusersKilled} · {defuserKillMs.Average() / 1000f:0.0}s after sound")
+            : defusersKilled.ToString());
         int rounds = Won + Lost;
-        if (rounds > 0) yield return ("Held spot until defuse", $"{heldRounds} of {rounds}");
-        if (earlyPeekDeaths > 0) yield return ("Died peeking early", earlyPeekDeaths.ToString());
+        if (rounds > 0) yield return (es ? "Aguantaste el puesto hasta el defuse" : "Held spot until defuse", es ? $"{heldRounds} de {rounds}" : $"{heldRounds} of {rounds}");
+        if (earlyPeekDeaths > 0) yield return (es ? "Muertes por asomarte pronto" : "Died peeking early", earlyPeekDeaths.ToString());
         var best = Enumerable.Range(0, 3).Where(k => roundsPerKind[k] > 0).OrderByDescending(k => (float)wonPerKind[k] / roundsPerKind[k]).ThenByDescending(k => roundsPerKind[k]).ToList();
-        if (best.Count > 1) yield return ("Best spot", $"{TacticalSite.Kinds[best[0]]} ({wonPerKind[best[0]]}/{roundsPerKind[best[0]]})");
-        if (botSticks > 0) yield return ("Fake defuses seen", botSticks.ToString());
-        yield return ("Kills / deaths", $"{Kills} / {Deaths}");
-        if (Hits > 0) yield return ("Headshot %", $"{100f * HeadHits / Hits:0}%");
-        yield return ("Accuracy", $"{Accuracy * 100:0.0}%  ({Hits}/{Shots})");
-        if (KillTimes.Count > 0) yield return ("Avg time to kill", $"{KillTimes.Average():0} ms");
+        if (best.Count > 1) yield return (es ? "Mejor puesto" : "Best spot", $"{TacticalSite.Kinds[best[0]]} ({wonPerKind[best[0]]}/{roundsPerKind[best[0]]})");
+        if (botSticks > 0) yield return (es ? "Defuses falsos vistos" : "Fake defuses seen", botSticks.ToString());
+        yield return (es ? "Bajas / muertes" : "Kills / deaths", $"{Kills} / {Deaths}");
+        if (Hits > 0) yield return (es ? "Tiros a la cabeza" : "Headshot %", $"{100f * HeadHits / Hits:0}%");
+        yield return (es ? "Precisión" : "Accuracy", $"{Accuracy * 100:0.0}%  ({Hits}/{Shots})");
+        if (KillTimes.Count > 0) yield return (es ? "Tiempo medio de baja" : "Avg time to kill", $"{KillTimes.Average():0} ms");
         foreach (var l in MovementLines()) yield return l;
     }
 
@@ -508,9 +516,11 @@ public sealed class RetakeMode : TacticalMode
 {
     public override string Key => "retake";
     public override string Name => "Retake";
-    public override string Description => $"Retake the site and defuse while attackers hold their post-plant spots. Hold {DefuseKeyText} to defuse (7 s, half at 3.5 s).";
+    public override string Description => Loc.Spanish
+        ? $"Recupera el sitio y desactiva la spike mientras los atacantes aguantan sus puestos post-plant. Mantén {DefuseKeyText} para desactivar (7 s, mitad a los 3,5 s)."
+        : $"Retake the site and defuse while attackers hold their post-plant spots. Hold {DefuseKeyText} to defuse (7 s, half at 3.5 s).";
     public override string Category => "Map";
-    public override string? Subtitle => $"{MapSpot.Map} — Retake";
+    public override string? Subtitle => Loc.Spanish ? $"{MapSpot.Map} — Recuperación" : $"{MapSpot.Map} — Retake";
     protected override string Side => "DEF";
     protected override string OtherSide => "ATK";
     protected override float SpikeTimerAtStart => 35f;
@@ -688,14 +698,16 @@ public sealed class RetakeMode : TacticalMode
         defuseLeft.Add(SpikeLeft);
         retakeTimes.Add(RoundT);
         Score += 300 + (int)(SpikeLeft * 5);
-        EndRound(true, clean ? "SPIKE DEFUSED" : "SPIKE DEFUSED — UNDER FIRE", UiTheme.Good, clean ? "clean defuse" : "ninja defuse");
+        EndRound(true, clean
+            ? (Loc.Spanish ? "SPIKE DESACTIVADA" : "SPIKE DEFUSED")
+            : (Loc.Spanish ? "SPIKE DESACTIVADA — BAJO FUEGO" : "SPIKE DEFUSED — UNDER FIRE"), UiTheme.Good, clean ? "clean defuse" : "ninja defuse");
     }
 
     protected override void OnDetonated()
     {
         lostTime++;
         Score -= 50;
-        EndRound(false, "SPIKE DETONATED", UiTheme.Accent, "detonated");
+        EndRound(false, Loc.Spanish ? "SPIKE DETONADA" : "SPIKE DETONATED", UiTheme.Accent, "detonated");
     }
 
     public override void OnPlayerDied()
@@ -704,12 +716,12 @@ public sealed class RetakeMode : TacticalMode
         lostDied++;
         Score -= 100;
         DevDeathLog($"entry {entryIdx}");
-        EndRound(false, "YOU DIED", UiTheme.Accent, "died");
+        EndRound(false, Loc.Spanish ? "HAS MUERTO" : "YOU DIED", UiTheme.Accent, "died");
     }
 
     protected override void OnBotKilled(TacBot bot, bool headshot)
     {
-        if (AliveBots == 0 && Live) G.Banner("SITE CLEAR — DEFUSE!", UiTheme.Good);
+        if (AliveBots == 0 && Live) G.Banner(Loc.Spanish ? "SITIO DESPEJADO — ¡DESACTIVA!" : "SITE CLEAR — DEFUSE!", UiTheme.Good);
     }
 
     public override string? Prompt
@@ -717,8 +729,11 @@ public sealed class RetakeMode : TacticalMode
         get
         {
             if (G == null || !Live || G.Player.Dead || PlayerDefusing) return null;
-            if (NearSpike) return Defusing ? null : DefuseCheckpoint ? $"Hold {DefuseKeyText} to defuse (resumes from half)" : $"Hold {DefuseKeyText} to defuse";
-            if (Round <= 1 && RoundT < 5f) return "Retake the site — clear the attackers or sneak the defuse";
+            if (NearSpike) return Defusing ? null
+                : DefuseCheckpoint
+                    ? (Loc.Spanish ? $"Mantén {DefuseKeyText} para desactivar (continúa desde la mitad)" : $"Hold {DefuseKeyText} to defuse (resumes from half)")
+                    : (Loc.Spanish ? $"Mantén {DefuseKeyText} para desactivar" : $"Hold {DefuseKeyText} to defuse");
+            if (Round <= 1 && RoundT < 5f) return Loc.Spanish ? "Recupera el sitio: limpia a los atacantes o cuela el defuse" : "Retake the site — clear the attackers or sneak the defuse";
             return null;
         }
     }
@@ -726,23 +741,27 @@ public sealed class RetakeMode : TacticalMode
     public override IEnumerable<string> HudLines()
     {
         if (Site == null) yield break;
-        yield return $"Round {Round}   Won {Won}  Lost {Lost}";
-        if (DefuseCheckpoint && !PlayerDefusing && Live) yield return "Half defused — it resumes from 3.5 s";
+        yield return Loc.Spanish
+            ? $"Ronda {Round}   Ganadas {Won}  Perdidas {Lost}"
+            : $"Round {Round}   Won {Won}  Lost {Lost}";
+        if (DefuseCheckpoint && !PlayerDefusing && Live)
+            yield return Loc.Spanish ? "Desactivada a medias — continúa desde 3,5 s" : "Half defused — it resumes from 3.5 s";
     }
 
     public override IEnumerable<(string Label, string Value)> ResultLines()
     {
-        yield return ("Map", MapSpot.Map);
-        yield return ("Retakes won / lost", $"{Won} / {Lost}");
-        yield return ("Defuses: cleared / under fire", $"{cleanDefuses} / {ninjaDefuses}");
-        if (Lost > 0) yield return ("Lost: died / time", $"{lostDied} / {lostTime}");
-        if (defuseLeft.Count > 0) yield return ("Spike left at defuse", $"{defuseLeft.Average():0.0} s avg");
-        if (retakeTimes.Count > 0) yield return ("Avg retake time", $"{retakeTimes.Average():0.0} s");
-        if (halfRounds > 0 || sticks > 0) yield return ("Half-defuse wins / fakes", $"{halfRounds} / {sticks}");
-        yield return ("Kills / deaths", $"{Kills} / {Deaths}");
-        if (Hits > 0) yield return ("Headshot %", $"{100f * HeadHits / Hits:0}%");
-        yield return ("Accuracy", $"{Accuracy * 100:0.0}%  ({Hits}/{Shots})");
-        if (KillTimes.Count > 0) yield return ("Avg time to kill", $"{KillTimes.Average():0} ms");
+        bool es = Loc.Spanish;
+        yield return (es ? "Mapa" : "Map", MapSpot.Map);
+        yield return (es ? "Recuperaciones ganadas / perdidas" : "Retakes won / lost", $"{Won} / {Lost}");
+        yield return (es ? "Defuses: limpios / bajo fuego" : "Defuses: cleared / under fire", $"{cleanDefuses} / {ninjaDefuses}");
+        if (Lost > 0) yield return (es ? "Perdidas: muerto / tiempo" : "Lost: died / time", $"{lostDied} / {lostTime}");
+        if (defuseLeft.Count > 0) yield return (es ? "Spike restante al desactivar" : "Spike left at defuse", es ? $"{defuseLeft.Average():0.0} s de media" : $"{defuseLeft.Average():0.0} s avg");
+        if (retakeTimes.Count > 0) yield return (es ? "Tiempo medio de recuperación" : "Avg retake time", $"{retakeTimes.Average():0.0} s");
+        if (halfRounds > 0 || sticks > 0) yield return (es ? "Defuses a medias ganados / fakes" : "Half-defuse wins / fakes", $"{halfRounds} / {sticks}");
+        yield return (es ? "Bajas / muertes" : "Kills / deaths", $"{Kills} / {Deaths}");
+        if (Hits > 0) yield return (es ? "Tiros a la cabeza" : "Headshot %", $"{100f * HeadHits / Hits:0}%");
+        yield return (es ? "Precisión" : "Accuracy", $"{Accuracy * 100:0.0}%  ({Hits}/{Shots})");
+        if (KillTimes.Count > 0) yield return (es ? "Tiempo medio de baja" : "Avg time to kill", $"{KillTimes.Average():0} ms");
         foreach (var l in MovementLines()) yield return l;
     }
 

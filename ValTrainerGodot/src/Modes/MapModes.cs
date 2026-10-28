@@ -136,7 +136,7 @@ public sealed class SiteClearMode : MapMode
             won++;
             Event("round_won", t);
             Score += 200 + (int)Mathf.Max(0, (15 - t) * 20);
-            G.Banner($"SITE CLEAR  {t:0.0}s", UiTheme.Good);
+            G.Banner(Loc.Spanish ? $"SITIO DESPEJADO  {t:0.0}s" : $"SITE CLEAR  {t:0.0}s", UiTheme.Good);
             between = 1.5f;
         }
         else if (Now - roundStart > Difficulty.SiteRoundTime(Tier))
@@ -152,7 +152,7 @@ public sealed class SiteClearMode : MapMode
     {
         lost++; Deaths++; Score -= 100;
         Event("round_lost");
-        G.Banner("YOU DIED", UiTheme.Accent);
+        G.Banner(Loc.Spanish ? "HAS MUERTO" : "YOU DIED", UiTheme.Accent);
         between = 1.5f;
     }
 
@@ -169,7 +169,9 @@ public sealed class SiteClearMode : MapMode
 
     public override IEnumerable<string> HudLines()
     {
-        if (between <= 0) yield return $"Defenders left: {defenders.Count(d => !d.Body.Dead)}";
+        if (between <= 0) yield return Loc.Spanish
+            ? $"Defensores restantes: {defenders.Count(d => !d.Body.Dead)}"
+            : $"Defenders left: {defenders.Count(d => !d.Body.Dead)}";
     }
 
     public override IEnumerable<(string Label, string Value)> ResultLines()
@@ -345,10 +347,10 @@ public sealed class FlashDodgeMode : MapMode
         if (Main.I.Dev) Log.Info($"[flash] pop {lastAgent} at {stateT:0.00} s (land {land:0.00}, bounce windup {bounceWindup}): {grade} {sec:0.00} s");
         switch (grade)
         {
-            case BlindGrade.Flashed: flashed++; Score -= 40; G.Banner($"FLASHED {sec:0.0}s · {lastAgent}", UiTheme.Accent); break;
-            case BlindGrade.Partial: partial++; Score += 10; G.Banner($"Partial {sec:0.0}s · {lastAgent}", UiTheme.Warn); break;
-            case BlindGrade.NoLineOfSight: flashes--; G.Banner("Flash was blocked", UiTheme.Dim); break;
-            default: dodged++; Score += 50; G.Banner($"Dodged · {lastAgent}", UiTheme.Good); break;
+            case BlindGrade.Flashed: flashed++; Score -= 40; G.Banner(Loc.Spanish ? $"CIEGO {sec:0.0}s · {lastAgent}" : $"FLASHED {sec:0.0}s · {lastAgent}", UiTheme.Accent); break;
+            case BlindGrade.Partial: partial++; Score += 10; G.Banner(Loc.Spanish ? $"PARCIAL {sec:0.0}s · {lastAgent}" : $"Partial {sec:0.0}s · {lastAgent}", UiTheme.Warn); break;
+            case BlindGrade.NoLineOfSight: flashes--; G.Banner(Loc.Spanish ? "La flash quedó bloqueada" : "Flash was blocked", UiTheme.Dim); break;
+            default: dodged++; Score += 50; G.Banner(Loc.Spanish ? $"ESQUIVADA · {lastAgent}" : $"Dodged · {lastAgent}", UiTheme.Good); break;
         }
         StartSwing();
     }
@@ -362,7 +364,7 @@ public sealed class FlashDodgeMode : MapMode
         Event("flash", 0, -1);
         dodged++; rosesShot++; Score += 60;
         lastAgent = $"{agent.Agent} {agent.Ability}";
-        G.Banner($"Shot the Arc Rose · {lastAgent}", UiTheme.Good);
+        G.Banner(Loc.Spanish ? $"Rosa de Arco derribada · {lastAgent}" : $"Shot the Arc Rose · {lastAgent}", UiTheme.Good);
         StartSwing();
     }
 
@@ -414,7 +416,7 @@ public sealed class FlashDodgeMode : MapMode
             dzDead = true; // she reverts to a dormant globule
             if (orb != null && GodotObject.IsInstanceValid(orb)) orb.QueueFree();
             orb = null;
-            if (!dzFired) { DizzyDodged("Out of Dizzy's sight", 0); return; }
+            if (!dzFired) { DizzyDodged(Loc.Spanish ? "Fuera de la vista de Dizzy" : "Out of Dizzy's sight", 0); return; }
         }
         if (boltT >= 0)
         {
@@ -442,13 +444,13 @@ public sealed class FlashDodgeMode : MapMode
         if (bolt != null && GodotObject.IsInstanceValid(bolt)) bolt.QueueFree();
         bolt = null;
         G.SoundAt("dizzy_splat", boltTo, maxRange: 50f, floor: 0.6f);
-        if (G.View.Eye.DistanceTo(boltTo) > DizzySpec.Splash) { DizzyDodged("Dodged Dizzy's plasma", 0); return; }
+        if (G.View.Eye.DistanceTo(boltTo) > DizzySpec.Splash) { DizzyDodged(Loc.Spanish ? "Plasma de Dizzy esquivado" : "Dodged Dizzy's plasma", 0); return; }
         // a plasma hit: blinded whichever way you face, 1 s full + 1 s fade
         G.Blind.Apply(DizzySpec.BlindFull, BlindLook.Dizzy, null);
         G.Sound("dizzy_bubble", 0.7f);
         Event("dizzy", 2);
         flashed++; dizzyHit++; Score -= 40;
-        G.Banner("DIZZY'D 2.0s · Gekko Dizzy", UiTheme.Accent);
+        G.Banner(Loc.Spanish ? "ATURDIDO 2.0s · Gekko Dizzy" : "DIZZY'D 2.0s · Gekko Dizzy", UiTheme.Accent);
         if (Main.I.Dev) Log.Info($"[flash] Dizzy hit you (fired at {dzT - boltTravel:0.00} s after the throw)");
         StartSwing();
     }
@@ -460,7 +462,7 @@ public sealed class FlashDodgeMode : MapMode
         if (orb != null && GodotObject.IsInstanceValid(orb)) orb.Pop();
         orb = null;
         dizzyShot++;
-        DizzyDodged("Shot Dizzy", 1, 60);
+        DizzyDodged(Loc.Spanish ? "Dizzy derribado" : "Shot Dizzy", 1, 60);
     }
 
     void DizzyDodged(string banner, int shot, int points = 50)
@@ -571,7 +573,9 @@ public sealed class FlashDodgeMode : MapMode
                 if (stateT > 10f)
                 {
                     // The entry happened but nobody won the duel in time (or the attacker never got a sight line).
-                    G.Banner(brain is { FirstSeenAt: >= 0 } ? "Too slow — the entry survived" : "They didn't swing", UiTheme.Dim);
+                    G.Banner(brain is { FirstSeenAt: >= 0 }
+                        ? (Loc.Spanish ? "Demasiado lento: el entry sobrevivió" : "Too slow — the entry survived")
+                        : (Loc.Spanish ? "No se asomaron" : "They didn't swing"), UiTheme.Dim);
                     if (brain is { FirstSeenAt: >= 0 }) losses++;
                     st = St.After; stateT = 0;
                 }
@@ -586,7 +590,7 @@ public sealed class FlashDodgeMode : MapMode
     {
         losses++; Deaths++; Score -= 100;
         Event("round_lost");
-        G.Banner("YOU DIED", UiTheme.Accent);
+        G.Banner(Loc.Spanish ? "HAS MUERTO" : "YOU DIED", UiTheme.Accent);
         st = St.After; stateT = 0;
     }
 
@@ -622,7 +626,7 @@ public sealed class FlashDodgeMode : MapMode
         {
             wins++; Score += 100;
             Event("round_won");
-            G.Banner("Entry denied", UiTheme.Good);
+            G.Banner(Loc.Spanish ? "Entrada negada" : "Entry denied", UiTheme.Good);
             st = St.After; stateT = 0;
         }
         return dist;
@@ -638,13 +642,17 @@ public sealed class FlashDodgeMode : MapMode
 
     public override IEnumerable<(string Label, string Value)> ResultLines()
     {
-        yield return ("Map", $"{MapSpot.Map} {MapSpot.Name}");
-        yield return ("Dodged / partial / flashed", $"{dodged} / {partial} / {flashed} of {flashes}");
-        if (turnMs.Count > 0) yield return ("Avg time to get it off-screen", $"{turnMs.Average():0} ms after the throw");
-        if (dizzies > 0) yield return ("Dizzy: shot / hit you", $"{dizzyShot} / {dizzyHit} of {dizzies}");
-        if (rosesShot > 0) yield return ("Arc Roses shot", $"{rosesShot}");
-        yield return ("Entries denied / died", $"{wins} / {losses}");
-        yield return ("Accuracy", $"{Accuracy * 100:0.0}%");
+        bool es = Loc.Spanish;
+        yield return (es ? "Mapa" : "Map", $"{MapSpot.Map} {MapSpot.Name}");
+        yield return (es ? "Esquivadas / parciales / cegado" : "Dodged / partial / flashed", es ? $"{dodged} / {partial} / {flashed} de {flashes}" : $"{dodged} / {partial} / {flashed} of {flashes}");
+        if (turnMs.Count > 0)
+            yield return (es ? "Tiempo medio en quitártela de encima" : "Avg time to get it off-screen",
+                es ? $"{turnMs.Average():0} ms tras el lanzamiento" : $"{turnMs.Average():0} ms after the throw");
+        if (dizzies > 0)
+            yield return (es ? "Dizzy: derribado / te dio" : "Dizzy: shot / hit you", es ? $"{dizzyShot} / {dizzyHit} de {dizzies}" : $"{dizzyShot} / {dizzyHit} of {dizzies}");
+        if (rosesShot > 0) yield return (es ? "Rosas de Arco derribadas" : "Arc Roses shot", $"{rosesShot}");
+        yield return (es ? "Entradas negadas / muerto" : "Entries denied / died", $"{wins} / {losses}");
+        yield return (es ? "Precisión" : "Accuracy", $"{Accuracy * 100:0.0}%");
     }
 
     public override int Badge() => wins + losses == 0 ? -1 : Difficulty.BadgeWinRate(Tier, (float)wins / (wins + losses));

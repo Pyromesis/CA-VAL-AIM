@@ -45,16 +45,22 @@ public partial class WarmupSummary : ScreenBase
 
         var head = HBox(16 * k);
         var preset = WarmupPresets.Get(rec.Preset);
-        string shift = rec.Shift == "off" ? "every drill at your sens" : $"sens shifter {(rec.Shift == "low" ? "−" : "+")}{rec.ShiftPct}% → your sens";
+        bool es = Loc.Spanish;
+        string shift = rec.Shift == "off"
+            ? (es ? "cada ejercicio a tu sensibilidad" : "every drill at your sens")
+            : es ? $"cambio de sens {(rec.Shift == "low" ? "−" : "+")}{rec.ShiftPct}% → tu sensibilidad"
+                 : $"sens shifter {(rec.Shift == "low" ? "−" : "+")}{rec.ShiftPct}% → your sens";
         var title = Heading("LOCK-IN DETAILS",
-            $"{preset.Name.ToUpperInvariant()} · {Difficulty.Get(rec.Tier).Name.ToUpperInvariant()} TIER · {WarmupPlan.Clock(rec.PlaySeconds)} PLAYED · {shift.ToUpperInvariant()}" +
-            (Demo && !Core.CmdLine.Showcase ? " · DEMO DATA" : ""));
+            (es
+                ? $"{WarmupPresets.NameOf(preset).ToUpperInvariant()} · NIVEL {Loc.T(Difficulty.Get(rec.Tier).Name).ToUpperInvariant()} · {WarmupPlan.Clock(rec.PlaySeconds)} JUGADOS · {shift.ToUpperInvariant()}"
+                : $"{preset.Name.ToUpperInvariant()} · {Difficulty.Get(rec.Tier).Name.ToUpperInvariant()} TIER · {WarmupPlan.Clock(rec.PlaySeconds)} PLAYED · {shift.ToUpperInvariant()}") +
+            (Demo && !Core.CmdLine.Showcase ? (es ? " · DATOS DE DEMO" : " · DEMO DATA") : ""));
         title.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         head.AddChild(title);
         var back = Btn("BACK", VButton.Look.Secondary, Back, 150, 52, 20);
         back.SizeFlagsVertical = SizeFlags.ShrinkCenter;
         head.AddChild(back);
-        var again = Btn("LOCK IN AGAIN", VButton.Look.Secondary, Agents.AgentRoutines.Again(rec.Preset) ?? (Action)Main.I.ShowLockIn, 220, 52, 20);
+        var again = Btn(Loc.Spanish ? "LOCK-IN OTRA VEZ" : "LOCK IN AGAIN", VButton.Look.Secondary, Agents.AgentRoutines.Again(rec.Preset) ?? (Action)Main.I.ShowLockIn, 220, 52, 20);
         again.SizeFlagsVertical = SizeFlags.ShrinkCenter;
         head.AddChild(again);
         var menu = Btn("MENU", VButton.Look.Primary, Main.I.ShowMenu, 170, 52, 22);
@@ -66,7 +72,9 @@ public partial class WarmupSummary : ScreenBase
         var gp = new VPanel
         {
             Title = "LOCK-IN GRAPH", K = k, SizeFlagsVertical = SizeFlags.ExpandFill,
-            Caption = rec.Steps.Any(s => s.Shifted) ? "bars: each drill vs your usual level · line: sensitivity" : "bars: each drill vs your usual level · boxes: adaptive drills",
+            Caption = Loc.Spanish
+                ? rec.Steps.Any(s => s.Shifted) ? "barras: cada ejercicio frente a tu nivel · línea: sensibilidad" : "barras: cada ejercicio frente a tu nivel · cajas: ejercicios adaptativos"
+                : rec.Steps.Any(s => s.Shifted) ? "bars: each drill vs your usual level · line: sensitivity" : "bars: each drill vs your usual level · boxes: adaptive drills",
         };
         col.AddChild(gp);
         gp.AddChild(new DrawBox
@@ -79,11 +87,21 @@ public partial class WarmupSummary : ScreenBase
         var bottom = HBox(20 * k);
         bottom.CustomMinimumSize = new Vector2(0, 300 * k);
         col.AddChild(bottom);
-        var rp = new VPanel { Title = "TODAY", K = k, Caption = "vs your usual and your previous Lock-Ins", SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        var rp = new VPanel
+        {
+            Title = "TODAY", K = k, SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            Caption = Loc.Spanish ? "frente a tu nivel y a tus Lock-Ins anteriores" : "vs your usual and your previous Lock-Ins",
+        };
         rp.SizeFlagsStretchRatio = 1.1f;
         bottom.AddChild(rp);
         rp.AddChild(new DrawBox { CustomMinimumSize = new Vector2(0, 220 * k), OnDraw = DrawReadout });
-        var tp = new VPanel { Title = "DRILLS", K = k, Caption = $"{rec.Steps.Count(s => !s.Skipped)} played", SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        var tp = new VPanel
+        {
+            Title = "DRILLS", K = k, SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            Caption = Loc.Spanish
+                ? $"{rec.Steps.Count(s => !s.Skipped)} jugados"
+                : $"{rec.Steps.Count(s => !s.Skipped)} played",
+        };
         bottom.AddChild(tp);
         var scroll = new ScrollContainer { HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled, CustomMinimumSize = new Vector2(0, 220 * k) };
         tp.AddChild(scroll);
@@ -111,9 +129,14 @@ public partial class WarmupSummary : ScreenBase
             bool lower = WarmupScore.LowerBetter(mode);
             float pct = (b.Value - a.Value) / a.Value * 100f;
             int dir = b.Value == a.Value ? 0 : (lower ? b.Value < a.Value : b.Value > a.Value) ? 1 : -1; // +1 = better
-            string sens = a.Shifted && !b.Shifted ? $"  (sens {a.Sens.ToString("0.000", Inv)} → {b.Sens.ToString("0.000", Inv)})" : "";
-            string change = WarmupScore.Def(mode) == WarmupScore.Kind.OnTarget ? $"{b.Value - a.Value:+0;-0} pts" : $"{pct:+0;-0}%";
-            yield return ($"{WarmupDrills.Name(mode)} · {WarmupScore.Label(mode)}  {WarmupScore.Format(mode, a.Value)} → {WarmupScore.Format(mode, b.Value)}  {change}{sens}", pct, dir);
+            bool es = Loc.Spanish;
+            string sens = a.Shifted && !b.Shifted
+                ? (es ? $"  (sens {a.Sens.ToString("0.000", Inv)} → {b.Sens.ToString("0.000", Inv)})" : $"  (sens {a.Sens.ToString("0.000", Inv)} → {b.Sens.ToString("0.000", Inv)})")
+                : "";
+            string change = WarmupScore.Def(mode) == WarmupScore.Kind.OnTarget
+                ? (es ? $"{b.Value - a.Value:+0;-0} pts" : $"{b.Value - a.Value:+0;-0} pts")
+                : $"{pct:+0;-0}%";
+            yield return ($"{Loc.T(WarmupDrills.Name(mode))} · {WarmupScore.Label(mode)}  {WarmupScore.Format(mode, a.Value)} → {WarmupScore.Format(mode, b.Value)}  {change}{sens}", pct, dir);
         }
     }
 
@@ -126,9 +149,17 @@ public partial class WarmupSummary : ScreenBase
             var last = g.Last();
             float lv = g.Average(s => s.Level);
             float prev = g.First().PrevLevel;
-            string hits = last.HitRate >= 0 ? $" at {g.Average(s => Mathf.Max(0, s.HitRate)) * 100:0}% hits" : "";
-            string vs = prev >= 0 ? $"  (last Lock-Ins {prev.ToString("0.0", Inv)})" : "  (first time)";
-            yield return ($"{WarmupDrills.Name(g.Key)} · held level {WarmupScore.LevelText(lv)}{hits}{vs}", prev < 0 ? -2 : lv > prev + 0.05f ? 1 : lv < prev - 0.05f ? -1 : 0);
+            bool es = Loc.Spanish;
+            string hits = last.HitRate >= 0
+                ? (es ? $" con {g.Average(s => Mathf.Max(0, s.HitRate)) * 100:0}% de aciertos" : $" at {g.Average(s => Mathf.Max(0, s.HitRate)) * 100:0}% hits")
+                : "";
+            string vs = prev >= 0
+                ? (es ? $"  (últimos Lock-Ins {prev.ToString("0.0", Inv)})" : $"  (last Lock-Ins {prev.ToString("0.0", Inv)})")
+                : (es ? "  (primera vez)" : "  (first time)");
+            yield return (es
+                ? $"{Loc.T(WarmupDrills.Name(g.Key))} · nivel mantenido {WarmupScore.LevelText(lv)}{hits}{vs}"
+                : $"{WarmupDrills.Name(g.Key)} · held level {WarmupScore.LevelText(lv)}{hits}{vs}",
+                prev < 0 ? -2 : lv > prev + 0.05f ? 1 : lv < prev - 0.05f ? -1 : 0);
         }
     }
 
@@ -155,9 +186,14 @@ public partial class WarmupSummary : ScreenBase
         }
         // vs previous Lock-Ins
         var prev = previous.Where(p => p.Readiness >= 0).TakeLast(5).ToList();
+        bool es = Loc.Spanish;
         string hist = rec.Readiness < 0 || prev.Count == 0
-            ? previous.Count == 0 ? "Your first Lock-In. Next time you'll see how it compares." : "Not enough history to compare with your previous Lock-Ins yet."
-            : $"Higher than {prev.Count(p => rec.Readiness > p.Readiness)} of your last {prev.Count} Lock-In{(prev.Count == 1 ? "" : "s")} (vs your usual).";
+            ? previous.Count == 0
+                ? (es ? "Tu primer Lock-In. La próxima vez verás cómo se compara." : "Your first Lock-In. Next time you'll see how it compares.")
+                : (es ? "Aún no hay historial suficiente para comparar con tus Lock-Ins anteriores." : "Not enough history to compare with your previous Lock-Ins yet.")
+            : es
+                ? $"Por encima de {prev.Count(p => rec.Readiness > p.Readiness)} de tus últimos {prev.Count} Lock-Ins (frente a tu nivel)."
+                : $"Higher than {prev.Count(p => rec.Readiness > p.Readiness)} of your last {prev.Count} Lock-In{(prev.Count == 1 ? "" : "s")} (vs your usual).";
         Gfx.Diamond(d, new Vector2(6 * k, y - 5 * k), 4 * k, 4 * k, UiTheme.Accent);
         Gfx.TextFit(d, UiTheme.Body, hist, 20 * k, y, ls, UiTheme.Text, w - 20 * k);
         y += 26 * k;
@@ -165,8 +201,11 @@ public partial class WarmupSummary : ScreenBase
         if (shifted.Count > 0)
         {
             float realSecs = rec.Steps.Where(s => !s.Shifted && !s.Skipped).Sum(s => s.Seconds);
-            string s = $"Sens {shifted[0].Sens.ToString("0.000", Inv)} ({shifted[0].OffsetPct:+0;-0}%) → {rec.BaseSens.ToString("0.000", Inv)} over {shifted.Count} drills, " +
-                       $"then {WarmupPlan.Clock(realSecs)} at your real sens.";
+            string s = es
+                ? $"Sens {shifted[0].Sens.ToString("0.000", Inv)} ({shifted[0].OffsetPct:+0;-0}%) → {rec.BaseSens.ToString("0.000", Inv)} en {shifted.Count} ejercicios, " +
+                  $"y luego {WarmupPlan.Clock(realSecs)} a tu sensibilidad real."
+                : $"Sens {shifted[0].Sens.ToString("0.000", Inv)} ({shifted[0].OffsetPct:+0;-0}%) → {rec.BaseSens.ToString("0.000", Inv)} over {shifted.Count} drills, " +
+                  $"then {WarmupPlan.Clock(realSecs)} at your real sens.";
             Gfx.TextFit(d, UiTheme.Body, s, 20 * k, y, UiTheme.Fs(14, k), UiTheme.Faint, w - 20 * k);
         }
     }
@@ -179,7 +218,10 @@ public partial class WarmupSummary : ScreenBase
         int ls = UiTheme.Fs(11, k), fs = UiTheme.Fs(15, k);
         bool anyShift = rec.Steps.Any(s => s.Shifted);
         float[] cx = { 0, 0.06f, 0.36f, 0.53f, 0.76f, 1f };
-        string[] heads = { "#", "DRILL", anyShift ? "SENS" : "TIER", "RESULT", "VS USUAL" };
+        bool es = Loc.Spanish;
+        string[] heads = es
+            ? new[] { "#", "EJERCICIO", anyShift ? "SENS" : "NIVEL", "RESULTADO", "FRENTE A TI" }
+            : new[] { "#", "DRILL", anyShift ? "SENS" : "TIER", "RESULT", "VS USUAL" };
         for (int i = 0; i < heads.Length; i++)
         {
             if (i == heads.Length - 1) Gfx.TextR(d, UiTheme.HudWide, heads[i], w - 4 * k, Gfx.Mid(rh / 2, ls), ls, UiTheme.Faint);
@@ -195,18 +237,20 @@ public partial class WarmupSummary : ScreenBase
             Gfx.Text(d, UiTheme.Body, (i + 1).ToString(Inv), cx[0] * w, Gfx.Mid(cy, fs), fs, UiTheme.Faint);
             Gfx.TextFit(d, UiTheme.Body, WarmupDrills.Name(s.Mode), cx[1] * w, Gfx.Mid(cy, fs), fs, dim, (cx[2] - cx[1]) * w - 6 * k);
             string third = anyShift ? s.Sens.ToString("0.000", Inv) + (s.Shifted ? $" {s.OffsetPct:+0;-0}%" : "")
-                : s.Adaptive ? "adaptive" : s.Tier >= 0 ? Difficulty.Get(s.Tier).Name : "—";
+                : s.Adaptive ? (es ? "adaptativo" : "adaptive") : s.Tier >= 0 ? Loc.T(Difficulty.Get(s.Tier).Name) : "—";
             Gfx.TextFit(d, UiTheme.Body, third, cx[2] * w, Gfx.Mid(cy, fs), fs, s.Shifted ? WarmupCharts.ShiftCol : dim, (cx[3] - cx[2]) * w - 6 * k);
-            string res = s.Skipped ? "skipped"
-                : s.Adaptive ? s.HitRate >= 0 ? $"{s.HitRate * 100:0}% hits · {s.Trials} targets" : "—"
+            string res = s.Skipped ? (es ? "saltado" : "skipped")
+                : s.Adaptive ? s.HitRate >= 0
+                    ? (es ? $"{s.HitRate * 100:0}% aciertos · {s.Trials} objetivos" : $"{s.HitRate * 100:0}% hits · {s.Trials} targets")
+                    : "—"
                 : $"{WarmupScore.Format(s.Mode, s.Value)} {WarmupScore.Label(s.Mode)}";
             Gfx.TextFit(d, UiTheme.Body, res, cx[3] * w, Gfx.Mid(cy, fs), fs, dim, (cx[4] - cx[3]) * w - 6 * k);
             string vs;
             Color vc;
-            if (s.Adaptive && !s.Skipped && s.Level >= 0) { vs = $"LEVEL {s.Level.ToString("0.0", Inv)}"; vc = WarmupCharts.PhaseColor(Phase.Calibration); }
+            if (s.Adaptive && !s.Skipped && s.Level >= 0) { vs = $"{(es ? "NIVEL" : "LEVEL")} {s.Level.ToString("0.0", Inv)}"; vc = WarmupCharts.PhaseColor(Phase.Calibration); }
             else
             {
-                vs = s.Skipped || s.Index < 0 ? "—" : s.BaselineKind == "today" ? $"{s.Index:0}% (today)" : $"{s.Index:0}%";
+                vs = s.Skipped || s.Index < 0 ? "—" : s.BaselineKind == "today" ? $"{s.Index:0}% {(es ? "(hoy)" : "(today)")}" : $"{s.Index:0}%";
                 vc = s.Index < 0 || s.Skipped ? UiTheme.Faint : s.Index >= 106 ? UiTheme.Good : s.Index >= 94 ? UiTheme.Text : UiTheme.Dim;
             }
             float vw = Gfx.TextR(d, UiTheme.Display, vs, w - 4 * k, Gfx.Mid(cy, fs), fs, vc);

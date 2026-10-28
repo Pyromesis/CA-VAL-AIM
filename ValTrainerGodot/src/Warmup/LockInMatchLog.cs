@@ -142,21 +142,24 @@ public static class LockInMatchLog
 
         if (rated.Count < ReadoutMin)
         {
-            Gfx.TextR(c, UiTheme.HudWide, $"{rated.Count} OF {ReadoutMin} MATCHES RATED", x0 + w, hy, ls, UiTheme.Dim);
+            Gfx.TextR(c, UiTheme.HudWide, Loc.Spanish ? $"{rated.Count} DE {ReadoutMin} PARTIDAS VALORADAS" : $"{rated.Count} OF {ReadoutMin} MATCHES RATED", x0 + w, hy, ls, UiTheme.Dim);
             float cg = 3 * k, cw = (w - cg * (ReadoutMin - 1)) / ReadoutMin;
             for (int i = 0; i < ReadoutMin; i++)
                 c.DrawRect(new Rect2(x0 + i * (cw + cg), y + 26 * k, cw, 7 * k), i < rated.Count ? UiTheme.Teal : new Color(UiTheme.Text, 0.08f));
             string line = rated.Count == 0
-                ? "After a Lock-In, the menu asks how your first match went. One tap, optional."
-                : "Rate your first match after a Lock-In when the menu asks.";
+                ? (Loc.Spanish ? "El menú pregunta cómo fue tu partida tras el Lock-In." : "After a Lock-In, the menu asks how your first match went. One tap, optional.")
+                : (Loc.Spanish ? "Valora tu primera partida tras un Lock-In cuando el menú pregunte." : "Rate your first match after a Lock-In when the menu asks.");
             Gfx.TextFit(c, UiTheme.Body, line, x0, y + 60 * k, UiTheme.Fs(14, k), UiTheme.Dim, w);
-            Gfx.TextFit(c, UiTheme.Body, $"At {ReadoutMin}, you see what goes with your better matches.",
+            Gfx.TextFit(c, UiTheme.Body,
+                Loc.Spanish ? $"Con {ReadoutMin}, ves qué acompaña a tus mejores partidas." : $"At {ReadoutMin}, you see what goes with your better matches.",
                 x0, y + 82 * k, UiTheme.Fs(13, k), UiTheme.Faint, w);
             return;
         }
 
         int wins = rated.Count(q => q.Match == "W"), losses = rated.Count(q => q.Match == "L"), draws = rated.Count(q => q.Match == "D");
-        Gfx.TextR(c, UiTheme.HudWide, $"{rated.Count} RATED · {wins}W {losses}L {draws}D", x0 + w, hy, ls, UiTheme.Dim);
+        Gfx.TextR(c, UiTheme.HudWide,
+            Loc.Spanish ? $"{rated.Count} VALORADAS · {wins}V {losses}D {draws}E" : $"{rated.Count} RATED · {wins}W {losses}L {draws}D",
+            x0 + w, hy, ls, UiTheme.Dim);
 
         // columns sized from the text (the panel can be narrow): section · group · matches · won · felt locked in
         var sections = Sections(rated);
@@ -188,7 +191,7 @@ public static class LockInMatchLog
                 Gfx.TextR(c, UiTheme.Display, g.N.ToString(Inv), nRight, Gfx.Mid(cy, ns), ns, g.N < MinGroup ? UiTheme.Faint : UiTheme.Text);
                 if (g.N < MinGroup)
                 {
-                    Gfx.Text(c, UiTheme.Body, g.N == 0 ? "none yet" : "too few to say", wonX, Gfx.Mid(cy, ss), ss, UiTheme.Faint);
+                    Gfx.Text(c, UiTheme.Body, g.N == 0 ? (Loc.Spanish ? "aún ninguna" : "none yet") : (Loc.Spanish ? "muy pocas para decir" : "too few to say"), wonX, Gfx.Mid(cy, ss), ss, UiTheme.Faint);
                     y += rh;
                     continue;
                 }

@@ -1,4 +1,5 @@
 using Godot;
+using ValTrainer.Core;
 using ValTrainer.Maps;
 using ValTrainer.UI;
 using ValTrainer.Valorant;
@@ -57,26 +58,53 @@ public static class CrosshairHint
         var fill = new Color(s.Color, 1f);
         bool outlineOn = s.HasOutline && s.OutlineThickness > 0;
         bool faint = outlineOn && s.OutlineOpacity < FaintOutline;
-        string who = ads ? "Your VALORANT ADS crosshair" : "Your VALORANT crosshair", pre = ads ? "ADS: " : "";
+        bool es = Loc.Spanish;
+        if (es) enemyName = enemyName.StartsWith("red") ? "rojo" : enemyName.StartsWith("yellow") ? "amarillo" : "violeta";
+        string who = es
+            ? (ads ? "Tu mira ADS de VALORANT" : "Tu mira de VALORANT")
+            : (ads ? "Your VALORANT ADS crosshair" : "Your VALORANT crosshair");
+        string pre = ads ? "ADS: " : "";
 
-        const string Finder = " The Crosshair Finder (Coach) can suggest one that stands out.";
+        string finder = es
+            ? " El Buscador de mira (Coach) puede sugerirte una que destaque."
+            : " The Crosshair Finder (Coach) can suggest one that stands out.";
         if (XfVisibility.DeltaE(fill, enemy) < EnemyDeltaE)
-            return new(Verdict.NearEnemy, $"{pre}colour is close to the {enemyName} enemy highlight",
-                $"{who}'s colour is close to the {enemyName} enemy highlight, so it can melt into an enemy's outline right when you're on target." + Finder);
+            return new(Verdict.NearEnemy,
+                es ? $"{pre}el color se parece al resalte de enemigo {enemyName}" : $"{pre}colour is close to the {enemyName} enemy highlight",
+                es
+                    ? $"El color de {Lower(who)} se parece al resalte de enemigo {enemyName}, así que puede fundirse con el contorno de un enemigo justo cuando lo tienes encima." + finder
+                    : $"{who}'s colour is close to the {enemyName} enemy highlight, so it can melt into an enemy's outline right when you're on target." + finder);
 
-        if (outlineOn && !faint) return Ok(who);
+        if (outlineOn && !faint) return Ok(who, es);
         var (share, maps) = Fades(fill);
-        if (share < FadeShare) return Ok(who);
-        string where = maps.Count switch { 0 => "some map surfaces", 1 => $"parts of {maps[0]}", _ => $"parts of {maps[0]} and {maps[1]}" };
+        if (share < FadeShare) return Ok(who, es);
+        string where = maps.Count switch
+        {
+            0 => es ? "algunas superficies del mapa" : "some map surfaces",
+            1 => es ? $"partes de {maps[0]}" : $"parts of {maps[0]}",
+            _ => es ? $"partes de {maps[0]} y {maps[1]}" : $"parts of {maps[0]} and {maps[1]}",
+        };
         return faint
-            ? new(Verdict.FaintOutlineFades, $"{pre}faint outline, fades on {where}",
-                $"{who}'s outline is almost see-through and its colour fades on {where}. A solid outline or another colour helps." + Finder)
-            : new(Verdict.NoOutlineFades, $"{pre}no outline, fades on {where}",
-                $"{who} has no outline and its colour fades on {where}. An outline or another colour helps." + Finder);
+            ? new(Verdict.FaintOutlineFades,
+                es ? $"{pre}contorno tenue, se pierde en {where}" : $"{pre}faint outline, fades on {where}",
+                es
+                    ? $"El contorno de {Lower(who)} es casi transparente y su color se pierde en {where}. Un contorno sólido u otro color ayuda." + finder
+                    : $"{who}'s outline is almost see-through and its colour fades on {where}. A solid outline or another colour helps." + finder)
+            : new(Verdict.NoOutlineFades,
+                es ? $"{pre}sin contorno, se pierde en {where}" : $"{pre}no outline, fades on {where}",
+                es
+                    ? $"{who} no tiene contorno y su color se pierde en {where}. Un contorno u otro color ayuda." + finder
+                    : $"{who} has no outline and its colour fades on {where}. An outline or another colour helps." + finder);
     }
 
-    static Result Ok(string who) => new(Verdict.Ok, "stands out on common map colours",
-        $"{who} stands out on common map colours and isn't close to the enemy highlight.");
+    /// <summary>"Tu mira …" → "tu mira …" inside a sentence (only the first letter the wording capitalises).</summary>
+    static string Lower(string who) => who.Length > 0 ? char.ToLowerInvariant(who[0]) + who[1..] : who;
+
+    static Result Ok(string who, bool es) => new(Verdict.Ok,
+        es ? "destaque sobre los colores habituales del mapa" : "stands out on common map colours",
+        es
+            ? $"{who} destaca sobre los colores habituales del mapa y no se parece al resalte de enemigo."
+            : $"{who} stands out on common map colours and isn't close to the enemy highlight.");
 
     /// <summary>Weighted share of map surfaces (and the enemy body) where the fill alone fades, and the maps where it
     /// fades worst (display names, up to two).</summary>

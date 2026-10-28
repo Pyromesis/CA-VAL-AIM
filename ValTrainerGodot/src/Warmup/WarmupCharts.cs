@@ -1,5 +1,6 @@
 using System.Globalization;
 using Godot;
+using ValTrainer.Core;
 using ValTrainer.UI;
 
 namespace ValTrainer.Warmup;
@@ -97,10 +98,13 @@ public static class WarmupCharts
         float t0 = 0;
         foreach (var (p, secs, n) in plan.PhaseSpans())
         {
-            PhaseBox(X(t0) + (t0 > 0 ? gap / 2 : 0), X(t0 + secs) - gap / 2, p, $"{WarmupPlan.Clock(secs)} · {n} drill{(n == 1 ? "" : "s")}");
+            string drills = Loc.Spanish
+                ? $"{n} ejercicio{(n == 1 ? "" : "s")}"
+                : $"{n} drill{(n == 1 ? "" : "s")}";
+            PhaseBox(X(t0) + (t0 > 0 ? gap / 2 : 0), X(t0 + secs) - gap / 2, p, $"{WarmupPlan.Clock(secs)} · {drills}");
             t0 += secs;
         }
-        PhaseBox(right - fw, right, Phase.LockIn, "goal card");
+        PhaseBox(right - fw, right, Phase.LockIn, Loc.Spanish ? "tarjeta de objetivo" : "goal card");
 
         // drills
         t0 = 0;
@@ -153,14 +157,14 @@ public static class WarmupCharts
         int gs = UiTheme.Fs(13, k);
         foreach (var (tag, text, col) in new[]
         {
-            ("EASY", "one tier below yours", PhaseColor(Phase.Activation)),
-            ("ADAPT", "gets harder or easier to keep you near 80% hits", PhaseColor(Phase.Calibration)),
-            ("EASIER", "the deathmatch's last minute has easier bots", UiTheme.Good),
+            (Loc.Spanish ? "FÁCIL" : "EASY", Loc.Spanish ? "un nivel por debajo del tuyo" : "one tier below yours", PhaseColor(Phase.Activation)),
+            (Loc.Spanish ? "ADAPTA" : "ADAPT", Loc.Spanish ? "sube o baja para mantenerte cerca del 80% de aciertos" : "gets harder or easier to keep you near 80% hits", PhaseColor(Phase.Calibration)),
+            (Loc.Spanish ? "MÁS FÁCIL" : "EASIER", Loc.Spanish ? "el último minuto del deathmatch tiene bots más fáciles" : "the deathmatch's last minute has easier bots", UiTheme.Good),
         })
         {
-            if (tag == "ADAPT" && !plan.Steps.Any(s => s.Adaptive)) continue;
-            if (tag == "EASY" && !plan.Steps.Any(s => s.Easier)) continue;
-            if (tag == "EASIER" && !plan.Steps.Any(s => s.EaseLast > 0)) continue;
+            if (tag == (Loc.Spanish ? "ADAPTA" : "ADAPT") && !plan.Steps.Any(s => s.Adaptive)) continue;
+            if (tag == (Loc.Spanish ? "FÁCIL" : "EASY") && !plan.Steps.Any(s => s.Easier)) continue;
+            if (tag == (Loc.Spanish ? "MÁS FÁCIL" : "EASIER") && !plan.Steps.Any(s => s.EaseLast > 0)) continue;
             float tw = Gfx.TextW(UiTheme.HudWide, tag, ls);
             Gfx.Text(c, UiTheme.HudWide, tag, gx, gy, ls, col);
             float w2 = Gfx.TextW(UiTheme.Body, text, gs);
@@ -245,7 +249,10 @@ public static class WarmupCharts
             c.DrawRect(new Rect2(X(bandA), top - 14 * k, X(bandB) - X(bandA), bottom - top + 14 * k), new Color(ShiftCol, 0.07f));
             var first = steps.First(s => s.Shifted);
             var last = steps.Last(s => s.Shifted);
-            Gfx.TextFit(c, UiTheme.HudWide, $"SENS SHIFT {first.OffsetPct:+0;-0}% → {last.OffsetPct:+0;-0}%", X(bandA) + 8 * k, top - 22 * k + ls, ls,
+            string shift = Loc.Spanish
+                ? $"CAMBIO DE SENS {first.OffsetPct:+0;-0}% → {last.OffsetPct:+0;-0}%"
+                : $"SENS SHIFT {first.OffsetPct:+0;-0}% → {last.OffsetPct:+0;-0}%";
+            Gfx.TextFit(c, UiTheme.HudWide, shift, X(bandA) + 8 * k, top - 22 * k + ls, ls,
                 ShiftCol, X(bandB) - X(bandA) - 12 * k);
         }
 
@@ -268,7 +275,7 @@ public static class WarmupCharts
             {
                 var sr = new Rect2(xa + gap, y100 - 2, xb - xa - 2 * gap, 4);
                 Dashed(c, new Vector2(sr.Position.X, y100), new Vector2(sr.End.X, y100), new Color(UiTheme.Text, 0.3f), Mathf.Max(1, 2 * k), 4 * k);
-                Gfx.TextC(c, UiTheme.HudWide, "SKIP", cx, y100 - 10 * k, UiTheme.Fs(10, k), UiTheme.Faint);
+                Gfx.TextC(c, UiTheme.HudWide, Loc.Spanish ? "SALTADO" : "SKIP", cx, y100 - 10 * k, UiTheme.Fs(10, k), UiTheme.Faint);
             }
             else if (s.Index >= 0)
             {
@@ -300,7 +307,7 @@ public static class WarmupCharts
                 {
                     Gfx.TextC(c, UiTheme.HudWide, "LEVEL", cx, my + 2 * k, UiTheme.Fs(10, k), UiTheme.Dim);
                     Gfx.TextC(c, UiTheme.Display, s.Level.ToString("0.0", Inv), cx, my + 2 * k + vs + 4 * k, vs, UiTheme.Text);
-                    if (s.HitRate >= 0) Gfx.TextC(c, UiTheme.Body, $"{s.HitRate * 100:0}% hits", cx, my + 2 * k + vs * 2 + 8 * k, UiTheme.Fs(11, k), UiTheme.Dim);
+                    if (s.HitRate >= 0) Gfx.TextC(c, UiTheme.Body, Loc.Spanish ? $"{s.HitRate * 100:0}% aciertos" : $"{s.HitRate * 100:0}% hits", cx, my + 2 * k + vs * 2 + 8 * k, UiTheme.Fs(11, k), UiTheme.Dim);
                 }
             }
             else
@@ -317,8 +324,8 @@ public static class WarmupCharts
         foreach (var seg in segs.Where(s => s.Count >= 2)) c.DrawPolyline(seg.ToArray(), new Color(UiTheme.Text, 0.55f), Mathf.Max(1, 1.5f * k), true);
         foreach (var p in segs.SelectMany(s => s)) c.DrawCircle(p, 3 * k, UiTheme.Text);
 
-        // time axis
-        float ay = bottom + 34 * k;
+        // time axis (a row below the drill names so the two never crowd each other)
+        float ay = bottom + 42 * k;
         Gfx.Text(c, UiTheme.Body, "0:00", left, ay + 4 * k, ls, UiTheme.Faint);
         Gfx.TextR(c, UiTheme.Body, WarmupPlan.Clock(total), right, ay + 4 * k, ls, UiTheme.Faint);
         Gfx.TextC(c, UiTheme.HudWide, "LOCK-IN TIMELINE (PLAY TIME)", (left + right) / 2, ay + 4 * k, ls, UiTheme.Faint);

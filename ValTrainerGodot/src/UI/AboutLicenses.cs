@@ -130,7 +130,9 @@ public static class AboutLicenses
         }
         catch (Exception e)
         {
-            sb.Append($"(couldn't read the engine's copyright information: {e.Message}; see https://godotengine.org/license)");
+            sb.Append(Loc.Spanish
+                ? $"(no se pudo leer la información de copyright del motor: {e.Message}; consulta https://godotengine.org/license)"
+                : $"(couldn't read the engine's copyright information: {e.Message}; see https://godotengine.org/license)");
         }
     }
 

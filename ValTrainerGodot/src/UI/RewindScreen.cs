@@ -65,6 +65,7 @@ public partial class RewindScreen : CanvasLayer
     {
         Layer = 8;
         ProcessMode = ProcessModeEnum.Always;
+        OpenCount++;
         view = new Control { MouseFilter = Control.MouseFilterEnum.Stop };
         view.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
         view.Draw += Paint;
@@ -367,16 +368,17 @@ public partial class RewindScreen : CanvasLayer
         // moment label (right, before the close button)
         string label;
         Color lc;
-        if (ins == null) { label = "Analysing the run…"; lc = UiTheme.Dim; }
+        bool es = Loc.Spanish;
+        if (ins == null) { label = es ? "Analizando la partida…" : "Analysing the run…"; lc = UiTheme.Dim; }
         else if (mi >= 0 && mi < moments.Count)
         {
             var m = moments[mi];
-            label = $"Moment {mi + 1} of {moments.Count}: {m.Label}";
+            label = es ? $"Momento {mi + 1} de {moments.Count}: {Loc.T(m.Label)}" : $"Moment {mi + 1} of {moments.Count}: {m.Label}";
             lc = RewindData.CodeColor(m.Code);
         }
-        else if (focusCode != null && moments.Count == 0) { label = "No example of this in this run"; lc = UiTheme.Dim; }
-        else if (moments.Count > 0) { label = $"{moments.Count} moment{(moments.Count == 1 ? "" : "s")} · ← → to jump"; lc = UiTheme.Dim; }
-        else { label = "No moments found in this run"; lc = UiTheme.Faint; }
+        else if (focusCode != null && moments.Count == 0) { label = es ? "No hay ningún ejemplo de esto en esta partida" : "No example of this in this run"; lc = UiTheme.Dim; }
+        else if (moments.Count > 0) { label = es ? $"{moments.Count} {(moments.Count == 1 ? "momento" : "momentos")} · ← → para saltar" : $"{moments.Count} moment{(moments.Count == 1 ? "" : "s")} · ← → to jump"; lc = UiTheme.Dim; }
+        else { label = es ? "No se han encontrado momentos en esta partida" : "No moments found in this run"; lc = UiTheme.Faint; }
         int ls = UiTheme.Fs(30, k);
         float lx = subEnd + 30 * k, lw = close.Position.X - 24 * k - lx;
         if (lw > 80 * k) Gfx.TextFit(view, UiTheme.Display, label, lx, titleBase, ls, lc, lw, HorizontalAlignment.Right);
@@ -384,8 +386,8 @@ public partial class RewindScreen : CanvasLayer
 
     static string When(DateTime w)
     {
-        if (w.Date == DateTime.Today) return "TODAY " + w.ToString("HH:mm", Inv);
-        return w.ToString("MMM d HH:mm", Inv).ToUpperInvariant();
+        if (w.Date == DateTime.Today) return (Loc.Spanish ? "HOY " : "TODAY ") + w.ToString("HH:mm", Inv);
+        return (Loc.Spanish ? $"{w.Day} {Loc.MonthShort(w)} {w:HH:mm}" : w.ToString("MMM d HH:mm", Inv)).ToUpperInvariant();
     }
 
     float X(float time) => track.Position.X + track.Size.X * Mathf.Clamp(time / dur, 0, 1);
@@ -612,11 +614,16 @@ public partial class RewindScreen : CanvasLayer
     // opening
     // =====================================================================================
 
+    /// <summary>Rewinds currently on screen (a play-by-play list keeps its keys to itself while one is open).</summary>
+    public static int OpenCount { get; private set; }
+
     /// <summary>Opens a rewind as a child of <paramref name="parent"/> (on a results screen: the session's world, so a
-    /// restart frees it).</summary>
-    public static RewindScreen Open(Node parent, RunTelemetry run, RunInsights? insights = null, string? code = null)
+    /// restart frees it). <paramref name="startAt"/> jumps the playhead there (a play-by-play card's "watch").</summary>
+    public static RewindScreen Open(Node parent, RunTelemetry run, RunInsights? insights = null, string? code = null,
+        float startAt = -1f, bool paused = false)
     {
         var r = new RewindScreen(run, insights ?? RewindData.Ready(run), code) { Name = "Rewind" };
+        if (startAt >= 0) { r.StartAt = startAt; r.StartPaused = paused; }
         ApplyDevArgs(r);
         parent.AddChild(r);
         return r;

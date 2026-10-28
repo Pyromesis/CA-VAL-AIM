@@ -710,7 +710,9 @@ public partial class DrillTile : BaseButton
         SizeFlagsHorizontal = SizeFlags.ExpandFill;
         MouseEntered += UiTheme.HoverSound;
         Pressed += () => { UiTheme.ClickSound(); CoachData.StartDrill(Key); };
-        TooltipText = $"Start {CoachData.DrillName(Key)} — rates {Rates.ToLowerInvariant()}";
+        TooltipText = Loc.Spanish
+            ? $"Empezar {Loc.T(CoachData.DrillName(Key))} — entrena {Rates.ToLowerInvariant()}"
+            : $"Start {CoachData.DrillName(Key)} — rates {Rates.ToLowerInvariant()}";
     }
 
     public override void _Process(double delta)

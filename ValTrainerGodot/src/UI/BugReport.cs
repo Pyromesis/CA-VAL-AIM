@@ -50,11 +50,14 @@ public static class BugReport
     public static string? Problem(Fields f)
     {
         int t = f.Title.Trim().Length, w = f.What.Trim().Length;
-        if (t < TitleMin && w < WhatMin) return $"Add a title ({TitleMin}+ characters) and say what happened ({WhatMin}+ characters)";
-        if (t < TitleMin) return $"The title needs at least {TitleMin} characters";
-        if (t > TitleMax) return $"The title can have at most {TitleMax} characters";
-        if (w < WhatMin) return $"Say what happened in at least {WhatMin} characters";
-        if (w > WhatMax) return $"\"What happened?\" can have at most {WhatMax} characters";
+        bool es = Loc.Spanish;
+        if (t < TitleMin && w < WhatMin) return es
+            ? $"Pon un título ({TitleMin}+ caracteres) y cuenta qué pasó ({WhatMin}+ caracteres)"
+            : $"Add a title ({TitleMin}+ characters) and say what happened ({WhatMin}+ characters)";
+        if (t < TitleMin) return es ? $"El título necesita al menos {TitleMin} caracteres" : $"The title needs at least {TitleMin} characters";
+        if (t > TitleMax) return es ? $"El título puede tener como máximo {TitleMax} caracteres" : $"The title can have at most {TitleMax} characters";
+        if (w < WhatMin) return es ? $"Cuenta qué pasó en al menos {WhatMin} caracteres" : $"Say what happened in at least {WhatMin} characters";
+        if (w > WhatMax) return es ? $"\"¿Qué pasó?\" puede tener como máximo {WhatMax} caracteres" : $"\"What happened?\" can have at most {WhatMax} characters";
         return null;
     }
 
@@ -358,11 +361,14 @@ public static class BugReport
     public static string? IdeaProblem(string title, string what)
     {
         int t = title.Trim().Length, w = what.Trim().Length;
-        if (t < TitleMin && w < WhatMin) return $"Add a title ({TitleMin}+ characters) and describe your idea ({WhatMin}+ characters)";
-        if (t < TitleMin) return $"The title needs at least {TitleMin} characters";
-        if (t > TitleMax) return $"The title can have at most {TitleMax} characters";
-        if (w < WhatMin) return $"Describe your idea in at least {WhatMin} characters";
-        if (w > WhatMax) return $"The idea can have at most {WhatMax} characters";
+        bool es = Loc.Spanish;
+        if (t < TitleMin && w < WhatMin) return es
+            ? $"Pon un título ({TitleMin}+ caracteres) y describe tu idea ({WhatMin}+ caracteres)"
+            : $"Add a title ({TitleMin}+ characters) and describe your idea ({WhatMin}+ characters)";
+        if (t < TitleMin) return es ? $"El título necesita al menos {TitleMin} caracteres" : $"The title needs at least {TitleMin} characters";
+        if (t > TitleMax) return es ? $"El título puede tener como máximo {TitleMax} caracteres" : $"The title can have at most {TitleMax} characters";
+        if (w < WhatMin) return es ? $"Describe tu idea en al menos {WhatMin} caracteres" : $"Describe your idea in at least {WhatMin} characters";
+        if (w > WhatMax) return es ? $"La idea puede tener como máximo {WhatMax} caracteres" : $"The idea can have at most {WhatMax} characters";
         return null;
     }
 
@@ -793,7 +799,9 @@ public partial class BugReportPanel : Control
             if (Main.I.Dev) Log.Info($"Bug report: dev run, would open the post {postId}");
             else AppInfo.OpenDiscordPost(postId);
         });
-        myPost.TooltipText = $"Opens your {(idea ? "idea" : "report")} on the CA-VAL-AIM Discord (join the server first to see it)";
+        myPost.TooltipText = Loc.Spanish
+            ? $"Abre tu {(idea ? "idea" : "reporte")} en el Discord de CA-VAL-AIM (únete antes al servidor para verlo)"
+            : $"Opens your {(idea ? "idea" : "report")} on the CA-VAL-AIM Discord (join the server first to see it)";
         myPost.Visible = false;
         foot.AddChild(myPost);
         if (AppInfo.HasRepo && !idea)
@@ -870,7 +878,9 @@ public partial class BugReportPanel : Control
         contactEdit = Line("Your Discord username", BugReport.ContactMax);
         Head(form, "DISCORD USERNAME", false, "optional, so we can reply", () => contactEdit.Text.Trim().Length, 0, BugReport.ContactMax);
         form.AddChild(contactEdit);
-        form.AddChild(Text($"Sent with it: CA-VAL-AIM {AppInfo.Version} ({BugReport.InstallType()}). Nothing about your PC.", 13, UiTheme.Faint));
+        form.AddChild(Text(Loc.Spanish
+            ? $"Se envía con él: CA-VAL-AIM {AppInfo.Version} ({BugReport.InstallType()}). Nada sobre tu PC."
+            : $"Sent with it: CA-VAL-AIM {AppInfo.Version} ({BugReport.InstallType()}). Nothing about your PC.", 13, UiTheme.Faint));
     }
 
     /// <summary>Selects one category ("" = none); the picked button turns Primary.</summary>
@@ -935,18 +945,24 @@ public partial class BugReportPanel : Control
         {
             DisplayServer.ClipboardSet(CopyText());
             OpenDiscord();
-            Say($"Copied. Paste it in {Channel} on the CA-VAL-AIM Discord (Ctrl+V).", UiTheme.Good);
+            Say(Loc.Spanish
+                ? $"Copiado. Pégalo en {Channel} del Discord de CA-VAL-AIM (Ctrl+V)."
+                : $"Copied. Paste it in {Channel} on the CA-VAL-AIM Discord (Ctrl+V).", UiTheme.Good);
             discord.Visible = true;
             return;
         }
         double wait = MinGapSec - (DateTime.UtcNow - (idea ? lastIdea : lastSend)).TotalSeconds;
-        if (wait > 0) { Say($"You just sent {(idea ? "a suggestion" : "a report")}. You can send another in {Math.Ceiling(wait):0} s.", UiTheme.Warn); return; }
+        if (wait > 0) { Say(Loc.Spanish
+            ? $"Acabas de enviar {(idea ? "una sugerencia" : "un reporte")}. Puedes enviar otro en {Math.Ceiling(wait):0} s."
+            : $"You just sent {(idea ? "a suggestion" : "a report")}. You can send another in {Math.Ceiling(wait):0} s.", UiTheme.Warn); return; }
         string json = idea ? BugReport.IdeaJson(titleEdit.Text, whatEdit.Text, stepsEdit.Text, category, contactEdit.Text) : BugReport.ToJson(snap, Fields);
         if (DryRun)
         {
             GD.Print("[bug-report] dev dry run, not sent (" + Encoding.UTF8.GetByteCount(json) + " bytes):\n" + json);
             state = State.DryRun;
-            Say("Dev: not sent. The JSON is in the log (add --report-url <url> to send it).", UiTheme.Warn);
+            Say(Loc.Spanish
+                ? "Dev: no enviado. El JSON está en el log (añade --report-url <url> para enviarlo)."
+                : "Dev: not sent. The JSON is in the log (add --report-url <url> to send it).", UiTheme.Warn);
             // dev screenshots of the "sent" state without posting anything
             if (CmdLine.Has("--bugreport-fake-sent")) Sent(Encoding.UTF8.GetBytes("{\"ok\":true,\"id\":\"1560414622480334859\"}"));
             return;
@@ -962,7 +978,7 @@ public partial class BugReportPanel : Control
         }
         Log.Info($"Bug report: sending {Encoding.UTF8.GetByteCount(json)} bytes to {HostOf(Url)}");
         state = State.Sending;
-        message = "Sending…";
+        message = Loc.Spanish ? "Enviando…" : "Sending…";
         messageColor = UiTheme.Dim;
         Refresh();
     }
@@ -976,9 +992,9 @@ public partial class BugReportPanel : Control
         {
             Fail((HttpRequest.Result)result switch
             {
-                HttpRequest.Result.Timeout => "no answer within 15 s",
-                HttpRequest.Result.CantResolve or HttpRequest.Result.CantConnect or HttpRequest.Result.ConnectionError => "no connection",
-                HttpRequest.Result.TlsHandshakeError => "secure connection failed",
+                HttpRequest.Result.Timeout => Loc.Spanish ? "sin respuesta en 15 s" : "no answer within 15 s",
+                HttpRequest.Result.CantResolve or HttpRequest.Result.CantConnect or HttpRequest.Result.ConnectionError => Loc.Spanish ? "sin conexión" : "no connection",
+                HttpRequest.Result.TlsHandshakeError => Loc.Spanish ? "falló la conexión segura" : "secure connection failed",
                 var r => r.ToString(),
             });
             return;
@@ -990,8 +1006,9 @@ public partial class BugReportPanel : Control
         {
             state = State.Failed;
             int min = RetryMinutes(headers, body);
-            Say(idea ? $"Too many ideas, try again in {min} min. You can also COPY IDEA and post it in #suggestions."
-                : $"Too many reports, try again in {min} min. You can also COPY REPORT and post it in #bug-reports.", UiTheme.Warn);
+            Say(idea
+                ? (Loc.Spanish ? $"Demasiadas ideas, inténtalo en {min} min. También puedes COPIAR IDEA y publicarla en #suggestions." : $"Too many ideas, try again in {min} min. You can also COPY IDEA and post it in #suggestions.")
+                : (Loc.Spanish ? $"Demasiados reportes, inténtalo en {min} min. También puedes COPIAR REPORTE y publicarlo en #bug-reports." : $"Too many reports, try again in {min} min. You can also COPY REPORT and post it in #bug-reports."), UiTheme.Warn);
             return;
         }
         Fail($"HTTP {code}");
@@ -1008,8 +1025,13 @@ public partial class BugReportPanel : Control
         myPost.Visible = postId != null;
         if (copyBtn != null) copyBtn.Visible = false; // sent: what matters now is following it on Discord
         if (ghBtn != null) ghBtn.Visible = false;
-        Say(idea ? "Sent, thanks! Join the CA-VAL-AIM Discord to follow it: we reply in your post, and it's marked Added when an update adds it."
-            : "Sent, thanks! Join the CA-VAL-AIM Discord to follow it: we reply in your post, and it's marked Fixed when an update fixes it.", UiTheme.Good);
+        Say(idea
+            ? (Loc.Spanish
+                ? "¡Enviado, gracias! Únete al Discord de CA-VAL-AIM para seguirlo: respondemos en tu publicación y se marca Añadido cuando una actualización lo incluye."
+                : "Sent, thanks! Join the CA-VAL-AIM Discord to follow it: we reply in your post, and it's marked Added when an update adds it.")
+            : (Loc.Spanish
+                ? "¡Enviado, gracias! Únete al Discord de CA-VAL-AIM para seguirlo: respondemos en tu publicación y se marca Corregido cuando una actualización lo arregla."
+                : "Sent, thanks! Join the CA-VAL-AIM Discord to follow it: we reply in your post, and it's marked Fixed when an update fixes it."), UiTheme.Good);
     }
 
     /// <summary>The new post's thread id from the relay's {"ok":true,"id":"..."}; null if missing or not numeric.</summary>
@@ -1045,14 +1067,18 @@ public partial class BugReportPanel : Control
     {
         Log.Error($"Bug report: couldn't send ({why})");
         state = State.Failed;
-        Say($"Couldn't send ({why}). {(idea ? "COPY IDEA" : "COPY REPORT")} and post it in {Channel} on Discord instead.", UiTheme.Warn);
+        Say(Loc.Spanish
+            ? $"No se pudo enviar ({why}). {(idea ? "COPIA LA IDEA" : "COPIA EL REPORTE")} y publícalo en {Channel} de Discord."
+            : $"Couldn't send ({why}). {(idea ? "COPY IDEA" : "COPY REPORT")} and post it in {Channel} on Discord instead.", UiTheme.Warn);
     }
 
     void Copy()
     {
         DisplayServer.ClipboardSet(CopyText());
         copiedFlash = 4f;
-        Say(state is State.Failed ? $"Copied. Paste it in {Channel} on the CA-VAL-AIM Discord (Ctrl+V)." : "Copied. Paste it anywhere (Ctrl+V).", UiTheme.Good);
+        Say(state is State.Failed
+            ? (Loc.Spanish ? $"Copiado. Pégalo en {Channel} del Discord de CA-VAL-AIM (Ctrl+V)." : $"Copied. Paste it in {Channel} on the CA-VAL-AIM Discord (Ctrl+V).")
+            : (Loc.Spanish ? "Copiado. Pégalo donde quieras (Ctrl+V)." : "Copied. Paste it anywhere (Ctrl+V)."), UiTheme.Good);
     }
 
     void OpenDiscord()
@@ -1078,7 +1104,11 @@ public partial class BugReportPanel : Control
         else if (DryRun || HasRelay) send.Label = "SEND";
         discord.Visible = discord.Visible || state is State.Sent or State.Failed;
         cancel.Label = state == State.Sent ? "CLOSE" : "CANCEL";
-        status.Text = message ?? problem ?? (DryRun ? $"Dev run: SEND prints the {(idea ? "idea" : "report")} to the log instead of sending it." : "");
+        status.Text = message ?? problem ?? (DryRun
+            ? (Loc.Spanish
+                ? $"Ejecución dev: ENVIAR imprime {(idea ? "la idea" : "el reporte")} en el log en vez de enviarlo."
+                : $"Dev run: SEND prints the {(idea ? "idea" : "report")} to the log instead of sending it.")
+            : "");
         status.LabelSettings = UiTheme.Label(UiTheme.Body, 15, k, message != null ? messageColor : UiTheme.Faint);
         foreach (var c in counters) c.QueueRedraw();
         send.QueueRedraw();

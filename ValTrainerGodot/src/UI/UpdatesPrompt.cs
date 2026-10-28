@@ -53,6 +53,32 @@ public static class UpdatesPrompt
     }
 }
 
+/// <summary>
+/// The "a newer version is out" modal: shown once per version and session, as soon as the background check answers
+/// (the check is asynchronous, so the menu asks again every frame). UPDATE NOW downloads the release, verifies it and
+/// restarts CA-VAL-AIM to install it; LATER keeps the strip under the header for the rest of the session.
+/// </summary>
+public static class UpdateOffer
+{
+    /// <summary>Version the player put off this session (the modal won't come back for it).</summary>
+    public static string? DeferredVersion;
+    /// <summary>The player pressed UPDATE NOW: restart as soon as the download is verified.</summary>
+    public static bool WantsNow;
+
+    public static void Later(string version)
+    {
+        DeferredVersion = version;
+        WantsNow = false;
+        Log.Info($"Updates: {version} offered, LATER (the menu strip keeps it for this session)");
+    }
+
+    public static void Now(string version)
+    {
+        WantsNow = true;
+        Log.Info($"Updates: {version} offered, UPDATE NOW");
+    }
+}
+
 /// <summary>Small modal over the menu: "CHECK GITHUB FOR NEW VERSIONS?" with what it does, ENABLE UPDATES / NOT NOW.</summary>
 public partial class UpdatesPromptPanel : Control
 {
@@ -155,6 +181,242 @@ public partial class UpdatesPromptPanel : Control
         {
             GetViewport().SetInputAsHandled();
             onAnswer(false);
+        }
+    }
+}
+
+/// <summary>
+/// The startup "a newer version is out" modal: version, what the update does and UPDATE NOW / LATER. It follows the
+/// real <see cref="Updater"/> state live (downloading with a progress line, downloaded and verified, restarting), so
+/// UPDATE NOW starts the download and the app restarts on its own as soon as the file is verified. LATER closes it for
+/// this session; the strip under the menu header keeps offering it. Esc = LATER.
+/// </summary>
+public partial class UpdateOfferPanel : Control
+{
+    readonly float k;
+    readonly string ver;
+    readonly Action onClose;
+
+    Label? state;
+    DrawBox? bar;
+    MLink? laterLink;
+    MAction? goButton;
+    float shown = -1, t;
+    bool done, restarting;
+
+    static bool Es => Loc.Spanish;
+    static string S(string en, string es) => Es ? es : en;
+
+    public UpdateOfferPanel(float k, string version, Action onClose)
+    {
+        this.k = k;
+        ver = version;
+        this.onClose = onClose;
+        SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+        MouseFilter = MouseFilterEnum.Stop; // the menu underneath doesn't get clicks
+    }
+
+    public override void _Ready()
+    {
+        AddChild(new ColorRect { Color = new Color(UiTheme.Bg, 0.88f), MouseFilter = MouseFilterEnum.Ignore, AnchorRight = 1, AnchorBottom = 1 });
+        Modulate = new Color(1, 1, 1, 0);
+        Ready += () => CreateTween().TweenProperty(this, "modulate:a", 1f, 0.25f).SetEase(Tween.EaseType.Out).SetTrans(Tween.TransitionType.Cubic);
+        var center = new CenterContainer { MouseFilter = MouseFilterEnum.Ignore };
+        center.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+        AddChild(center);
+
+        var vs = GetViewportRect().Size;
+        var panel = new MPanel
+        {
+            Title = Loc.T("Update available"), Caption = $"CA-VAL-AIM {AppInfo.Version}", K = k,
+            CustomMinimumSize = new Vector2(Mathf.Min(760 * k, vs.X - 80 * k), 0),
+        };
+        center.AddChild(panel);
+        var col = new VBoxContainer();
+        col.AddThemeConstantOverride("separation", (int)(10 * k));
+        panel.AddChild(col);
+
+        col.AddChild(new DrawBox
+        {
+            CustomMinimumSize = new Vector2(0, 52 * k),
+            OnDraw = b =>
+            {
+                int fs = UiTheme.Fs(28, k);
+                Gfx.Text(b, UiTheme.Light, S($"Version {ver} is available", $"Ya está disponible la versión {ver}"),
+                    0, b.Size.Y - 12 * k, fs, UiTheme.Text);
+            },
+        });
+        col.AddChild(Text(S($"You have {AppInfo.Version}. The update installs in place: settings, stats, maps and recordings stay.",
+                             $"Tu versión es la {AppInfo.Version}. La actualización se instala encima: ajustes, estadísticas, mapas y grabaciones se conservan."),
+            15.5f, UiTheme.Dim));
+        col.AddChild(new Control { CustomMinimumSize = new Vector2(0, 2 * k), MouseFilter = MouseFilterEnum.Ignore });
+        Bullet(col, "Downloads and installs the new version in place.");
+        Bullet(col, "CA-VAL-AIM closes for a few seconds and opens again on the new version.");
+        Bullet(col, "LATER leaves it in the strip under the header; nothing is forced now.");
+        if (Updater.NeedsElevation)
+            col.AddChild(Text(Loc.T("Windows will ask for administrator permission to install it."), 14, UiTheme.Faint));
+        col.AddChild(new Control { CustomMinimumSize = new Vector2(0, 4 * k), MouseFilter = MouseFilterEnum.Ignore });
+
+        state = Text("", 14, UiTheme.Faint);
+        col.AddChild(state);
+        bar = new DrawBox
+        {
+            CustomMinimumSize = new Vector2(0, 3 * k),
+            Visible = false,
+            OnDraw = b =>
+            {
+                float w = b.Size.X * Mathf.Clamp(shown, 0f, 1f);
+                b.DrawRect(new Rect2(0, 0, b.Size.X, Mathf.Max(1, k)), Mn.A(UiTheme.Text, 0.12f));
+                b.DrawRect(new Rect2(0, 0, w, Mathf.Max(1, k)), UiTheme.Accent);
+            },
+        };
+        col.AddChild(bar);
+        col.AddChild(new Control { CustomMinimumSize = new Vector2(0, 6 * k), MouseFilter = MouseFilterEnum.Ignore });
+
+        var foot = new HBoxContainer();
+        foot.AddThemeConstantOverride("separation", (int)(20 * k));
+        string? url = UpdateCheck.LatestUrl ?? (AppInfo.HasRepo ? AppInfo.LatestReleaseUrl : null);
+        if (url != null && AppInfo.HasRepo)
+        {
+            var whats = new MLink { Label = Loc.T("WHAT'S NEW"), K = k, Px = 12.5f, Delay = 0.1f, SizeFlagsVertical = SizeFlags.ShrinkCenter,
+                TooltipText = "Opens the release notes in your browser" };
+            whats.Pressed += () => AppInfo.OpenGitHub(url);
+            foot.AddChild(whats);
+        }
+        foot.AddChild(new Control { SizeFlagsHorizontal = SizeFlags.ExpandFill, MouseFilter = MouseFilterEnum.Ignore });
+        laterLink = new MLink { Label = S("LATER", "MÁS TARDE"), K = k, Px = 12.5f, Delay = 0.12f, SizeFlagsVertical = SizeFlags.ShrinkCenter,
+            TooltipText = "Keeps training now; the update stays in the strip under the header" };
+        laterLink.Pressed += Later;
+        foot.AddChild(laterLink);
+        goButton = new MAction { Label = Loc.T("UPDATE NOW"), Primary = true, K = k, Px = 14f, Delay = 0.16f,
+            CustomMinimumSize = new Vector2(250 * k, 50 * k), TooltipText = "Downloads, verifies and installs the update" };
+        goButton.Pressed += Now;
+        foot.AddChild(goButton);
+        col.AddChild(foot);
+
+        Refresh();
+        // Dev: "--update-offer-answer now|later" presses one of the buttons after 2 s (automated tests of this modal).
+        if (CmdLine.DevAfter("--update-offer-answer")?.ToLowerInvariant() is { } ans)
+            GetTree().CreateTimer(2.0).Timeout += () =>
+            {
+                if (!IsInstanceValid(this) || !IsInsideTree() || done) return;
+                Log.Info($"Updates: --update-offer-answer: {(ans == "now" ? "UPDATE NOW" : "LATER")}");
+                if (ans == "now") Now(); else Later();
+            };
+    }
+
+    public override void _Process(double delta)
+    {
+        t += (float)delta;
+        Refresh();
+        // Once the player said UPDATE NOW, restart as soon as the verified file is ready.
+        if (!restarting && UpdateOffer.WantsNow && !done && Updater.ReadyVersion == ver) Apply();
+    }
+
+    bool downloading => Updater.Status == Updater.State.Downloading && Updater.Target == ver;
+    bool ready => Updater.ReadyVersion == ver;
+    bool applying => Updater.Status == Updater.State.Applying && Updater.Target == ver;
+    bool failed => Updater.Status == Updater.State.Failed && Updater.Target == ver;
+
+    /// <summary>Redraws the state line / progress / primary label when the updater moved on.</summary>
+    void Refresh()
+    {
+        if (state == null || bar == null || goButton == null || laterLink == null || done) return;
+        string text;
+        bool hasBar = false;
+        float p = shown;
+        if (applying) text = S("Restarting CA-VAL-AIM…", "Reiniciando CA-VAL-AIM…");
+        else if (ready) text = S("Downloaded and verified. Restart to finish.", "Descargada y verificada. Reinicia para terminar.");
+        else if (downloading)
+        {
+            p = Updater.Progress;
+            text = S($"Downloading… {Mathf.RoundToInt(p * 100)}%", $"Descargando… {Mathf.RoundToInt(p * 100)}%");
+            hasBar = true;
+        }
+        else if (failed)
+            text = S("The automatic download failed: get the installer from the release page.",
+                     "La descarga automática falló: descarga el instalador desde la página de la versión.");
+        else text = S("Not downloaded yet.", "Aún no se ha descargado.");
+        if (state.Text != text) state.Text = text;
+        if (bar.Visible != hasBar) bar.Visible = hasBar;
+        if (hasBar && Mathf.Abs(p - shown) > 0.005f) { shown = p; bar.QueueRedraw(); }
+
+        string label = applying ? S("RESTARTING…", "REINICIANDO…")
+            : ready ? Loc.T("RESTART NOW")
+            : Loc.T("UPDATE NOW");
+        if (goButton.Label != label) { goButton.Label = label; goButton.QueueRedraw(); }
+        bool busy = applying;
+        if (goButton.Disabled != busy) goButton.Disabled = busy;
+        if (laterLink.Disabled != busy) laterLink.Disabled = busy;
+    }
+
+    void Later()
+    {
+        if (done || applying) return;
+        UpdateOffer.Later(ver);
+        Close();
+    }
+
+    void Now()
+    {
+        if (done || applying) return;
+        UpdateOffer.Now(ver);
+        if (ready) { Apply(); return; }
+        if (Updater.UpdateNow()) return; // downloading: _Process restarts when the file is verified
+        // This copy can't install it by itself (or the release has no installer): the release page is the manual path.
+        string? url = UpdateCheck.LatestUrl ?? (AppInfo.HasRepo ? AppInfo.LatestReleaseUrl : null);
+        if (AppInfo.OpenGitHub(url)) { Close(); return; }
+        UpdateOffer.WantsNow = false;
+        if (state != null)
+            state.Text = S("This copy can't install the update by itself. Get the installer from the release page.",
+                           "Esta copia no puede instalar la actualización por sí sola. Descarga el instalador desde la página de la versión.");
+    }
+
+    void Apply()
+    {
+        if (restarting) return;
+        restarting = true;
+        UpdateOffer.WantsNow = false;
+        Refresh();
+        Log.Info($"Updates: installing {ver} now (RESTART NOW)");
+        Updater.RestartToUpdate();
+    }
+
+    void Close()
+    {
+        if (done) return;
+        done = true;
+        onClose();
+        QueueFree();
+    }
+
+    Label Text(string s, float px, Color c) => new()
+    {
+        Text = s, AutowrapMode = TextServer.AutowrapMode.WordSmart, SizeFlagsHorizontal = SizeFlags.ExpandFill,
+        LabelSettings = UiTheme.Label(UiTheme.Body, px, k, c), MouseFilter = MouseFilterEnum.Ignore, CustomMinimumSize = new Vector2(40 * k, 0),
+    };
+
+    void Bullet(VBoxContainer col, string s)
+    {
+        var row = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        row.AddThemeConstantOverride("separation", (int)(10 * k));
+        row.AddChild(new Control { CustomMinimumSize = new Vector2(12 * k, 0), MouseFilter = MouseFilterEnum.Ignore });
+        row.AddChild(new DrawBox
+        {
+            CustomMinimumSize = new Vector2(8 * k, 22 * k),
+            OnDraw = b => Gfx.Diamond(b, new Vector2(4 * k, 12 * k), 3.5f * k, 3.5f * k, UiTheme.Accent),
+        });
+        row.AddChild(Text(Loc.T(s), 16, UiTheme.Text));
+        col.AddChild(row);
+    }
+
+    /// <summary>Esc = LATER (never starts an update by accident).</summary>
+    public override void _UnhandledKeyInput(InputEvent e)
+    {
+        if (e is InputEventKey { Pressed: true, Echo: false, Keycode: Key.Escape })
+        {
+            GetViewport().SetInputAsHandled();
+            Later();
         }
     }
 }

@@ -55,7 +55,11 @@ public partial class Main : Node
         // One ValTrainer at a time (dev / automated runs excepted; dev: --single-instance tests it): a second launch brings
         // this one to the front and quits.
         var startArgs = OS.GetCmdlineUserArgs().Concat(OS.GetCmdlineArgs()).ToArray();
-        if ((!startArgs.Contains("--dev") || startArgs.Contains("--single-instance")) && !SingleInstance.Claim())
+        Dev = startArgs.Contains("--dev");
+        // Latch read-only before anything can save: Reimport() below persists an imported sensitivity, and a dev run with
+        // --data-dir must never touch that folder unless it also asked for --write-data.
+        AppSettings.ReadOnly = !SavesData;
+        if ((!Dev || startArgs.Contains("--single-instance")) && !SingleInstance.Claim())
         {
             Log.Info("CA-VAL-AIM is already running: brought that window to the front; quitting this copy");
             singleInstanceExit = true;
@@ -69,11 +73,10 @@ public partial class Main : Node
         AddChild(new Sfx { Name = "Sfx" });
         UiTheme.Init();
         Loc.SetLanguage(Settings.Language);
-        if (!OS.GetCmdlineUserArgs().Concat(OS.GetCmdlineArgs()).Contains("--dev")) ApplyDisplay();
+        if (!Dev) ApplyDisplay();
         GetTree().Root.Title = AppInfo.Name;
 
-        var args = OS.GetCmdlineUserArgs().Concat(OS.GetCmdlineArgs()).ToArray();
-        Dev = args.Contains("--dev");
+        var args = startArgs;
         if (Dev)
         {
             // Dev-only layout/QA overrides (never saved): --lang es, --rifle phantom, --ammo default|real|infinite.
@@ -86,7 +89,6 @@ public partial class Main : Node
             if (CmdLine.After("--ammo") is { } ammo)
                 Settings.AmmoMode = ammo.ToLowerInvariant() switch { "infinite" => 1, "real" => 0, _ => -1 };
         }
-        AppSettings.ReadOnly = !SavesData; // dev/automated runs never write the user's settings (quit, F11, result buttons, coach "Try it" …)
         if (args.Contains("--coach-analyze"))
         {
             // Dev tool: analyse saved telemetry and quit (works with --headless).
@@ -101,7 +103,7 @@ public partial class Main : Node
             return;
         }
         PickFirstRunQuality();
-        Log.Info($"CA-VAL-AIM {AppInfo.Version}; {SysInfo.Summary}; quality {Settings.Quality}{(Settings.AutoQualityReason != null ? $" (auto: {Settings.AutoQualityReason})" : "")}; " +
+        Log.Info($"CA-VAL-AIM {AppInfo.Version}; language {Loc.Language}; {SysInfo.Summary}; quality {Settings.Quality}{(Settings.AutoQualityReason != null ? $" (auto: {Settings.AutoQualityReason})" : "")}; " +
                  $"data {Paths.DataDir}{(Paths.DataDirProblem != null ? $" [{Paths.DataDirProblem}]" : "")}; " +
                  $"VALORANT {(Valorant.Found ? "imported" : Valorant.Status.ToString())}; logs {Paths.LogDir}");
         if (Dev && args.Contains("--keybind-dump"))
@@ -202,6 +204,8 @@ public partial class Main : Node
         if (Dev && make == null && (CmdLine.After("--lockin") ?? CmdLine.After("--warmup")) is { } wu) Callable.From(() => Warmup.WarmupRunner.StartDev(wu)).CallDeferred();
         // Dev-only: "--rewind-file run.vtt [--rewind-code CODE] [--rewind-at S]" opens the Rewind of a saved run.
         if (Dev && make == null && CmdLine.After("--rewind-file") is { } rf) Callable.From(() => RewindScreen.OpenDevFile(rf)).CallDeferred();
+        // Dev-only: "--plays-file run.vtt" opens its play-by-play list (screenshots of the per-play review).
+        if (Dev && make == null && CmdLine.After("--plays-file") is { } pf) Callable.From(() => PlaysScreen.OpenDevFile(pf)).CallDeferred();
         Analysis.CoachWarmUp.Start(); // JIT the coach off the main thread before the first results screen
         // Dev-only: "--screenshot <path prefix> --screenshot-at 3,5.5,9" saves the game's own frame (any screen, DPI-proof,
         // works on a locked desktop) as <prefix>_<n>.png at those seconds after start, then quits after the last one.

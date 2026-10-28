@@ -142,7 +142,9 @@ public abstract class TrainingMode
 
     /// <summary>Left-side HUD lines (state, prompts).</summary>
     public virtual IEnumerable<string> HudLines() => Adapt is { } a ? new[] { AdaptiveLine(a) } : Array.Empty<string>();
-    protected static string AdaptiveLine(Staircase a) => $"Level {Difficulty.LevelName(a.Level)} ({a.Level:0.0}) · adapts to {a.TargetHitRate * 100:0}% hits";
+    protected static string AdaptiveLine(Staircase a) => Loc.Spanish
+        ? $"Nivel {Difficulty.LevelName(a.Level)} ({a.Level:0.0}) · se ajusta a {a.TargetHitRate * 100:0}% de aciertos"
+        : $"Level {Difficulty.LevelName(a.Level)} ({a.Level:0.0}) · adapts to {a.TargetHitRate * 100:0}% hits";
     /// <summary>Centre prompt (e.g. "Keep strafing").</summary>
     public virtual string? Prompt => null;
     /// <summary>Custom 2D drawing on the HUD canvas (reaction test, etc.).</summary>

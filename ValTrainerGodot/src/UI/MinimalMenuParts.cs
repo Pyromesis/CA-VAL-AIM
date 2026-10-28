@@ -336,7 +336,7 @@ public partial class MWeaponName : MButtonBase
         float k = K, cy = Size.Y / 2, e = Gfx.EaseOutCubic(swap);
         int pick = Main.I.Settings.WeaponOverride;
         bool def = pick < 0 || pick >= Weapons.AllPlayable.Length;
-        string nm = def ? "Drill default" : Weapons.AllPlayable[pick].Name;
+        string nm = def ? Loc.T("Drill default") : Weapons.AllPlayable[pick].Name;
         string cls = def ? "each drill's own weapon" : Weapons.ClassName(Weapons.AllPlayable[pick].Class);
         int fs = UiTheme.Fs(21, k), cs = UiTheme.Fs(10, k);
         DrawString(UiTheme.Light, new Vector2(0, cy + fs * 0.12f + (1 - e) * 6 * k), nm, HorizontalAlignment.Left, -1, fs,
@@ -543,16 +543,18 @@ public partial class MUpdateStrip : Control
         string v = Version;
         string head = Kind switch
         {
-            UpdateBanner.Stage.Ready => $"CA-VAL-AIM {v} is ready",
-            UpdateBanner.Stage.Applying => $"Installing CA-VAL-AIM {v}…",
-            UpdateBanner.Stage.Downloading => $"Downloading CA-VAL-AIM {v} · {Updater.Progress * 100:0}%",
-            _ => $"CA-VAL-AIM {v} is available",
+            UpdateBanner.Stage.Ready => Loc.Spanish ? $"CA-VAL-AIM {v} está listo" : $"CA-VAL-AIM {v} is ready",
+            UpdateBanner.Stage.Applying => Loc.Spanish ? $"Instalando CA-VAL-AIM {v}…" : $"Installing CA-VAL-AIM {v}…",
+            UpdateBanner.Stage.Downloading => Loc.Spanish ? $"Descargando CA-VAL-AIM {v} · {Updater.Progress * 100:0}%" : $"Downloading CA-VAL-AIM {v} · {Updater.Progress * 100:0}%",
+            _ => Loc.Spanish ? $"CA-VAL-AIM {v} disponible" : $"CA-VAL-AIM {v} is available",
         };
         string sub = Kind switch
         {
-            UpdateBanner.Stage.Ready => "restart to update" + (Updater.NeedsElevation ? " · Windows will ask for permission" : ""),
-            UpdateBanner.Stage.Applying => "it restarts by itself",
-            _ => $"you have {AppInfo.Version}",
+            UpdateBanner.Stage.Ready => Loc.Spanish
+                ? "reinicia para actualizar" + (Updater.NeedsElevation ? " · Windows pedirá permiso" : "")
+                : "restart to update" + (Updater.NeedsElevation ? " · Windows will ask for permission" : ""),
+            UpdateBanner.Stage.Applying => Loc.Spanish ? "se reinicia solo" : "it restarts by itself",
+            _ => Loc.Spanish ? $"tienes {AppInfo.Version}" : $"you have {AppInfo.Version}",
         };
         int fs = UiTheme.Fs(15, k), ss = UiTheme.Fs(13, k);
         bool ready = Kind is UpdateBanner.Stage.Ready or UpdateBanner.Stage.Applying;

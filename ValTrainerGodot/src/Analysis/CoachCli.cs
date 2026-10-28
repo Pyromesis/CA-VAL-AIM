@@ -13,7 +13,8 @@ namespace ValTrainer.Analysis;
 /// sens advice built from all files (via a temporary StatsStore), then quits.
 /// "--coach-selftest" additionally runs synthetic event-only cases (reaction / movement / flash) the simulated
 /// player can't produce. "--insights" adds each run's Rewind insights (time-to-hit split, flick sectors, shots, moment
-/// counts with examples); "--insights-trials" also lists every engagement's timeline.
+/// counts with examples); "--insights-trials" also lists every engagement's timeline. "--plays" adds the play-by-play
+/// review (every engagement / spray / reaction / round judged on its own, as the play list shows it).
 /// "--replay-check" checks each run's 3D Rewind sidecar (.vtr): present, 60 Hz, one PlayerShot per shot, BotDie ≥ kills,
 /// monotonic time, size. "--replay-selftest" (also part of "--coach-selftest") round-trips a synthetic recording.
 /// </summary>
@@ -31,6 +32,7 @@ public static class CoachCli
         var dir = i >= 0 && i + 1 < args.Length && !args[i + 1].StartsWith("--") ? args[i + 1] : RunTelemetry.Dir;
         bool brief = args.Contains("--brief");
         bool insights = args.Contains("--insights") || args.Contains("--insights-trials");
+        bool plays = args.Contains("--plays");
         trialDump = args.Contains("--insights-trials");
         bool replayCheck = args.Contains("--replay-check") || args.Contains("--replay-dump");
         replayDump = args.Contains("--replay-dump");
@@ -66,6 +68,7 @@ public static class CoachCli
             else P("  key: " + KeyMetrics(m));
             P("  summary: " + rv.Summary);
             foreach (var s in rv.Strengths) P("  + " + s);
+            if (plays) PrintPlays(rv.Plays);
             if (insights) PrintInsights(t);
             if (replayCheck) ReplayCheck(f, t);
         }
@@ -131,6 +134,16 @@ public static class CoachCli
         P($"        why: {d.Why}");
         P($"        fix: {string.Join(" | ", d.Fixes)}");
         P($"        drills: {string.Join(", ", d.Drills)}");
+    }
+
+    /// <summary>"--plays": the per-play review of one run (what the play-by-play screen shows).</summary>
+    static void PrintPlays(PlayAnalysis? a)
+    {
+        if (a == null) { P("  plays: (none)"); return; }
+        P(F($"  plays: kind={a.Kind} n={a.Plays.Count} avg={a.Average:0.0} S={a.Excellent} A={a.Good} B={a.Fair} fix={a.Poor} drills={string.Join(",", a.Drills)}"));
+        P("  verdict: " + a.Verdict);
+        foreach (var p in a.Plays)
+            P(F($"    #{p.Index:00} {p.Letter} [{p.T0,7:0.00}-{p.T1,7:0.00}s] {p.Kind,-10} {p.Title} | {p.Detail} | {p.Advice} | drills={string.Join(",", p.Drills)}"));
     }
 
     /// <summary>"--insights": the Rewind data of one run (engagements, time-to-hit split, flick sectors, shots, moments).</summary>

@@ -37,7 +37,7 @@ public sealed class ReactionLabMode : TrainingMode
 
     public ReactionCategory Cat => cat;
     public override string Key => ReactionStats.KeyOf(cat);
-    public override string Name => $"Reaction Lab: {ReactionStats.Name(cat)}";
+    public override string Name => Loc.Spanish ? $"Laboratorio de reacción: {ReactionStats.Name(cat)}" : $"Reaction Lab: {ReactionStats.Name(cat)}";
     public override string Description => ReactionStats.Blurb(cat);
     public override string Category => "Other";
     public override bool Timed => false;
@@ -119,8 +119,8 @@ public sealed class ReactionLabMode : TrainingMode
             case St.Stim:
                 if (cat == ReactionCategory.Choice && noGo)
                 {
-                    if (newClick) { lastClickSeen = click; falseAlarms++; noGoTrials++; Finish("Red: don't click!", false); G.Sound("fail"); Event("false_alarm"); }
-                    else if (t > 1.0f) { noGoTrials++; Finish("Held it: correct", true); }
+                    if (newClick) { lastClickSeen = click; falseAlarms++; noGoTrials++; Finish(Loc.Spanish ? "¡Rojo: no hagas clic!" : "Red: don't click!", false); G.Sound("fail"); Event("false_alarm"); }
+                    else if (t > 1.0f) { noGoTrials++; Finish(Loc.Spanish ? "Aguantaste: correcto" : "Held it: correct", true); }
                     break;
                 }
                 if (cat == ReactionCategory.Flick)
@@ -137,18 +137,18 @@ public sealed class ReactionLabMode : TrainingMode
                             Hits++; Shots++;
                             Event(EventName, onset, hit);
                             G.Sound("head", 0.6f);
-                            Finish($"{onset:0} ms onset · {hit:0} ms hit", true);
+                            Finish(Loc.Spanish ? $"{onset:0} ms inicio · {hit:0} ms acierto" : $"{onset:0} ms onset · {hit:0} ms hit", true);
                         }
                         else Shots++;
                     }
-                    else if (t > 2.5f) { flickMisses++; Finish("Too slow", false); G.Sound("fail"); }
+                    else if (t > 2.5f) { flickMisses++; Finish(Loc.Spanish ? "Demasiado lento" : "Too slow", false); G.Sound("fail"); }
                     break;
                 }
                 if (newClick && stimDrawn)
                 {
                     lastClickSeen = click;
                     lastMs = ((long)click - (long)stimUsec) / 1000f; // a click between the update and the first draw is negative: early
-                    if (lastMs < 90f) { early++; Finish("Anticipated (< 90 ms)", false); Event("early_click"); break; } // faster than a human: a guess
+                    if (lastMs < 90f) { early++; Finish(Loc.Spanish ? "Anticipado (< 90 ms)" : "Anticipated (< 90 ms)", false); Event("early_click"); break; } // faster than a human: a guess
                     rts.Add(lastMs);
                     KillTimes.Add(lastMs);
                     Hits++; Shots++;
@@ -156,7 +156,7 @@ public sealed class ReactionLabMode : TrainingMode
                     G.Sound("body");
                     Finish($"{lastMs:0} ms", true);
                 }
-                else if (t > 2.0f) { Finish("Missed", false); }
+                else if (t > 2.0f) { Finish(Loc.Spanish ? "Fallado" : "Missed", false); }
                 break;
             case St.Show:
             case St.Early:
@@ -201,14 +201,20 @@ public sealed class ReactionLabMode : TrainingMode
 
     public override IEnumerable<(string Label, string Value)> ResultLines()
     {
-        if (rts.Count == 0) { yield return ("Trials", "none completed"); yield break; }
-        string label = cat == ReactionCategory.Flick ? "Median movement onset" : "Median reaction";
-        yield return (label, $"{Median(rts):0} ms  (mean {rts.Average():0}, best {rts.Min():0})");
-        yield return ("Consistency (SD)", $"{Sd(rts):0} ms");
-        if (cat == ReactionCategory.Flick && hitsMs.Count > 0) yield return ("Median time to hit", $"{Median(hitsMs):0} ms  ({flickMisses} too slow)");
-        if (cat == ReactionCategory.Choice) yield return ("False alarms on red", $"{falseAlarms} / {NoGoTrials}");
-        yield return ("Early clicks", early.ToString());
-        yield return ("Rank reference", ReactionStats.RankOf(cat, Median(rts)));
+        bool es = Loc.Spanish;
+        if (rts.Count == 0) { yield return (es ? "Intentos" : "Trials", es ? "ninguno completado" : "none completed"); yield break; }
+        string label = cat == ReactionCategory.Flick
+            ? (es ? "Inicio medio del movimiento" : "Median movement onset")
+            : (es ? "Reacción media" : "Median reaction");
+        yield return (label, es
+            ? $"{Median(rts):0} ms  (media {rts.Average():0}, mejor {rts.Min():0})"
+            : $"{Median(rts):0} ms  (mean {rts.Average():0}, best {rts.Min():0})");
+        yield return (es ? "Consistencia (DE)" : "Consistency (SD)", $"{Sd(rts):0} ms");
+        if (cat == ReactionCategory.Flick && hitsMs.Count > 0)
+            yield return (es ? "Tiempo medio hasta acertar" : "Median time to hit", es ? $"{Median(hitsMs):0} ms  ({flickMisses} demasiado lentos)" : $"{Median(hitsMs):0} ms  ({flickMisses} too slow)");
+        if (cat == ReactionCategory.Choice) yield return (es ? "Falsas alarmas en rojo" : "False alarms on red", $"{falseAlarms} / {NoGoTrials}");
+        yield return (es ? "Clics anticipados" : "Early clicks", early.ToString());
+        yield return (es ? "Rango de referencia" : "Rank reference", ReactionStats.RankOf(cat, Median(rts)));
     }
 
     public override int Badge() => rts.Count < 5 ? -1 : Difficulty.BadgeLower(Median(rts), ReactionStats.Reference(cat));
@@ -287,7 +293,9 @@ public sealed class ReactionLabMode : TrainingMode
         int total = Trials + (cat == ReactionCategory.Choice ? NoGoTrials : 0);
         Gfx.TextC(c, UiTheme.HudWide, $"{ReactionStats.Name(cat).ToUpperInvariant()}  ·  {Math.Min(done + 1, total)} / {total}", center.X, size.Y - 90 * k, UiTheme.Fs(18, k), new Color(text, 0.65f));
         if (rts.Count > 0)
-            Gfx.TextC(c, UiTheme.HudWide, $"MEDIAN {Median(rts):0} MS  ·  BEST {rts.Min():0} MS", center.X, size.Y - 60 * k, UiTheme.Fs(15, k), new Color(text, 0.5f));
+            Gfx.TextC(c, UiTheme.HudWide, Loc.Spanish
+            ? $"MEDIA {Median(rts):0} MS  ·  MEJOR {rts.Min():0} MS"
+            : $"MEDIAN {Median(rts):0} MS  ·  BEST {rts.Min():0} MS", center.X, size.Y - 60 * k, UiTheme.Fs(15, k), new Color(text, 0.5f));
     }
 }
 
@@ -314,20 +322,35 @@ public static class ReactionStats
 
     public static string KeyOf(ReactionCategory c) => $"{Base}:{c.ToString().ToLowerInvariant()}";
 
-    public static string Name(ReactionCategory c) => c switch
-    {
-        ReactionCategory.Visual => "Visual", ReactionCategory.Audio => "Audio", ReactionCategory.Peripheral => "Peripheral",
-        ReactionCategory.Choice => "Choice", _ => "Flick",
-    };
+    public static string Name(ReactionCategory c) => Loc.Spanish
+        ? c switch
+        {
+            ReactionCategory.Visual => "Visual", ReactionCategory.Audio => "Oído", ReactionCategory.Peripheral => "Periférica",
+            ReactionCategory.Choice => "Elección", _ => "Flick",
+        }
+        : c switch
+        {
+            ReactionCategory.Visual => "Visual", ReactionCategory.Audio => "Audio", ReactionCategory.Peripheral => "Peripheral",
+            ReactionCategory.Choice => "Choice", _ => "Flick",
+        };
 
-    public static string Blurb(ReactionCategory c) => c switch
-    {
-        ReactionCategory.Visual => "The screen flashes: click. Simple visual reaction time, 12 trials.",
-        ReactionCategory.Audio => "A click sounds: click. Hearing reaction time (footsteps, gunfire), 12 trials.",
-        ReactionCategory.Peripheral => "Eyes on the centre; a dot pops near the edge: click. Reaction to what you see from the corner of your eye.",
-        ReactionCategory.Choice => "Green: click. Red: don't. Decision speed and false alarms (go / no-go).",
-        _ => "A target appears 5–25° away: flick and click. Movement onset (reaction) and time to hit (aim), separately.",
-    };
+    public static string Blurb(ReactionCategory c) => Loc.Spanish
+        ? c switch
+        {
+            ReactionCategory.Visual => "La pantalla destella: haz clic. Tiempo de reacción visual simple, 12 intentos.",
+            ReactionCategory.Audio => "Suena un clic: haz clic. Tiempo de reacción auditivo (pasos, disparos), 12 intentos.",
+            ReactionCategory.Peripheral => "Ojos en el centro; un punto aparece cerca del borde: haz clic. Reacción a lo que ves con el rabillo del ojo.",
+            ReactionCategory.Choice => "Verde: clic. Rojo: no. Velocidad de decisión y falsas alarmas (go / no-go).",
+            _ => "Aparece un objetivo a 5–25°: flick y clic. Inicio del movimiento (reacción) y tiempo hasta acertar (puntería), por separado.",
+        }
+        : c switch
+        {
+            ReactionCategory.Visual => "The screen flashes: click. Simple visual reaction time, 12 trials.",
+            ReactionCategory.Audio => "A click sounds: click. Hearing reaction time (footsteps, gunfire), 12 trials.",
+            ReactionCategory.Peripheral => "Eyes on the centre; a dot pops near the edge: click. Reaction to what you see from the corner of your eye.",
+            ReactionCategory.Choice => "Green: click. Red: don't. Decision speed and false alarms (go / no-go).",
+            _ => "A target appears 5–25° away: flick and click. Movement onset (reaction) and time to hit (aim), separately.",
+        };
 
     /// <summary>Median-reaction thresholds (ms) per rank badge Rookie … Pro for a category (lower is better).</summary>
     public static float[] Reference(ReactionCategory c)
@@ -339,7 +362,9 @@ public static class ReactionStats
     public static string RankOf(ReactionCategory c, float medianMs)
     {
         int b = Difficulty.BadgeLower(medianMs, Reference(c));
-        return b < 0 ? "below Rookie" : Difficulty.Tiers[b].Name + " (" + Difficulty.Tiers[b].Ranks + ")";
+        return b < 0
+            ? (Loc.Spanish ? "por debajo de Principiante" : "below Rookie")
+            : Difficulty.Tiers[b].Name + " (" + Difficulty.Tiers[b].Ranks + ")";
     }
 
     /// <summary>One category's history: (when, median, best, sd) per run, oldest first.</summary>

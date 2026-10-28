@@ -418,7 +418,9 @@ public abstract partial class TacticalMode : MapMode
             c.DrawRect(new Rect2(dr.Position, new Vector2(dw * p, dh)), col);
             c.DrawRect(new Rect2(dr.Position.X + dw / 2 - 1.5f * k, dr.Position.Y - 4 * k, 3 * k, dh + 8 * k), new Color(UiTheme.Text, 0.9f));
             int ds = UiTheme.Fs(16, k);
-            string who = PlayerDefusing ? $"DEFUSING  {DefuseProgress:0.0} / 7.0s" : $"ENEMY DEFUSING  {DefuseProgress:0.0} / 7.0s";
+            string who = PlayerDefusing
+                ? (Loc.Spanish ? $"DESACTIVANDO  {DefuseProgress:0.0} / 7.0s" : $"DEFUSING  {DefuseProgress:0.0} / 7.0s")
+                : (Loc.Spanish ? $"ENEMIGO DESACTIVANDO  {DefuseProgress:0.0} / 7.0s" : $"ENEMY DEFUSING  {DefuseProgress:0.0} / 7.0s");
             Gfx.TextC(c, UiTheme.HudWide, who, cx, dr.Position.Y - 12 * k, ds, col);
         }
 

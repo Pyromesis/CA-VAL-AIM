@@ -1,4 +1,5 @@
 using Godot;
+using ValTrainer.Core;
 using ValTrainer.Game;
 using ValTrainer.Game.Fx;
 using ValTrainer.UI;
@@ -162,16 +163,16 @@ public sealed partial class AnchorMode
                 p.Axis = a.Kind == SentKind.BarrierOrb ? (alt ? flat : new Vector3(-flat.Z, 0, flat.X)) : flat;
                 var feet = PlayerFeet;
                 float reach = new Vector2(p.Pos.X - feet.X, p.Pos.Z - feet.Z).Length();
-                if (q.Y - gy > 6f) p.Why = "No floor there";
-                else if (reach > a.Range + 0.6f) p.Why = $"Too far (max {a.Range:0.#} m)";
-                else if (Collision.Overlaps(p.Pos, G.Solid, 0.12f)) p.Why = "Not enough room";
+                if (q.Y - gy > 6f) p.Why = Loc.Spanish ? "No hay suelo ahí" : "No floor there";
+                else if (reach > a.Range + 0.6f) p.Why = Loc.Spanish ? $"Demasiado lejos (máx. {a.Range:0.#} m)" : $"Too far (max {a.Range:0.#} m)";
+                else if (Collision.Overlaps(p.Pos, G.Solid, 0.12f)) p.Why = Loc.Spanish ? "No hay espacio suficiente" : "Not enough room";
                 else p.Ok = true;
                 break;
             }
             case SentPlace.Wall:
             {
                 float t = Collision.FirstHit(eye, dir, G.Solid, out int idx);
-                if (t > a.Range) { p.Pos = eye + dir * Mathf.Min(t, a.Range); p.Normal = -dir; p.Why = $"Aim at a wall within {a.Range:0} m"; break; }
+                if (t > a.Range) { p.Pos = eye + dir * Mathf.Min(t, a.Range); p.Normal = -dir; p.Why = Loc.Spanish ? $"Apunta a una pared a menos de {a.Range:0} m" : $"Aim at a wall within {a.Range:0} m"; break; }
                 var hit = eye + dir * t;
                 var n = G.Solid[idx].NormalAt(hit);
                 p.Pos = hit; p.Normal = n;

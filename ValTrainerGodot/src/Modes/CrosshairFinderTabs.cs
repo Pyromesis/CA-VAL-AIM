@@ -1,4 +1,5 @@
 using Godot;
+using ValTrainer.Core;
 using ValTrainer.UI;
 using ValTrainer.Valorant;
 
@@ -28,14 +29,22 @@ public static class XfDot
         c.DrawCircle(centre, Mathf.Max(1.5f, d.Size * 2.5f) * zoom, new Color(d.Color, d.Opacity));
     }
 
-    public static string Describe(SniperDotStyle d) => !d.Show ? "no dot"
-        : $"{CrosshairCode.ColorName(d.Color)} dot, size {CrosshairCode.Fmt(d.Size)}, opacity {CrosshairCode.Fmt(d.Opacity)}";
+    public static string Describe(SniperDotStyle d) => !d.Show
+        ? (Loc.Spanish ? "sin punto" : "no dot")
+        : Loc.Spanish
+            ? $"Punto {CrosshairCode.ColorName(d.Color)}, tamaño {CrosshairCode.Fmt(d.Size)}, opacidad {CrosshairCode.Fmt(d.Opacity)}"
+            : $"{CrosshairCode.ColorName(d.Color)} dot, size {CrosshairCode.Fmt(d.Size)}, opacity {CrosshairCode.Fmt(d.Opacity)}";
 }
 
 /// <summary>Per-tab helpers: what the tab looks like, and how a result is merged into the player's whole profile.</summary>
 public static class XfTabs
 {
-    public static string Name(XfTab t) => t switch { XfTab.Ads => "ADS", XfTab.Sniper => "Sniper", _ => "Primary" };
+    public static string Name(XfTab t) => t switch
+    {
+        XfTab.Ads => "ADS",
+        XfTab.Sniper => Loc.Spanish ? "Francotirador" : "Sniper",
+        _ => Loc.Spanish ? "Principal" : "Primary",
+    };
 
     /// <summary>The crosshair VALORANT draws for this tab (ADS: its own only with Use Advanced Options on and Copy
     /// Primary Crosshair off; otherwise the primary).</summary>
@@ -259,16 +268,27 @@ public static class XfDots
     }
 
     /// <summary>Every dot of the pick screen, in card order.</summary>
-    public static List<XfEntrant> All(Color c) => new()
-    {
-        Make("fine", "Fine dot", "a pinpoint, like most pros use", c, 0.6f, 1f),
-        Make("solid", "Solid dot", "default size, fully solid", c, 1f, 1f),
-        Make("standard", "Standard dot", "VALORANT's default size and opacity", c, 1f, 0.75f),
-        Make("medium", "Medium dot", "a little bigger, easy to find", c, 1.5f, 1f),
-        Make("big", "Big dot", "stays visible on busy backgrounds", c, 2f, 1f),
-        Make("soft", "Soft big dot", "big but see-through: the head stays visible", c, 2f, 0.5f),
-        Make("none", "No dot", "only the scope's own lines", c, 1f, 0.75f, on: false),
-    };
+    public static List<XfEntrant> All(Color c) => Loc.Spanish
+        ? new()
+        {
+            Make("fine", "Punto fino", "una punta de alfiler, como usa la mayoría de pros", c, 0.6f, 1f),
+            Make("solid", "Punto sólido", "tamaño por defecto, totalmente sólido", c, 1f, 1f),
+            Make("standard", "Punto estándar", "tamaño y opacidad por defecto de VALORANT", c, 1f, 0.75f),
+            Make("medium", "Punto mediano", "algo más grande, fácil de encontrar", c, 1.5f, 1f),
+            Make("big", "Punto grande", "se mantiene visible sobre fondos cargados", c, 2f, 1f),
+            Make("soft", "Punto grande suave", "grande pero translúcido: la cabeza sigue viéndose", c, 2f, 0.5f),
+            Make("none", "Sin punto", "solo las líneas de la mira", c, 1f, 0.75f, on: false),
+        }
+        : new()
+        {
+            Make("fine", "Fine dot", "a pinpoint, like most pros use", c, 0.6f, 1f),
+            Make("solid", "Solid dot", "default size, fully solid", c, 1f, 1f),
+            Make("standard", "Standard dot", "VALORANT's default size and opacity", c, 1f, 0.75f),
+            Make("medium", "Medium dot", "a little bigger, easy to find", c, 1.5f, 1f),
+            Make("big", "Big dot", "stays visible on busy backgrounds", c, 2f, 1f),
+            Make("soft", "Soft big dot", "big but see-through: the head stays visible", c, 2f, 0.5f),
+            Make("none", "No dot", "only the scope's own lines", c, 1f, 0.75f, on: false),
+        };
 
     /// <summary>The recommended four (pre-selected).</summary>
     public static readonly string[] Defaults = { "fine", "solid", "big", "soft" };

@@ -1,6 +1,7 @@
 using System.Runtime.CompilerServices;
 using Godot;
 using ValTrainer.Analysis;
+using ValTrainer.Core;
 using ValTrainer.Game;
 
 namespace ValTrainer.UI;
@@ -132,7 +133,14 @@ public static class RewindData
     /// <summary>Screen direction of an 8-way flick sector (0 = right, counter-clockwise).</summary>
     public static string SectorName(int s) => (s & 7) switch
     {
-        0 => "right", 1 => "up-right", 2 => "up", 3 => "up-left", 4 => "left", 5 => "down-left", 6 => "down", _ => "down-right",
+        0 => Loc.Spanish ? "derecha" : "right",
+        1 => Loc.Spanish ? "arriba a la derecha" : "up-right",
+        2 => Loc.Spanish ? "arriba" : "up",
+        3 => Loc.Spanish ? "arriba a la izquierda" : "up-left",
+        4 => Loc.Spanish ? "izquierda" : "left",
+        5 => Loc.Spanish ? "abajo a la izquierda" : "down-left",
+        6 => Loc.Spanish ? "abajo" : "down",
+        _ => Loc.Spanish ? "abajo a la derecha" : "down-right",
     };
 
     /// <summary>Drill name for a mode key ("flashpeek:skye" → its base drill's name).</summary>

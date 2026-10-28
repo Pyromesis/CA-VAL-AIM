@@ -140,21 +140,25 @@ public sealed class PopupMode : TrainingMode
     /// <summary>Pop-ups that are over (hit or vanished): the one on screen when time runs out doesn't count against you.</summary>
     int Resolved => Hits + expired;
 
-    public override string? Prompt => shown == 0 ? "Heads pop up anywhere — hit them before they vanish" : null;
+    public override string? Prompt => shown == 0
+        ? (Loc.Spanish ? "Las cabezas salen en cualquier parte: aciértalas antes de que desaparezcan" : "Heads pop up anywhere — hit them before they vanish")
+        : null;
 
     public override IEnumerable<string> HudLines()
     {
-        yield return $"Window {AimPlusTiers.PopupWindow(Tier) * 1000:0} ms + travel";
-        if (Resolved > 0) yield return $"Hit {Hits} / {Resolved} pop-ups";
-        if (lastMs >= 0) yield return $"Last hit {lastMs:0} ms";
+        bool es = Loc.Spanish;
+        yield return es ? $"Ventana {AimPlusTiers.PopupWindow(Tier) * 1000:0} ms + recorrido" : $"Window {AimPlusTiers.PopupWindow(Tier) * 1000:0} ms + travel";
+        if (Resolved > 0) yield return es ? $"Aciertos {Hits} / {Resolved} cabezas" : $"Hit {Hits} / {Resolved} pop-ups";
+        if (lastMs >= 0) yield return es ? $"Último acierto {lastMs:0} ms" : $"Last hit {lastMs:0} ms";
     }
 
     public override IEnumerable<(string Label, string Value)> ResultLines()
     {
-        yield return ("Pop-ups hit", Resolved == 0 ? "—" : $"{HitPct:0}%  ({Hits}/{Resolved})");
-        yield return ("Median time to hit", KillTimes.Count > 0 ? $"{Median(KillTimes):0} ms" : "—");
-        yield return ("Reaction (first move)", onsets.Count > 0 ? $"{Median(onsets):0} ms" : "—");
-        yield return ("Missed shots", misses.ToString());
+        bool es = Loc.Spanish;
+        yield return (es ? "Cabezas acertadas" : "Pop-ups hit", Resolved == 0 ? "—" : $"{HitPct:0}%  ({Hits}/{Resolved})");
+        yield return (es ? "Tiempo medio de impacto" : "Median time to hit", KillTimes.Count > 0 ? $"{Median(KillTimes):0} ms" : "—");
+        yield return (es ? "Reacción (primer movimiento)" : "Reaction (first move)", onsets.Count > 0 ? $"{Median(onsets):0} ms" : "—");
+        yield return (es ? "Disparos fallados" : "Missed shots", misses.ToString());
         yield return ("Accuracy", $"{Accuracy * 100:0.0}%  ({Hits}/{Shots})");
     }
 
