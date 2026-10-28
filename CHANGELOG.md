@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+### Added
+
+- **Real Vandal and Phantom spray patterns.** Both rifles now play their measured pattern (25 rounds climbing 9.0° and
+  sweeping 5.0° for the Vandal; 30 rounds, 7.5° / 4.5° for the Phantom), with each bullet's exact sideways offset and
+  no random side swap. The spray chart and the arsenal note follow it.
+
+### Fixed
+
+- **The "What's new" window is in Spanish.** The app reads `CHANGELOG.es.md` when the language is Spanish; before, it
+  always loaded the English file. The update prompt and the update strip's tooltips are translated too.
+
 ## [2.2.0] - 2026-10-28
 
 ### Added

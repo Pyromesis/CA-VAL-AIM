@@ -123,23 +123,23 @@ public partial class UpdatesPromptPanel : Control
                 Gfx.Text(b, UiTheme.Light, "Check GitHub for new versions?", 0, y, fs, UiTheme.Text);
             },
         });
-        col.AddChild(Text("CA-VAL-AIM can keep itself up to date. If you turn this on, it will:", 16, UiTheme.Dim));
+        col.AddChild(Text(Loc.T("CA-VAL-AIM can keep itself up to date. If you turn this on, it will:"), 16, UiTheme.Dim));
         Bullet(col, "ask github.com for the latest CA-VAL-AIM release, at startup and every 6 hours");
         Bullet(col, "download a newer version in the background and install it when you restart CA-VAL-AIM");
         Bullet(col, "send nothing about you: no settings, stats, recordings or IDs (GitHub sees an ordinary web request)");
         col.AddChild(new Control { CustomMinimumSize = new Vector2(0, 2 * k), MouseFilter = MouseFilterEnum.Ignore });
-        col.AddChild(Text("Until you say yes, CA-VAL-AIM makes no network requests. You can change this any time in Settings → About, where CHECK NOW also checks once.", 14, UiTheme.Faint));
+        col.AddChild(Text(Loc.T("Until you say yes, CA-VAL-AIM makes no network requests. You can change this any time in Settings → About, where CHECK NOW also checks once."), 14, UiTheme.Faint));
         col.AddChild(new Control { CustomMinimumSize = new Vector2(0, 6 * k), MouseFilter = MouseFilterEnum.Ignore });
 
         var foot = new HBoxContainer();
         foot.AddThemeConstantOverride("separation", (int)(14 * k));
         foot.AddChild(new Control { SizeFlagsHorizontal = SizeFlags.ExpandFill, MouseFilter = MouseFilterEnum.Ignore });
         var no = new MLink { Label = "NOT NOW", K = k, Px = 12.5f, Delay = 0.1f, SizeFlagsVertical = SizeFlags.ShrinkCenter,
-            TooltipText = "No update checks; you can turn them on later in Settings → About" };
+            TooltipText = Loc.T("No update checks; you can turn them on later in Settings → About") };
         no.Pressed += () => onAnswer(false);
         foot.AddChild(no);
         var yes = new MAction { Label = "ENABLE UPDATES", Primary = true, K = k, Px = 14f, Delay = 0.15f, CustomMinimumSize = new Vector2(250 * k, 50 * k),
-            TooltipText = "Check GitHub for new versions and download them in the background" };
+            TooltipText = Loc.T("Check GitHub for new versions and download them in the background") };
         yes.Pressed += () => onAnswer(true);
         foot.AddChild(yes);
         col.AddChild(foot);
@@ -170,7 +170,7 @@ public partial class UpdatesPromptPanel : Control
             CustomMinimumSize = new Vector2(8 * k, 22 * k),
             OnDraw = b => Gfx.Diamond(b, new Vector2(4 * k, 12 * k), 3.5f * k, 3.5f * k, UiTheme.Accent),
         });
-        row.AddChild(Text(s, 16, UiTheme.Text));
+        row.AddChild(Text(Loc.T(s), 16, UiTheme.Text));
         col.AddChild(row);
     }
 
@@ -279,17 +279,17 @@ public partial class UpdateOfferPanel : Control
         if (url != null && AppInfo.HasRepo)
         {
             var whats = new MLink { Label = Loc.T("WHAT'S NEW"), K = k, Px = 12.5f, Delay = 0.1f, SizeFlagsVertical = SizeFlags.ShrinkCenter,
-                TooltipText = "Opens the release notes in your browser" };
+                TooltipText = Loc.T("Opens the release notes in your browser") };
             whats.Pressed += () => AppInfo.OpenGitHub(url);
             foot.AddChild(whats);
         }
         foot.AddChild(new Control { SizeFlagsHorizontal = SizeFlags.ExpandFill, MouseFilter = MouseFilterEnum.Ignore });
         laterLink = new MLink { Label = S("LATER", "MÁS TARDE"), K = k, Px = 12.5f, Delay = 0.12f, SizeFlagsVertical = SizeFlags.ShrinkCenter,
-            TooltipText = "Keeps training now; the update stays in the strip under the header" };
+            TooltipText = Loc.T("Keeps training now; the update stays in the strip under the header") };
         laterLink.Pressed += Later;
         foot.AddChild(laterLink);
         goButton = new MAction { Label = Loc.T("UPDATE NOW"), Primary = true, K = k, Px = 14f, Delay = 0.16f,
-            CustomMinimumSize = new Vector2(250 * k, 50 * k), TooltipText = "Downloads, verifies and installs the update" };
+            CustomMinimumSize = new Vector2(250 * k, 50 * k), TooltipText = Loc.T("Downloads, verifies and installs the update") };
         goButton.Pressed += Now;
         foot.AddChild(goButton);
         col.AddChild(foot);

@@ -10,6 +10,7 @@
   -Bump / -Set also release the changelog (Keep a Changelog 1.1.0, CHANGELOG.md in the repo root):
   "## [Unreleased]" becomes "## [x.y.z] - YYYY-MM-DD", a fresh empty "## [Unreleased]" goes above it, and the
   compare links at the bottom ([Unreleased]: .../compare/vOLD...HEAD) are updated when present.
+  CHANGELOG.es.md, when present, is released the same way with its "## [Sin publicar]" heading.
 
 .EXAMPLE
   tools\version.ps1                      # prints 1.0.0
@@ -121,6 +122,27 @@ function Update-Changelog([string]$v, [string]$day) {
   Write-Host "CHANGELOG.md: [Unreleased] -> [$v] - $day"
 }
 
+function Update-SpanishChangelog([string]$v, [string]$day) {
+  $path = Join-Path (Split-Path -Parent $Changelog) 'CHANGELOG.es.md'
+  if (-not (Test-Path -LiteralPath $path)) { return }
+  $text = Read-Text $path
+  $nl = if ($text.Contains("`r`n")) { "`r`n" } else { "`n" }
+  $ev = [regex]::Escape($v)
+  if ([regex]::IsMatch($text, "(?m)^##\s+\[$ev\]")) {
+    Write-Host "CHANGELOG.es.md already has a [$v] section; left unchanged"
+    return
+  }
+  $h = [regex]::Match($text, '(?mi)^##\s+\[Sin publicar\][^\r\n]*')
+  if (-not $h.Success) { Write-Warning "CHANGELOG.es.md has no '## [Sin publicar]' section; left unchanged"; return }
+  $after = $text.Substring($h.Index + $h.Length)
+  $next = [regex]::Match($after, '(?m)^##\s')
+  $body = if ($next.Success) { $after.Substring(0, $next.Index) } else { $after }
+  if ($body.Trim() -eq '') { Write-Warning "the [Sin publicar] section is empty; $v has no Spanish notes" }
+  $text = $text.Substring(0, $h.Index) + "## [Sin publicar]$nl$nl## [$v] - $day" + $after
+  Write-Text $path $text
+  Write-Host "CHANGELOG.es.md: [Sin publicar] -> [$v] - $day"
+}
+
 function Get-Notes([string]$v) {
   if (-not (Test-Path -LiteralPath $Changelog)) { throw "$Changelog not found" }
   $text = Read-Text $Changelog
@@ -160,6 +182,7 @@ try {
       Set-ProjectVersion $new
       Write-Host "project.godot: $old -> $new"
       Update-Changelog $new $Date
+      Update-SpanishChangelog $new $Date
       Write-Output $new
     }
   }

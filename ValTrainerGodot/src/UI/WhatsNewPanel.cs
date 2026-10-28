@@ -10,9 +10,9 @@ public sealed record ChangelogSection(string Version, string? Date, List<string>
 /// <summary>
 /// "What's new" after an update: on the first launch of a newer version than the one last seen (never on a fresh
 /// install) the menu shows the CHANGELOG sections since then. The changelog ships inside the game as
-/// res://CHANGELOG.md (tools\build-release.ps1 copies the repo's CHANGELOG.md in before exporting); runs without it
-/// (from source) skip the panel silently. Dev: <c>--dev --whats-new [fromVersion]</c> pretends the last seen version
-/// was older (default 0.0.0).
+/// res://CHANGELOG.md, or res://CHANGELOG.es.md when the app is in Spanish (tools\build-release.ps1 copies both from
+/// the repo root before exporting); runs without them (from source) skip the panel silently. Dev:
+/// <c>--dev --whats-new [fromVersion]</c> pretends the last seen version was older (default 0.0.0).
 /// </summary>
 public static class WhatsNew
 {
@@ -61,7 +61,10 @@ public static class WhatsNew
     {
         try
         {
-            return Godot.FileAccess.FileExists("res://CHANGELOG.md") ? Godot.FileAccess.GetFileAsString("res://CHANGELOG.md") : null;
+            string file = Loc.Spanish && Godot.FileAccess.FileExists("res://CHANGELOG.es.md")
+                ? "res://CHANGELOG.es.md"
+                : "res://CHANGELOG.md";
+            return Godot.FileAccess.FileExists(file) ? Godot.FileAccess.GetFileAsString(file) : null;
         }
         catch { return null; }
     }
@@ -147,7 +150,7 @@ public partial class WhatsNewPanel : Control
         if (AppInfo.HasRepo)
         {
             var all = new MLink { Label = "ALL RELEASES ON GITHUB", K = k, Px = 12f, Delay = 0.1f,
-                SizeFlagsVertical = SizeFlags.ShrinkCenter, TooltipText = "Opens the releases page in your browser" };
+                SizeFlagsVertical = SizeFlags.ShrinkCenter, TooltipText = Loc.T("Opens the releases page in your browser") };
             all.Pressed += () => AppInfo.OpenGitHub(AppInfo.ReleasesUrl);
             foot.AddChild(all);
         }
@@ -177,10 +180,10 @@ public partial class WhatsNewPanel : Control
 
     static Color KindColor(string h) => h.ToLowerInvariant() switch
     {
-        "added" => UiTheme.Good,
-        "fixed" => UiTheme.Warn,
-        "removed" or "security" => UiTheme.Accent,
-        "deprecated" => UiTheme.Dim,
+        "added" or "añadido" => UiTheme.Good,
+        "fixed" or "corregido" => UiTheme.Warn,
+        "removed" or "security" or "seguridad" => UiTheme.Accent,
+        "deprecated" or "obsoleto" => UiTheme.Dim,
         _ => UiTheme.Teal,
     };
 

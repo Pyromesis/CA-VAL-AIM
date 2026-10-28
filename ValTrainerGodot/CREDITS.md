@@ -17,6 +17,12 @@ ValTrainer contributors, licensed under the GNU GPL version 3 or later. The orig
 
 The release packages also include a `maps/` folder with extracted VALORANT geometry, textures, collision data and manifests for all 13 maps (Ascent, Bind, Breeze, Corrode, Fracture, Haven, Icebox, Lotus, Pearl, Split, Summit, Sunset and Abyss). These files are © Riot Games, are not covered by the CC0 licence or the GNU GPL, and are included only in the release binaries (not in the Git repository) for interoperability in this free, non-commercial fan project. Delete `maps/` to fall back to the blockout maps.
 
+## Spray pattern data
+
+The Vandal and Phantom recoil tables in `src/Core/Weapons.cs` are converted from the measured spray points published by
+**SprayTrace** (<https://spraytrace.fyi/patterns/valorant/vandal>, <https://spraytrace.fyi/patterns/valorant/phantom>),
+as cumulative pitch and yaw per bullet. The data describes VALORANT's real recoil; the code that applies it is ours.
+
 ## 3D models and animation: Quaternius (<https://quaternius.com>, <https://www.patreon.com/quaternius>)
 - **Universal Base Characters** (Standard): base bodies, heads, eyes, eyebrows, hair. <https://quaternius.itch.io/universal-base-characters>
 - **Modular Character Outfits – Fantasy** (Standard): Ranger outfits used for the agent characters. <https://quaternius.itch.io/modular-character-outfits-fantasy>

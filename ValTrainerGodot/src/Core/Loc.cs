@@ -2178,11 +2178,27 @@ public static class Loc
             "descargar una versión nueva en segundo plano e instalarla al reiniciar CA-VAL-AIM",
         ["send nothing about you: no settings, stats, recordings or IDs (GitHub sees an ordinary web request)"] =
             "no enviar nada sobre ti: ni ajustes, ni estadísticas, ni grabaciones, ni identificadores (GitHub ve una petición web normal)",
+        ["CA-VAL-AIM can keep itself up to date. If you turn this on, it will:"] =
+            "CA-VAL-AIM puede mantenerse actualizado por su cuenta. Si lo activas, hará lo siguiente:",
+        ["Until you say yes, CA-VAL-AIM makes no network requests. You can change this any time in Settings → About, where CHECK NOW also checks once."] =
+            "Hasta que digas que sí, CA-VAL-AIM no hace ninguna petición de red. Puedes cambiarlo cuando quieras en Ajustes → Acerca de, donde COMPROBAR AHORA también comprueba una vez.",
         ["No update checks; you can turn them on later in Settings → About"] =
             "Sin búsqueda de actualizaciones; puedes activarla luego en Ajustes → Acerca de",
         ["Downloads, verifies and installs the update"] = "Descarga, verifica e instala la actualización",
         ["Keeps training now; the update stays in the strip under the header"] =
             "Sigue entrenando; la actualización queda en la franja bajo la cabecera",
+        ["LATER"] = "MÁS TARDE",
+        ["HIDE"] = "OCULTAR",
+        ["Installs the update and restarts CA-VAL-AIM. CA-VAL-AIM is installed for all users, so Windows asks for permission"] =
+            "Instala la actualización y reinicia CA-VAL-AIM. CA-VAL-AIM está instalado para todos los usuarios, así que Windows pedirá permiso",
+        ["Installs the update and restarts CA-VAL-AIM (takes a few seconds; settings and stats are kept)"] =
+            "Instala la actualización y reinicia CA-VAL-AIM (tarda unos segundos; los ajustes y las estadísticas se conservan)",
+        ["Installs the next time you start CA-VAL-AIM"] =
+            "Instala la actualización la próxima vez que inicies CA-VAL-AIM",
+        ["Hide until next launch"] = "Ocultar hasta el próximo arranque",
+        ["Downloads the update, verifies it against SHA256SUMS.txt and offers to restart"] =
+            "Descarga la actualización, la verifica con SHA256SUMS.txt y ofrece reiniciar",
+        ["No download page is set for this build"] = "Esta compilación no tiene página de descarga",
 
         // ---- rewind / results ----
         ["No shots or flicks were recorded in this run."] = "No se grabaron disparos ni flicks en esta partida.",

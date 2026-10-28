@@ -125,10 +125,10 @@ the results screen says when the tier moved.
 
 ## Weapons
 
-- **Vandal:** full auto at 9.75 rounds/s, 25-round magazine. Recoil follows Riot's documented system: a vertical climb
-  that plateaus, side-locked horizontal drift, growing spread, and recovery of about 0.375 s after one tap and about
-  1.3 s after a full spray.
-- **Phantom:** 11 rounds/s, 30-round magazine, damage falloff.
+- **Vandal:** full auto at 9.75 rounds/s, 25-round magazine. Its measured spray pattern climbs 9.0° and sweeps 5.0°
+  across the magazine, with spread growing and recovery that starts at about 0.375 s after one tap and lengthens with
+  the spray.
+- **Phantom:** 11 rounds/s, 30-round magazine, damage falloff, and its measured pattern (7.5° climb, 4.5° sweep).
 - **Switching rifles:** pick Vandal or Phantom in Settings, or press *Equip primary* (1) during a drill's countdown
   (any time in free play) to swap; every rifle drill uses your choice.
 - **Any weapon in any drill:** the **WEAPON** picker in the menu (and in the pause menu) gives every drill that accepts a
@@ -138,7 +138,9 @@ the results screen says when the tier moved.
   makes counter-strafing work.
 - **Stop timings:** braking matches Riot's measured Phantom stop times.
 
-The per-bullet recoil numbers are reconstructed; Riot never published them.
+The Vandal and Phantom patterns are measured from the real sprays
+([SprayTrace](https://spraytrace.fyi/patterns/valorant/vandal), [Phantom](https://spraytrace.fyi/patterns/valorant/phantom));
+the rest of the arsenal's per-bullet recoil numbers are reconstructed, as Riot never published them.
 
 ## Graphics
 

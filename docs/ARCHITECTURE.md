@@ -316,7 +316,8 @@ flowchart TD
 
 `WeaponController` models Riot's documented recoil system: full auto at the real fire rate, "heat" as a fractional
 bullet index into the per-bullet recoil table, spread from per-bullet error plus movement, and the camera following the
-recoil and drifting back as heat decays.
+recoil and drifting back as heat decays. The Vandal and Phantom use their measured, fixed spray patterns (signed
+cumulative pitch and yaw, no random side swap); the rest of the arsenal is reconstructed.
 
 ```mermaid
 flowchart LR

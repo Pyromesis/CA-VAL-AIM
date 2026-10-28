@@ -11,7 +11,8 @@
   Stages (-Stage). Without -Stage the script runs all three in one go, as it always did:
     app        1. Version from ValTrainerGodot\project.godot (tools\version.ps1).
                2. Copies the Godot project to a private work folder - the tracked tree is never modified - adds the
-                  repo's CHANGELOG.md (the in-game "What's new" reads res://CHANGELOG.md) and stamps the Windows
+                  repo's CHANGELOG.md and CHANGELOG.es.md (the in-game "What's new" reads res://CHANGELOG.md, or
+                  res://CHANGELOG.es.md in Spanish) and stamps the Windows
                   file/product version (x.y.z.0) into the copy's export presets (product name: CA-VAL-AIM).
                3. Imports assets, builds the C# project, exports the "Windows Installer" preset (folder: exe + pck +
                   .NET data folder) and the "Windows Desktop" preset (one self-contained exe).
@@ -278,12 +279,15 @@ function Invoke-AppStage {
   if ($LASTEXITCODE -ge 8) { Fail "robocopy failed (exit code $LASTEXITCODE)" }
   $global:LASTEXITCODE = 0
 
-  $changelog = Join-Path $Repo 'CHANGELOG.md'
-  $stageChangelog = Join-Path $stage 'CHANGELOG.md'
-  if (Test-Path -LiteralPath $changelog) { Copy-Item -LiteralPath $changelog $stageChangelog -Force }
-  else {
-    Write-Warning "CHANGELOG.md not found in the repo root: the in-game ""What's new"" panel will be skipped"
-    if (Test-Path -LiteralPath $stageChangelog) { Remove-Item -LiteralPath $stageChangelog -Force }
+  foreach ($name in @('CHANGELOG.md', 'CHANGELOG.es.md'))
+  {
+    $changelog = Join-Path $Repo $name
+    $stageChangelog = Join-Path $stage $name
+    if (Test-Path -LiteralPath $changelog) { Copy-Item -LiteralPath $changelog $stageChangelog -Force }
+    else {
+      Write-Warning "$name not found in the repo root: the in-game ""What's new"" panel will fall back / be skipped"
+      if (Test-Path -LiteralPath $stageChangelog) { Remove-Item -LiteralPath $stageChangelog -Force }
+    }
   }
 
   # Windows file/product version: Godot falls back to config/version when these are empty, but only for purely

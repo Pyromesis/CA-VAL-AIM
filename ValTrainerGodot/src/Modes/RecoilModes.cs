@@ -197,8 +197,9 @@ public sealed class SprayControlMode : TrainingMode
         c.DrawString(UiTheme.HudWide, r.Position + new Vector2(14 * k, 19 * k), spraying ? "SPRAY (LIVE)" : "LAST SPRAY",
             HorizontalAlignment.Left, -1, UiTheme.Fs(14, k), UiTheme.Text);
 
-        // degrees → pixels: fit ~7° of vertical travel in the panel
-        float pxPerDeg = (ph - 60 * k) / 7f;
+        // degrees → pixels: fit the whole pattern's climb in the panel
+        var w = G.Weapon!;
+        float pxPerDeg = (ph - 60 * k) / Mathf.Max(6f, w.Pitch[^1]);
         var origin = new Vector2(r.Position.X + pw / 2, r.End.Y - 70 * k); // chest point
         Vector2 P(float yaw, float pitch) => origin + new Vector2(yaw * pxPerDeg, -pitch * pxPerDeg);
 
@@ -216,13 +217,12 @@ public sealed class SprayControlMode : TrainingMode
         c.DrawRect(new Rect2(legsTL, legsBR - legsTL), new Color(body, 0.22f));
 
         // the gun's raw (uncompensated) pattern, starting where your first bullet went, in grey
-        var w = G.Weapon!;
         float side = kind == WeaponKind.Phantom ? 1f : -1f;
         var (y0, p0, _) = shots.Count > 0 ? shots[0] : (0f, 0f, HitZone.None);
         Vector2? prev = null;
         for (int i = 0; i < Math.Min(shots.Count + 3, w.Pitch.Length); i++)
         {
-            var p = P(y0 + side * w.Yaw[i], p0 + w.Pitch[i]);
+            var p = P(y0 + (w.FixedRecoil ? w.Yaw[i] : side * w.Yaw[i]), p0 + w.Pitch[i]);
             if (!r.HasPoint(p)) break;
             if (prev is { } pv) c.DrawLine(pv, p, new Color(1, 1, 1, 0.18f), 1.5f * k);
             c.DrawCircle(p, 2.5f * k, new Color(1, 1, 1, 0.25f));

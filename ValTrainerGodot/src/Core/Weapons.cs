@@ -17,10 +17,12 @@ public enum WeaponClass { Sidearm, Smg, Shotgun, Rifle, Sniper, Heavy, Melee }
 /// Weapon stats from the official wiki / valorant-api / patch notes (verified 20 Oct 2026, patch 13.08).
 /// Phantom values match the official wiki: 11 rps, 30/60, 2.5 s reload, 1 s equip, 1.25× ADS, 156/39/33
 /// inside 20 m and 140/35/29.75 beyond it; patch 11.08's eight protected bullets and 0.6 s side-switch are below.
-/// The per-bullet recoil and
-/// spread tables are RECONSTRUCTED from Riot's documented recoil rules (deterministic first bullets, vertical
-/// climb that plateaus, side-locked horizontal drift with 10% swap chance after the protected bullets) —
-/// Riot never published per-bullet numbers. All angles in degrees, cumulative from the original aim point.
+/// The Vandal and Phantom recoil tables are their real spray patterns (measured points from SprayTrace: 9.0° climb and
+/// 5.0° sweep over 25 rounds for the Vandal, 7.5° / 4.5° over 30 for the Phantom), applied as fixed per-bullet cumulative
+/// offsets. The rest of the per-bullet recoil tables, and every spread table (including these two rifles'), are
+/// RECONSTRUCTED from Riot's documented recoil rules (deterministic first bullets, vertical climb that plateaus,
+/// side-locked horizontal drift with 10% swap chance after the protected bullets) — Riot never published per-bullet
+/// numbers. All angles in degrees, cumulative from the aim point.
 /// <para>RunSpeed (m/s) is the in-game "Run Speed" stat with the gun in hand, which the player's movement uses (Mover.Hold).
 /// VALORANT's tiers: knife 6.75; Classic / Ghost / Frenzy / Stinger / Spectre 5.73; Vandal / Phantom / Sheriff / Shorty /
 /// Bulldog / Guardian / Marshal / Outlaw 5.40; Operator / Odin / Ares 5.13; Bucky / Judge 5.06. Chamber's guns have no
@@ -49,8 +51,11 @@ public sealed record WeaponDef(
     public int Cost { get; init; }
     /// <summary>Aimed / scoped move-speed multiplier from the data (null = the per-gun rule of <see cref="AdsMoveMul"/>).</summary>
     public float? AdsMoveOverride { get; init; }
-    /// <summary>True when the recoil / spread tables are this project's reconstruction (Riot publishes no per-bullet numbers).</summary>
+    /// <summary>True when the recoil table is this project's reconstruction (Riot publishes no per-bullet numbers).</summary>
     public bool RecoilReconstructed { get; init; } = true;
+    /// <summary>True when <see cref="Pitch"/> and <see cref="Yaw"/> are the real spray pattern: signed, cumulative and
+    /// applied as-is, with no random side flip and no <c>sideBlend</c> (Vandal and Phantom).</summary>
+    public bool FixedRecoil { get; init; }
 
     /// <summary>The base gun this one plays like (viewmodel, sounds, scope rules): Headhunter → Sheriff, Tour De Force → Operator.</summary>
     public WeaponKind Family => Weapons.FamilyOf(Kind);
@@ -91,21 +96,21 @@ public static class Weapons
         WeaponKind.Vandal, "Vandal", Auto: true, Rps: 9.75f, AdsRpsMul: 0.9f, Mag: 25, Reserve: 50, Reload: 2.5f, Equip: 1.0f,
         FirstShotHip: 0.25f, FirstShotAds: 0.157f, MaxSpread: 1.0f,
         RecoveryTime: 0.375f, TapEfficiency: 6, ProtectedBullets: 6, YawSwitchTime: 0.6f, Zoom: 1.25f,
-        Pitch: Pad(new[] { 0f, 0.2f, 0.55f, 1.05f, 1.65f, 2.27f, 2.87f, 3.42f, 3.87f, 4.2f, 4.4f, 4.5f }, 25),
-        Yaw: Pad(new[] { 0f, 0.02f, 0.05f, 0.08f, 0.1f, 0.12f, 0.25f, 0.45f, 0.7f, 0.95f, 1.2f, 1.45f, 1.7f, 1.9f, 2.1f, 2.25f, 2.35f, 2.4f }, 25),
-        Spread: Pad(new[] { 0.25f, 0.3f, 0.4f, 0.52f, 0.65f, 0.78f, 0.9f, 1.0f }, 25), HeatCap: 12,
+        Pitch: new[] { 0f, 1.07f, 2.13f, 3.2f, 4.14f, 4.97f, 5.68f, 6.28f, 6.75f, 7.11f, 7.46f, 7.7f, 7.93f, 8.05f, 8.17f, 8.29f, 8.41f, 8.53f, 8.64f, 8.64f, 8.76f, 8.76f, 8.88f, 8.88f, 9f },
+        Yaw: new[] { 0f, 0f, 0f, 0f, 0.5f, 0.5f, 1f, 1.5f, 2f, 2f, 1.5f, 0.5f, -0.5f, -1.5f, -2.5f, -3f, -2f, -0.5f, 1f, 2f, 1f, -0.5f, -1.5f, -0.5f, 0.5f },
+        Spread: Pad(new[] { 0.25f, 0.3f, 0.4f, 0.52f, 0.65f, 0.78f, 0.9f, 1.0f }, 25), HeatCap: 24,
         RunErr: 6f, WalkErr: 3f, CrouchWalkErr: 0.8f, AirErr: 10f, RunSpeed: 5.4f,
-        DamageHead: new[] { 160f }, DamageBody: new[] { 40f }, DamageLegs: new[] { 34f }, DamageRangeEnd: new[] { 999f }) { Class = WeaponClass.Rifle, Cost = 2900 };
+        DamageHead: new[] { 160f }, DamageBody: new[] { 40f }, DamageLegs: new[] { 34f }, DamageRangeEnd: new[] { 999f }) { Class = WeaponClass.Rifle, Cost = 2900, RecoilReconstructed = false, FixedRecoil = true };
 
     public static readonly WeaponDef Phantom = new(
         WeaponKind.Phantom, "Phantom", Auto: true, Rps: 11f, AdsRpsMul: 0.9f, Mag: 30, Reserve: 60, Reload: 2.5f, Equip: 1.0f,
         FirstShotHip: 0.2f, FirstShotAds: 0.11f, MaxSpread: 0.9f,
         RecoveryTime: 0.35f, TapEfficiency: 4, ProtectedBullets: 8, YawSwitchTime: 0.6f, Zoom: 1.25f,
-        Pitch: Pad(new[] { 0f, 0.15f, 0.4f, 0.75f, 1.15f, 1.57f, 1.99f, 2.39f, 2.75f, 3.05f, 3.29f, 3.46f, 3.56f, 3.6f }, 30),
-        Yaw: Pad(new[] { 0f, 0.01f, 0.03f, 0.05f, 0.07f, 0.09f, 0.11f, 0.13f, 0.25f, 0.42f, 0.6f, 0.8f, 1.0f, 1.2f, 1.38f, 1.55f, 1.7f, 1.82f, 1.92f, 2.0f }, 30),
-        Spread: Pad(new[] { 0.2f, 0.23f, 0.3f, 0.38f, 0.47f, 0.56f, 0.65f, 0.73f, 0.8f, 0.86f, 0.9f }, 30), HeatCap: 14,
+        Pitch: new[] { 0f, 0.82f, 1.64f, 2.47f, 3.18f, 3.8f, 4.42f, 4.93f, 5.34f, 5.65f, 5.96f, 6.16f, 6.37f, 6.47f, 6.58f, 6.68f, 6.78f, 6.88f, 6.99f, 6.99f, 7.09f, 7.09f, 7.19f, 7.19f, 7.29f, 7.29f, 7.4f, 7.4f, 7.5f, 7.5f },
+        Yaw: new[] { 0f, 0f, 0f, 0f, 0.64f, 0.64f, 1.29f, 1.29f, 1.93f, 1.93f, 1.29f, 0.64f, -0.64f, -1.29f, -1.93f, -2.57f, -1.93f, -0.64f, 0.64f, 1.93f, 1.29f, 0f, -1.29f, -1.93f, -0.64f, 0.64f, 0f, -0.64f, 0.64f, 0f },
+        Spread: Pad(new[] { 0.2f, 0.23f, 0.3f, 0.38f, 0.47f, 0.56f, 0.65f, 0.73f, 0.8f, 0.86f, 0.9f }, 30), HeatCap: 29,
         RunErr: 6f, WalkErr: 3f, CrouchWalkErr: 0.8f, AirErr: 10f, RunSpeed: 5.4f,
-        DamageHead: new[] { 156f, 140f }, DamageBody: new[] { 39f, 35f }, DamageLegs: new[] { 33f, 29.75f }, DamageRangeEnd: new[] { 20f, 999f }) { Class = WeaponClass.Rifle, Cost = 2900 };
+        DamageHead: new[] { 156f, 140f }, DamageBody: new[] { 39f, 35f }, DamageLegs: new[] { 33f, 29.75f }, DamageRangeEnd: new[] { 20f, 999f }) { Class = WeaponClass.Rifle, Cost = 2900, RecoilReconstructed = false, FixedRecoil = true };
 
     public static readonly WeaponDef Sheriff = new(
         WeaponKind.Sheriff, "Sheriff", Auto: false, Rps: 4f, AdsRpsMul: 1f, Mag: 6, Reserve: 24, Reload: 2.25f, Equip: 1.0f,

@@ -7,8 +7,9 @@ namespace ValTrainer.Game.Weapon;
 /// Gun logic modelled on Riot's documented recoil system:
 /// - Full auto at the real fire rate (Vandal 9.75 rps; ADS ×0.9), semi-auto for Sheriff/Operator.
 /// - "Heat" = fractional bullet index into the per-bullet pitch/spread tables; it decays when you stop
-///   (reset time ≈ RecoveryTime·√heat: 1 shot 0.375 s, full spray ≈1.3 s), and grows less for slow taps
-///   (Tap Efficiency). Horizontal drift is side-locked with a 10% swap chance after the protected bullets.
+///   (reset time ≈ RecoveryTime·√heat: 1 shot 0.375 s, longer with the 25/30-round fixed patterns), and grows less for
+///   slow taps (Tap Efficiency). Reconstructed guns drift to one side with a 10% swap chance after the protected
+///   bullets; the Vandal and Phantom play their real, fixed spray pattern instead.
 /// - The camera follows the recoil (k = 1), and drifts back as heat decays, like the real game.
 /// - Spread: per-bullet error + movement error; standing shots bunch to the centre, moving shots are uniform.
 /// </summary>
@@ -25,7 +26,7 @@ public sealed class WeaponController
     bool triggerWasDown;
     bool bottomless;
     int sprayShots;
-    int side = -1;           // Vandal tends to drift left first
+    int side = -1;           // reconstructed patterns: which way the drift starts
     float sideBlend = -1;
     public float SpreadNow;  // current error cone (degrees) — for the crosshair firing-error lines
     public float Heat => heat;
@@ -114,15 +115,18 @@ public sealed class WeaponController
             }
         }
 
-        // Side swap blends over YawSwitchTime.
+        // Side swap blends over YawSwitchTime. Fixed patterns (Vandal, Phantom) carry their own signed drift.
         triggerWasDown = Def.Auto && triggerHeld && !Reloading;
-        sideBlend = Mathf.MoveToward(sideBlend, side, dt * 2f / Def.YawSwitchTime);
+        if (!Def.FixedRecoil)
+            sideBlend = Mathf.MoveToward(sideBlend, side, dt * 2f / Def.YawSwitchTime);
 
         // Camera follows the recoil (and drifts back as heat recovers).
         float crouchMul = mover.Crouching && mover.Speed < 0.5f ? 0.85f : 1f;
         float runMul = movementMode && mover.Speed > mover.WalkMax ? 1.8f : 1f;
         view.RecoilPitch = WeaponDef.Lerp(Def.Pitch, heat) * crouchMul * runMul;
-        view.RecoilYaw = sideBlend * WeaponDef.Lerp(Def.Yaw, yawHeat) * crouchMul;
+        view.RecoilYaw = Def.FixedRecoil
+            ? WeaponDef.Lerp(Def.Yaw, heat) * crouchMul
+            : sideBlend * WeaponDef.Lerp(Def.Yaw, yawHeat) * crouchMul;
 
         SpreadNow = CurrentError(mover, movementMode);
         return shots;
@@ -159,8 +163,11 @@ public sealed class WeaponController
         bool spray = gap <= 1.2f * interval;
         float add = spray || heat <= 0f ? 1f : 1f / (1f + Def.TapEfficiency * (gap - interval) / Def.RecoveryTime);
         heat = Mathf.Min(heat + add, Def.HeatCap);
-        yawHeat = Mathf.Min(yawHeat + (spray ? 1f : 0.5f * add), Def.Yaw.Length - 1);
-        if (sprayShots > Def.ProtectedBullets && rng.NextDouble() < 0.10) side = -side;
+        if (!Def.FixedRecoil)
+        {
+            yawHeat = Mathf.Min(yawHeat + (spray ? 1f : 0.5f * add), Def.Yaw.Length - 1);
+            if (sprayShots > Def.ProtectedBullets && rng.NextDouble() < 0.10) side = -side;
+        }
 
         if (Def.Bolt) Scoped = false; // bolt action: unscope after the shot
         Fired?.Invoke();

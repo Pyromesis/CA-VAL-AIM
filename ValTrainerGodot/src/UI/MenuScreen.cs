@@ -686,24 +686,24 @@ public partial class MenuScreen : ScreenBase
         switch (stage)
         {
             case UpdateBanner.Stage.Ready:
-                Link("RESTART TO UPDATE", Updater.RestartToUpdate, Updater.NeedsElevation
+                Link("RESTART TO UPDATE", Updater.RestartToUpdate, Loc.T(Updater.NeedsElevation
                     ? "Installs the update and restarts CA-VAL-AIM. CA-VAL-AIM is installed for all users, so Windows asks for permission"
-                    : "Installs the update and restarts CA-VAL-AIM (takes a few seconds; settings and stats are kept)", accent: true);
-                Link("WHAT'S NEW", () => AppInfo.OpenGitHub(url), "Opens the release notes in your browser", disabled: !hasPage);
-                Link("LATER", Hide, Updater.NeedsElevation ? "Hide until next launch" : "Installs the next time you start CA-VAL-AIM");
+                    : "Installs the update and restarts CA-VAL-AIM (takes a few seconds; settings and stats are kept)"), accent: true);
+                Link("WHAT'S NEW", () => AppInfo.OpenGitHub(url), Loc.T("Opens the release notes in your browser"), disabled: !hasPage);
+                Link("LATER", Hide, Loc.T(Updater.NeedsElevation ? "Hide until next launch" : "Installs the next time you start CA-VAL-AIM"));
                 break;
             case UpdateBanner.Stage.Applying:
                 break;
             default:
                 if (stage == UpdateBanner.Stage.Downloading)
-                    Link("WHAT'S NEW", () => AppInfo.OpenGitHub(url), "Opens the release notes in your browser", disabled: !hasPage);
+                    Link("WHAT'S NEW", () => AppInfo.OpenGitHub(url), Loc.T("Opens the release notes in your browser"), disabled: !hasPage);
                 else
                     Link("DOWNLOAD", () => { if (!Updater.UpdateNow()) AppInfo.OpenGitHub(url); },
-                        hasPage ? "Downloads the update, verifies it against SHA256SUMS.txt and offers to restart" : "No download page is set for this build",
+                        Loc.T(hasPage ? "Downloads the update, verifies it against SHA256SUMS.txt and offers to restart" : "No download page is set for this build"),
                         accent: true, disabled: !hasPage);
                 Link("SKIP THIS VERSION", () => UpdateCheck.SkipVersion(ver),
                     Loc.Spanish ? $"No volver a avisarme de la {ver} (ni descargarla)" : $"Don't remind me about {ver} again (and don't download it)");
-                Link("HIDE", Hide, "Hide until next launch");
+                Link("HIDE", Hide, Loc.T("Hide until next launch"));
                 break;
         }
         bannerSlot.AddChild(banner);
