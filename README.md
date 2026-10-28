@@ -187,8 +187,9 @@ The ratings need data: play Head Flicks, Strafe Tracking, Peek Practice, Counter
 
 ## How it works
 
-The startup and update flow, the drill → recording → coach → Rewind pipeline, the layer map and the release pipeline
-are documented with diagrams in **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
+Startup, screens, the drill library and session loop, the aim and weapon model, bots, the coach, Lock-In, agents, maps,
+the data files, updates and the release pipeline are documented with 20 diagrams in
+**[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
 
 ## Privacy
 
