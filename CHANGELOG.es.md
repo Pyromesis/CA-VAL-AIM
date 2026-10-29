@@ -2,6 +2,8 @@
 
 ## [Sin publicar]
 
+## [2.3.0] - 2026-10-29
+
 ### Añadido
 
 - **Cambia de arma con 1 / 2 / 3.** Todos los ejercicios con arma tienen ahora tres ranuras: el 1 saca el arma grande

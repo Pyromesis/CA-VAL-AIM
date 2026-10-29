@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [2.3.0] - 2026-10-29
+
 ### Added
 
 - **Switch weapons with 1 / 2 / 3.** Every drill with a gun now has three slots: 1 draws the big weapon (the drill's
