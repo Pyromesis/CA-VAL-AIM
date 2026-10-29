@@ -20,6 +20,10 @@
 - **La ventana de novedades ya está en español.** La app lee `CHANGELOG.es.md` cuando el idioma es español; antes
   cargaba siempre el archivo inglés. El aviso de actualización y los tooltips de la franja de actualización también
   están traducidos.
+- **Las dudas antes de disparar vuelven a medirse.** El tiempo sobre el objetivo antes del clic salía 0 ms en todos
+  los enfrentamientos porque el frame del disparo ya lleva su retroceso (más que el radio angular de la cabeza); el
+  coach ahora mide el tramo anterior al disparo, así que el aviso de dudar, la fase de clic del desglose de tiempo
+  hasta el impacto y los momentos de Rebobinar usan valores reales.
 
 ## [2.2.0] - 2026-10-28
 

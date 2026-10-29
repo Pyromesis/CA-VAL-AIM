@@ -555,7 +555,10 @@ static class RunAnalysis
     /// <summary>Start of the continuous on-target stretch (|e| ≤ R) that ends at the hit (= THit if not on target then).</summary>
     internal static float EnterTime(Prep p, Trial tr, float R)
     {
-        int fi = p.FrameAt(tr.THit);
+        // Start at the last sample BEFORE the shot: the frame stamped with THit already carries that shot's recoil
+        // (Vandal's first bullet kicks the view ~1°, more than the head radius), so including it would break the scan
+        // on its first step and report a 0 ms dwell for every hit.
+        int fi = p.FrameAt(tr.THit - 1e-3);
         float enter = tr.THit;
         for (int k = fi; k >= 0 && p.Ft[k] > tr.T0; k--)
         {

@@ -18,6 +18,10 @@
 
 - **The "What's new" window is in Spanish.** The app reads `CHANGELOG.es.md` when the language is Spanish; before, it
   always loaded the English file. The update prompt and the update strip's tooltips are translated too.
+- **Hesitation is measured again.** The time on target before the click read 0 ms in every engagement, because the
+  frame stamped with the shot already carries its recoil (more than the head's angular radius); the coach now measures
+  the stretch before the shot, so the hesitation tip, the click phase of the time-to-hit split and the Rewind moments
+  use real values.
 
 ## [2.2.0] - 2026-10-28
 
