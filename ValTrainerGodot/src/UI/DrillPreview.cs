@@ -428,7 +428,7 @@ public partial class PreviewCheck : Node
     static readonly int FramesPerDrill = (int.TryParse(CmdLine.DevAfter("--preview-check-secs"), out var sec) ? sec : 5) * 60;
     List<string> keys = new();
     int idx = -1, frames, fails, idle, runsBefore;
-    string lastKeyBefore = "";
+    string? lastKeyBefore;
     SubViewport? vp;
     GameSession? s;
 

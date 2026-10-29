@@ -23,8 +23,12 @@ public static class Boot
 
     static bool done;
 
+    // The app is a Godot assembly (a library, not an exe), but this initializer must run before Godot's own boot:
+    // the analyzer's "application code" advice does not apply to game assemblies.
+#pragma warning disable CA2255
     [ModuleInitializer]
     internal static void Init()
+#pragma warning restore CA2255
     {
         if (done) return;
         done = true;

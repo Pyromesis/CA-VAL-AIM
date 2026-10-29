@@ -50,7 +50,7 @@ public sealed class ReactionLabMode : TrainingMode
     const int Trials = 12, NoGoTrials = 5;
     enum St { Wait, Stim, Show, Early, Rest }
     St st;
-    float t, foreperiod, stimShownAt;
+    float t, foreperiod;
     ulong stimUsec, lastClickSeen;
     bool stimDrawn, noGo;
     Vector2 stimPos;          // peripheral dot (0..1 of the screen) / flick target (degrees from the crosshair)

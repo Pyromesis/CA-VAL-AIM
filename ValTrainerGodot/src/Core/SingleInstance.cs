@@ -69,7 +69,8 @@ public static class SingleInstance
     /// process permits it) and signal it.</summary>
     static void BringOtherToFront()
     {
-        try { AllowSetForegroundWindow(AsfwAny); } catch { /* not Windows: nothing to allow */ }
+        if (!OperatingSystem.IsWindows()) return; // named events and the foreground API are Windows-only
+        try { AllowSetForegroundWindow(AsfwAny); } catch { /* the other copy may not allow it */ }
         try
         {
             using var ev = EventWaitHandle.OpenExisting(ShowName);

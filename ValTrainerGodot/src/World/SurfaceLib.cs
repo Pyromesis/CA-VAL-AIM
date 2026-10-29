@@ -61,7 +61,10 @@ public static class SurfaceLib
     }
 
     /// <summary>Fallback for the macro-variation texture if it has not been imported yet (no variation).</summary>
-    static Texture2D NeutralGrey() => ImageTexture.CreateFromImage(Image.CreateEmpty(4, 4, false, Image.Format.Rgb8).Also(i => i.Fill(new Color(0.5f, 0.5f, 0.5f))));
+    static Texture2D NeutralGrey() => Neutral(new Color(0.5f, 0.5f, 0.5f));
+
+    /// <summary>1×1 texture of one colour: a flat normal map / neutral ARM when a set ships without one.</summary>
+    static Texture2D Neutral(Color c) => ImageTexture.CreateFromImage(Image.CreateEmpty(4, 4, false, Image.Format.Rgb8).Also(i => i.Fill(c)));
 
     static Shader LiteShader()
     {
@@ -89,11 +92,12 @@ public static class SurfaceLib
         {
             var sm = new ShaderMaterial { Shader = shader };
             sm.SetShaderParameter("tex_albedo", albedo);
-            if (!lite || EnvDev.Has("fulllite")) sm.SetShaderParameter("tex_normal", Tex($"{dir}_nor_gl_2k.jpg"));
+            if (!lite || EnvDev.Has("fulllite"))
+                sm.SetShaderParameter("tex_normal", Tex($"{dir}_nor_gl_2k.jpg") ?? Neutral(new Color(0.5f, 0.5f, 1f))); // flat
             if (!lite)
             {
                 macro ??= Tex("res://assets/materials/macro_noise.png") ?? NeutralGrey();
-                sm.SetShaderParameter("tex_arm", Tex($"{dir}_arm_2k.jpg"));
+                sm.SetShaderParameter("tex_arm", Tex($"{dir}_arm_2k.jpg") ?? Neutral(new Color(1f, 0.5f, 0f))); // no AO, mid rough, no metal
                 sm.SetShaderParameter("tex_macro", macro);
             }
             sm.SetShaderParameter("tint", s.Tint);

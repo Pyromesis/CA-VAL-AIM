@@ -158,6 +158,7 @@ public partial class GameSession
 
             // ---- reload ----
             if (Mode.InfiniteAmmo) KTSkip("reload", $"{Mode.Key} has infinite ammo");
+            else if (!Mode.EffectiveInfiniteReserve && Gun.Reserve <= 0) KTSkip("reload", "the drill has no reserve ammo");
             else
                 foreach (var (a, slot, b) in Slots(binds, GameAction.Reload))
                 {
@@ -174,6 +175,32 @@ public partial class GameSession
                     KT($"Reload[{slot}] {b} reloads", reloading, $"ammo {Gun.Ammo}/{weaponDef.Mag}");
                     yield return 10;
                 }
+        }
+
+        // ---- weapon slots: 1 = the drill's big gun, 2 = its sidearm, 3 = the knife, each with its own magazine ----
+        if (Gun == null || Mode.Is2D) KTSkip("weapon slots", $"{Mode.Key} has no gun");
+        else if (!Mode.WeaponSlots) KTSkip("weapon slots", $"{Mode.Key} owns its gun");
+        else
+        {
+            var b1 = binds.Primary(GameAction.EquipPrimary);
+            var b2 = binds.Primary(GameAction.EquipSecondary);
+            var b3 = binds.Primary(GameAction.EquipMelee);
+            for (int i = 0; i < 200 && (Gun.EquipLeft > 0 || Gun.Reloading); i++) yield return 1;
+            var big = PrimarySlot;
+            int ammo = Gun.Ammo;
+            bool finite = !Mode.EffectiveInfiniteAmmo;
+            // Spend three rounds so the magazine check can actually fail if switching refilled it.
+            if (finite && ammo > 3) { Gun.Ammo = ammo - 3; ammo -= 3; yield return 2; }
+
+            Send(b2, true); yield return 2; Send(b2, false); yield return 6;
+            KT($"{b2} draws the sidearm", weaponDef?.Kind == SidearmSlot, $"{weaponDef?.Kind}, expected {SidearmSlot}");
+            Send(b3, true); yield return 2; Send(b3, false); yield return 6;
+            KT($"{b3} draws the knife", weaponDef?.Kind == WeaponKind.Knife, $"{weaponDef?.Kind}");
+            Send(b1, true); yield return 2; Send(b1, false); yield return 6;
+            KT($"{b1} draws the big gun again", weaponDef?.Kind == big, $"{weaponDef?.Kind}, expected {big}");
+            // Changing slots must never refill the magazine: the ammo the big gun had is still there.
+            if (finite) KT("slot 1 keeps its magazine", Gun.Ammo == ammo, $"{Gun.Ammo} rounds, had {ammo}");
+            else KTSkip("slot 1 keeps its magazine", "infinite ammo");
         }
 
         // ---- polled actions: abilities, use spike (plant / defuse), equip spike, use ----

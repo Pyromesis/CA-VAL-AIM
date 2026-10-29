@@ -260,8 +260,8 @@ public sealed class BotNav
 
     List<int>? AStar(int s, int t, int maxExpand)
     {
-        if (g == null || g.Length != Pos.Length) { g = new float[Pos.Length]; from = new int[Pos.Length]; stamp = new int[Pos.Length]; gen = 0; }
-        var fromA = BotNav.from!; var stampA = BotNav.stamp!; var gA = BotNav.g;
+        if (g == null || from == null || stamp == null || g.Length != Pos.Length)
+        { g = new float[Pos.Length]; from = new int[Pos.Length]; stamp = new int[Pos.Length]; gen = 0; }
         var open = BotNav.open ??= new PriorityQueue<int, float>();
         gen++;
         open.Clear();

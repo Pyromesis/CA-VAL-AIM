@@ -237,11 +237,11 @@ public sealed class JigglePeekMode : OpAngleMode
 
     int baits, punishes, riskyWins, hitsTaken, cleanPeeks, peeks, finishedRounds, heldFire, ignored;
     float noteCooldown;
-    bool baitedThisRound, headSeen;
+    bool headSeen;
     float lastExposure = -1f;
     string lastPeekNote = "";
 
-    protected override void OnNewRound() { baitedThisRound = false; headSeen = false; }
+    protected override void OnNewRound() { headSeen = false; }
 
     protected override void OnOpFired(OpShot s)
     {
@@ -254,7 +254,6 @@ public sealed class JigglePeekMode : OpAngleMode
             return;
         }
         baits++;
-        baitedThisRound = true;
         Score += 50;
         G.Banner(Loc.Spanish ? "¡CEBO! ASÓMATE ANCHO YA" : "BAITED — WIDE SWING NOW", UiTheme.Good);
     }
