@@ -56,7 +56,8 @@ public static class UpdatesPrompt
 /// <summary>
 /// The "a newer version is out" modal: shown once per version and session, as soon as the background check answers
 /// (the check is asynchronous, so the menu asks again every frame). UPDATE NOW downloads the release, verifies it and
-/// restarts CA-VAL-AIM to install it; LATER keeps the strip under the header for the rest of the session.
+/// restarts CA-VAL-AIM to install it; KEEP PLAYING closes the modal and keeps the strip under the header for the rest
+/// of the session while the download finishes in the background.
 /// </summary>
 public static class UpdateOffer
 {
@@ -69,7 +70,7 @@ public static class UpdateOffer
     {
         DeferredVersion = version;
         WantsNow = false;
-        Log.Info($"Updates: {version} offered, LATER (the menu strip keeps it for this session)");
+        Log.Info($"Updates: {version} offered, KEEP PLAYING (the download goes on; the menu strip keeps it for this session)");
     }
 
     public static void Now(string version)
@@ -186,10 +187,10 @@ public partial class UpdatesPromptPanel : Control
 }
 
 /// <summary>
-/// The startup "a newer version is out" modal: version, what the update does and UPDATE NOW / LATER. It follows the
-/// real <see cref="Updater"/> state live (downloading with a progress line, downloaded and verified, restarting), so
-/// UPDATE NOW starts the download and the app restarts on its own as soon as the file is verified. LATER closes it for
-/// this session; the strip under the menu header keeps offering it. Esc = LATER.
+/// The startup "a newer version is out" modal: version, what the update does and UPDATE NOW / KEEP PLAYING. It follows
+/// the real <see cref="Updater"/> state live (downloading with a progress line, downloaded and verified, restarting), so
+/// UPDATE NOW restarts on its own as soon as the file is verified, while KEEP PLAYING closes the modal and lets the
+/// download finish in the background (the strip under the menu header offers the restart). Esc = KEEP PLAYING.
 /// </summary>
 public partial class UpdateOfferPanel : Control
 {
@@ -252,7 +253,7 @@ public partial class UpdateOfferPanel : Control
         col.AddChild(new Control { CustomMinimumSize = new Vector2(0, 2 * k), MouseFilter = MouseFilterEnum.Ignore });
         Bullet(col, "Downloads and installs the new version in place.");
         Bullet(col, "CA-VAL-AIM closes for a few seconds and opens again on the new version.");
-        Bullet(col, "LATER leaves it in the strip under the header; nothing is forced now.");
+        Bullet(col, "KEEP PLAYING closes this and lets you train; the strip under the header shows the progress and offers the restart.");
         if (Updater.NeedsElevation)
             col.AddChild(Text(Loc.T("Windows will ask for administrator permission to install it."), 14, UiTheme.Faint));
         col.AddChild(new Control { CustomMinimumSize = new Vector2(0, 4 * k), MouseFilter = MouseFilterEnum.Ignore });
@@ -284,8 +285,9 @@ public partial class UpdateOfferPanel : Control
             foot.AddChild(whats);
         }
         foot.AddChild(new Control { SizeFlagsHorizontal = SizeFlags.ExpandFill, MouseFilter = MouseFilterEnum.Ignore });
-        laterLink = new MLink { Label = S("LATER", "MÁS TARDE"), K = k, Px = 12.5f, Delay = 0.12f, SizeFlagsVertical = SizeFlags.ShrinkCenter,
-            TooltipText = Loc.T("Keeps training now; the update stays in the strip under the header") };
+        laterLink = new MLink { Label = S("KEEP PLAYING", "SEGUIR JUGANDO"), K = k, Px = 12.5f, Delay = 0.12f, SizeFlagsVertical = SizeFlags.ShrinkCenter,
+            TooltipText = S("Closes this and lets you train; the strip under the header keeps showing the update and offers the restart",
+                            "Cierra el aviso y te deja entrenar; la franja superior sigue mostrando la actualización y ofrece el reinicio") };
         laterLink.Pressed += Later;
         foot.AddChild(laterLink);
         goButton = new MAction { Label = Loc.T("UPDATE NOW"), Primary = true, K = k, Px = 14f, Delay = 0.16f,
@@ -295,13 +297,14 @@ public partial class UpdateOfferPanel : Control
         col.AddChild(foot);
 
         Refresh();
-        // Dev: "--update-offer-answer now|later" presses one of the buttons after 2 s (automated tests of this modal).
+        // Dev: "--update-offer-answer now|keep" presses one of the buttons after 2 s (automated tests of this modal).
         if (CmdLine.DevAfter("--update-offer-answer")?.ToLowerInvariant() is { } ans)
             GetTree().CreateTimer(2.0).Timeout += () =>
             {
                 if (!IsInstanceValid(this) || !IsInsideTree() || done) return;
-                Log.Info($"Updates: --update-offer-answer: {(ans == "now" ? "UPDATE NOW" : "LATER")}");
-                if (ans == "now") Now(); else Later();
+                bool keep = ans is "keep" or "play" or "later";
+                Log.Info($"Updates: --update-offer-answer: {(keep ? "KEEP PLAYING" : "UPDATE NOW")}");
+                if (keep) Later(); else Now();
             };
     }
 
@@ -343,11 +346,14 @@ public partial class UpdateOfferPanel : Control
 
         string label = applying ? S("RESTARTING…", "REINICIANDO…")
             : ready ? Loc.T("RESTART NOW")
+            : downloading ? S($"UPDATING… {Mathf.RoundToInt(Updater.Progress * 100)}%", $"ACTUALIZANDO… {Mathf.RoundToInt(Updater.Progress * 100)}%")
             : Loc.T("UPDATE NOW");
         if (goButton.Label != label) { goButton.Label = label; goButton.QueueRedraw(); }
-        bool busy = applying;
+        // Downloading: the primary action has nothing left to do (the download runs on its own), so it shows the
+        // progress instead of offering UPDATE NOW again; KEEP PLAYING stays available to go back to the menu.
+        bool busy = applying || downloading;
         if (goButton.Disabled != busy) goButton.Disabled = busy;
-        if (laterLink.Disabled != busy) laterLink.Disabled = busy;
+        if (laterLink.Disabled != applying) laterLink.Disabled = applying;
     }
 
     void Later()
@@ -410,7 +416,7 @@ public partial class UpdateOfferPanel : Control
         col.AddChild(row);
     }
 
-    /// <summary>Esc = LATER (never starts an update by accident).</summary>
+    /// <summary>Esc = KEEP PLAYING (never starts an update by accident).</summary>
     public override void _UnhandledKeyInput(InputEvent e)
     {
         if (e is InputEventKey { Pressed: true, Echo: false, Keycode: Key.Escape })

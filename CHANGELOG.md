@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- **The update window says what it is doing.** While the new version downloads, the main button shows "UPDATING… 42%"
+  instead of offering UPDATE NOW again, and **KEEP PLAYING** closes the window so you can train while the download
+  finishes: the strip under the header keeps showing the progress and the update installs when you restart.
+
 ## [2.3.0] - 2026-10-29
 
 ### Added

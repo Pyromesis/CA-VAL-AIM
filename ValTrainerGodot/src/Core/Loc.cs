@@ -515,8 +515,8 @@ public static class Loc
             "Descarga e instala la nueva versión en el sitio.",
         ["CA-VAL-AIM closes for a few seconds and opens again on the new version."] =
             "CA-VAL-AIM se cierra unos segundos y se vuelve a abrir con la nueva versión.",
-        ["LATER leaves it in the strip under the header; nothing is forced now."] =
-            "Si eliges MÁS TARDE, la actualización queda en la franja bajo la cabecera; no se instala nada ahora.",
+        ["KEEP PLAYING closes this and lets you train; the strip under the header shows the progress and offers the restart."] =
+            "SEGUIR JUGANDO cierra el aviso y te deja entrenar; la franja superior muestra el progreso y ofrece el reinicio.",
         ["Windows will ask for administrator permission to install it."] =
             "Windows pedirá permiso de administrador para instalarla.",
         ["GET"] = "OBTENER",
@@ -2186,8 +2186,6 @@ public static class Loc
         ["No update checks; you can turn them on later in Settings → About"] =
             "Sin búsqueda de actualizaciones; puedes activarla luego en Ajustes → Acerca de",
         ["Downloads, verifies and installs the update"] = "Descarga, verifica e instala la actualización",
-        ["Keeps training now; the update stays in the strip under the header"] =
-            "Sigue entrenando; la actualización queda en la franja bajo la cabecera",
         ["LATER"] = "MÁS TARDE",
         ["HIDE"] = "OCULTAR",
         ["Installs the update and restarts CA-VAL-AIM. CA-VAL-AIM is installed for all users, so Windows asks for permission"] =

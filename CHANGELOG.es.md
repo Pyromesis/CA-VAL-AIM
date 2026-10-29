@@ -2,6 +2,13 @@
 
 ## [Sin publicar]
 
+### Corregido
+
+- **La ventana de actualización dice lo que está haciendo.** Mientras se descarga la nueva versión, el botón principal
+  muestra «ACTUALIZANDO… 42 %» en vez de volver a ofrecer ACTUALIZAR AHORA, y **SEGUIR JUGANDO** cierra la ventana para
+  que entrenes mientras termina la descarga: la franja superior sigue mostrando el progreso y la actualización se
+  instala al reiniciar.
+
 ## [2.3.0] - 2026-10-29
 
 ### Añadido

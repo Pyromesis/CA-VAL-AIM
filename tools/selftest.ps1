@@ -272,6 +272,18 @@ Report "dev run kept settings.json and read its language" ($before -eq $after -a
   ("settings changed: $($before -ne $after); $lang") $r
 Remove-Item -LiteralPath $settingsFile -Force -ErrorAction SilentlyContinue
 
+# ---- 4d. The update offer: KEEP PLAYING closes the modal (the download itself stays on; --update-test fakes the release) ----
+$r = Invoke-Godot "update-offer-keep" (@("--headless", "--quit-after", "400", "--path", $Project, "--") + $sandbox +
+                                  @("--update-test", "9.9.9", "--update-offer-answer", "keep"))
+$lines = $r.Text -split "`r?`n"
+$kept = @($lines | Where-Object { $_ -match 'Updates: 9\.9\.9 offered, KEEP PLAYING' }).Count -gt 0
+$now = @($lines | Where-Object { $_ -match 'Updates: 9\.9\.9 offered, UPDATE NOW' }).Count -gt 0
+$ex = Get-Exceptions $r.Text
+$why = if ($r.TimedOut) { "timed out after $TimeoutSec s" } elseif ($r.Code -ne 0) { "exit code $($r.Code)" } `
+       elseif ($ex.Count -gt 0) { "exception: $($ex[0].Trim())" } elseif (-not $kept) { "KEEP PLAYING didn't close the offer" } `
+       elseif ($now) { "the offer also answered UPDATE NOW" } else { "" }
+Report "update offer: KEEP PLAYING" ($why -eq "") $why $r
+
 # ---- 5. Dev runs must never write user data ----
 $written = @(Get-ChildItem $data -Recurse -File -ErrorAction SilentlyContinue)
 Report "dev runs wrote no data" ($written.Count -eq 0) ("wrote: " + (($written | ForEach-Object { $_.FullName.Substring($data.Length) }) -join ", ")) $null
