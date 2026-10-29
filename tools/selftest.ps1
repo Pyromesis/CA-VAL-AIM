@@ -236,20 +236,29 @@ if (-not $SkipSmoke) {
 
 # ---- 4c. Keybinds: every bound action must reach the session as real input (movement, fire, reload and the
 # 1 / 2 / 3 weapon slots, whose magazines must survive a round trip). The test quits with its failure count. ----
+function Test-Keybinds([string]$Label, [string]$Name, [string[]]$ModeArgs, [switch]$ExpectSlots) {
+  $r = Invoke-Godot "keybind-$Label" (@("--headless", "--fixed-fps", "120", "--quit-after", "9000", "--path", $Project, "--") + $sandbox + $ModeArgs)
+  $lines = $r.Text -split "`r?`n"
+  $res = ($lines | Where-Object { $_ -match '\[keybind-test\] RESULT: ' } | Select-Object -First 1)
+  $fails = @($lines | Where-Object { $_ -match '\[keybind-test\] FAIL' })
+  $slots = @($lines | Where-Object { $_ -match '\[keybind-test\] PASS .* draws the big gun' })
+  $ex = Get-Exceptions $r.Text
+  $why = if ($r.TimedOut) { "timed out after $TimeoutSec s" } elseif (-not $res) { "no RESULT line" } `
+         elseif ($r.Code -ne 0) { "$($fails.Count) failed: " + (($fails | Select-Object -First 2) -join "; ") } `
+         elseif ($ex.Count -gt 0) { "exception: $($ex[0].Trim())" } `
+         elseif ($ExpectSlots -and $slots.Count -eq 0) { "the 1 / 2 / 3 weapon slots were skipped" } else { "" }
+  $detail = if ($res -match 'RESULT: PASS \((\d+) passed') { " ($($Matches[1]) checks)" } else { "" }
+  Report "keybinds: $Name$detail" ($why -eq "") $why $r
+}
+
 if (-not $SkipSmoke) {
-  foreach ($m in @("flick", "deathmatch")) {
-    $r = Invoke-Godot "keybind-$m" (@("--headless", "--fixed-fps", "120", "--quit-after", "9000", "--path", $Project, "--") + $sandbox +
-                                      @("--mode", $m, "--keybind-test"))
-    $lines = $r.Text -split "`r?`n"
-    $res = ($lines | Where-Object { $_ -match '\[keybind-test\] RESULT: ' } | Select-Object -First 1)
-    $fails = @($lines | Where-Object { $_ -match '\[keybind-test\] FAIL' })
-    $ex = Get-Exceptions $r.Text
-    $why = if ($r.TimedOut) { "timed out after $TimeoutSec s" } elseif (-not $res) { "no RESULT line" } `
-           elseif ($r.Code -ne 0) { "$($fails.Count) failed: " + (($fails | Select-Object -First 2) -join "; ") } `
-           elseif ($ex.Count -gt 0) { "exception: $($ex[0].Trim())" } else { "" }
-    $detail = if ($res -match 'RESULT: PASS \((\d+) passed') { " ($($Matches[1]) checks)" } else { "" }
-    Report "keybinds: $m$detail" ($why -eq "") $why $r
-  }
+  Test-Keybinds "flick" "flick" @("--mode", "flick", "--keybind-test") -ExpectSlots
+  Test-Keybinds "deathmatch" "deathmatch" @("--mode", "deathmatch", "--keybind-test") -ExpectSlots
+  # A pistol in hand (the menu's weapon picker): 1 still draws the big rifle and 2 the drill's own pistol.
+  $settingsFile = Join-Path $data "settings.json"
+  Set-Content -LiteralPath $settingsFile -Value '{"WeaponOverride":0,"CheckUpdates":false}' -NoNewline -Encoding utf8
+  Test-Keybinds "peek-pistol" "peek with a pistol in hand" @("--mode", "peek", "--keybind-test") -ExpectSlots
+  Remove-Item -LiteralPath $settingsFile -Force -ErrorAction SilentlyContinue
 }
 
 # ---- 4b. A dev run must not rewrite an existing settings.json (startup Reimport used to save before read-only) ----

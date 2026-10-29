@@ -650,7 +650,9 @@ public partial class GameSession : Node3D, IGame
         Live?.Tick(Now);
         if (Main.I.Dev && Adaptive != null && Mode.SupportsAdaptive && (int)(Now / 10f) != (int)((Now - dt) / 10f))
             Log.Info($"[adapt] t={Now:0} {Adaptive}"); // dev: the staircase every 10 s
-        if ((Mode.Timed && Now >= RunDuration) || Mode.Done) Finish();
+        // A keybind test owns its run (KeybindTest.cs): the drill's clock or kill target must not end it mid-check;
+        // the test quits by itself with its failure count.
+        if (!DevKeybindTest && ((Mode.Timed && Now >= RunDuration) || Mode.Done)) Finish();
     }
 
     /// <summary>Angular offset (deg) of a world point from the crosshair: +yaw = right, +pitch = above.</summary>

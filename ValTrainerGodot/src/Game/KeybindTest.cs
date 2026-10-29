@@ -187,8 +187,12 @@ public partial class GameSession
             var b3 = binds.Primary(GameAction.EquipMelee);
             for (int i = 0; i < 200 && (Gun.EquipLeft > 0 || Gun.Reloading); i++) yield return 1;
             var big = PrimarySlot;
-            int ammo = Gun.Ammo;
             bool finite = !Mode.EffectiveInfiniteAmmo;
+            // Start on slot 1: a drill whose own gun is a pistol (or a player with a pistol picked in the menu) opens on
+            // slot 2, and the magazine check below must always read the big gun's ammo.
+            Send(b1, true); yield return 2; Send(b1, false); yield return 6;
+            KT($"{b1} draws the big gun", weaponDef?.Kind == big, $"{weaponDef?.Kind}, expected {big}");
+            int ammo = Gun.Ammo;
             // Spend three rounds so the magazine check can actually fail if switching refilled it.
             if (finite && ammo > 3) { Gun.Ammo = ammo - 3; ammo -= 3; yield return 2; }
 
