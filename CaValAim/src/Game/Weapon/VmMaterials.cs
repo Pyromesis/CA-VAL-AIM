@@ -74,22 +74,35 @@ public sealed class VmMaterials
             switch (k)
             {
                 case "gunbody":
-                    return Make(src, 0.30f, 0.42f, 0.55f, 0.65f, 0.35f, 120f);
+                    return Make(src, 0.32f, 0.40f, 0.58f, 0.55f, 0.45f, 120f);
                 case "gunmetal":
-                    return Make(src, 0.55f, 0.30f, 0.58f, 0.55f, 0.30f, 170f);
+                    return Make(src, 0.58f, 0.28f, 0.62f, 0.45f, 0.40f, 170f);
                 case "gunpoly":
-                    return Make(src, 0.0f, 0.55f, 0.45f, 0.60f, 0.32f, 150f);
+                    return Make(src, 0.0f, 0.52f, 0.48f, 0.55f, 0.45f, 150f);
                 case "gunmag":
-                    return Make(src, 0.05f, 0.52f, 0.45f, 0.60f, 0.28f, 150f);
+                    return Make(src, 0.08f, 0.48f, 0.48f, 0.55f, 0.40f, 150f);
                 case "gundark":
-                    return Make(src, 0.0f, 0.72f, 0.40f, 0.50f, 0.25f, 210f);
+                    return Make(src, 0.0f, 0.70f, 0.42f, 0.45f, 0.32f, 210f);
+                case "gunrubber":
+                    return Make(src, 0.0f, 0.92f, 0.30f, 0.55f, 0.12f, 320f);
+                case "gunsteel":
+                    return Make(src, 0.75f, 0.24f, 0.62f, 0.45f, 0.30f, 160f);
+                case "gunglass":
+                    return Make(new Color(0.02f, 0.05f, 0.11f), 0.1f, 0.05f, 1.0f, 0f, 0.6f);
+                case "gunsight":
+                {
+                    var m = Make(src, 0.10f, 0.20f, 0.70f, 0f, 0.50f);
+                    m.SetShaderParameter("emission_color", src);
+                    m.SetShaderParameter("emission_energy", 0.85f);
+                    return m;
+                }
                 case "gunwhite":
-                    return Make(src, 0.0f, 0.58f, 0.40f, 0.60f, 0.30f, 190f);
+                    return Make(src, 0.0f, 0.58f, 0.40f, 0.60f, 0.40f, 190f);
                 case "gunaccent":
                 {
                     var m = Make(src, 0.25f, 0.34f, 0.60f, 0.32f, 0.50f, 80f);
                     m.SetShaderParameter("emission_color", src);
-                    m.SetShaderParameter("emission_energy", 0.07f);
+                    m.SetShaderParameter("emission_energy", 0.10f);
                     return m;
                 }
             }

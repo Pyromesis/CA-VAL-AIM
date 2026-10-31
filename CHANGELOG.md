@@ -11,6 +11,11 @@
 
 ### Changed
 
+- **New first-person arms and rifles.** The hands are now a single continuous organic mesh — sculpted palm, thenar and
+  hypothenar, knuckle ridge, glove pads, buckled oxblood cuff — instead of assembled capsules. The sleeve has a real
+  taper, a bloused cuff and soft cloth folds, and it is lit so you can read its shape. The Vandal and Phantom were
+  rebuilt from scratch: chamfered receivers with ejection ports and selectors, full-length rails, slim handguards,
+  raked grips, curved six-segment magazines and solid stocks with cheek pads and accent plates.
 - **Everything is now called CA-VAL-AIM, inside and out.** The C# namespace and assembly are `CaValAim`, the project is
   `CaValAim/CaValAim.csproj`, the exported data folder is `data_CaValAim_windows_x86_64` and the installer script is
   `installer/CA-VAL-AIM.iss`. Your settings, stats and recordings move to `%APPDATA%\CA-VAL-AIM` and the logs to

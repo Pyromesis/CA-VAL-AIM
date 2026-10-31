@@ -16,7 +16,9 @@ public sealed class VmMesh
     public bool Empty => v.Count == 0;
 
     /// <summary>Appends raw arrays (vertices, normals, indices) transformed by <paramref name="t"/>.</summary>
-    public void Add(Vector3[] verts, Vector3[] norms, int[] ind, Transform3D t)
+    /// <param name="fixWinding">Re-orient triangles from the vertex normals (disable when the caller already emitted
+    /// consistent winding, which is more robust for organic SDF meshes with very thin triangles).</param>
+    public void Add(Vector3[] verts, Vector3[] norms, int[] ind, Transform3D t, bool fixWinding = true)
     {
         int b = v.Count;
         var nb = t.Basis.Inverse().Transposed();
@@ -30,9 +32,12 @@ public sealed class VmMesh
         for (int i = 0; i + 2 < ind.Length; i += 3)
         {
             int a = ind[i] + b, c1 = ind[i + 1] + b, c2 = ind[i + 2] + b;
-            var fn = (v[c1] - v[a]).Cross(v[c2] - v[a]);
-            var avg = n[a] + n[c1] + n[c2];
-            if (fn.Dot(avg) > 0) (c1, c2) = (c2, c1);
+            if (fixWinding)
+            {
+                var fn = (v[c1] - v[a]).Cross(v[c2] - v[a]);
+                var avg = n[a] + n[c1] + n[c2];
+                if (fn.Dot(avg) > 0) (c1, c2) = (c2, c1);
+            }
             idx.Add(a); idx.Add(c1); idx.Add(c2);
         }
     }
@@ -149,6 +154,158 @@ public sealed class VmMesh
         Quad(a10, a11, b11, b10, Vector3.Up, t);
     }
 
+    /// <summary>
+    /// Chamfered rectangular loft along Z: a metal/polymer body whose four long edges are cut at 45°, so every
+    /// surface catches a highlight instead of reading as one flat box. h0/h1 are the half width/height at z0/z1,
+    /// y0/y1 their vertical centres, c the corner cut in metres (clamped to 45% of the smaller half extent).
+    /// </summary>
+    public void ChamferZ(float z0, float z1, Vector2 h0, Vector2 h1, float y0, float y1, float c, Transform3D t)
+    {
+        static Vector2[] Ring(Vector2 h, float y, float cut)
+        {
+            float cx = Mathf.Min(cut, h.X * 0.45f), cy = Mathf.Min(cut, h.Y * 0.45f);
+            return new[]
+            {
+                new Vector2(h.X, -h.Y + cy), new Vector2(h.X - cx, -h.Y),
+                new Vector2(-h.X + cx, -h.Y), new Vector2(-h.X, -h.Y + cy),
+                new Vector2(-h.X, h.Y - cy), new Vector2(-h.X + cx, h.Y),
+                new Vector2(h.X - cx, h.Y), new Vector2(h.X, h.Y - cy),
+            }.Select(p => p + new Vector2(0, y)).ToArray();
+        }
+        var a = Ring(h0, y0, c);
+        var b = Ring(h1, y1, c);
+        int n = a.Length;
+        var verts = new List<Vector3>();
+        var norms = new List<Vector3>();
+        var ind = new List<int>();
+        for (int i = 0; i < n; i++)
+        {
+            int j = (i + 1) % n;
+            var e = a[j] - a[i];
+            var nn = new Vector3(e.Y, -e.X, 0f).Normalized();
+            verts.Add(new Vector3(a[i].X, a[i].Y, z0));
+            verts.Add(new Vector3(a[j].X, a[j].Y, z0));
+            verts.Add(new Vector3(b[j].X, b[j].Y, z1));
+            verts.Add(new Vector3(b[i].X, b[i].Y, z1));
+            norms.Add(nn); norms.Add(nn); norms.Add(nn); norms.Add(nn);
+            int k = verts.Count - 4;
+            ind.Add(k); ind.Add(k + 1); ind.Add(k + 2); ind.Add(k); ind.Add(k + 2); ind.Add(k + 3);
+        }
+        foreach (var (ring, z, dir) in new[] { (a, z0, -1f), (b, z1, 1f) })
+        {
+            int c0 = verts.Count;
+            foreach (var p in ring) { verts.Add(new Vector3(p.X, p.Y, z)); norms.Add(new Vector3(0, 0, dir)); }
+            for (int i = 1; i + 1 < n; i++) { ind.Add(c0); ind.Add(c0 + i); ind.Add(c0 + i + 1); }
+        }
+        Add(verts.ToArray(), norms.ToArray(), ind.ToArray(), t);
+    }
+
+    public void ChamferZ(float z0, float z1, Vector2 h0, Vector2 h1, float y0, float y1, float c) =>
+        ChamferZ(z0, z1, h0, h1, y0, y1, c, Transform3D.Identity);
+
+    /// <summary>
+    /// Chamfered rectangular loft along a path of sections, for curved magazines and sculpted grips.
+    /// Each section is (y, half width, half depth, depth centre); the rings share no internal caps, so a
+    /// segmented curve cannot show the ladder of end caps that stacked <see cref="ChamferY"/> calls leave.
+    /// </summary>
+    public void ChamferPathY(IReadOnlyList<(float Y, float Hx, float Hz, float Z)> path, float c, Transform3D t)
+    {
+        if (path.Count < 2) return;
+        static Vector2[] Ring(float hx, float hz, float z, float cut)
+        {
+            float cx = Mathf.Min(cut, hx * 0.45f), cz = Mathf.Min(cut, hz * 0.45f);
+            return new[]
+            {
+                new Vector2(hx, -hz + cz), new Vector2(hx - cx, -hz),
+                new Vector2(-hx + cx, -hz), new Vector2(-hx, -hz + cz),
+                new Vector2(-hx, hz - cz), new Vector2(-hx + cx, hz),
+                new Vector2(hx - cx, hz), new Vector2(hx, hz - cz),
+            }.Select(p => p + new Vector2(0, z)).ToArray();
+        }
+        const int n = 8;
+        var rings = new Vector2[path.Count][];
+        for (int s = 0; s < path.Count; s++)
+            rings[s] = Ring(path[s].Hx, path[s].Hz, path[s].Z, c);
+
+        var verts = new List<Vector3>();
+        var norms = new List<Vector3>();
+        var ind = new List<int>();
+        for (int s = 0; s < path.Count - 1; s++)
+        {
+            var a = rings[s];
+            var b = rings[s + 1];
+            float y0 = path[s].Y, y1 = path[s + 1].Y;
+            for (int i = 0; i < n; i++)
+            {
+                int j = (i + 1) % n;
+                var e = a[j] - a[i];
+                var nn = new Vector3(e.Y, 0f, -e.X).Normalized();
+                int k = verts.Count;
+                verts.Add(new Vector3(a[i].X, y0, a[i].Y));
+                verts.Add(new Vector3(a[j].X, y0, a[j].Y));
+                verts.Add(new Vector3(b[j].X, y1, b[j].Y));
+                verts.Add(new Vector3(b[i].X, y1, b[i].Y));
+                norms.Add(nn); norms.Add(nn); norms.Add(nn); norms.Add(nn);
+                ind.Add(k); ind.Add(k + 1); ind.Add(k + 2); ind.Add(k); ind.Add(k + 2); ind.Add(k + 3);
+            }
+        }
+        foreach (var (ring, y, dir) in new[] { (rings[0], path[0].Y, -1f), (rings[^1], path[^1].Y, 1f) })
+        {
+            int c0 = verts.Count;
+            foreach (var p in ring) { verts.Add(new Vector3(p.X, y, p.Y)); norms.Add(new Vector3(0, dir, 0)); }
+            for (int i = 1; i + 1 < n; i++) { ind.Add(c0); ind.Add(c0 + i); ind.Add(c0 + i + 1); }
+        }
+        Add(verts.ToArray(), norms.ToArray(), ind.ToArray(), t);
+    }
+
+    /// <summary>
+    /// Chamfered rectangular loft along Y, for magazines and grips: h0/h1 are the half width/depth at y0/y1,
+    /// z0/z1 their depth centres, c the corner cut. Same chamfer profile as <see cref="ChamferZ"/>.
+    /// </summary>
+    public void ChamferY(float y0, float y1, Vector2 h0, Vector2 h1, float z0, float z1, float c, Transform3D t)
+    {
+        static Vector2[] Ring(Vector2 h, float z, float cut)
+        {
+            float cx = Mathf.Min(cut, h.X * 0.45f), cz = Mathf.Min(cut, h.Y * 0.45f);
+            return new[]
+            {
+                new Vector2(h.X, -h.Y + cz), new Vector2(h.X - cx, -h.Y),
+                new Vector2(-h.X + cx, -h.Y), new Vector2(-h.X, -h.Y + cz),
+                new Vector2(-h.X, h.Y - cz), new Vector2(-h.X + cx, h.Y),
+                new Vector2(h.X - cx, h.Y), new Vector2(h.X, h.Y - cz),
+            }.Select(p => p + new Vector2(0, z)).ToArray();
+        }
+        var a = Ring(h0, z0, c);
+        var b = Ring(h1, z1, c);
+        int n = a.Length;
+        var verts = new List<Vector3>();
+        var norms = new List<Vector3>();
+        var ind = new List<int>();
+        for (int i = 0; i < n; i++)
+        {
+            int j = (i + 1) % n;
+            var e = a[j] - a[i];
+            var nn = new Vector3(e.Y, 0f, -e.X).Normalized();
+            verts.Add(new Vector3(a[i].X, y0, a[i].Y));
+            verts.Add(new Vector3(a[j].X, y0, a[j].Y));
+            verts.Add(new Vector3(b[j].X, y1, b[j].Y));
+            verts.Add(new Vector3(b[i].X, y1, b[i].Y));
+            norms.Add(nn); norms.Add(nn); norms.Add(nn); norms.Add(nn);
+            int k = verts.Count - 4;
+            ind.Add(k); ind.Add(k + 1); ind.Add(k + 2); ind.Add(k); ind.Add(k + 2); ind.Add(k + 3);
+        }
+        foreach (var (ring, y, dir) in new[] { (a, y0, -1f), (b, y1, 1f) })
+        {
+            int c0 = verts.Count;
+            foreach (var p in ring) { verts.Add(new Vector3(p.X, y, p.Y)); norms.Add(new Vector3(0, dir, 0)); }
+            for (int i = 1; i + 1 < n; i++) { ind.Add(c0); ind.Add(c0 + i); ind.Add(c0 + i + 1); }
+        }
+        Add(verts.ToArray(), norms.ToArray(), ind.ToArray(), t);
+    }
+
+    public void ChamferY(float y0, float y1, Vector2 h0, Vector2 h1, float z0, float z1, float c) =>
+        ChamferY(y0, y1, h0, h1, z0, z1, c, Transform3D.Identity);
+
     /// <summary>Rectangular loft along Y, for grips and magazines; <paramref name="z0"/>/<paramref name="z1"/> tilt it.</summary>
     public void LoftY(float y0, float y1, Vector2 h0, Vector2 h1, float z0, float z1, Transform3D t)
     {
@@ -164,6 +321,55 @@ public sealed class VmMesh
         Quad(a01, b01, b11, a11, Vector3.Right, t);
         Quad(a00, b00, b01, a01, Vector3.Back, t);
         Quad(a10, a11, b11, b10, Vector3.Forward, t);
+    }
+
+    /// <summary>
+    /// Smooth tube along Z from z0 to z1, with one radius per equally spaced section. Normals follow the
+    /// section slope, so the surface reads as one continuous organic mesh (forearms, sleeves, cuffs).
+    /// </summary>
+    public void LoftTube(float z0, float z1, float[] radii, float sx, float sy, Transform3D t, bool caps = true, int seg = 20)
+    {
+        int rings = radii.Length;
+        if (rings < 2) return;
+        float dz = (z1 - z0) / (rings - 1);
+        var verts = new List<Vector3>();
+        var norms = new List<Vector3>();
+        var ind = new List<int>();
+        for (int i = 0; i < rings; i++)
+        {
+            float z = z0 + dz * i;
+            float dr = (radii[Mathf.Min(i + 1, rings - 1)] - radii[Mathf.Max(i - 1, 0)]) / (2f * Mathf.Max(0.0001f, dz));
+            for (int j = 0; j <= seg; j++)
+            {
+                float a = j / (float)seg * Mathf.Tau;
+                float c = Mathf.Cos(a), s = Mathf.Sin(a);
+                verts.Add(new Vector3(c * radii[i] * sx, s * radii[i] * sy, z));
+                norms.Add(new Vector3(c / sx, s / sy, -dr).Normalized());
+            }
+        }
+        for (int i = 0; i < rings - 1; i++)
+            for (int j = 0; j < seg; j++)
+            {
+                int k = i * (seg + 1) + j;
+                ind.Add(k); ind.Add(k + seg + 1); ind.Add(k + 1);
+                ind.Add(k + 1); ind.Add(k + seg + 1); ind.Add(k + seg + 2);
+            }
+        if (caps)
+        {
+            foreach (var (z, r, dir) in new[] { (z0, radii[0], -1f), (z1, radii[^1], 1f) })
+            {
+                int c0 = verts.Count;
+                verts.Add(new Vector3(0, 0, z)); norms.Add(new Vector3(0, 0, dir));
+                for (int j = 0; j <= seg; j++)
+                {
+                    float a = j / (float)seg * Mathf.Tau;
+                    verts.Add(new Vector3(Mathf.Cos(a) * r * sx, Mathf.Sin(a) * r * sy, z));
+                    norms.Add(new Vector3(0, 0, dir));
+                }
+                for (int j = 0; j < seg; j++) { ind.Add(c0); ind.Add(c0 + 1 + j); ind.Add(c0 + 2 + j); }
+            }
+        }
+        Add(verts.ToArray(), norms.ToArray(), ind.ToArray(), t);
     }
 
     /// <summary>Flat-shaded elliptical tube along Z (octagonal handguards, suppressors, screws, barrel nuts).</summary>

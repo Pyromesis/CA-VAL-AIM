@@ -153,6 +153,19 @@ public partial class Viewmodel : Node3D
 
         pivot = new Node3D { Name = "Pivot" };
         AddChild(pivot);
+        // Soft camera-side fill for the viewmodel only: 15-25 cm from the eye, a hard sun leaves the flat
+        // side faces of the stock and receiver almost black beside their lit top faces. No shadows, no
+        // effect on the world (cull mask = viewmodel layer).
+        var fill = new DirectionalLight3D
+        {
+            LightColor = new Color(0.94f, 0.97f, 1f),
+            LightEnergy = 0.45f,
+            LightSpecular = 0.15f,
+            ShadowEnabled = false,
+            LightCullMask = VisualLayer,
+            RotationDegrees = new Vector3(-53f, -30f, 0f),
+        };
+        AddChild(fill);
         // The two rifles are CPU-authored here (detailed silhouette + separate magazine); the other guns keep
         // their imported scenes. No new pck assets are needed, so a DLL-only update ships the new models.
         // The rest of the arsenal: procedural, self-made models in the same gun space (ProceduralArsenal).
@@ -188,11 +201,11 @@ public partial class Viewmodel : Node3D
             }
         }
 
-        // Gloves + sleeves.
-        var glove = mats.Make(new Color(0.140f, 0.145f, 0.155f), 0f, 0.76f, 0.4f, 0.7f, 0.34f, 420f);
-        var pad = mats.Make(new Color(0.235f, 0.240f, 0.250f), 0.05f, 0.5f, 0.5f, 0.4f, 0.28f, 200f);
-        var sleeve = mats.Make(new Color(0.160f, 0.175f, 0.205f), 0f, 0.80f, 0.35f, 0.6f, 0.28f, 260f);
-        var accent = mats.Make(new Color(0.62f, 0.14f, 0.13f), 0f, 0.6f, 0.5f, 0.3f, 0.18f, 200f);
+        // Gloves + sleeves. Muted tactical palette: the accent is a deep oxblood strap, not bright red.
+        var glove = mats.Make(new Color(0.185f, 0.190f, 0.205f), 0f, 0.70f, 0.42f, 0.55f, 0.42f, 420f);
+        var pad = mats.Make(new Color(0.235f, 0.240f, 0.255f), 0.06f, 0.46f, 0.52f, 0.40f, 0.38f, 200f);
+        var sleeve = mats.Make(new Color(0.200f, 0.215f, 0.248f), 0f, 0.62f, 0.50f, 0.55f, 0.45f, 260f);
+        var accent = mats.Make(new Color(0.300f, 0.080f, 0.075f), 0f, 0.72f, 0.36f, 0.20f, 0.12f, 200f);
         var se = pose.Support.ElbowLocal;
         gripHand = new MeshInstance3D { Name = "GripHand", Mesh = VmHands.Build(pose.Grip.Shape, left, pose.Grip.ElbowLocal, glove, pad, sleeve, accent) };
         supportHand = new MeshInstance3D { Name = "SupportHand", Mesh = VmHands.Build(pose.Support.Shape, !left, new Vector3(-se.X, se.Y, se.Z), glove, pad, sleeve, accent) };

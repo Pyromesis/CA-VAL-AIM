@@ -29,7 +29,7 @@ public sealed record VmPose(
     static readonly HandShape Cup = new(
         Index: new Finger(6, 45, 50, 30), Middle: new Finger(2, 50, 55, 30), Ring: new Finger(-2, 52, 55, 30), Little: new Finger(-6, 55, 55, 28),
         ThumbDir: new Vector3(-0.94f, -0.12f, -0.31f), ThumbUp: new Vector3(-0.28f, -0.48f, 0.86f), ThumbCurl: new Vector3(2, 8, 5),
-        ForearmLen: 0.34f);
+        ForearmLen: 0.46f);
 
     /// <summary>Support hand wrapping the trigger hand on a pistol (thumb forward along the frame).</summary>
     static readonly HandShape PistolSupport = new(
@@ -56,7 +56,7 @@ public sealed record VmPose(
 
     /// <summary>Support hand under a handguard whose bottom centre is <paramref name="b"/>.</summary>
     static HandPlacement CupAt(Vector3 b) =>
-        new(b + new Vector3(-0.056f, -0.036f, -0.009f), new Vector3(1f, 0.35f, -0.25f), new Vector3(-0.3f, -1f, 0f), new Vector3(-0.5f, -0.55f, 0.65f), Cup);
+        new(b + new Vector3(-0.056f, -0.036f, -0.009f), new Vector3(1f, 0.35f, -0.25f), new Vector3(-0.3f, -1f, 0f), new Vector3(-0.58f, -0.78f, 0.30f), Cup);
 
     /// <summary>Pistol support hand wrapping the grip hand from the left.</summary>
     static HandPlacement PistolSupportAt(Vector3 c, float slant)

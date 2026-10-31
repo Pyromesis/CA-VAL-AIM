@@ -12,6 +12,12 @@
 
 ### Cambiado
 
+- **Nuevos brazos y rifles en primera persona.** Las manos son ahora una sola malla orgánica continua —palma esculpida,
+  tenar e hipotenar, cresta de los nudillos, almohadillas del guante y puño de cuero con hebilla— en lugar de cápsulas
+  ensambladas. La manga tiene conicidad real, puño ablusado y pliegues suaves de tela, y está iluminada para que se lea
+  su forma. El Vandal y el Phantom se han reconstruido desde cero: receptor con chaflanes, puerto de expulsión y
+  selector, raíles de longitud completa, guardamanos estrechos, empuñaduras inclinadas, cargadores curvos de seis
+  tramos y culatas macizas con carrillera y placas de acento.
 - **Todo se llama ahora CA-VAL-AIM, por dentro y por fuera.** El espacio de nombres y el ensamblado de C# son
   `CaValAim`, el proyecto es `CaValAim/CaValAim.csproj`, la carpeta de datos exportada es
   `data_CaValAim_windows_x86_64` y el script del instalador es `installer/CA-VAL-AIM.iss`. Tus ajustes, estadísticas y

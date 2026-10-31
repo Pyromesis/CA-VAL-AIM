@@ -18,6 +18,7 @@ namespace CaValAim.Game.Weapon;
 static class VmTest
 {
     public static bool Enabled, FxHold, Body, Fire, Crouch, Look, HoldFlash, Wall, ReloadLoop, NoHands, Hide, Bench, BenchFx;
+    public static bool HandPlain, HandDebug;
     public static WeaponKind? Kind;
     public static bool? ForceLeft;
     public static float? Ads, Reload, Speed, Zoom;
@@ -51,6 +52,8 @@ static class VmTest
         Bench = a.Contains("--vmbench") || a.Contains("--vmbenchfx");
         BenchFx = a.Contains("--vmbenchfx");
         Hand = Val("--vmhand");
+        HandPlain = a.Contains("--vmhandplain");
+        HandDebug = a.Contains("--vmhanddebug");
         if (a.Contains("--vmleft")) ForceLeft = true;
         if (a.Contains("--vmright")) ForceLeft = false;
         if (Enum.TryParse<WeaponKind>(Val("--vmkind") ?? "", true, out var k)) Kind = k;
@@ -100,10 +103,20 @@ static class VmTest
     {
         var shape = VmPose.DebugShape(Hand!);
         var m = vm.Materials;
-        var glove = m.Make(new Color(0.05f, 0.052f, 0.058f), 0f, 0.8f);
-        var pad = m.Make(new Color(0.3f, 0.3f, 0.32f), 0f, 0.5f);
-        var sleeve = m.Make(new Color(0.1f, 0.12f, 0.15f), 0f, 0.85f);
-        var acc = m.Make(new Color(0.55f, 0.13f, 0.12f), 0f, 0.6f);
+        Material glove = m.Make(new Color(0.185f, 0.190f, 0.205f), 0f, 0.70f, 0.42f, 0.55f, 0.42f, 420f);
+        Material pad = HandPlain || HandDebug ? glove : m.Make(new Color(0.235f, 0.240f, 0.255f), 0.06f, 0.46f, 0.52f, 0.40f, 0.38f, 200f);
+        Material sleeve = HandPlain || HandDebug ? glove : m.Make(new Color(0.200f, 0.215f, 0.248f), 0f, 0.62f, 0.50f, 0.55f, 0.45f, 260f);
+        Material acc = HandPlain || HandDebug ? glove : m.Make(new Color(0.300f, 0.080f, 0.075f), 0f, 0.72f, 0.36f, 0.20f, 0.12f, 200f);
+        if (HandDebug)
+        {
+            var flat = new StandardMaterial3D
+            {
+                AlbedoColor = new Color(0.72f, 0.72f, 0.74f),
+                ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded,
+                CullMode = BaseMaterial3D.CullModeEnum.Disabled,
+            };
+            glove = pad = sleeve = acc = flat;
+        }
         var b = new Basis(new Vector3(1, 0, 0), new Vector3(0, 0, 1), new Vector3(0, -1, 0));
         for (int i = 0; i < 2; i++)
         {
