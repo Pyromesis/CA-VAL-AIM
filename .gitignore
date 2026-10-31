@@ -65,3 +65,6 @@ $RECYCLE.BIN/
 
 # GitHub CLI (portable, downloaded locally for publishing)
 /tools/gh/
+
+# Local extracted map set (junction to dist-maps/maps), not redistributed
+/maps
