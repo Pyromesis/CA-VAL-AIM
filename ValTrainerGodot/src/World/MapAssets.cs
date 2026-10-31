@@ -41,9 +41,15 @@ public static class MapAssets
         }
 
         // Dev-only "--maps-dir <dir>": a folder holding maps/<key>/ (e.g. a freshly built map set) is searched first.
-        if (Core.CmdLine.DevAfter("--maps-dir") is { Length: > 0 } dev) Add(dev);
+        // A relative value means the repository root: Godot changes the working directory to the project folder.
+        if (Core.CmdLine.DevAfter("--maps-dir") is { Length: > 0 } dev)
+        {
+            try { Add(Path.IsPathRooted(dev) ? dev : Path.Combine(ProjectSettings.GlobalizePath("res://.."), dev)); } catch { }
+            Add(dev);
+        }
         try { Add(ProjectSettings.GlobalizePath("res://")); } catch { }
         try { Add(ProjectSettings.GlobalizePath("res://assets")); } catch { }
+        try { Add(ProjectSettings.GlobalizePath("res://..")); } catch { } // repo root: dist-maps / maps next to the project
         Add(OS.GetExecutablePath().GetBaseDir());
         Add(OS.GetExecutablePath().GetBaseDir() + "/assets");
         Add(AppContext.BaseDirectory);

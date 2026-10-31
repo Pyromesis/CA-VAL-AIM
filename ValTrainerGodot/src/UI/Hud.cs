@@ -41,6 +41,12 @@ public partial class Hud : Control
     // animation bookkeeping (real time, so it keeps moving while paused)
     float lastStopSeen = -2f, stopPopAt = -99f;
 
+    // player-centred minimap: a clipped square canvas so the rotated art never paints outside it
+    Control? minimapFrame;
+    MinimapCanvas? minimap;
+    readonly List<Vector3> minimapSpots = new();
+    readonly Dictionary<int, float> seenAt = new();
+
     // tiny string caches so steady-state frames don't allocate
     sealed class Cache
     {
@@ -85,6 +91,13 @@ public partial class Hud : Control
     {
         SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         MouseFilter = MouseFilterEnum.Ignore;
+        // The minimap rotates with the view, so it lives in its own clipping frame: the rotated art would otherwise
+        // paint outside the square. Godot clips children, not the control itself, hence the wrapper.
+        minimapFrame = new Control { MouseFilter = MouseFilterEnum.Ignore, ClipContents = true, Visible = false };
+        AddChild(minimapFrame);
+        minimap = new MinimapCanvas(this) { MouseFilter = MouseFilterEnum.Ignore };
+        minimapFrame.AddChild(minimap);
+        minimap.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
     }
 
     public override void _Process(double delta)
@@ -92,6 +105,19 @@ public partial class Hud : Control
         QueueRedraw();
         if (s.Mode == null) return;
         var size = GetViewportRect().Size;
+        float hudK = UiTheme.S(size);
+        if (minimapFrame != null && minimap != null)
+        {
+            bool show = s.Mode.Map != null && !s.Mode.Is2D && s.State == GameSession.St.Running;
+            minimapFrame.Visible = show;
+            if (show)
+            {
+                float w = Mathf.Min(230 * hudK, size.X * 0.24f);
+                minimapFrame.Position = new Vector2(size.X - 26 * hudK - w, 50 * hudK);
+                minimapFrame.Size = new Vector2(w, w);
+                minimap.QueueRedraw();
+            }
+        }
         if (locRev != Loc.Revision)
         {
             locRev = Loc.Revision;
@@ -209,7 +235,6 @@ public partial class Hud : Control
             if (s.State == GameSession.St.Countdown || (s.State == GameSession.St.Running && s.Now < 3f))
                 DrawSpotCallouts(size, k, mapSpot);
             if (s.State == GameSession.St.Countdown) DrawBriefing(size, k, mapSpot);
-            else if (s.State == GameSession.St.Running) DrawMinimap(size, k, mapSpot);
         }
         if (!m.Is2D && s.State == GameSession.St.Running && s.GuideMode >= 1) DrawGuide(size, k, m);
         if (!m.Is2D)
@@ -394,18 +419,33 @@ public partial class Hud : Control
     }
 
     /// <summary>
-    /// Minimap art of the played site, always in the top-right corner while a map drill runs. The blockout
-    /// stays the 3D world; the panel is the official minimap read of it: site wash, spawn/choke and the
-    /// player arrow. Hidden during the countdown, which uses the bigger <see cref="DrawBriefing"/> instead.
+    /// The in-game minimap: the map art around the player, rotated with the view (player arrow up), the drilled site
+    /// letter and the defenders you have spotted. Drawn by <see cref="MinimapCanvas"/> inside a clipping frame.
+    /// Hidden during the countdown, which uses the bigger <see cref="DrawBriefing"/> instead.
     /// </summary>
-    void DrawMinimap(Vector2 size, float k, MapSpot map)
+    void DrawMinimapArt(CanvasItem ci, Rect2 rect)
     {
-        float w = Mathf.Min(210 * k, size.X * 0.24f);
-        var r = new Rect2(size.X - 26 * k - w, 50 * k, w, w);
-        MapArt.Panel(this, r, map, k, callouts: false, player: true, s.View.Eye, s.View.ViewYaw, 0.92f);
-        int fs = UiTheme.Fs(13, k);
-        RawR(UiTheme.HudWide, $"{map.Map.ToUpperInvariant()} · {MapArt.SiteName(map.Key)}", r.End.X, r.End.Y + 18 * k, fs,
-            new Color(UiTheme.Text, 0.85f));
+        if (s.Mode?.Map is not { } map) return;
+        float k = UiTheme.S(GetViewportRect().Size);
+        minimapSpots.Clear();
+        for (int i = 0; i < map.Enemies.Length; i++)
+        {
+            var e = map.Enemies[i];
+            var head = e.Feet + new Vector3(0, e.Stance == Stance.Crouch ? 0.85f : 1.4f, 0);
+            if (s.LineOfSight(s.View.Eye, head)) seenAt[i] = RealNow;
+            // VALORANT keeps a spotted defender on the map for a moment after he breaks the sightline.
+            if (seenAt.TryGetValue(i, out float t) && RealNow - t < 1.2f) minimapSpots.Add(e.Feet);
+        }
+        foreach (var stale in new List<int>(seenAt.Keys))
+            if (RealNow - seenAt[stale] >= 1.2f) seenAt.Remove(stale);
+        MapArt.Minimap(ci, rect, map, k, s.View.Eye, s.View.ViewYaw, 0.94f, minimapSpots, rotate: true);
+    }
+
+    sealed partial class MinimapCanvas : Control
+    {
+        readonly Hud h;
+        public MinimapCanvas(Hud hud) => h = hud;
+        public override void _Draw() => h.DrawMinimapArt(this, new Rect2(Vector2.Zero, Size));
     }
 
     /// <summary>Countdown briefing: the official minimap with every defender callout marked, plus the approach.</summary>

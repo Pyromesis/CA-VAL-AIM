@@ -47,6 +47,11 @@ public sealed partial class Mover
     public Vector3 Vel;
     public bool Crouching, Walking;
     public float EyeHeight = StandEye;
+    /// <summary>Camera-only vertical offset while a stair or curb is smoothed (metres, negative = camera below the eye).
+    /// The body snaps onto the step at once; this eases out at <see cref="StepCamDamping"/> so the picture glides.</summary>
+    public float CamStepOffset { get; private set; }
+    /// <summary>How fast the stair camera offset settles (1/s): ~63% in 80 ms, visually done in about a quarter second.</summary>
+    public const float StepCamDamping = 12.5f;
     public bool Ads;
     /// <summary>Aimed / scoped max speed as a fraction of the run speed: the gun's (<see cref="Core.WeaponDef.AdsMoveMul"/>,
     /// Operator 0.72), <see cref="AdsMultiplier"/> by default.</summary>
@@ -248,5 +253,6 @@ public sealed partial class Mover
         boosting = false;
         jumpQueued = false;
         sinceLanded = 99f;
+        CamStepOffset = 0f;
     }
 }

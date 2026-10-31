@@ -744,7 +744,8 @@ public partial class GameSession : Node3D, IGame
         var feet = new Vector3(View.Eye.X, feetY, View.Eye.Z);
         Mover.Step(dt, View.Yaw, Main.I.Valorant, ref feet, solid);
         feetY = feet.Y;
-        View.Eye = new Vector3(feet.X, feetY + Mover.EyeHeight, feet.Z);
+        // Stairs: the body is already on the step; the camera eases up/down over ~0.2 s (Mover.CamStepOffset).
+        View.Eye = new Vector3(feet.X, feetY + Mover.EyeHeight + Mover.CamStepOffset, feet.Z);
         // Safety net for a hole in a real map's collision: never fall through the world. The body is put back on the
         // last floor it stood on safely (no death, no lost round) as soon as it drops clearly below the map's underside
         // or 20 m below that floor.

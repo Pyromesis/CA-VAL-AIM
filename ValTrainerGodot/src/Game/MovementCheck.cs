@@ -203,6 +203,19 @@ public static class MovementCheck
         r.RunUntil(g => g.Lands > 0 || g.T > 3f);
         Check("walking off a 1 m ledge falls and lands", r.Lands == 1 && !r.M.LastAir.FromJump && Mathf.Abs(r.M.LastAir.Drop - 1f) < 0.01f,
             $"lands {r.Lands}, drop {F(r.M.LastAir.Drop)} m, air {F(r.M.LastAir.AirTime)} s (expected {F(Mathf.Sqrt(2f / MovementTuning.Gravity))})");
+
+        // Stairs: five 0.2 m steps. The body snaps up each one; the camera trails below and settles when you stop.
+        var stair = new List<Box> { Floor() };
+        for (int i = 0; i < 5; i++)
+            stair.Add(new Box(new Vector3(1f + i * 0.35f, 0, -2), new Vector3(1.35f + i * 0.35f, 0.2f * (i + 1), 2)));
+        r = new Rig(stair, Vector3.Zero);
+        float trail = 0f;
+        r.Hold(Key.D);
+        r.RunUntil(g => { trail = Mathf.Min(trail, g.M.CamStepOffset); return g.Feet.Y >= 0.95f; }, 3f);
+        r.Release(Key.D);
+        r.Step(120);
+        Check("stair camera glides instead of snapping", trail < -0.1f && Mathf.Abs(r.M.CamStepOffset) < 0.01f && r.Feet.Y >= 0.95f,
+            $"camera trailed {F(trail)} m, settled {F(r.M.CamStepOffset)} m on step {F(r.Feet.Y)} m");
         Check("fall damage thresholds", MovementTuning.FallDamage(7.9f) == 0 && Mathf.Abs(MovementTuning.FallDamage(8f) - 15f) < 0.01f &&
             Mathf.Abs(MovementTuning.FallDamage(17f) - 100f) < 0.01f, $"7.9 m → {F(MovementTuning.FallDamage(7.9f), "0")}, 8 m → {F(MovementTuning.FallDamage(8f), "0")}, 17 m → {F(MovementTuning.FallDamage(17f), "0")}");
 

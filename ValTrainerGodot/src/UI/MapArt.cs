@@ -148,32 +148,50 @@ public static class MapArt
         return null;
     }
 
-    static List<string> Roots() => new()
+    /// <summary>
+    /// Every folder that may hold the minimap PNGs, as absolute paths (Godot resolves relative paths against the
+    /// project folder, so a dev "--maps-dir dist-maps" must be resolved by hand). Dev sets first, then the project,
+    /// then the executable, then the working directory.
+    /// </summary>
+    static List<string> Roots()
     {
-        (CmdLine.DevAfter("--maps-dir") ?? "") + "/maps",
-        ProjectSettings.GlobalizePath("res://assets/maps"),
-        ProjectSettings.GlobalizePath("res://maps"),
-        ProjectSettings.GlobalizePath("res://"),
-        OS.GetExecutablePath().GetBaseDir() + "/maps",
-        OS.GetExecutablePath().GetBaseDir() + "/assets/maps",
-        Directory.GetCurrentDirectory() + "/assets/maps",
-        Directory.GetCurrentDirectory() + "/maps",
-    };
+        var roots = new List<string>();
+        void Add(string? root)
+        {
+            if (string.IsNullOrWhiteSpace(root)) return;
+            try
+            {
+                string full = Path.GetFullPath(root);
+                if (!roots.Contains(full, StringComparer.OrdinalIgnoreCase)) roots.Add(full);
+            }
+            catch { /* a bad root must never break a screen */ }
+        }
+        string projectRoot = "", repoRoot = "";
+        try { projectRoot = ProjectSettings.GlobalizePath("res://"); } catch { }
+        try { repoRoot = ProjectSettings.GlobalizePath("res://.."); } catch { }
+
+        // Dev-only "--maps-dir <dir>": a freshly built map set (MapAssets). Relative values are meant from the
+        // repository root, because Godot starts with the project folder as the working directory.
+        if (CmdLine.DevAfter("--maps-dir") is { Length: > 0 } dev)
+        {
+            Add(Path.IsPathRooted(dev) || repoRoot.Length == 0 ? dev : Path.Combine(repoRoot, dev));
+            Add(dev);
+        }
+        Add(projectRoot + "/assets/maps");
+        Add(projectRoot + "/maps");
+        Add(projectRoot);
+        Add(repoRoot + "/dist-maps/maps"); // dev map set
+        Add(repoRoot);
+        Add(OS.GetExecutablePath().GetBaseDir() + "/maps");
+        Add(OS.GetExecutablePath().GetBaseDir() + "/assets/maps");
+        Add(Directory.GetCurrentDirectory() + "/assets/maps");
+        Add(Directory.GetCurrentDirectory() + "/maps");
+        return roots;
+    }
 
     static Texture2D? LoadFile(string file)
     {
-        var roots = new List<string>
-        {
-            (CmdLine.DevAfter("--maps-dir") ?? "") + "/maps", // dev: a freshly built map set (MapAssets)
-            ProjectSettings.GlobalizePath("res://assets/maps"),
-            ProjectSettings.GlobalizePath("res://maps"),
-            ProjectSettings.GlobalizePath("res://"),
-            OS.GetExecutablePath().GetBaseDir() + "/maps",
-            OS.GetExecutablePath().GetBaseDir() + "/assets/maps",
-            Directory.GetCurrentDirectory() + "/assets/maps",
-            Directory.GetCurrentDirectory() + "/maps",
-        };
-        foreach (var root in roots)
+        foreach (var root in Roots())
         {
             try
             {
@@ -337,6 +355,121 @@ public static class MapArt
         }
 
         return true;
+    }
+
+    /// <summary>
+    /// VALORANT-style minimap: the map art cropped around the player (not around the site), north-up or rotated
+    /// with the view, with the player arrow at the centre, the drilled site letter, a north marker and spotted enemies.
+    /// The panel is square and the caller clips it (Hud's minimap canvas) so the rotated art never leaves the box.
+    /// </summary>
+    public static bool Minimap(CanvasItem ci, Rect2 rect, MapSpot map, float k, Vector3 eye, float yaw,
+        float alpha = 1f, IReadOnlyList<Vector3>? spotted = null, bool rotate = true, float viewMetres = 52f)
+    {
+        var info = At(map.Key);
+        var tex = Get(map.Key);
+        float yawRad = Mathf.DegToRad(yaw);
+        float angle = rotate ? -yawRad : 0f;
+        var inner = rect.Grow(-3f * k);
+        var centre = inner.GetCenter();
+        float half = inner.Size.X / 2f;
+
+        // dark plate: the official PNG is transparent outside the map, so this is also the void around it
+        Gfx.PlateEx(ci, rect, 0, false, false, false, false,
+            new Color(0.025f, 0.04f, 0.06f, 0.9f * alpha), new Color(0, 0, 0, 0), 0f);
+
+        bool art = false;
+        if (info != null && tex != null)
+        {
+            var tint = new Color(0.95f, 0.97f, 1f, 0.95f * alpha);
+            float srcSize = viewMetres / info.Scale;
+            var cp = info.WorldToPixel(eye);
+            var src = new Rect2(cp - new Vector2(srcSize / 2f, srcSize / 2f), new Vector2(srcSize, srcSize));
+            var dest = new Rect2(-inner.Size / 2f, inner.Size);
+            ci.DrawSetTransform(centre, angle, Vector2.One);
+            ci.DrawTextureRectRegion(tex, dest, src, tint);
+            ci.DrawSetTransform(Vector2.Zero, 0, Vector2.One);
+            art = true;
+        }
+        if (!art) DrawMinimapGrid(ci, inner, centre, angle, eye, alpha);
+
+        // world -> screen: metres are the same both ways; north (-Z) is up before the rotation
+        Vector2 P(Vector3 world)
+        {
+            var d = new Vector2(world.X - eye.X, world.Z - eye.Z) * (inner.Size.X / viewMetres);
+            if (rotate) d = d.Rotated(angle);
+            return centre + d;
+        }
+
+        // site letter (the drilled site; the official art colours the plant area but carries no text)
+        if (info != null)
+        {
+            var site = P(info.PixelToWorld(info.SitePixels.GetCenter().X, info.SitePixels.GetCenter().Y));
+            if (inner.Grow(-10f * k).HasPoint(site))
+            {
+                string letter = info.Site.Split(' ')[0];
+                float br = 9f * k;
+                ci.DrawCircle(site, br, new Color(0.02f, 0.035f, 0.05f, 0.82f * alpha));
+                ci.DrawArc(site, br, 0, Mathf.Tau, 20, new Color(UiTheme.Teal, 0.9f * alpha), Mathf.Max(1f, 1.4f * k), true);
+                int fs = UiTheme.Fs(12, k);
+                float tw = Gfx.TextW(UiTheme.HudWide, letter, fs);
+                ci.DrawString(UiTheme.HudWide, site + new Vector2(-tw / 2f, fs * 0.36f), letter,
+                    HorizontalAlignment.Left, -1, fs, new Color(UiTheme.Text, 0.98f * alpha));
+            }
+        }
+
+        // spotted enemies: red dots, only for defenders the player can see (Hud keeps them for a moment)
+        if (spotted != null)
+            foreach (var e in spotted)
+            {
+                var p = P(e);
+                if (!inner.Grow(2f * k).HasPoint(p)) continue;
+                ci.DrawCircle(p, 4f * k, new Color(0.98f, 0.22f, 0.28f, 0.98f * alpha));
+                ci.DrawArc(p, 4f * k, 0, Mathf.Tau, 14, new Color(0.02f, 0.02f, 0.03f, 0.9f * alpha), Mathf.Max(1f, 1.1f * k), true);
+            }
+
+        // player arrow at the centre: up while the map rotates, with the view when it is fixed
+        var f = rotate ? new Vector2(0, -1) : new Vector2(-Mathf.Sin(yawRad), -Mathf.Cos(yawRad));
+        var right = new Vector2(-f.Y, f.X);
+        float ar = 8.5f * k;
+        var tip = centre + f * ar;
+        var l = centre - f * 4.5f * k - right * 5.5f * k;
+        var rr = centre - f * 4.5f * k + right * 5.5f * k;
+        ci.FillPoly(new[] { tip, l, rr }, new Color(0.97f, 0.99f, 1f, 0.99f * alpha));
+        ci.Polyline(new[] { tip, l, rr, tip }, new Color(0.02f, 0.03f, 0.05f, 0.9f * alpha), Mathf.Max(1f, 1.3f * k));
+
+        // north marker: fixed at the top when north-up, travelling around the border when it rotates
+        var north = rotate ? new Vector2(0, -1).Rotated(angle) : new Vector2(0, -1);
+        var np = centre + north * (half - 10f * k);
+        int ns = UiTheme.Fs(11, k);
+        float nw = Gfx.TextW(UiTheme.HudWide, "N", ns);
+        ci.DrawStringOutline(UiTheme.HudWide, np + new Vector2(-nw / 2f, ns * 0.34f), "N", HorizontalAlignment.Left, -1, ns,
+            Mathf.Max(1, ns / 6), new Color(0.02f, 0.03f, 0.05f, 0.8f * alpha));
+        ci.DrawString(UiTheme.HudWide, np + new Vector2(-nw / 2f, ns * 0.34f), "N", HorizontalAlignment.Left, -1, ns,
+            new Color(UiTheme.Text, 0.72f * alpha));
+
+        if (!art && CmdLine.Dev)
+            ci.DrawString(UiTheme.HudWide, new Vector2(inner.Position.X + 6f * k, inner.End.Y - 7f * k), "NO MAP ART",
+                HorizontalAlignment.Left, -1, UiTheme.Fs(10, k), new Color(UiTheme.Warn, 0.8f * alpha));
+
+        // frame on top: the rotated art reaches the very edge, so the border is drawn last
+        ci.DrawRect(rect, new Color(UiTheme.Text, 0.30f * alpha), false, Mathf.Max(1f, 1.3f * k));
+        return art;
+    }
+
+    /// <summary>A faint 10 m grid and the site direction when no minimap PNG is available: the minimap still tells you
+    /// where you are and where the site is.</summary>
+    static void DrawMinimapGrid(CanvasItem ci, Rect2 inner, Vector2 centre, float angle, Vector3 eye, float alpha)
+    {
+        var line = new Color(UiTheme.Text, 0.07f * alpha);
+        ci.DrawSetTransform(centre, angle, Vector2.One);
+        float step = inner.Size.X / 46f * 10f;
+        float offX = (-eye.X / 46f * inner.Size.X) % step;
+        float offZ = (-eye.Z / 46f * inner.Size.X) % step;
+        for (float x = -inner.Size.X / 2f + offX; x <= inner.Size.X / 2f; x += step)
+            ci.DrawLine(new Vector2(x, -inner.Size.Y / 2f), new Vector2(x, inner.Size.Y / 2f), line, 1f);
+        for (float z = -inner.Size.Y / 2f + offZ; z <= inner.Size.Y / 2f; z += step)
+            ci.DrawLine(new Vector2(-inner.Size.X / 2f, z), new Vector2(inner.Size.X / 2f, z), line, 1f);
+        ci.DrawSetTransform(Vector2.Zero, 0, Vector2.One);
     }
 
     static Vector2 ToScreen(Info info, Rect2 src, Rect2 panel, Vector3 world)

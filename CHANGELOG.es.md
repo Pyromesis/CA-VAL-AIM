@@ -2,8 +2,19 @@
 
 ## [Sin publicar]
 
+### Añadido
+
+- **Minimapa en vivo.** El panel de arriba a la derecha ya no es un recorte fijo del sitio: ahora es un minimapa de
+  verdad. Te sigue, gira con la vista para que la flecha blanca señale siempre hacia donde apuntas, queda recortado a
+  su cuadrado y muestra la letra del sitio del ejercicio y los defensores que ves (siguen un momento en el mapa cuando
+  te pierden de vista). Se dibuja con los mismos datos de colisión que el mapa 3D, así que las paredes y los pasillos
+  coinciden con lo que puedes recorrer.
+
 ### Corregido
 
+- **Las escaleras ya no suben fotograma a fotograma.** El cuerpo sigue subiendo el escalón al instante (la colisión no
+  cambia), pero la cámara ahora sube y baja suavemente en unos dos décimas de segundo, como la suavidad de escaleras de
+  VALORANT. Los saltos, las caídas y los aterrizajes mantienen su altura exacta.
 - **La ventana de actualización dice lo que está haciendo.** Mientras se descarga la nueva versión, el botón principal
   muestra «ACTUALIZANDO… 42 %» en vez de volver a ofrecer ACTUALIZAR AHORA, y **SEGUIR JUGANDO** cierra la ventana para
   que entrenes mientras termina la descarga: la franja superior sigue mostrando el progreso y la actualización se

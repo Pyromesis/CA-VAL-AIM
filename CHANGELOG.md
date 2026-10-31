@@ -2,8 +2,18 @@
 
 ## [Unreleased]
 
+### Added
+
+- **Live minimap.** The top-right panel is now a real minimap instead of a fixed crop of the site: it follows you,
+  rotates with your view so the white arrow always points where you aim, is clipped to its square, and shows the
+  drilled site letter plus the defenders you have spotted (they stay a moment after they break your sightline).
+  It is drawn from the same collision data the 3D map uses, so walls and corridors match what you can walk.
+
 ### Fixed
 
+- **Stairs no longer jump frame by frame.** The body still climbs a step instantly (the collision never changes), but
+  the camera now eases up and down over about a quarter second like VALORANT's stair smoothing. Jumps, falls and
+  landings keep their exact heights.
 - **The update window says what it is doing.** While the new version downloads, the main button shows "UPDATING… 42%"
   instead of offering UPDATE NOW again, and **KEEP PLAYING** closes the window so you can train while the download
   finishes: the strip under the header keeps showing the progress and the update installs when you restart.

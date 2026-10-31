@@ -26,9 +26,15 @@ using System; using System.Runtime.InteropServices;
 public class W3 {
   [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out RECT r);
   [DllImport("user32.dll")] public static extern bool PrintWindow(IntPtr h, IntPtr hdc, uint flags);
+  [DllImport("user32.dll")] public static extern bool SetProcessDpiAwarenessContext(IntPtr value);
+  [DllImport("user32.dll")] public static extern bool SetProcessDPIAware();
   public struct RECT { public int L,T,R,B; }
 }
 "@ -ErrorAction SilentlyContinue
+# Windows scaling (e.g. 125% at 2560x1440): a DPI-unaware PowerShell gets virtualized window rectangles,
+# so PrintWindow renders the window into a bitmap 20% too small and the screenshot is a top-left crop.
+# Per-monitor v2 awareness makes GetWindowRect/GetClientRect return real pixels.
+try { [W3]::SetProcessDpiAwarenessContext([IntPtr](-4)) | Out-Null } catch { try { [W3]::SetProcessDPIAware() | Out-Null } catch { } }
 Add-Type @"
 using System; using System.Runtime.InteropServices;
 public class W4 {

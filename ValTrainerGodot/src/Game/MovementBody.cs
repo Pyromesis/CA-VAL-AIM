@@ -148,7 +148,19 @@ public sealed partial class Mover
         var delta = Update(dt, yawDeg, keys);
         Collision.MoveAndSlide(ref feet, ref Vel, delta, world,
             Grounded ? Collision.StepHeight : Collision.AirStep, Grounded ? Collision.PlayerHeight : BodyHeight);
+        bool wasGrounded = Grounded;
+        float floorY = feet.Y;
         Vertical(dt, ref feet, world);
+        // Stairs and curbs: the body snaps onto the next floor in one frame (Collision.StepHeight) but the camera
+        // eases there instead, like Unreal's stair smoothing. Jumps, falls and landings are never delayed.
+        if (wasGrounded && Grounded)
+        {
+            float d = feet.Y - floorY;
+            if (Mathf.Abs(d) > 0.001f)
+                CamStepOffset = Mathf.Clamp(CamStepOffset - d, -Collision.StepHeight, MovementTuning.SnapDown);
+        }
+        CamStepOffset *= Mathf.Exp(-StepCamDamping * dt);
+        if (Mathf.Abs(CamStepOffset) < 1e-4f) CamStepOffset = 0f;
     }
 
     /// <summary>Crouch on the ground lowers the head; crouch in the air pulls the legs up instead (feet rise by
@@ -265,6 +277,7 @@ public sealed partial class Mover
     public void Place(ref Vector3 feet, IReadOnlyList<Box> world)
     {
         VelY = 0;
+        CamStepOffset = 0f;
         float g = Collision.Ground(feet, world);
         if (g >= feet.Y - MovementTuning.SnapDown)
         {
