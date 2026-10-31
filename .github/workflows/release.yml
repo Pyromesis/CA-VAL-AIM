@@ -116,17 +116,17 @@ jobs:
           [IO.File]::AppendAllText($env:GITHUB_OUTPUT, "iscc=$iscc`n")
 
       - name: Build C#
-        run: dotnet build ValTrainerGodot/ValTrainer.csproj -nologo
+        run: dotnet build CaValAim/CaValAim.csproj -nologo
 
       - name: Cache imported assets
         uses: actions/cache@v4
         with:
-          path: ValTrainerGodot/.godot/imported
-          key: godot-imported-${{ steps.godot.outputs.version }}-${{ hashFiles('ValTrainerGodot/assets/**', 'ValTrainerGodot/icon.png', 'ValTrainerGodot/icon.png.import') }}
+          path: CaValAim/.godot/imported
+          key: godot-imported-${{ steps.godot.outputs.version }}-${{ hashFiles('CaValAim/assets/**', 'CaValAim/icon.png', 'CaValAim/icon.png.import') }}
           restore-keys: godot-imported-${{ steps.godot.outputs.version }}-
 
       - name: Import assets
-        run: '& $env:GODOT --headless --path ValTrainerGodot --import'
+        run: '& $env:GODOT --headless --path CaValAim --import'
 
       - name: Self-tests
         shell: powershell

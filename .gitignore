@@ -1,4 +1,4 @@
-# ValTrainer .gitignore
+# CA-VAL-AIM .gitignore
 # Godot 4 needs *.import and *.uid files TRACKED (they hold import settings and resource UIDs); never ignore them.
 
 # ---- Godot ----
@@ -8,7 +8,7 @@ export_credentials.cfg
 *.pck
 
 # Build copy of the root CHANGELOG.md made by tools/build-release.ps1 before exporting
-/ValTrainerGodot/CHANGELOG.md
+/CaValAim/CHANGELOG.md
 
 # ---- .NET / C# ----
 bin/
@@ -44,8 +44,8 @@ dist/
 # build machine. The game falls back to the traced blockouts without them.
 /oodle-data-shared.dll
 /zlib-ng2.dll
-/ValTrainerGodot/assets/maps/
-/ValTrainerGodot/maps/
+/CaValAim/assets/maps/
+/CaValAim/maps/
 /maps/
 /dist-maps/
 

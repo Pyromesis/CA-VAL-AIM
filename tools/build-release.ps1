@@ -9,7 +9,7 @@
     SHA256SUMS.txt                      "<sha256>  <file>" lines (sha256sum -c compatible)
 
   Stages (-Stage). Without -Stage the script runs all three in one go, as it always did:
-    app        1. Version from ValTrainerGodot\project.godot (tools\version.ps1).
+    app        1. Version from CaValAim\project.godot (tools\version.ps1).
                2. Copies the Godot project to a private work folder - the tracked tree is never modified - adds the
                   repo's CHANGELOG.md and CHANGELOG.es.md (the in-game "What's new" reads res://CHANGELOG.md, or
                   res://CHANGELOG.es.md in Spanish) and stamps the Windows
@@ -22,7 +22,7 @@
                5. Optional local code signing of both CA-VAL-AIM.exe files (signtool, see below).
                Writes the app folder (-AppDir, default <OutDir>\app; in the one-shot build a temp folder):
                  portable\   CA-VAL-AIM.exe (self-contained), LICENSE.txt, THIRD-PARTY-NOTICES.txt
-                 installer\  CA-VAL-AIM.exe, CA-VAL-AIM.pck, data_ValTrainer_windows_x86_64\, LICENSE.txt,
+                 installer\  CA-VAL-AIM.exe, CA-VAL-AIM.pck, data_CaValAim_windows_x86_64\, LICENSE.txt,
                              THIRD-PARTY-NOTICES.txt
     package    The portable zip and the installer (Inno Setup 6) from the app folder (-AppDir), which may have been
                signed in between (the release workflow signs both CA-VAL-AIM.exe files with SignPath). Checks that
@@ -32,7 +32,7 @@
   Works locally and on CI (GitHub windows-latest): pass -Godot / -Iscc or set $env:GODOT. Needs the .NET 8 SDK and
   the Godot 4.7.2 .NET export templates (app stage) and Inno Setup 6 (package stage). Never commits anything; exits
   non-zero on any failure. Godot runs only while this script holds the machine-wide Godot slot (the named mutex
-  "Global\ValTrainerGodotSlot", shared with tools\godot-run.ps1, gshot.ps1 and selftest.ps1): one Godot at a time.
+  "Global\CaValAimSlot", shared with tools\godot-run.ps1, gshot.ps1 and selftest.ps1): one Godot at a time.
 
   Pass -SkipPortable to ship the installer only: it skips the "Windows Desktop" single-exe export, the portable zip
   and its checksum line. SHA256SUMS.txt then covers just Setup.exe (what the in-app updater expects on releases that
@@ -57,7 +57,7 @@
 .PARAMETER SkipInstaller
   Only build the portable zip (no Inno Setup needed).
 .PARAMETER WorkDir
-  Private build folder. Default: $env:RUNNER_TEMP or %TEMP%, \ValTrainer-build. Deleted afterwards unless -KeepWork.
+  Private build folder. Default: $env:RUNNER_TEMP or %TEMP%, \CA-VAL-AIM-build. Deleted afterwards unless -KeepWork.
 .PARAMETER KeepWork
   Keep the work folder (later builds then only re-copy changed files and skip most of the asset import).
 
@@ -100,7 +100,7 @@ $ProductName = 'CA-VAL-AIM'
 $ExeName = 'CA-VAL-AIM.exe'
 $PckName = 'CA-VAL-AIM.pck'
 $AssetPrefix = 'ValTraining'
-$Proj = Join-Path $Repo 'ValTrainerGodot'
+$Proj = Join-Path $Repo 'CaValAim'
 $sw = [System.Diagnostics.Stopwatch]::StartNew()
 $DoApp = $Stage -eq 'all' -or $Stage -eq 'app'
 $DoPackage = $Stage -eq 'all' -or $Stage -eq 'package'
@@ -149,7 +149,7 @@ function Resolve-RepoPath([string]$path) {
 # The machine-wide Godot slot: only one Godot process at a time on this PC (several at once froze it). Shared with
 # tools\godot-run.ps1, gshot.ps1 and selftest.ps1. Also taken on CI, where nothing else competes for it.
 function Enter-GodotSlot {
-  $slot = New-Object System.Threading.Mutex($false, 'Global\ValTrainerGodotSlot')
+  $slot = New-Object System.Threading.Mutex($false, 'Global\CaValAimSlot')
   $waited = [System.Diagnostics.Stopwatch]::StartNew()
   try {
     if (-not $slot.WaitOne(0)) {
@@ -302,7 +302,7 @@ function Invoke-AppStage {
   # ---------------------------------------------------------------- import, build, export (in the Godot slot)
   $instExe = Join-Path $outInst $ExeName
   $portExe = Join-Path $outPort $ExeName
-  $dataDir = Join-Path $outInst 'data_ValTrainer_windows_x86_64'
+  $dataDir = Join-Path $outInst 'data_CaValAim_windows_x86_64'
   $engineNotices = Join-Path $work 'licenses-from-game.txt'
   $slot = Enter-GodotSlot
   try {
@@ -314,7 +314,7 @@ function Invoke-AppStage {
     Invoke-Native $Godot @('--headless', '--path', $stage, '--import') 'Godot asset import'
 
     Step "Building C#"
-    Invoke-Native 'dotnet' @('build', (Join-Path $stage 'ValTrainer.csproj'), '-c', 'Debug', '-nologo', '-v', 'q') 'dotnet build'
+    Invoke-Native 'dotnet' @('build', (Join-Path $stage 'CaValAim.csproj'), '-c', 'Debug', '-nologo', '-v', 'q') 'dotnet build'
 
     Step "Exporting ""Windows Installer"" -> $outInst"
     Invoke-Native $Godot @('--headless', '--path', $stage, '--export-release', 'Windows Installer', $instExe) 'Godot export (Windows Installer)'
@@ -360,8 +360,8 @@ function Invoke-AppStage {
   } finally { Exit-GodotSlot $slot }
 
   # .NET runtime notices from the runtime pack the export was published with.
-  $deps = Get-ChildItem -LiteralPath $dataDir -Recurse -Filter 'ValTrainer.deps.json' | Select-Object -First 1
-  if (-not $deps) { Fail "ValTrainer.deps.json not found in $dataDir" }
+  $deps = Get-ChildItem -LiteralPath $dataDir -Recurse -Filter 'CaValAim.deps.json' | Select-Object -First 1
+  if (-not $deps) { Fail "CaValAim.deps.json not found in $dataDir" }
   $m = [regex]::Match([System.IO.File]::ReadAllText($deps.FullName), 'runtimepack\.Microsoft\.NETCore\.App\.Runtime\.win-x64/([0-9][^"]*)"')
   if (-not $m.Success) { Fail "couldn't find the .NET runtime pack version in $($deps.FullName)" }
   $netVer = $m.Groups[1].Value
@@ -419,11 +419,11 @@ function Invoke-PackageStage {
   if (-not $SkipPortable) {
     $need += @($portExe, (Join-Path $outPort 'LICENSE.txt'), (Join-Path $outPort 'NOTICE.txt'),
       (Join-Path $outPort 'THIRD-PARTY-NOTICES.txt'),
-      (Join-Path $outPort 'data_ValTrainer_windows_x86_64\ValTrainer.dll'))
+      (Join-Path $outPort 'data_CaValAim_windows_x86_64\CaValAim.dll'))
   }
   if (-not $SkipInstaller) {
-    $need += @($instExe, (Join-Path $outInst $PckName), (Join-Path $outInst 'data_ValTrainer_windows_x86_64'),
-      (Join-Path $outInst 'data_ValTrainer_windows_x86_64\ValTrainer.dll'),
+    $need += @($instExe, (Join-Path $outInst $PckName), (Join-Path $outInst 'data_CaValAim_windows_x86_64'),
+      (Join-Path $outInst 'data_CaValAim_windows_x86_64\CaValAim.dll'),
       (Join-Path $outInst 'LICENSE.txt'), (Join-Path $outInst 'NOTICE.txt'),
       (Join-Path $outInst 'THIRD-PARTY-NOTICES.txt'))
   }
@@ -460,10 +460,10 @@ Run CA-VAL-AIM.exe - no installation needed. It reads your VALORANT settings (se
 keybinds, display) from %LOCALAPPDATA%\VALORANT\Saved\Config and never changes them.
 
 Files it creates:
-  %APPDATA%\ValTrainer                              settings, stats and recordings
-  %APPDATA%\Godot\app_userdata\ValTrainer           logs (logs\godot.log) and shader cache
-  %LOCALAPPDATA%\data_ValTrainer_windows_x86_64     .NET runtime, unpacked on first launch
-  %LOCALAPPDATA%\ValTrainer\updates                 automatic updates while they download (removed after updating)
+  %APPDATA%\CA-VAL-AIM                              settings, stats and recordings
+  %APPDATA%\Godot\app_userdata\CA-VAL-AIM           logs (logs\godot.log) and shader cache
+  %LOCALAPPDATA%\data_CaValAim_windows_x86_64       .NET runtime, unpacked on first launch
+  %LOCALAPPDATA%\CA-VAL-AIM\updates                 automatic updates while they download (removed after updating)
 To remove CA-VAL-AIM completely, delete this folder and those four.
 
 Updates: the UPDATE button in the menu checks GitHub on demand (also when automatic checks are off), downloads the
@@ -494,13 +494,13 @@ License: GNU GPL v3 (LICENSE.txt). Upstream copyright notice: NOTICE.txt. Third-
       # Inno Setup signs Setup.exe and the uninstaller with this command ($q = quote, $f = file).
       $signArgs = @('/DSIGN', ('/Ssigntool=$q' + $signtool + '$q sign /sha1 ' + $env:SIGNTOOL_CERT_THUMBPRINT + ' /fd sha256 /tr ' + $ts + ' /td sha256 /d $q' + $ProductName + ' Setup$q $f'))
     }
-    $ico = Join-Path $work 'ValTrainer.ico'
+    $ico = Join-Path $work 'CA-VAL-AIM.ico'
     New-Icon (Join-Path $Proj 'icon.png') $ico
     $repoMatch = [regex]::Match([System.IO.File]::ReadAllText((Join-Path $Proj 'src\Core\AppInfo.cs')), 'GitHubRepo\s*=\s*"([^"]+)"')
     $ghRepo = if ($repoMatch.Success) { $repoMatch.Groups[1].Value } else { 'Pyromesis/CA-VAL-AIM' }
     if (Test-Path -LiteralPath $setupPath) { Remove-Item -LiteralPath $setupPath -Force }
     $isccArgs = @('/Qp', "/DAppVersion=$Version", "/DAppFileVersion=$FileVersion", "/DSourceDir=$outInst", "/DIconFile=$ico",
-      "/DOutputDir=$OutDir", "/DGitHubRepo=$ghRepo", "/DAssetPrefix=$AssetPrefix") + $(if ($AllowNoMaps) { @('/DAllowNoMaps') } else { @() }) + $signArgs + @((Join-Path $Repo 'installer\ValTrainer.iss'))
+      "/DOutputDir=$OutDir", "/DGitHubRepo=$ghRepo", "/DAssetPrefix=$AssetPrefix") + $(if ($AllowNoMaps) { @('/DAllowNoMaps') } else { @() }) + $signArgs + @((Join-Path $Repo 'installer\CA-VAL-AIM.iss'))
     Invoke-Native $Iscc $isccArgs 'Inno Setup'
     if (-not (Test-Path -LiteralPath $setupPath)) { Fail "installer not produced: $setupPath" }
   } else {
@@ -564,7 +564,7 @@ try {
 
   if (-not $WorkDir) {
     $tmp = if ($env:RUNNER_TEMP) { $env:RUNNER_TEMP } else { [System.IO.Path]::GetTempPath() }
-    $WorkDir = Join-Path $tmp 'ValTrainer-build'
+    $WorkDir = Join-Path $tmp 'CA-VAL-AIM-build'
   }
   $work = $WorkDir
   if ($DoApp -or $DoPackage) { New-Item -ItemType Directory -Force $work | Out-Null }
@@ -603,7 +603,7 @@ try {
       Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue
     } elseif ($DoPackage) {
       # Only what this stage made: a project copy kept by "-Stage app -KeepWork" stays.
-      foreach ($d in @((Join-Path $work 'zip'), (Join-Path $work 'ValTrainer.ico'))) {
+      foreach ($d in @((Join-Path $work 'zip'), (Join-Path $work 'CA-VAL-AIM.ico'))) {
         if (Test-Path -LiteralPath $d) { Remove-Item -LiteralPath $d -Recurse -Force -ErrorAction SilentlyContinue }
       }
       if (-not (Get-ChildItem -LiteralPath $work -Force -ErrorAction SilentlyContinue)) { Remove-Item -LiteralPath $work -Force -ErrorAction SilentlyContinue }

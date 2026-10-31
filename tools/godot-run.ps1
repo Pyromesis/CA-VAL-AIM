@@ -3,7 +3,7 @@
   Runs ONE Godot command (headless test, import, export, CLI tool) while holding the machine-wide Godot slot.
 .DESCRIPTION
   Only one Godot process may run at a time on this PC: gshot.ps1, selftest.ps1 and this script all share the named
-  mutex "Global\ValTrainerGodotSlot" and wait for each other. (Several agents starting Godot at once once froze the PC.)
+  mutex "Global\CaValAimSlot" and wait for each other. (Several agents starting Godot at once once froze the PC.)
   The run is stopped after -Seconds (if given) or when Godot exits, whichever comes first; only the process tree this
   script started is ever stopped. Prints the exit code and any ERROR/Exception lines from the log.
 .EXAMPLE
@@ -25,7 +25,7 @@ if (-not $Godot) {
 if (-not $Godot -or -not (Test-Path $Godot)) { Write-Error "Godot not found (set `$env:GODOT)."; exit 2 }
 if (-not $Log) { $Log = Join-Path $env:TEMP ("godot-run-" + [guid]::NewGuid().ToString("N").Substring(0, 8) + ".log") }
 
-$slot = New-Object System.Threading.Mutex($false, "Global\ValTrainerGodotSlot")
+$slot = New-Object System.Threading.Mutex($false, "Global\CaValAimSlot")
 $waited = [Diagnostics.Stopwatch]::StartNew()
 try { [void]$slot.WaitOne() } catch [System.Threading.AbandonedMutexException] { }   # previous holder died: the slot is ours
 if ($waited.Elapsed.TotalSeconds -gt 2) { "[godot-run] waited {0:0}s for the Godot slot" -f $waited.Elapsed.TotalSeconds }
@@ -37,7 +37,7 @@ try {
   $limit = if ($Seconds -gt 0) { $Seconds } else { $MaxSeconds }
   $exited = $p.WaitForExit([int]($limit * 1000))
   if (-not $exited) {
-    # Stop only our own tree: children created after our process, named Godot*/ValTrainer*.
+    # Stop only our own tree: children created after our process, named Godot*/CA-VAL-AIM*.
     $all = @(Get-CimInstance Win32_Process -Property ProcessId, ParentProcessId, CreationDate, Name)
     $ids = @($p.Id); $frontier = @($p.Id)
     while ($frontier.Count -gt 0) {

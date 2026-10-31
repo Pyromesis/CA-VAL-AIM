@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-ValTrainer flash sound generator.
+CA-VAL-AIM flash sound generator.
 
 Renders every agent-flash sound (throw / flight / windup / pop per agent, Gekko's Dizzy set, and the universal
 "flashed" ring) as 44.1 kHz 16-bit mono WAVs by layered synthesis: filtered noise, FM, pitch sweeps, granular
@@ -11,7 +11,7 @@ sound follows the *descriptions* in the research notes (fire / rock / robot / ha
 Output is deterministic (fixed seeds), so re-running reproduces the same files bit for bit.
 
 Usage:
-    python flash_sfx.py                 # write WAVs to <ValTrainerGodot>/assets/audio/flash
+    python flash_sfx.py                 # write WAVs to <CaValAim>/assets/audio/flash
     python flash_sfx.py --out DIR       # write somewhere else
     python flash_sfx.py --review DIR    # also write a listing + spectrogram sheets for checking by eye
 
@@ -758,7 +758,7 @@ def write_wav(path: str, x: np.ndarray) -> None:
 
 def default_out() -> str:
     here = os.path.dirname(os.path.abspath(__file__))
-    for cand in (os.path.join(here, "..", "..", "ValTrainerGodot"), os.path.join(here, "..")):
+    for cand in (os.path.join(here, "..", "..", "CaValAim"), os.path.join(here, "..")):
         if os.path.isfile(os.path.join(cand, "project.godot")):
             return os.path.normpath(os.path.join(cand, "assets", "audio", "flash"))
     return os.path.join(here, "flash")

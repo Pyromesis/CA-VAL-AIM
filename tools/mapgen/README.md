@@ -63,7 +63,7 @@ wall.
 Rebuilds `collision.json` from every GLB listed in the map's `manifest.json`.
 
 ```
-python gen_collision.py "C:\path\to\ValTrainer\maps" lotus ascent
+python gen_collision.py "C:\path\to\CA-VAL-AIM\maps" lotus ascent
 ```
 
 * Reads triangle positions straight from the GLB binary chunks (no Blender needed).
@@ -94,11 +94,11 @@ Mirrors the runtime rules (`src/Game/Collision.cs`, `src/Game/MovementBody.cs`: 
 0.34, height 1.8, step 0.7, snap-down 0.32) and floods the floor from each spawn.
 
 ```
-python audit_collision.py "C:\path\to\ValTrainer\maps"            # current files
-python audit_collision.py "C:\path\to\ValTrainer\maps" collision.json.orig
+python audit_collision.py "C:\path\to\CA-VAL-AIM\maps"            # current files
+python audit_collision.py "C:\path\to\CA-VAL-AIM\maps" collision.json.orig
 ```
 
-For every map in `ValTrainerGodot/src/Maps/MapSpots.*.cs` it reports whether the spawn
+For every map in `CaValAim/src/Maps/MapSpots.*.cs` it reports whether the spawn
 is standable and whether the choke, the enemies, the plant spots and the retake entries
 can be reached on foot. Exit code 1 means something is broken — use it as a gate before
 shipping new collision. Findings are classified:
@@ -120,11 +120,11 @@ installer, which is why its spawn pocket is sealed off from the site.
 ## Shipping
 
 The map art is not in this repository. The release packages are assembled from the working
-install (`%LOCALAPPDATA%\Programs\ValTrainer\maps`), so regenerating collision means:
+install (`%LOCALAPPDATA%\Programs\CA-VAL-AIM\maps`), so regenerating collision means:
 
 ```
-python gen_collision.py "C:\Users\<you>\AppData\Local\Programs\ValTrainer\maps"
-python audit_collision.py "C:\Users\<you>\AppData\Local\Programs\ValTrainer\maps"
+python gen_collision.py "C:\Users\<you>\AppData\Local\Programs\CA-VAL-AIM\maps"
+python audit_collision.py "C:\Users\<you>\AppData\Local\Programs\CA-VAL-AIM\maps"
 ```
 
 then packaging that same `maps` folder. `collision.json.orig` is the file that shipped before
@@ -142,7 +142,7 @@ were sealed this way into the repository's (git-ignored) `dist-maps/maps`.
 Then the spawn audit, against the art:
 
 ```
-Godot --headless --path ValTrainerGodot -- --dev --data-dir <tmp> --valorant-dir <tmp> --maps-dir dist-maps --spawn-dump spawns.json
+Godot --headless --path CaValAim -- --dev --data-dir <tmp> --valorant-dir <tmp> --maps-dir dist-maps --spawn-dump spawns.json
 python audit_spawns.py dist-maps/maps spawns.json --full-pool --write-exclude --pairs 0
 ```
 

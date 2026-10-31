@@ -46,11 +46,11 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           # tools/godot-version.txt and the Godot.NET.Sdk version in the .csproj must agree.
-          $csproj = Get-Content ValTrainerGodot/ValTrainer.csproj -Raw
-          if ($csproj -notmatch 'Sdk="Godot\.NET\.Sdk/([^"]+)"') { throw "ValTrainer.csproj has no Godot.NET.Sdk version" }
+          $csproj = Get-Content CaValAim/CaValAim.csproj -Raw
+          if ($csproj -notmatch 'Sdk="Godot\.NET\.Sdk/([^"]+)"') { throw "CaValAim.csproj has no Godot.NET.Sdk version" }
           $sdk = $Matches[1]
           if ($env:GODOT_VERSION -like '*-stable' -and $sdk -ne ($env:GODOT_VERSION -replace '-stable$', '')) {
-            throw "ValTrainer.csproj uses Godot.NET.Sdk/$sdk but tools/godot-version.txt pins $env:GODOT_VERSION"
+            throw "CaValAim.csproj uses Godot.NET.Sdk/$sdk but tools/godot-version.txt pins $env:GODOT_VERSION"
           }
           # The app version (application/config/version in project.godot) is SemVer and has a CHANGELOG section.
           $v = ((& .\tools\version.ps1 6>&1 | Out-String) -split "`r?`n" | Where-Object { $_.Trim() } | Select-Object -Last 1).Trim()
@@ -58,28 +58,28 @@ jobs:
           $log = Get-Content CHANGELOG.md -Raw
           if ($log -notmatch '(?m)^## \[Unreleased\]') { throw "CHANGELOG.md has no '## [Unreleased]' section" }
           if ($log -notmatch "(?m)^## \[$([regex]::Escape($v))\]") { throw "CHANGELOG.md has no '## [$v]' section for the current version" }
-          Write-Host "ValTrainer $v, Godot $env:GODOT_VERSION, Godot.NET.Sdk $sdk"
+          Write-Host "CA-VAL-AIM $v, Godot $env:GODOT_VERSION, Godot.NET.Sdk $sdk"
 
       - name: Cache NuGet packages
         uses: actions/cache@v4
         with:
           path: ~/.nuget/packages
-          key: nuget-${{ runner.os }}-${{ hashFiles('ValTrainerGodot/*.csproj') }}
+          key: nuget-${{ runner.os }}-${{ hashFiles('CaValAim/*.csproj') }}
           restore-keys: nuget-${{ runner.os }}-
 
       - name: Build C#
-        run: dotnet build ValTrainerGodot/ValTrainer.csproj -nologo
+        run: dotnet build CaValAim/CaValAim.csproj -nologo
 
       # Imported textures, meshes and sounds (.godot/imported) only change when assets or their .import files do.
       - name: Cache imported assets
         uses: actions/cache@v4
         with:
-          path: ValTrainerGodot/.godot/imported
-          key: godot-imported-${{ steps.godot.outputs.version }}-${{ hashFiles('ValTrainerGodot/assets/**', 'ValTrainerGodot/icon.png', 'ValTrainerGodot/icon.png.import') }}
+          path: CaValAim/.godot/imported
+          key: godot-imported-${{ steps.godot.outputs.version }}-${{ hashFiles('CaValAim/assets/**', 'CaValAim/icon.png', 'CaValAim/icon.png.import') }}
           restore-keys: godot-imported-${{ steps.godot.outputs.version }}-
 
       - name: Import assets
-        run: '& $env:GODOT --headless --path ValTrainerGodot --import'
+        run: '& $env:GODOT --headless --path CaValAim --import'
 
       # Coach self-test, locale tests (invariant, de-DE, tr-TR) and a 5 s simulated-player run of every timed drill.
       # All runs use --dev with a throw-away data folder: nothing is read from or written to a real profile.

@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """Audit the map collision files against the drill definitions in MapSpots.*.cs.
 
 Mirrors the runtime rules in src/Game/Collision.cs and src/Game/MovementBody.cs
@@ -31,7 +31,7 @@ RISE = 1.2          # step-ups are 0.7, a crouch-jump clears ~1.2 m
 DROP = 6.0          # you may fall into the site; fall damage does not stop the drill
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-SPOTS = os.path.join(HERE, "..", "..", "ValTrainerGodot", "src", "Maps")
+SPOTS = os.path.join(HERE, "..", "..", "CaValAim", "src", "Maps")
 BASE = sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, "..", "..", "dist-maps", "maps")
 SURFACE = sys.argv[2] if len(sys.argv) > 2 else "collision.json"
 

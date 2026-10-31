@@ -15,7 +15,7 @@ an answer within a week, and credit in the release notes if you want it.
 
 ## What's in scope
 
-- The CA-VAL-AIM app: reading VALORANT's config files, saving settings, stats and recordings in `%APPDATA%\ValTrainer`,
+- The CA-VAL-AIM app: reading VALORANT's config files, saving settings, stats and recordings in `%APPDATA%\CA-VAL-AIM`,
   the update check (it only contacts `api.github.com` and only opens `https://github.com/` links) and the automatic
   updater (it only downloads this project's GitHub release files, and only runs a file whose SHA-256 matches the
   release's `SHA256SUMS.txt`).

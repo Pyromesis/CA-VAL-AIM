@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate ValTrainer collision.json from the extracted map GLBs.
+"""Generate CA-VAL-AIM collision.json from the extracted map GLBs.
 
 The shipped collision files were produced by a pipeline that only covered part of
 the art, which is why some maps have a sealed-off spawn island (you walk into an
@@ -495,7 +495,7 @@ def build_boxes(grid):
     return boxes
 
 
-SPOT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "ValTrainerGodot", "src", "Maps")
+SPOT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "CaValAim", "src", "Maps")
 _V = re.compile(r"V\(\s*(-?[\d.]+)f?\s*,\s*(-?[\d.]+)f?\s*,\s*(-?[\d.]+)f?\s*\)")
 
 
@@ -573,7 +573,7 @@ def generate(folder, cell=0.5, verbose=True):
 
 
 def main(argv):
-    base = argv[1] if len(argv) > 1 else r"C:\Users\berna\AppData\Local\Programs\ValTrainer\maps"
+    base = argv[1] if len(argv) > 1 else r"C:\Users\berna\AppData\Local\Programs\CA-VAL-AIM\maps"
     names = argv[2:] or sorted(d for d in os.listdir(base) if os.path.isdir(os.path.join(base, d)))
     for name in names:
         folder = os.path.join(base, name)

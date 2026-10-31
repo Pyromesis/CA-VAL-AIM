@@ -4,14 +4,14 @@ param(
   [string]$Name = "g",
   [string]$Exe = "",
   [string]$Extra = "",
-  [string]$ProjectPath = (Join-Path $PSScriptRoot "..\ValTrainerGodot"),
+  [string]$ProjectPath = (Join-Path $PSScriptRoot "..\CaValAim"),
   [switch]$Client   # save only the client area (no title bar / borders) at its native size, e.g. 1600x900
 )
-# Runs ValTrainer (Godot) in --dev mode (windowed 1600x900, no mouse capture, uncapped FPS, never writes stats)
+# Runs CA-VAL-AIM (Godot) in --dev mode (windowed 1600x900, no mouse capture, uncapped FPS, never writes stats)
 # and saves 960x540 screenshots of ITS OWN WINDOW CONTENTS at the given times (seconds).
 # Uses PrintWindow(PW_RENDERFULLCONTENT) so other windows covering the game are never captured.
 # Example: & tools\gshot.ps1 -Mode gridshot -At 5,8 -Name grid -Extra "--tier 2 --map bind"
-# Paths: -ProjectPath defaults to ..\ValTrainerGodot next to this script; screenshots and logs go to $env:GSHOT_OUT
+# Paths: -ProjectPath defaults to ..\CaValAim next to this script; screenshots and logs go to $env:GSHOT_OUT
 # (default %TEMP%\gshot); Godot is $env:GODOT (the .NET console exe) or the editor unpacked under tools\godot\.
 $ProjectPath = [System.IO.Path]::GetFullPath($ProjectPath)
 $sp = if ($env:GSHOT_OUT) { $env:GSHOT_OUT } else { Join-Path $env:TEMP "gshot" }
@@ -71,12 +71,12 @@ function Get-TreeIds([int]$root) {
     }
     $ids += $next; $frontier = $next
   }
-  # Only Godot / ValTrainer executables (conhost etc. exit on their own).
+  # Only Godot / CA-VAL-AIM executables (conhost etc. exit on their own).
   return @($ids | Where-Object { $byId.ContainsKey($_) -and $byId[$_].Name -match '^(Godot|ValTrainer|CA-VAL-AIM)' })
 }
 # One Godot at a time on this PC: gshot, godot-run.ps1 and selftest.ps1 share this slot (several agents starting Godot
 # at once froze the PC). An abandoned slot (holder crashed) is simply taken over.
-$slot = New-Object System.Threading.Mutex($false, "Global\ValTrainerGodotSlot")
+$slot = New-Object System.Threading.Mutex($false, "Global\CaValAimSlot")
 try { [void]$slot.WaitOne() } catch [System.Threading.AbandonedMutexException] { }
 $p = Start-Process $file -ArgumentList $argsList -PassThru -RedirectStandardOutput "$sp\$Name.out.log" -RedirectStandardError "$sp\$Name.err.log"
 $script:rootStart = $p.StartTime
@@ -86,7 +86,7 @@ foreach ($t in $At) {
   # The console launcher starts the game as a child process: look only at the process WE launched and its
   # descendants (concurrent runs by other agents/tools are never captured or killed).
   $ids = Get-TreeIds $p.Id
-  # Belt and braces: only a ValTrainer-titled window of a Godot/ValTrainer process from our own tree is ever captured.
+  # Belt and braces: only a CA-VAL-AIM-titled window of a Godot/ValTrainer process from our own tree is ever captured.
   $w = Get-Process -Id $ids -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne 0 -and $_.MainWindowTitle -match '^(CA-VAL-AIM|ValTrainer|ValTraining)' } | Select-Object -First 1
   if (-not $w) { "[$Name] no window at ${t}s"; continue }
   $h = $w.MainWindowHandle

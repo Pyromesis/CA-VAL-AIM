@@ -1,18 +1,18 @@
 name: Bug report
-description: Something in ValTrainer doesn't work, crashes or looks wrong.
+description: Something in CA-VAL-AIM doesn't work, crashes or looks wrong.
 labels: ["bug", "triage"]
 body:
   - type: markdown
     attributes:
       value: |
         Thanks for reporting! Please search the [existing issues](../issues?q=is%3Aissue) first.
-        Most of the details below are on **Settings → About** in ValTrainer. Its **COPY SYSTEM INFO** button copies
+        Most of the details below are on **Settings → About** in CA-VAL-AIM. Its **COPY SYSTEM INFO** button copies
         the version, renderer, GPU and folders; you can paste that into the "Log file" box below.
 
   - type: input
     id: version
     attributes:
-      label: ValTrainer version
+      label: CA-VAL-AIM version
       description: Settings → About, e.g. `1.0.0`.
       placeholder: "1.0.0"
     validations:
@@ -96,7 +96,7 @@ body:
     attributes:
       label: Log file
       description: |
-        Attach or paste `%APPDATA%\Godot\app_userdata\ValTrainer\logs\godot.log` (paste that path into the Explorer address bar).
+        Attach or paste `%APPDATA%\Godot\app_userdata\CA-VAL-AIM\logs\godot.log` (paste that path into the Explorer address bar).
         It contains your Windows user name in file paths; edit it out if you like.
       render: text
 
@@ -107,4 +107,4 @@ body:
       options:
         - label: I searched the existing issues and this isn't a duplicate.
           required: true
-        - label: If the game didn't start or stayed black, I tried the "ValTrainer (safe graphics)" shortcut or `--rendering-method gl_compatibility` (see the README's Troubleshooting).
+        - label: If the game didn't start or stayed black, I tried the "CA-VAL-AIM (safe graphics)" shortcut or `--rendering-method gl_compatibility` (see the README's Troubleshooting).

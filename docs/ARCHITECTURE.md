@@ -2,7 +2,7 @@
 
 This is the map of the codebase: what starts, what talks to what, how a drill becomes a grade and a replay, how a
 Lock-In is built, and how a release is published. The diagrams are Mermaid, so GitHub renders them; their boxes name
-the real classes, files and screens in `ValTrainerGodot/src`.
+the real classes, files and screens in `CaValAim/src`.
 
 **Contents**
 
@@ -40,7 +40,7 @@ flowchart LR
     P["Player"] --> APP["CA-VAL-AIM.exe"]
     subgraph PC["Your PC"]
         V["VALORANT config<br/>RiotUserSettings.ini<br/>GameUserSettings.ini<br/>BackupKeybinds.json"]
-        D["%APPDATA%/ValTrainer<br/>settings, stats, warmups,<br/>playlists, telemetry"]
+        D["%APPDATA%/CA-VAL-AIM<br/>settings, stats, warmups,<br/>playlists, telemetry"]
         L["logs/godot.log"]
         I["Install folder<br/>C:/Program Files/CA-VAL-AIM"]
     end
@@ -54,7 +54,7 @@ flowchart LR
     U -->|"install in place, restart"| APP
 ```
 
-- **Nothing is uploaded.** Settings, stats and telemetry stay in `%APPDATA%\ValTrainer`.
+- **Nothing is uploaded.** Settings, stats and telemetry stay in `%APPDATA%\CA-VAL-AIM`.
 - **VALORANT is untouched.** Its files are read to import sensitivity, crosshair, keybinds and display settings.
 - **The map set is not in Git.** Releases carry the 13 maps and the installer is the single download.
 
@@ -572,7 +572,7 @@ erDiagram
 | `telemetry/*.vtt` | Binary run: header, frames, shots, events | `Game/Telemetry.cs` |
 | `telemetry/*.vtr` | 3D Rewind sidecar: tracks compressed with zlib | `Game/Replay/ReplayFile.cs` |
 | `telemetry/recordings.json` | Index of which problem each kept run shows | `Game/RecordingStore.cs` |
-| `%LOCALAPPDATA%/ValTrainer/updates/update.json` | Download state, target version, install kind | `Core/Updater*.cs` |
+| `%LOCALAPPDATA%/CA-VAL-AIM/updates/update.json` | Download state, target version, install kind | `Core/Updater*.cs` |
 | `logs/godot.log` | The session log, rotated; a missing clean-exit line means a crash | `Core/Boot.cs` |
 
 A corrupt file is kept as `<name>.corrupt` and the app starts fresh instead of refusing to open.
@@ -619,7 +619,7 @@ stateDiagram-v2
     Failed --> Idle: next check
 ```
 
-- **The installer or the portable zip** is downloaded to `%LOCALAPPDATA%\ValTrainer\updates`; the SHA-256 is checked
+- **The installer or the portable zip** is downloaded to `%LOCALAPPDATA%\CA-VAL-AIM\updates`; the SHA-256 is checked
   against `SHA256SUMS.txt` before anything is applied.
 - **Applying happens at startup**, never mid-drill. The updater writes `update.json`, shows `UpdatingScreen`, runs the
   installer in place (or swaps the portable folder) and the new version starts.
@@ -646,9 +646,9 @@ flowchart TD
     K --> L["In-app updater"]
 ```
 
-- The tag must match `config/version` in `ValTrainerGodot/project.godot`; the workflow checks it before building.
+- The tag must match `config/version` in `CaValAim/project.godot`; the workflow checks it before building.
 - The installer contains the app, the .NET runtime and the full map set, installs for all users in
-  `C:\Program Files\CA-VAL-AIM`, and leaves `%APPDATA%\ValTrainer` untouched on upgrade.
+  `C:\Program Files\CA-VAL-AIM`, and leaves `%APPDATA%\CA-VAL-AIM` untouched on upgrade.
 - SignPath signs the binaries when `SIGNPATH_ORGANIZATION_ID` and `SIGNPATH_API_TOKEN` are configured; without them the
   release is built unsigned.
 
@@ -699,5 +699,5 @@ flowchart LR
 | Lock-In | `Warmup/*` |
 | Maps, real geometry, minimaps | `World/RealMap.cs`, `Maps/*`, `UI/MapArt.cs` |
 | Rewind | `UI/RewindScreen.cs`, `RewindView3D.cs`, `Game/Replay/*` |
-| Build, tests, installer | `tools/build-release.ps1`, `tools/selftest.ps1`, `installer/ValTrainer.iss` |
+| Build, tests, installer | `tools/build-release.ps1`, `tools/selftest.ps1`, `installer/CA-VAL-AIM.iss` |
 | CI and release | `.github/workflows/ci.yml`, `release.yml` |

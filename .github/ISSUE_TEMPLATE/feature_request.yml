@@ -25,7 +25,7 @@ body:
     id: problem
     attributes:
       label: What problem would it solve?
-      description: What do you want to practise or understand that ValTrainer doesn't help with yet?
+      description: What do you want to practise or understand that CA-VAL-AIM doesn't help with yet?
       placeholder: I lose most duels after jiggle-peeking, but no drill practises ...
     validations:
       required: true
@@ -48,7 +48,7 @@ body:
     id: rules
     attributes:
       label: Project rules
-      description: ValTrainer only reads VALORANT's config files and ships no Riot assets (see CONTRIBUTING.md).
+      description: CA-VAL-AIM only reads VALORANT's config files and ships no Riot assets (see CONTRIBUTING.md).
       options:
         - label: This doesn't need Riot art, models, sounds or maps, and doesn't need to touch the VALORANT process, its memory or its input.
           required: true

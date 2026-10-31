@@ -9,6 +9,14 @@
   drilled site letter plus the defenders you have spotted (they stay a moment after they break your sightline).
   It is drawn from the same collision data the 3D map uses, so walls and corridors match what you can walk.
 
+### Changed
+
+- **Everything is now called CA-VAL-AIM, inside and out.** The C# namespace and assembly are `CaValAim`, the project is
+  `CaValAim/CaValAim.csproj`, the exported data folder is `data_CaValAim_windows_x86_64` and the installer script is
+  `installer/CA-VAL-AIM.iss`. Your settings, stats and recordings move to `%APPDATA%\CA-VAL-AIM` and the logs to
+  `%APPDATA%\Godot\app_userdata\CA-VAL-AIM`; the first start copies the old `ValTrainer` folders over, so nothing is
+  lost. Release files keep the `ValTraining-` prefix only so copies from 1.16.1–1.17.0 can still update.
+
 ### Fixed
 
 - **Stairs no longer jump frame by frame.** The body still climbs a step instantly (the collision never changes), but

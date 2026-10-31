@@ -465,7 +465,7 @@ def compose_level(level_json: Path, out_path: Path, source: Path):
     # ---- merge groups and build glTF
     bin_ = Bin()
     js = {
-        "asset": {"version": "2.0", "generator": "ValTrainer compose_map.py"},
+        "asset": {"version": "2.0", "generator": "CA-VAL-AIM compose_map.py"},
         "scene": 0, "scenes": [{"nodes": [0]}],
         "nodes": [{"mesh": 0, "name": level_json.stem}],
         "meshes": [{"name": level_json.stem, "primitives": []}],

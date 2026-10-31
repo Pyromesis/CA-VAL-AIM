@@ -1,9 +1,9 @@
 <#
 .SYNOPSIS
-  ValTrainer's version: read it, bump it, or print a version's release notes.
+  CA-VAL-AIM's version: read it, bump it, or print a version's release notes.
 
 .DESCRIPTION
-  The single source of truth is application/config/version in ValTrainerGodot\project.godot
+  The single source of truth is application/config/version in CaValAim\project.godot
   (SemVer x.y.z, optionally -prerelease such as 1.1.0-beta.1). The exe's file/product version, the installer and
   the in-game "v1.0.0" all come from it.
 
@@ -31,7 +31,7 @@ param(
   [Parameter(ParameterSetName = 'Notes')][string]$OutFile,
   # Release date for the changelog heading (default: today, yyyy-MM-dd).
   [Parameter(ParameterSetName = 'Bump')][Parameter(ParameterSetName = 'Set')][string]$Date,
-  # Overrides (tests / other checkouts). Defaults: <repo>\ValTrainerGodot\project.godot and <repo>\CHANGELOG.md.
+  # Overrides (tests / other checkouts). Defaults: <repo>\CaValAim\project.godot and <repo>\CHANGELOG.md.
   [string]$ProjectFile,
   [string]$Changelog
 )
@@ -40,7 +40,7 @@ Set-StrictMode -Version 2
 $ErrorActionPreference = 'Stop'
 
 $repo = Split-Path -Parent $PSScriptRoot
-if (-not $ProjectFile) { $ProjectFile = Join-Path $repo 'ValTrainerGodot\project.godot' }
+if (-not $ProjectFile) { $ProjectFile = Join-Path $repo 'CaValAim\project.godot' }
 if (-not $Changelog) { $Changelog = Join-Path $repo 'CHANGELOG.md' }
 $utf8 = New-Object System.Text.UTF8Encoding($false)
 

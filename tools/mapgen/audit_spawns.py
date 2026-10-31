@@ -2,7 +2,7 @@
 """Check every spawn point the game produces against the map's real art.
 
     # 1. dump the spawns with the game's own code (Godot .NET console exe, dev build):
-    Godot --headless --path ValTrainerGodot -- --dev --data-dir <tmp> --valorant-dir <tmp> \
+    Godot --headless --path CaValAim -- --dev --data-dir <tmp> --valorant-dir <tmp> \
           --maps-dir <folder holding maps/> --spawn-dump spawns.json
     # 2. audit them against the art GLBs:
     python audit_spawns.py <maps dir> spawns.json [map ...] [--pairs 20000] [--json report.json]
@@ -42,7 +42,7 @@ import gen_collision as gc  # noqa: E402  (GLB reader + map frame)
 BUCKET = 2.0
 fresh_exclude = False  # --fresh-exclude: overwrite spawn_exclude.json instead of merging
 full_pool = False  # --full-pool: judge every Deathmatch pool node instead of a 3000-node sample
-SRC = os.path.join(HERE, "..", "..", "ValTrainerGodot", "src")
+SRC = os.path.join(HERE, "..", "..", "CaValAim", "src")
 
 
 # ---------------------------------------------------------------- art triangles

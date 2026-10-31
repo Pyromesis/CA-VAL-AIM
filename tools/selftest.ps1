@@ -1,13 +1,13 @@
 <#
 .SYNOPSIS
-  Headless self-tests for ValTrainer: the coach self-test (with the .vtr replay round trip), the locale (culture) tests, the bug report
+  Headless self-tests for CA-VAL-AIM: the coach self-test (with the .vtr replay round trip), the locale (culture) tests, the bug report
   checks, a short smoke test of the drills with the simulated player, the 3D Rewind sidecar check of those runs and the Rewind insights
   check (flawed simulated players must show their own problem moments).
 .DESCRIPTION
   Runs the same checks as CI (.github/workflows/ci.yml). Every run uses --dev with a throw-away --data-dir and an empty
   --valorant-dir, so your real settings, stats, telemetry and VALORANT config are never read or written; the script
   also fails if anything was written to the throw-away data folder.
-  Build the C# assembly first:  dotnet build ValTrainerGodot\ValTrainer.csproj
+  Build the C# assembly first:  dotnet build CaValAim\CaValAim.csproj
   Exit code: the number of failed checks (0 = all passed).
 .EXAMPLE
   tools\selftest.ps1
@@ -17,7 +17,7 @@
 param(
   # Godot .NET console executable. Default: $env:GODOT, else the editor unpacked under tools\godot\.
   [string]$Godot = $env:GODOT,
-  [string]$Project = (Join-Path $PSScriptRoot "..\ValTrainerGodot"),
+  [string]$Project = (Join-Path $PSScriptRoot "..\CaValAim"),
   # Drills for the smoke test (keys from src\Modes). Reaction Test and Sens Finder need real input and are left out.
   [string[]]$Modes = @("peek_mix", "flick", "gridshot", "spider", "tracking", "strafebots", "peek", "operator", "spray_vandal",
                        "spray_phantom", "spray_transfer", "counterstrafe", "peekduel", "siteclear", "flashmap", "deathmatch",
@@ -64,7 +64,7 @@ function Format-Arg([string]$a) {
 # Runs Godot, waits (killing only its own process tree on timeout) and returns the exit code and combined output.
 function Invoke-Godot([string]$Label, [string[]]$GodotArgs) {
   # One Godot at a time on this PC (shared with gshot.ps1 / godot-run.ps1: several Godot instances at once froze the PC).
-  $slot = New-Object System.Threading.Mutex($false, "Global\ValTrainerGodotSlot")
+  $slot = New-Object System.Threading.Mutex($false, "Global\CaValAimSlot")
   try { [void]$slot.WaitOne() } catch [System.Threading.AbandonedMutexException] { }
   try { return Invoke-GodotUnlocked $Label $GodotArgs }
   finally { try { $slot.ReleaseMutex() } catch { }; $slot.Dispose() }

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Turn composed level GLBs into complete ValTraining map folders.
+"""Turn composed level GLBs into complete CA-VAL-AIM map folders.
 
 For every map folder (``<out>/<key>`` holding the level GLBs written by compose_map.py and
 flatten_glb.py) this writes ``manifest.json`` and ``collision.json``:

@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="ValTrainerGodot/icon.png" width="104" alt="CA-VAL-AIM icon">
+  <img src="CaValAim/icon.png" width="104" alt="CA-VAL-AIM icon">
 </p>
 
 <h1 align="center">CA-VAL-AIM</h1>
@@ -66,15 +66,15 @@ flowchart LR
 - Settings, stats, maps and recordings are kept. Turn automatic checks off in Settings → About and the app only goes online when you ask.
 
 <details>
-<summary><b>Why some names still say ValTraining</b></summary>
+<summary><b>Why the release files still say ValTraining</b></summary>
 
-From 1.18.0 the app is called **CA-VAL-AIM**: window, menu, installer, shortcuts and executable (`CA-VAL-AIM.exe`). Nothing is lost, and some names stay on purpose:
+The app is called **CA-VAL-AIM**: window, menu, installer, shortcuts, executable (`CA-VAL-AIM.exe`), settings folder and source code. A few names stay on purpose:
 
 | What | Name | Why |
 |---|---|---|
 | Release downloads | `ValTraining-<version>-Setup.exe` | Copies from 1.16.1–1.17.0 only recognise this prefix, so they can still update to CA-VAL-AIM. The new app accepts `CA-VAL-AIM-`, `ValTraining-` and `ValTrainer-` files. |
-| Settings, stats, recordings | `%APPDATA%\ValTrainer` | Unchanged, so your data carries over. |
-| Logs and shader cache | `%APPDATA%\Godot\app_userdata\ValTrainer` | Unchanged, so the first start after the update doesn't recompile every shader. |
+| Settings, stats, recordings | `%APPDATA%\CA-VAL-AIM` | New folder. The first start copies whatever a 2.3.0 or older copy kept in `%APPDATA%\ValTrainer`, so your data carries over. |
+| Logs and shader cache | `%APPDATA%\Godot\app_userdata\CA-VAL-AIM` | New folder, for the same reason. |
 | GitHub repository | `Pyromesis/CA-VAL-AIM` | Renamed with the app (it was `Pyromesis/ValTraining`). Old links redirect. 1.16.1–1.17.0 may show **OPEN DOWNLOAD** once, because GitHub rewrites download URLs after a rename. |
 | Install folder | your existing folder | Updates install over the previous version, in the same folder and mode. New installs go to `C:\Program Files\CA-VAL-AIM`; `/CURRENTUSER` keeps a per-user copy in `%LOCALAPPDATA%\Programs`. |
 
@@ -165,7 +165,7 @@ The Vandal and Phantom patterns are measured from the real sprays ([SprayTrace](
 
 ## Aim coach
 
-Every run records your mouse input, crosshair path, shots and events to `%APPDATA%\ValTrainer\telemetry` (the 80 most recent runs are kept). The coach turns them into:
+Every run records your mouse input, crosshair path, shots and events to `%APPDATA%\CA-VAL-AIM\telemetry` (the 80 most recent runs are kept). The coach turns them into:
 
 | | |
 |---|---|
@@ -198,7 +198,7 @@ Startup, screens, the drill library and session loop, the aim and weapon model, 
 ## Privacy
 
 - **Nothing is uploaded on its own.** No account, no analytics, no telemetry leaves your PC.
-- Settings, stats and recordings stay in `%APPDATA%\ValTrainer`. Delete that folder to reset everything.
+- Settings, stats and recordings stay in `%APPDATA%\CA-VAL-AIM`. Delete that folder to reset everything.
 - The only traffic is the update check to `api.github.com` and the download of a new release. Turn updates off in Settings → About and CA-VAL-AIM never goes online on its own.
 - This build has no in-game bug-report relay and no Discord integration. Use the [GitHub issue tracker](https://github.com/Pyromesis/CA-VAL-AIM/issues) for bugs and feature requests.
 
@@ -206,7 +206,7 @@ Startup, screens, the drill library and session loop, the aim and weapon model, 
 
 - **The game won't start or the screen stays black:** open **CA-VAL-AIM (safe graphics)** from the Start menu, or run `CA-VAL-AIM.exe --rendering-method gl_compatibility` (`ValTrainer.exe` on 1.17.0 and older).
 - In compatibility mode the **first start can freeze for up to about 30 s** while shaders compile; later starts are fast.
-- **Where things are:** settings and stats in `%APPDATA%\ValTrainer`; logs in `%APPDATA%\Godot\app_userdata\ValTrainer\logs`. Settings → About opens both and copies your system info.
+- **Where things are:** settings and stats in `%APPDATA%\CA-VAL-AIM`; logs in `%APPDATA%\Godot\app_userdata\CA-VAL-AIM\logs`. Settings → About opens both and copies your system info.
 - A damaged settings or stats file is kept as `*.corrupt` and the app starts fresh.
 - Numbers use `.` in settings, stats and exports; Spanish sentences use the decimal comma.
 - Still stuck? [Open an issue](https://github.com/Pyromesis/CA-VAL-AIM/issues/new/choose) and attach `godot.log`.
@@ -215,7 +215,7 @@ Startup, screens, the drill library and session loop, the aim and weapon model, 
 
 CA-VAL-AIM uses **Godot 4.7.2 .NET** and the **.NET 8 SDK**. [CONTRIBUTING.md](CONTRIBUTING.md) covers building, running, testing, the dev flags, the project layout and the release process.
 
-The `maps/` folder (2.3 GB) is not tracked in Git. Every release ships all 13 extracted maps; the release workflow takes them from the `maps` pre-release (`maps.zip`). `tools/build-release.ps1` and `installer/ValTrainer.iss` stop if a map is missing, so a release can never go out without them. An install without the folder falls back to the blockout maps.
+The `maps/` folder (2.3 GB) is not tracked in Git. Every release ships all 13 extracted maps; the release workflow takes them from the `maps` pre-release (`maps.zip`). `tools/build-release.ps1` and `installer/CA-VAL-AIM.iss` stop if a map is missing, so a release can never go out without them. An install without the folder falls back to the blockout maps.
 
 ## License, credits and legal
 
@@ -225,6 +225,6 @@ CA-VAL-AIM is free software: you can redistribute it and/or modify it under the 
 
 CA-VAL-AIM (formerly ValTraining) is a modified version of **ValTrainer** ([idoraz1/ValTrainer](https://github.com/idoraz1/ValTrainer)), copyright (C) 2026 ValTrainer contributors, also under GPL-3.0-or-later. The original copyright notice and GPL terms are preserved in [NOTICE](NOTICE), which the installer ships as `NOTICE.txt`; the modified source is this repository.
 
-All 3D models, textures, skies and recorded sounds are CC0 (public domain), except the official VALORANT map minimaps and the optional extracted map geometry in `maps/` (© Riot Games, not CC0; see [ValTrainerGodot/CREDITS.md](ValTrainerGodot/CREDITS.md)). The Godot Engine and the bundled .NET runtime are MIT-licensed. CC0 and MIT are compatible with the GPL; the installer includes all notices in `THIRD-PARTY-NOTICES.txt`.
+All 3D models, textures, skies and recorded sounds are CC0 (public domain), except the official VALORANT map minimaps and the optional extracted map geometry in `maps/` (© Riot Games, not CC0; see [CaValAim/CREDITS.md](CaValAim/CREDITS.md)). The Godot Engine and the bundled .NET runtime are MIT-licensed. CC0 and MIT are compatible with the GPL; the installer includes all notices in `THIRD-PARTY-NOTICES.txt`.
 
 CA-VAL-AIM is fan-made and is not endorsed by or affiliated with Riot Games. VALORANT and its agent and map names are trademarks of Riot Games, Inc.

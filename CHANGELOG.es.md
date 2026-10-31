@@ -10,6 +10,15 @@
   te pierden de vista). Se dibuja con los mismos datos de colisión que el mapa 3D, así que las paredes y los pasillos
   coinciden con lo que puedes recorrer.
 
+### Cambiado
+
+- **Todo se llama ahora CA-VAL-AIM, por dentro y por fuera.** El espacio de nombres y el ensamblado de C# son
+  `CaValAim`, el proyecto es `CaValAim/CaValAim.csproj`, la carpeta de datos exportada es
+  `data_CaValAim_windows_x86_64` y el script del instalador es `installer/CA-VAL-AIM.iss`. Tus ajustes, estadísticas y
+  grabaciones pasan a `%APPDATA%\CA-VAL-AIM` y los registros a `%APPDATA%\Godot\app_userdata\CA-VAL-AIM`; el primer
+  arranque copia las antiguas carpetas `ValTrainer`, así que no se pierde nada. Los archivos de lanzamiento conservan
+  el prefijo `ValTraining-` solo para que las copias de 1.16.1–1.17.0 puedan seguir actualizándose.
+
 ### Corregido
 
 - **Las escaleras ya no suben fotograma a fotograma.** El cuerpo sigue subiendo el escalón al instante (la colisión no

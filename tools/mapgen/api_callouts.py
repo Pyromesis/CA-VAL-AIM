@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Print a map's callouts (valorant-api.com /v1/maps) in the ValTraining game frame.
+"""Print a map's callouts (valorant-api.com /v1/maps) in the CA-VAL-AIM game frame.
 
     game = (uy, uz, -ux) / 100 + origin
 

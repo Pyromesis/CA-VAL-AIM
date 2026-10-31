@@ -10,9 +10,9 @@ CA-VAL-AIM was called ValTraining up to 1.17.0. Thanks for helping! Bug reports,
 2. **Keep the repository free of Riot assets.** Do not commit extracted map geometry, minimaps, art, models, textures,
    sounds or other Riot IP. The release packages include an optional `maps/` folder with extracted map data for
    interoperability; that folder is git-ignored and is not part of the source repository. See `NOTICE` and
-   `ValTrainerGodot/CREDITS.md`.
+   `CaValAim/CREDITS.md`.
 3. **Dev runs never write user data.** Anything started with `--dev` must not write settings, stats or telemetry to the
-   player's data folder (`%APPDATA%\ValTrainer`). Tests that need saving use `--dev --data-dir <temp folder>
+   player's data folder (`%APPDATA%\CA-VAL-AIM`). Tests that need saving use `--dev --data-dir <temp folder>
    --write-data`.
 4. **Nothing leaves the PC** except the optional update check to `api.github.com` and the download of a newer release
    from this project's GitHub Releases. There is no analytics, telemetry upload, in-app bug relay or Discord integration.
@@ -33,16 +33,16 @@ CA-VAL-AIM was called ValTraining up to 1.17.0. Thanks for helping! Bug reports,
 From the repository root in PowerShell:
 
 ```powershell
-dotnet build ValTrainerGodot\ValTrainer.csproj           # compile the C# code
-& $env:GODOT --headless --path ValTrainerGodot --import  # first time and after adding assets
-& $env:GODOT --path ValTrainerGodot -- --dev             # run it (windowed, never saves anything)
-& $env:GODOT -e --path ValTrainerGodot                   # or open the editor
+dotnet build CaValAim\CaValAim.csproj           # compile the C# code
+& $env:GODOT --headless --path CaValAim --import  # first time and after adding assets
+& $env:GODOT --path CaValAim -- --dev             # run it (windowed, never saves anything)
+& $env:GODOT -e --path CaValAim                   # or open the editor
 ```
 
 Godot's own options go **before** `--`; CA-VAL-AIM's options go **after** it:
 
 ```powershell
-& $env:GODOT --path ValTrainerGodot -- --dev --mode flick --tier 2
+& $env:GODOT --path CaValAim -- --dev --mode flick --tier 2
 ```
 
 Useful dev flags:
@@ -50,7 +50,7 @@ Useful dev flags:
 | Flag | What it does |
 |---|---|
 | `--dev` | Dev mode: no writes to the real data folder, extra tools and debug output. |
-| `--data-dir <dir>` | Uses this folder instead of `%APPDATA%\ValTrainer` (add `--write-data` to save). |
+| `--data-dir <dir>` | Uses this folder instead of `%APPDATA%\CA-VAL-AIM` (add `--write-data` to save). |
 | `--lang es` | Spanish UI for this run. |
 | `--map <name>` | Starts a map directly (dev). |
 | `--rifle vandal\|phantom` | Selects the primary rifle for this run. |
@@ -58,12 +58,12 @@ Useful dev flags:
 | `--print-licenses <file>` | Writes the third-party notices and exits. |
 
 Run `tools\selftest.ps1` for the automated checks. The test tools and dev flags are documented in
-[`ValTrainerGodot/docs/`](ValTrainerGodot/docs/).
+[`CaValAim/docs/`](CaValAim/docs/).
 
 ## Project layout
 
 ```
-ValTrainerGodot/         the Godot project
+CaValAim/         the Godot project
   src/Main.cs            app root: settings, VALORANT import, screen switching
   src/Core/              app info, paths, updates, logging, boot
   src/Game/              movement, collision, weapons, replay
@@ -80,7 +80,7 @@ maps/                    optional extracted geometry (release only, git-ignored)
 
 Releases are built on Windows and published manually:
 
-1. Set the version in `ValTrainerGodot/project.godot` (`application/config/version`) and add a `CHANGELOG.md` section.
+1. Set the version in `CaValAim/project.godot` (`application/config/version`) and add a `CHANGELOG.md` section.
 2. Build and test the C# code, then export the Windows .NET build.
 3. Stage the exported app (`-Stage app` writes `LICENSE.txt`, `NOTICE.txt` and `THIRD-PARTY-NOTICES.txt` beside it)
    and copy the full `maps/` folder next to it.
@@ -90,7 +90,7 @@ Releases are built on Windows and published manually:
 **Every release ships all 13 maps**, and the tooling enforces it: `tools\build-release.ps1` checks the map set (13
 folders with `collision.json` and their GLBs, at least 1 GB) before it starts, copies it into the installer's staging
 folder, verifies the copy and aborts if anything is missing (`-AllowNoMaps` exists for local experiments only).
-`installer\ValTrainer.iss` refuses to compile without `maps\`, so a map-less installer cannot be produced by accident.
+`installer\CA-VAL-AIM.iss` refuses to compile without `maps\`, so a map-less installer cannot be produced by accident.
 
 The set is 2.3 GB, git-ignored, and published once as `maps.zip` in the **`maps` pre-release** (2.3 GB of folders,
 752 MB zipped, `maps/<key>/` at the archive root). The Release workflow downloads and unpacks it when the checkout has
@@ -107,18 +107,22 @@ still builds one for local use, and the in-app updater still handles portable co
 place, keeping its file name, so an old portable `ValTrainer.exe` stays `ValTrainer.exe`). A portable copy only updates
 itself if a release carries a `-Portable.zip`; otherwise it shows the update and opens the release page.
 
-**Names after the rename (1.18.0).** The product name in the app, the installer and the exe's version resource is
-**CA-VAL-AIM**, and the executable is `CA-VAL-AIM.exe` (`CA-VAL-AIM.pck` next to it). Some names stay on purpose:
+**Names after the rename (2.4.0).** The product name in the app, the installer and the exe's version resource is
+**CA-VAL-AIM**, and the executable is `CA-VAL-AIM.exe` (`CA-VAL-AIM.pck` next to it). Internal names follow it:
 
+- **The C# namespace and assembly are `CaValAim`**, the project is `CaValAim/CaValAim.csproj`, and the exported data
+  folder is `data_CaValAim_windows_x86_64` (the export names it after the assembly). The installer still removes a
+  `data_ValTrainer_windows_x86_64` left by 2.3.0 and older.
+- **The data folders move to `%APPDATA%\CA-VAL-AIM`** (settings, stats, telemetry) and
+  `%APPDATA%\Godot\app_userdata\CA-VAL-AIM` (logs, shader cache; `config/custom_user_dir_name` in `project.godot`).
+  On first start `Paths.MigrateLegacy` copies whatever a pre-2.4 copy kept in the old `ValTrainer` folders.
+- **The installer's AppId GUID never changes** (that is what makes Setup an upgrade instead of a second copy); the
+  script is `installer/CA-VAL-AIM.iss`.
 - **Release files keep the `ValTraining-<version>-...` prefix** (`UpdateAssets.ReleasePrefix` in
-  `src/Core/UpdateCheck.cs`, `$AssetPrefix` in `tools/build-release.ps1`, `AssetPrefix` in `installer/ValTrainer.iss`).
+  `src/Core/UpdateCheck.cs`, `$AssetPrefix` in `tools/build-release.ps1`, `AssetPrefix` in `installer/CA-VAL-AIM.iss`).
   ValTraining 1.16.1–1.17.0 only download files named `ValTraining-...` or `ValTrainer-...`, so a `CA-VAL-AIM-...`
   file would never reach them. 1.18.0 and later accept all three prefixes (`UpdateAssets.Prefixes`); switch the prefix
   only once most players run 1.18.0 or newer.
-- **The data folders don't move:** `%APPDATA%\ValTrainer` (settings, stats, telemetry) and
-  `%APPDATA%\Godot\app_userdata\ValTrainer` (logs, shader cache; `config/custom_user_dir_name` in `project.godot`).
-- **Internal names don't change:** the C# namespace and assembly `ValTrainer` (hence `data_ValTrainer_windows_x86_64`),
-  the installer's `AppId` GUID and the `installer/ValTrainer.iss` file name.
 - **The GitHub repository was renamed to `Pyromesis/CA-VAL-AIM`** (1.18.0). GitHub redirects the old
   `Pyromesis/ValTraining` URLs (the API too), so older copies still find the project; `AppInfo.GitHubRepoLegacy` and
   `UpdateAssets.Trusted` also accept release links from the old name. Releases made after the rename use the new name in
