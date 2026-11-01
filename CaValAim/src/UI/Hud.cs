@@ -1045,13 +1045,35 @@ public partial class Hud : Control
         });
 
         Gap(left, 12);
-        left.AddChild(Cap(L("WEAPON", "ARMA"), 0.35f));
+        left.AddChild(Cap(L("RECOIL", "RETROCESO"), 0.34f));
         Gap(left, 2);
-        var weapon = new MWeaponSelector(overlay, k) { SizeFlagsHorizontal = SizeFlags.ShrinkBegin, Delay = 0.36f };
+        var recoil = new MToggle
+        {
+            K = k, On = st.RecoilEnabled, Delay = 0.35f, CustomMinimumSize = new Vector2(130 * k, 30 * k),
+            TooltipText = L("The camera climbs with the spray, as in VALORANT. Off: the shots still spread",
+                "La cámara sube con el spray, como en VALORANT. Apagado: los disparos siguen dispersando"),
+        };
+        recoil.Changed = on =>
+        {
+            st.RecoilEnabled = on;
+            st.Save();
+            if (s.Gun != null) s.Gun.RecoilOn = on;
+        };
+        left.AddChild(recoil);
+        left.AddChild(new MText
+        {
+            K = k, Font = UiTheme.Body, Px = 11.5f, Color = UiTheme.Faint, Delay = 0.36f,
+            Text = L("camera stays put · spread still applies", "la cámara no sube · la dispersión sigue"),
+        });
+
+        Gap(left, 12);
+        left.AddChild(Cap(L("WEAPON", "ARMA"), 0.37f));
+        Gap(left, 2);
+        var weapon = new MWeaponSelector(overlay, k) { SizeFlagsHorizontal = SizeFlags.ShrinkBegin, Delay = 0.38f };
         left.AddChild(weapon);
         left.AddChild(new MText
         {
-            K = k, Font = UiTheme.Body, Px = 11.5f, Color = UiTheme.Faint, Delay = 0.37f,
+            K = k, Font = UiTheme.Body, Px = 11.5f, Color = UiTheme.Faint, Delay = 0.39f,
             Text = L("every drill · applies from the next run", "cada ejercicio · se aplica en la próxima partida"),
         });
 

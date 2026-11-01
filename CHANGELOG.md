@@ -8,6 +8,9 @@
   rotates with your view so the white arrow always points where you aim, is clipped to its square, and shows the
   drilled site letter plus the defenders you have spotted (they stay a moment after they break your sightline).
   It is drawn from the same collision data the 3D map uses, so walls and corridors match what you can walk.
+- **Recoil can be switched off from the pause menu.** The RECOIL switch stops the camera from climbing with the
+  spray while the bullets keep their spread, so you can train crosshair placement or watch a pattern without fighting
+  the kick. It is saved with the rest of your settings and applies to the current gun immediately.
 
 ### Changed
 
@@ -16,6 +19,11 @@
   taper, a bloused cuff and soft cloth folds, and it is lit so you can read its shape. The Vandal and Phantom were
   rebuilt from scratch: chamfered receivers with ejection ports and selectors, full-length rails, slim handguards,
   raked grips, curved six-segment magazines and solid stocks with cheek pads and accent plates.
+- **Sheriff and Operator, modelled from scratch.** The last two imported guns are now built by the game: the Sheriff
+  has a blued frame, a fluted stainless cylinder, a spurred hammer, a ventilated rib and a walnut grip with brass
+  medallions; the Operator has a flat-sided action, a fluted heavy barrel with a muzzle brake, a 48 mm scope with
+  turrets and two rings, an adjustable cheek piece and a bolt the reload actually cycles. The bolt handle lines up
+  with the hand that pulls it, and the support hand grips the front of the handguard.
 - **Everything is now called CA-VAL-AIM, inside and out.** The C# namespace and assembly are `CaValAim`, the project is
   `CaValAim/CaValAim.csproj`, the exported data folder is `data_CaValAim_windows_x86_64` and the installer script is
   `installer/CA-VAL-AIM.iss`. Your settings, stats and recordings move to `%APPDATA%\CA-VAL-AIM` and the logs to

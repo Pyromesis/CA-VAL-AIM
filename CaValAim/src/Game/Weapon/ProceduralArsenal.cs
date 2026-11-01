@@ -23,9 +23,9 @@ public static class ProceduralArsenal
     static Transform3D RZ(float deg) => new(new Basis(Vector3.Back, Mathf.DegToRad(deg)), Vector3.Zero);
 
     public static bool Has(WeaponKind k) => k is WeaponKind.Classic or WeaponKind.Shorty or WeaponKind.Frenzy or WeaponKind.Ghost
-        or WeaponKind.Bandit or WeaponKind.Stinger or WeaponKind.Spectre or WeaponKind.Bucky or WeaponKind.Judge or WeaponKind.Bulldog
-        or WeaponKind.Guardian or WeaponKind.Warden or WeaponKind.Marshal or WeaponKind.Outlaw or WeaponKind.Ares or WeaponKind.Odin
-        or WeaponKind.Knife;
+        or WeaponKind.Sheriff or WeaponKind.Bandit or WeaponKind.Stinger or WeaponKind.Spectre or WeaponKind.Bucky or WeaponKind.Judge
+        or WeaponKind.Bulldog or WeaponKind.Guardian or WeaponKind.Warden or WeaponKind.Marshal or WeaponKind.Operator or WeaponKind.Outlaw
+        or WeaponKind.Ares or WeaponKind.Odin or WeaponKind.Knife;
 
     /// <summary>Mesh buckets of one gun (one material slot each).</summary>
     sealed class Kit
@@ -58,6 +58,7 @@ public static class ProceduralArsenal
                 k.AccentCol = new Color(0.80f, 0.68f, 0.30f);
                 break;
             case WeaponKind.Shorty: Shorty(k); break;
+            case WeaponKind.Sheriff: Sheriff(k); break;
             case WeaponKind.Knife: Knife(k); break;
             case WeaponKind.Stinger: Smg(k, suppressed: false); break;
             case WeaponKind.Spectre: Smg(k, suppressed: true); break;
@@ -67,6 +68,7 @@ public static class ProceduralArsenal
             case WeaponKind.Guardian: Rifle(k, barrel: -0.760f, optic: 2, stock: 1); k.AccentCol = new Color(0.20f, 0.50f, 0.85f); break;
             case WeaponKind.Warden: Rifle(k, barrel: -0.720f, optic: 2, stock: 2); k.AccentCol = new Color(0.55f, 0.85f, 0.35f); break;
             case WeaponKind.Marshal: Sniper(k, outlaw: false); break;
+            case WeaponKind.Operator: Operator(k); break;
             case WeaponKind.Outlaw: Sniper(k, outlaw: true); break;
             case WeaponKind.Ares: Heavy(k, odin: false); break;
             case WeaponKind.Odin: Heavy(k, odin: true); break;
@@ -108,6 +110,95 @@ public static class ProceduralArsenal
         k.Mag.LoftY(magBottom, -0.060f, new Vector2(0.0118f, 0.0175f), new Vector2(0.0120f, 0.0180f), 0.044f, 0.036f, I);
         k.MagTrim.Box(new Vector3(0.0140f, 0.0040f, 0.0205f), T(0f, magBottom - 0.002f, 0.045f));
         k.Muzzle = new Vector3(0f, y + 0.002f, z0 - 0.008f);
+    }
+
+    // ------------------------------------------------------------------ Sheriff (six-shot revolver, pistol frame)
+
+    static void Sheriff(Kit k)
+    {
+        // Chunky six-shot revolver: wide frame, fluted swing-out cylinder, heavy barrel with a full
+        // underlug and a vented rib, spurred hammer and a walnut grip with brass medallions.
+        var cyl = T(0f, 0.0468f, -0.018f);
+        k.BodyCol = new Color(0.130f, 0.135f, 0.150f);   // blued frame
+        k.PolyCol = new Color(0.210f, 0.100f, 0.070f);   // walnut grip
+        k.AccentCol = new Color(0.840f, 0.660f, 0.300f); // brass
+
+        // Frame: top strap, bottom strap under the cylinder and a round recoil shield behind it.
+        k.Body.ChamferZ(-0.058f, 0.042f, new Vector2(0.0128f, 0.0040f), new Vector2(0.0132f, 0.0042f), 0.0774f, 0.0774f, 0.0018f);
+        k.Body.ChamferZ(-0.058f, 0.020f, new Vector2(0.0148f, 0.0062f), new Vector2(0.0152f, 0.0064f), 0.0205f, 0.0205f, 0.0025f);
+        k.Body.FacetTubeZ(0.016f, 0.034f, 0.0265f, 0.0265f, 16, 1f, 1f, T(0f, 0.0470f, 0f));
+        // Standing breech: a slim rounded column behind the shield that flows into the backstrap.
+        k.Body.ChamferPathY(new[]
+        {
+            (0.018f, 0.0150f, 0.0190f, 0.0480f),
+            (0.040f, 0.0146f, 0.0140f, 0.0480f),
+            (0.058f, 0.0138f, 0.0096f, 0.0470f),
+            (0.072f, 0.0124f, 0.0060f, 0.0460f),
+        }, 0.0040f, I);
+        // Rear sight: base, two ears and the notch between them, level with the front blade.
+        k.Metal.Box(new Vector3(0.0120f, 0.0025f, 0.0052f), T(0f, 0.0839f, 0.0300f));
+        k.Metal.Box(new Vector3(0.0038f, 0.0040f, 0.0050f), T(0.0050f, 0.0900f, 0.0300f));
+        k.Metal.Box(new Vector3(0.0038f, 0.0040f, 0.0050f), T(-0.0050f, 0.0900f, 0.0300f));
+        k.Dark.Box(new Vector3(0.0020f, 0.0020f, 0.0052f), T(0f, 0.0882f, 0.0300f));
+
+        // Cylinder: twelve facets, thin steel rings at both ends and six shallow flutes.
+        k.Metal.FacetTubeZ(-0.054f, 0.016f, 0.0225f, 0.0225f, 12, 1f, 1f, cyl);
+        k.Metal.FacetTubeZ(-0.054f, -0.050f, 0.0234f, 0.0234f, 12, 1f, 1f, cyl);
+        k.Metal.FacetTubeZ(0.012f, 0.016f, 0.0234f, 0.0234f, 12, 1f, 1f, cyl);
+        for (int i = 0; i < 6; i++)
+            k.Dark.Box(new Vector3(0.0022f, 0.0016f, 0.0190f), cyl * RZ(i * 60f) * T(0f, 0.0221f, 0f));
+        // Crane / yoke at the front-left of the cylinder and the release latch on the left of the frame.
+        k.Metal.RoundBox(new Vector3(0.0030f, 0.0085f, 0.0090f), 0.45f, T(-0.0200f, 0.0468f, -0.0560f));
+        k.Metal.Box(new Vector3(0.0032f, 0.0042f, 0.0110f), T(-0.0252f, 0.052f, 0.038f));
+
+        // Barrel: heavy tube, full underlug, vented top rib and the front sight blade.
+        k.Metal.FacetTubeZ(-0.190f, -0.050f, 0.0125f, 0.0135f, 14, 1f, 1f, T(0f, 0.0645f, 0f));
+        k.Body.ChamferZ(-0.184f, -0.050f, new Vector2(0.0105f, 0.0090f), new Vector2(0.0108f, 0.0094f), 0.0440f, 0.0440f, 0.0030f);
+        k.Body.ChamferZ(-0.184f, -0.048f, new Vector2(0.0052f, 0.0034f), new Vector2(0.0054f, 0.0036f), 0.0790f, 0.0790f, 0.0018f);
+        for (int i = 0; i < 5; i++) k.Dark.Box(new Vector3(0.0034f, 0.0011f, 0.0080f), T(0f, 0.0827f, -0.170f + i * 0.026f));
+        k.Metal.FacetTubeZ(-0.193f, -0.188f, 0.0145f, 0.0145f, 14, 1f, 1f, T(0f, 0.0645f, 0f));
+        k.Dark.FacetTubeZ(-0.194f, -0.192f, 0.0098f, 0.0098f, 14, 1f, 1f, T(0f, 0.0645f, 0f));
+        k.Metal.Box(new Vector3(0.0026f, 0.0070f, 0.0042f), T(0f, 0.0870f, -0.176f));                   // front sight
+        k.Dark.Box(new Vector3(0.0011f, 0.0036f, 0.0043f), T(0f, 0.0885f, -0.176f));
+        // Ejector rod down the underlug.
+        k.Metal.FacetTubeZ(-0.178f, -0.058f, 0.0046f, 0.0046f, 10, 1f, 1f, T(0f, 0.0335f, 0f));
+
+        // Spurred hammer: the shank rises out of the backstrap, the thumb spur leans back over the web.
+        k.Metal.Box(new Vector3(0.0034f, 0.0150f, 0.0070f), T(0f, 0.0650f, 0.0525f) * RX(-12f));
+        k.Metal.Box(new Vector3(0.0056f, 0.0042f, 0.0110f), T(0f, 0.0820f, 0.0600f) * RX(-34f));
+        k.Dark.Box(new Vector3(0.0040f, 0.0012f, 0.0112f), T(0f, 0.0848f, 0.0612f) * RX(-34f));
+        k.Body.RoundBox(new Vector3(0.0038f, 0.0125f, 0.0038f), 0.5f, T(0f, 0.0175f, -0.004f));
+        k.Body.RoundBox(new Vector3(0.0038f, 0.0038f, 0.0170f), 0.5f, T(0f, 0.0065f, 0.011f));
+        k.Body.RoundBox(new Vector3(0.0038f, 0.0115f, 0.0038f), 0.5f, T(0f, 0.0175f, 0.026f));
+        k.Metal.Box(new Vector3(0.0024f, 0.0100f, 0.0028f), T(0f, 0.0180f, 0.006f) * RX(-12f));
+
+        // Walnut grip: one chamfered loft along the rake (top -> swell -> butt), so it cannot read as a brick.
+        k.Poly.ChamferPathY(new[]
+        {
+            (0.024f, 0.0154f, 0.0234f, 0.0335f),
+            (0.000f, 0.0162f, 0.0252f, 0.0375f),
+            (-0.030f, 0.0164f, 0.0258f, 0.0425f),
+            (-0.058f, 0.0157f, 0.0249f, 0.0470f),
+            (-0.082f, 0.0147f, 0.0232f, 0.0505f),
+            (-0.099f, 0.0132f, 0.0205f, 0.0520f),
+        }, 0.0058f, I);
+        // Steel heel plate at the butt.
+        k.Metal.ChamferPathY(new[]
+        {
+            (-0.1020f, 0.0138f, 0.0210f, 0.0522f),
+            (-0.0965f, 0.0146f, 0.0224f, 0.0518f),
+        }, 0.0050f, I);
+        // Checkered panels and a brass medallion on each side, tilted with the rake.
+        foreach (float sx in new[] { 1f, -1f })
+        {
+            k.Dark.Box(new Vector3(0.0009f, 0.0310f, 0.0175f), T(sx * 0.0160f, -0.048f, 0.0450f) * RX(-8f));
+            k.Accent.FacetTubeZ(-0.0014f, 0.0014f, 0.0052f, 0.0052f, 14, 1f, 1f, T(sx * 0.0165f, -0.038f, 0.0435f) * RY(90));
+        }
+        // Grip screw and the front-strap groove.
+        k.Metal.FacetTubeZ(-0.0170f, 0.0170f, 0.0022f, 0.0022f, 8, 1f, 1f, T(0f, -0.030f, 0.0425f) * RY(90));
+        k.Dark.Box(new Vector3(0.0055f, 0.0018f, 0.0018f), T(0f, -0.020f, 0.0212f));
+
+        k.Muzzle = new Vector3(0f, 0.0645f, -0.194f);
     }
 
     static void Shorty(Kit k)
@@ -373,7 +464,125 @@ public static class ProceduralArsenal
         k.Poly.FacetTubeZ(-0.500f, -0.250f, 0.024f, 0.028f, 8, 1f, 0.8f, T(0f, 0.050f, 0f));                         // fore-end
     }
 
-    // ------------------------------------------------------------------ assembly
+    // ------------------------------------------------------------------ Operator (bolt-action sniper)
+
+    static void Operator(Kit k)
+    {
+        // Bolt-action sniper: tall flat-sided action, heavy fluted barrel with a muzzle brake, slim
+        // handguard, low-mounted scope with turrets and two rings, skeleton-free solid stock with a
+        // raised comb, adjustable cheek piece and a rubber butt pad. The bolt knob sits where the reload
+        // pose puts the palm (0.075, 0.045, 0.09) and its handle grows out of the receiver.
+        k.BodyCol = new Color(0.185f, 0.192f, 0.175f);   // olive receiver
+        k.PolyCol = new Color(0.200f, 0.208f, 0.188f);   // polymer stock
+        k.AccentCol = new Color(0.20f, 0.245f, 0.125f);  // muted olive accent
+        const float bore = 0.070f;
+
+        // Receiver, bedding block and the bolt raceway / ejection port.
+        k.Body.ChamferZ(-0.300f, 0.075f, new Vector2(0.0252f, 0.0295f), new Vector2(0.0262f, 0.0330f), 0.0580f, 0.0560f, 0.0060f);
+        k.Dark.ChamferZ(-0.290f, 0.066f, new Vector2(0.0205f, 0.0060f), new Vector2(0.0215f, 0.0075f), 0.0255f, 0.0255f, 0.0025f);
+        k.Dark.Box(new Vector3(0.0014f, 0.0130f, 0.0340f), T(0.0265f, 0.0660f, -0.038f));
+        k.Metal.Box(new Vector3(0.0012f, 0.0040f, 0.0240f), T(0.0268f, 0.0470f, 0.022f));
+        k.White.Box(new Vector3(0.0008f, 0.0035f, 0.0300f), T(0.0266f, 0.0500f, -0.150f));
+
+        // Picatinny rail: base, cross ribs and the bedding ring under the barrel.
+        k.Metal.ChamferZ(-0.225f, 0.048f, new Vector2(0.0126f, 0.0032f), new Vector2(0.0126f, 0.0032f), 0.0907f, 0.0907f, 0.0012f);
+        for (float z = -0.219f; z < 0.044f; z += 0.012f)
+            k.Metal.Box(new Vector3(0.0132f, 0.0014f, 0.0022f), T(0f, 0.0948f, z));
+        k.Metal.ChamferZ(-0.316f, -0.290f, new Vector2(0.0210f, 0.0210f), new Vector2(0.0198f, 0.0198f), 0.0580f, 0.0580f, 0.0040f);
+
+        // Barrel: heavy fluted shroud, slim tube and a ported muzzle brake.
+        k.Metal.FacetTubeZ(-0.845f, -0.290f, 0.0102f, 0.0118f, 14, 1f, 1f, T(0f, bore, 0f));
+        k.Metal.FacetTubeZ(-0.700f, -0.302f, 0.0150f, 0.0172f, 14, 1f, 1f, T(0f, bore, 0f));
+        for (int i = 0; i < 6; i++)
+            k.Dark.Box(new Vector3(0.0022f, 0.0010f, 0.1900f),
+                T(0f, bore, -0.500f) * RZ(i * 60f) * T(0f, 0.0170f, 0f));
+        k.Metal.FacetTubeZ(-0.878f, -0.842f, 0.0152f, 0.0142f, 12, 1f, 1f, T(0f, bore, 0f));
+        for (int i = 0; i < 3; i++)
+            k.Dark.Box(new Vector3(0.0075f, 0.0015f, 0.0045f), T(0f, bore + 0.0140f, -0.872f + i * 0.011f));
+        k.Dark.FacetTubeZ(-0.880f, -0.877f, 0.0100f, 0.0100f, 12, 1f, 1f, T(0f, bore, 0f));
+
+        // Slim handguard under the barrel, with M-LOK slots and a short bottom rail.
+        k.Body.ChamferZ(-0.560f, -0.300f, new Vector2(0.0235f, 0.0170f), new Vector2(0.0245f, 0.0190f), 0.0455f, 0.0435f, 0.0045f);
+        for (int s = -1; s <= 1; s += 2)
+            for (int i = 0; i < 4; i++)
+                k.Dark.Box(new Vector3(0.0012f, 0.0070f, 0.0180f), T(s * 0.0242f, 0.0470f, -0.535f + i * 0.058f));
+        for (int i = 0; i < 5; i++)
+            k.Dark.Box(new Vector3(0.0070f, 0.0012f, 0.0120f), T(0f, 0.0268f, -0.520f + i * 0.048f));
+        k.Metal.Box(new Vector3(0.0020f, 0.0035f, 0.0150f), T(0f, 0.0250f, -0.335f));
+
+        // Scope: 48 mm objective, 31 mm tube, ocular bell, turrets, rings and lens glints.
+        const float sc = 0.114f;
+        k.Metal.FacetTubeZ(-0.235f, 0.020f, 0.0155f, 0.0155f, 18, 1f, 1f, T(0f, sc, 0f));
+        k.Metal.FacetTubeZ(-0.358f, -0.233f, 0.0238f, 0.0160f, 18, 1f, 1f, T(0f, sc, 0f));
+        k.Metal.FacetTubeZ(0.018f, 0.052f, 0.0160f, 0.0230f, 18, 1f, 1f, T(0f, sc, 0f));
+        k.Dark.FacetTubeZ(-0.357f, -0.354f, 0.0202f, 0.0202f, 18, 1f, 1f, T(0f, sc, 0f));
+        k.Dark.FacetTubeZ(0.051f, 0.054f, 0.0205f, 0.0205f, 18, 1f, 1f, T(0f, sc, 0f));
+        k.Accent.FacetTubeZ(-0.359f, -0.357f, 0.0228f, 0.0228f, 18, 1f, 1f, T(0f, sc, 0f));
+        // Elevation turret (up) and windage turret (right).
+        k.Metal.FacetTubeZ(-0.032f, 0.010f, 0.0105f, 0.0105f, 12, 1f, 1f, T(0f, sc, -0.100f) * RX(90));
+        k.Dark.FacetTubeZ(-0.034f, -0.031f, 0.0090f, 0.0090f, 12, 1f, 1f, T(0f, sc, -0.100f) * RX(90));
+        k.Accent.FacetTubeZ(-0.020f, -0.018f, 0.0107f, 0.0107f, 12, 1f, 1f, T(0f, sc, -0.100f) * RX(90));
+        k.Metal.FacetTubeZ(-0.010f, 0.030f, 0.0095f, 0.0095f, 12, 1f, 1f, T(0f, sc, -0.100f) * RY(90));
+        k.Dark.FacetTubeZ(0.029f, 0.031f, 0.0082f, 0.0082f, 12, 1f, 1f, T(0f, sc, -0.100f) * RY(90));
+        foreach (float rz in new[] { -0.200f, -0.020f })
+        {
+            k.Metal.Box(new Vector3(0.0105f, 0.0065f, 0.0115f), T(0f, 0.0930f, rz));
+            k.Metal.FacetTubeZ(rz - 0.006f, rz + 0.006f, 0.0176f, 0.0176f, 16, 1f, 1f, T(0f, sc, 0f));
+            k.Dark.Box(new Vector3(0.0018f, 0.0050f, 0.0035f), T(0.0170f, 0.1060f, rz));
+        }
+
+        // Bolt: shroud, straight handle from the receiver down to the knob and a checkered knob.
+        k.Metal.FacetTubeZ(0.066f, 0.080f, 0.0150f, 0.0128f, 12, 1f, 1f, T(0f, 0.060f, 0f));
+        k.Metal.Capsule(0.0062f, 0.0640f, new Transform3D(VmMesh.Look(new Vector3(0.055f, -0.015f, 0.028f), Vector3.Up), T(0.020f, 0.060f, 0.062f).Origin));
+        k.Metal.RoundBox(new Vector3(0.0085f, 0.0085f, 0.0085f), 0.5f, T(0.0750f, 0.0450f, 0.0900f));
+        k.Dark.Box(new Vector3(0.0012f, 0.0070f, 0.0070f), T(0.0830f, 0.0450f, 0.0900f));
+
+        // Stock: solid wedge, raised comb, adjustable cheek piece, butt pad and sling loop.
+        k.Poly.ChamferZ(0.080f, 0.300f, new Vector2(0.0225f, 0.0220f), new Vector2(0.0210f, 0.0310f), 0.0450f, 0.0380f, 0.0055f);
+        k.Poly.ChamferZ(0.150f, 0.292f, new Vector2(0.0212f, 0.0060f), new Vector2(0.0202f, 0.0065f), 0.0660f, 0.0660f, 0.0040f);
+        k.Dark.ChamferZ(0.160f, 0.282f, new Vector2(0.0218f, 0.0030f), new Vector2(0.0208f, 0.0030f), 0.0730f, 0.0730f, 0.0025f);
+        k.Metal.FacetTubeZ(-0.0080f, 0.0080f, 0.0080f, 0.0080f, 12, 1f, 1f, T(0.0220f, 0.0500f, 0.226f) * RY(90));
+        k.Dark.Box(new Vector3(0.0012f, 0.0120f, 0.0450f), T(0.0226f, 0.0390f, 0.222f));
+        k.Accent.Box(new Vector3(0.0012f, 0.0022f, 0.0420f), T(0.0228f, 0.0570f, 0.222f));
+        k.Dark.ChamferZ(0.300f, 0.316f, new Vector2(0.0208f, 0.0310f), new Vector2(0.0198f, 0.0300f), 0.0380f, 0.0390f, 0.0040f);
+        k.Metal.ChamferZ(0.296f, 0.301f, new Vector2(0.0202f, 0.0308f), new Vector2(0.0206f, 0.0312f), 0.0382f, 0.0382f, 0.0035f);
+        k.Metal.FacetTubeZ(-0.0090f, 0.0090f, 0.0070f, 0.0070f, 12, 1f, 1f, T(0f, 0.0040f, 0.302f) * RY(90));
+
+        // Grip, trigger guard and trigger.
+        k.Poly.ChamferPathY(new[]
+        {
+            (0.024f, 0.0195f, 0.0240f, 0.052f),
+            (-0.014f, 0.0205f, 0.0252f, 0.058f),
+            (-0.052f, 0.0200f, 0.0248f, 0.066f),
+            (-0.090f, 0.0192f, 0.0235f, 0.074f),
+            (-0.120f, 0.0182f, 0.0220f, 0.080f),
+        }, 0.0060f, I);
+        k.Dark.Box(new Vector3(0.0009f, 0.0310f, 0.0160f), T(0.0200f, -0.055f, 0.062f) * RX(-10f));
+        k.Dark.Box(new Vector3(0.0009f, 0.0310f, 0.0160f), T(-0.0200f, -0.055f, 0.062f) * RX(-10f));
+        k.Body.RoundBox(new Vector3(0.0045f, 0.0140f, 0.0045f), 0.5f, T(0f, 0.0135f, -0.086f));
+        k.Body.RoundBox(new Vector3(0.0045f, 0.0045f, 0.0300f), 0.5f, T(0f, -0.0035f, -0.059f));
+        k.Body.RoundBox(new Vector3(0.0045f, 0.0130f, 0.0045f), 0.5f, T(0f, 0.0155f, -0.032f));
+        k.Metal.Box(new Vector3(0.0026f, 0.0110f, 0.0030f), T(0f, 0.0090f, -0.064f) * RX(-12f));
+
+        // Magazine: straight six-round box hanging under the action.
+        k.Mag.ChamferPathY(new[]
+        {
+            (0.024f, 0.0136f, 0.0290f, -0.118f),
+            (-0.020f, 0.0140f, 0.0296f, -0.124f),
+            (-0.058f, 0.0136f, 0.0286f, -0.132f),
+            (-0.072f, 0.0128f, 0.0270f, -0.135f),
+        }, 0.0050f, I);
+        k.MagTrim.ChamferPathY(new[]
+        {
+            (-0.080f, 0.0148f, 0.0298f, -0.136f),
+            (-0.070f, 0.0142f, 0.0290f, -0.135f),
+        }, 0.0048f, I);
+
+        // No bright receiver stripe: the only olive accents are the scope rings and the cheek piece.
+
+        k.Muzzle = new Vector3(0f, bore, -0.883f);
+    }
+
 
     static Node3D Assemble(Kit k)
     {

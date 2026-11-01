@@ -37,6 +37,7 @@ public sealed class AppSettings
     public bool Outlines = true;      // enemy outline + fresnel (Valorant: "Hide outlines and fresnel" off)
     public string TargetStyle = "valorant"; // aim-drill targets: "valorant" = dark body + enemy-colour outline/fresnel, "classic" = solid enemy-colour sphere
     public bool ViewModel = true;      // first-person gun
+    public bool RecoilEnabled = true;  // pause menu: camera climb from the weapon pattern (spread still applies)
     public bool LeftHandedWeapon;      // weapon hand: false = right (default), true = left (VALORANT's own setting is not used)
     public bool UseFinderCrosshair;    // crosshair: false = VALORANT's (imported), true = FinderCrosshairCode
     public string? FinderCrosshairCode; // VALORANT profile code from the Crosshair Finder ("Use in CA-VAL-AIM") or pasted (Settings → Crosshair); VALORANT itself is never changed

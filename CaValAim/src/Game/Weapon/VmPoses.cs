@@ -103,8 +103,8 @@ public sealed record VmPose(
         HipPos = new Vector3(0.22f, -0.175f, -0.36f), HipRot = new Vector3(-1f, -2f, -4f),
         AdsPos = new Vector3(0f, -0.114f, -0.12f), AdsRot = new Vector3(0f, 0f, 0f), // scope to the eye (then the overlay)
         Grip = GripAt(new Vector3(0f, -0.015f, 0.015f), 15f, PistolGrip),
-        Support = CupAt(new Vector3(0f, 0.01f, -0.33f)),
-        Bolt = new HandPlacement(new Vector3(0.075f, 0.045f, 0.09f), new Vector3(-0.5f, -0.1f, -0.86f), new Vector3(0.7f, 0.7f, 0f), new Vector3(0.4f, -0.4f, 0.8f), Pinch),
+        Support = CupAt(new Vector3(0f, 0.020f, -0.445f)),
+        Bolt = new HandPlacement(new Vector3(0.0975f, 0.0495f, 0.1287f), new Vector3(-0.5f, -0.1f, -0.86f), new Vector3(0.7f, 0.7f, 0f), new Vector3(0.4f, -0.4f, 0.8f), Pinch),
         Eject = new Vector3(0.02f, 0.06f, -0.04f),
         MagWell = new Vector3(0f, 0.0f, -0.12f), MagHalf = new Vector3(0.014f, 0.035f, 0.03f), MagCurve = 0f,
         KickBack = 0.05f, KickPitch = 8f, KickFreq = 17f, FlashScale = 1.5f, Shells = false, ShellLen = 0.06f, Equip = 0.8f,

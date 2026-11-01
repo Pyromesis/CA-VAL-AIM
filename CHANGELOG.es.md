@@ -9,6 +9,9 @@
   su cuadrado y muestra la letra del sitio del ejercicio y los defensores que ves (siguen un momento en el mapa cuando
   te pierden de vista). Se dibuja con los mismos datos de colisión que el mapa 3D, así que las paredes y los pasillos
   coinciden con lo que puedes recorrer.
+- **El retroceso se puede desactivar desde el menú de pausa.** El interruptor RETROCESO impide que la cámara suba con
+  el spray mientras las balas conservan su dispersión, para entrenar la colocación de la mira o estudiar un patrón sin
+  pelearte con el retroceso. Se guarda con el resto de ajustes y se aplica al arma actual al instante.
 
 ### Cambiado
 
@@ -18,6 +21,11 @@
   su forma. El Vandal y el Phantom se han reconstruido desde cero: receptor con chaflanes, puerto de expulsión y
   selector, raíles de longitud completa, guardamanos estrechos, empuñaduras inclinadas, cargadores curvos de seis
   tramos y culatas macizas con carrillera y placas de acento.
+- **Sheriff y Operator, modelados desde cero.** Las dos últimas armas importadas ya las construye el juego: el Sheriff
+  tiene armazón pavonado, tambor estriado de acero inoxidable, martillo con espolón, riel ventilado y empuñadura de
+  nogal con medallones de latón; el Operator tiene acción de lados planos, cañón pesado estriado con freno de boca,
+  visor de 48 mm con torretas y dos anillas, carrillera ajustable y un cerrojo que la recarga cicla de verdad. La
+  manivela del cerrojo coincide con la mano que lo tira y la mano de apoyo sujeta la parte delantera del guardamanos.
 - **Todo se llama ahora CA-VAL-AIM, por dentro y por fuera.** El espacio de nombres y el ensamblado de C# son
   `CaValAim`, el proyecto es `CaValAim/CaValAim.csproj`, la carpeta de datos exportada es
   `data_CaValAim_windows_x86_64` y el script del instalador es `installer/CA-VAL-AIM.iss`. Tus ajustes, estadísticas y

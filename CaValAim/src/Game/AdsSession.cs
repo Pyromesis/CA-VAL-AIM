@@ -43,7 +43,7 @@ public partial class GameSession
         if (viewmodel != null && IsInstanceValid(viewmodel)) viewmodel.QueueFree();
         viewmodel = null;
         weaponDef = def;
-        Gun = def != null ? new WeaponController(def) : null;
+        Gun = def != null ? new WeaponController(def) { RecoilOn = Main.I.Settings.RecoilEnabled } : null;
         Mover.Hold(def); // the gun sets the run / walk / crouch / aimed speeds and the accuracy deadzone
         if (def != null && !Mode.Is2D && Main.I.Settings.ViewModel)
         {

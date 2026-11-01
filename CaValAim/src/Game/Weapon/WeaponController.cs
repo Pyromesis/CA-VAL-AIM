@@ -16,6 +16,8 @@ namespace CaValAim.Game.Weapon;
 public sealed class WeaponController
 {
     public WeaponDef Def { get; private set; }
+    /// <summary>Pause menu option: off means the camera no longer climbs with the spray; the error cone remains.</summary>
+    public bool RecoilOn = true;
     public int Ammo, Reserve;
     public float ReloadLeft;
     public bool Reloading => ReloadLeft > 0;
@@ -123,8 +125,8 @@ public sealed class WeaponController
         // Camera follows the recoil (and drifts back as heat recovers).
         float crouchMul = mover.Crouching && mover.Speed < 0.5f ? 0.85f : 1f;
         float runMul = movementMode && mover.Speed > mover.WalkMax ? 1.8f : 1f;
-        view.RecoilPitch = WeaponDef.Lerp(Def.Pitch, heat) * crouchMul * runMul;
-        view.RecoilYaw = Def.FixedRecoil
+        view.RecoilPitch = RecoilOn ? WeaponDef.Lerp(Def.Pitch, heat) * crouchMul * runMul : 0f;
+        view.RecoilYaw = !RecoilOn ? 0f : Def.FixedRecoil
             ? WeaponDef.Lerp(Def.Yaw, heat) * crouchMul
             : sideBlend * WeaponDef.Lerp(Def.Yaw, yawHeat) * crouchMul;
 
