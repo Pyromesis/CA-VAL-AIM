@@ -4,6 +4,20 @@
 
 ### Added
 
+- **Community routines, guide and glossary.** The new **ROUTINES** screen collects eight Voltaic and cartoon VALORANT
+  routines: five playable adaptations to CA-VAL-AIM drills, two external Kovaak's playlists with copyable share codes
+  and the in-game VALORANT practice. Every step has plain-English and Spanish instructions on how to play it and why it
+  matters, plus the source scenario name and the official Voltaic Discord / website links. The same screen includes
+  cartoon's aim-training guide, a 126-term Voltaic glossary with search, and the full credits and legal notice. Built-in
+  routines can be saved as ordinary playlists; only the steps their source explicitly boosts change your sensitivity,
+  within safe cm/360 limits, and those runs stay out of your personal bests.
+- **Today's plan becomes a real playlist.** The coach now builds an ordered 3–4 step plan from your worst problems and
+  weakest skills, shows the recoil setting each step needs, and can create or start a playlist with every step and
+  setting already applied. The profile also ends with a written read of the whole picture: where you stand, the
+  biggest lever for your rank, what already works, the trend and the sensitivity verdict.
+- **Excel-style routine data.** **ROUTINES → DATA** shows every routine, step, glossary term and saved progress in a
+  table. **EXPORTAR CSV** writes four semicolon-separated UTF-8 tables with a BOM (`voltaic-routines.csv`,
+  `voltaic-routine-steps.csv`, `voltaic-glossary.csv` and `voltaic-progress.csv`) for Excel, LibreOffice or Sheets.
 - **Live minimap.** The top-right panel is now a real minimap instead of a fixed crop of the site: it follows you,
   rotates with your view so the white arrow always points where you aim, is clipped to its square, and shows the
   drilled site letter plus the defenders you have spotted (they stay a moment after they break your sightline).
@@ -14,6 +28,12 @@
 
 ### Changed
 
+- **The coach and the menu fit 1280×720.** Plan steps are now a vertical list, the profile's right column scrolls, and
+  buttons no longer force the page wider than the window. The menu's library categories use short labels and a spacer,
+  so the category row, filters and footer stay inside the minimum supported size.
+- **Playlists honour every run's length and recoil.** Coach playlists and community routines carry their own per-run
+  sensitivity, duration and camera-climb setting; the runner restores your recoil setting when the last run ends or when
+  you leave mid-playlist, and the playlist header now shows the real total duration.
 - **New first-person arms and rifles.** The hands are now a single continuous organic mesh — sculpted palm, thenar and
   hypothenar, knuckle ridge, glove pads, buckled oxblood cuff — instead of assembled capsules. The sleeve has a real
   taper, a bloused cuff and soft cloth folds, and it is lit so you can read its shape. The Vandal and Phantom were

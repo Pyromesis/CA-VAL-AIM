@@ -84,6 +84,17 @@ public static class CoachRank
         return UiTheme.NoTier;
     }
 
+    /// <summary>Rank name in the UI language ("DIAMANTE 3" / "DIAMOND 3"); used inside written coach sentences,
+    /// which cannot rely on the drawing-time translator because they are already Spanish.</summary>
+    public static string LocalName(float t)
+    {
+        if (!Rated(t)) return Loc.Spanish ? "SIN VALORAR" : "NOT RATED";
+        if (!Loc.Spanish) return Name(t);
+        string[] es = { "HIERRO", "BRONCE", "PLATA", "ORO", "PLATINO", "DIAMANTE", "ASCENDENTE", "INMORTAL", "RADIANTE" };
+        int i = Index(t);
+        return i == 8 ? es[8] : $"{es[i]} {Division(t)}";
+    }
+
     /// <summary>The trainer's own emblem for the matching tier band (Rookie = Iron–Bronze … Pro = Radiant).</summary>
     public static int EmblemTier(float t) => Rated(t) ? Math.Clamp((int)MathF.Round(t, MidpointRounding.AwayFromZero), 0, 4) : -1;
 
@@ -131,18 +142,21 @@ public static class CoachSkills
     };
 
     /// <summary>Drills that produce data for the skill (first = best).</summary>
-    public static string[] Drills(Skill s) => s switch
+    public static string[] Drills(Skill s) => CoachPlan.DrillsFor(s);
+
+    /// <summary>Short skill name in the UI language, for sentences built outside the drawing code.</summary>
+    public static string Local(Skill s) => Loc.Spanish ? s switch
     {
-        Skill.Flicking => new[] { "flick", "spider", "gridshot", "flickx:horizontal", "flickx:mid" },
-        Skill.Precision => new[] { "flick", "gridshot", "microx:tiny", "flickx:tiny" },
-        Skill.Tracking => new[] { "tracking", "strafebots", "trackv:slow", "trackv:fast" },
-        Skill.Reaction => new[] { "reaction", "reflex:centre", "reflex:near" },
-        Skill.CrosshairPlacement => new[] { "peek", "siteclear", "anchor" },
-        Skill.SprayControl => new[] { "spray_vandal", "spray_phantom" },
-        Skill.Movement => new[] { "counterstrafe", "peekduel" },
-        Skill.Utility => new[] { "flashmap" },
-        _ => Array.Empty<string>(),
-    };
+        Skill.Flicking => "Flick",
+        Skill.Precision => "Precisión",
+        Skill.Tracking => "Seguimiento",
+        Skill.Reaction => "Reacción",
+        Skill.CrosshairPlacement => "Colocación",
+        Skill.SprayControl => "Control de spray",
+        Skill.Movement => "Movimiento",
+        Skill.Utility => "Utilidad",
+        _ => s.ToString(),
+    } : Short(s);
 
     public static Color SeverityColor(Severity s) => s switch
     {
@@ -267,15 +281,24 @@ public static class CoachData
         Main.I.StartMode(make);
     }
 
-    /// <summary>The drills the empty state asks for, how many coached runs each needs and what they rate.</summary>
-    public static readonly (string Key, int Target, string Rates)[] Starter =
+    // ---------------- plan → playlist ----------------
+
+    /// <summary>
+    /// Turns the plan into a real playlist (one entry per run, its recoil setting included) and selects it in the
+    /// PLAYLISTS screen. Building the same plan again on the same day updates that playlist instead of duplicating it.
+    /// </summary>
+    public static Playlist CreatePlaylist(CoachPlan plan)
     {
-        ("flick", 2, "Flicking · Precision"),
-        ("tracking", 2, "Tracking"),
-        ("peek", 2, "Crosshair placement"),
-        ("counterstrafe", 1, "Movement"),
-        ("spray_vandal", 1, "Spray control"),
-    };
+        var p = PlaylistStore.Replace(plan.Name, plan.Queue());
+        PlaylistsScreen.Select(p.Id);
+        return p;
+    }
+
+    /// <summary>Creates the plan's playlist and starts it immediately.</summary>
+    public static void PlayPlan(CoachPlan plan) => PlaylistRunner.Play(CreatePlaylist(plan));
+
+    /// <summary>The drills the empty state asks for, how many coached runs each needs and what they rate.</summary>
+    public static readonly (string Key, int Target, string Rates)[] Starter = CoachPlan.Starter;
 
     /// <summary>Runs of a drill that carry coach data (metrics or telemetry).</summary>
     public static int CoachedRuns(string key)
@@ -738,4 +761,159 @@ public partial class DrillTile : BaseButton
         Gfx.TextFit(this, UiTheme.Display, CoachData.DrillName(Key).ToUpperInvariant(), pad, Gfx.Mid(r.Size.Y / 2 - 9 * k, ns), ns, UiTheme.Text, tw);
         Gfx.TextFit(this, UiTheme.Body, "Rates " + Rates.ToLowerInvariant(), pad, Gfx.Mid(r.Size.Y / 2 + 14 * k, ds), ds, UiTheme.Dim, tw);
     }
+}
+
+/// <summary>
+/// Small outlined chip used by the coach ("RECOIL ON", "MAJOR"): a self-sizing control so it can live in an HBox next
+/// to a label. The text is drawn by <see cref="CoachDraw.Chip"/>, the same shape the hand-drawn coach panels use.
+/// </summary>
+public partial class CoachChip : Control
+{
+    public string Text = "";
+    public Color Color = UiTheme.Teal;
+    public float K = 1f;
+    public bool Filled = true;
+
+    public CoachChip()
+    {
+        MouseFilter = MouseFilterEnum.Pass; // tooltips need the mouse
+        SizeFlagsVertical = SizeFlags.ShrinkCenter;
+    }
+
+    public override void _Ready()
+    {
+        int fs = UiTheme.Fs(11, K);
+        CustomMinimumSize = new Vector2(Gfx.TextW(UiTheme.HudWide, Text, fs) + 12 * K, 19 * K);
+    }
+
+    public override void _Draw() => CoachDraw.Chip(this, Text, 0, Size.Y / 2, K, Color, Filled);
+}
+
+/// <summary>Tone of a written conclusion (colours it in the panel).</summary>
+public enum ConclusionTone { Neutral, Good, Warn, Bad }
+
+/// <summary>One paragraph of the coach's written synthesis.</summary>
+public sealed record CoachConclusion(string Title, string Body, ConclusionTone Tone);
+
+/// <summary>
+/// The written read of the whole profile: where the player stands, the one skill that would move the rank most, what
+/// already works, the trend and the sensitivity verdict. It is deliberately sentence-based (not another chart): the
+/// screen already shows the numbers, this explains what they mean together.
+/// </summary>
+public static class CoachConclusions
+{
+    public static List<CoachConclusion> Build(SkillProfile p)
+    {
+        bool es = Loc.Spanish;
+        var list = new List<CoachConclusion>();
+        var rated = p.Skills.Where(Rated).OrderByDescending(r => r.Tier).ToList();
+        string Skill(Skill s) => CoachSkills.Local(s);
+        string Rank(float t) => CoachRank.LocalName(t);
+        string Conf(float c) => es ? c < 0.5f ? "baja" : c < 0.75f ? "media" : "alta" : CoachRank.Confidence(c).ToLowerInvariant();
+
+        if (rated.Count == 0 && !CoachRank.Rated(p.OverallTier))
+        {
+            list.Add(new CoachConclusion(es ? "EMPIEZA AQUÍ" : "START HERE",
+                es ? "El coach todavía no tiene con qué compararte. Juega el plan de hoy (unas 6 series): en cuanto haya cuatro habilidades con confianza media tendrás rango estimado y conclusiones completas."
+                   : "The coach has nothing to compare you with yet. Play today's plan (about 6 runs): four skills with medium confidence unlock your estimated rank and the full read.",
+                ConclusionTone.Neutral));
+            return list;
+        }
+
+        // 1. Where the player stands.
+        if (CoachRank.Rated(p.OverallTier))
+        {
+            list.Add(new CoachConclusion(es ? "DÓNDE ESTÁS" : "WHERE YOU ARE",
+                es ? $"Rango de puntería {Rank(p.OverallTier)}, con evidencia {Conf(p.OverallConfidence)} sobre {p.RunsAnalyzed} partidas. {rated.Count} de 8 habilidades tienen datos; el resto se desbloquea jugando sus ejercicios."
+                   : $"Aim rank {Rank(p.OverallTier)}, with {Conf(p.OverallConfidence)} evidence across {p.RunsAnalyzed} runs. {rated.Count} of 8 skills have data; the rest unlock by playing their drills.",
+                ConclusionTone.Neutral));
+        }
+        else
+        {
+            int confident = rated.Count(r => r.Confidence >= 0.5f);
+            var most = rated.OrderByDescending(r => r.Confidence).First();
+            list.Add(new CoachConclusion(es ? "DÓNDE ESTÁS" : "WHERE YOU ARE",
+                es ? $"Aún no hay rango global: faltan {Math.Max(0, 4 - confident)} habilidades con confianza media. La que mejor conoces es {Skill(most.Skill)} ({Rank(most.Tier)}, confianza {Conf(most.Confidence)})."
+                   : $"No overall rank yet: {Math.Max(0, 4 - confident)} more skill(s) at medium confidence are needed. Your best-known skill is {Skill(most.Skill)} ({Rank(most.Tier)}, {Conf(most.Confidence)} confidence).",
+                ConclusionTone.Neutral));
+        }
+
+        // 2. The biggest lever, plus the shape of the profile (spiky vs even).
+        float reference = p.OverallTier >= -0.5f ? p.OverallTier : rated[rated.Count / 2].Tier;
+        var withGap = rated.Where(r => r.Confidence >= 0.3f).Select(r => (R: r, Gap: reference - r.Tier)).ToList();
+        var lever = withGap.OrderByDescending(x => x.Gap * Weight(x.R.Skill)).First();
+        float spread = rated[0].Tier - rated[^1].Tier;
+        string shape = rated.Count < 2 ? ""
+            : spread >= 0.8f
+                ? (es ? $" Tu perfil es irregular: {Skill(rated[0].Skill)} está {spread:0.0} niveles por encima de {Skill(rated[^1].Skill)}, así que tu techo sube arreglando lo flojo, no puliendo lo bueno."
+                      : $" Your profile is spiky: {Skill(rated[0].Skill)} sits {spread:0.0} tiers above {Skill(rated[^1].Skill)}, so fixing the weak side raises your ceiling more than polishing the strong one.")
+                : (es ? $" Tu perfil es plano: todo lo valorado está dentro de {MathF.Max(0.1f, spread):0.0} niveles, así que el siguiente salto es subir el nivel medio, no una sola habilidad."
+                      : $" Your profile is flat: everything rated sits within {MathF.Max(0.1f, spread):0.0} tiers, so the next jump is raising the average, not one skill.");
+        if (lever.Gap >= 0.2f)
+        {
+            float weight = Weight(lever.R.Skill) * 100f;
+            list.Add(new CoachConclusion(es ? "TU MAYOR PALANCA" : "YOUR BIGGEST LEVER",
+                es ? $"{Skill(lever.R.Skill)} está en {Rank(lever.R.Tier)}, {lever.Gap:0.0} niveles por debajo de tu referencia, y pesa un {weight:0}% en el rango. {lever.R.Headline}{shape}"
+                   : $"{Skill(lever.R.Skill)} is at {Rank(lever.R.Tier)}, {lever.Gap:0.0} tiers below your reference, and carries {weight:0}% of the rank. {lever.R.Headline}{shape}",
+                lever.Gap >= 0.6f ? ConclusionTone.Warn : ConclusionTone.Neutral));
+        }
+        else if (shape.Length > 0)
+        {
+            list.Add(new CoachConclusion(es ? "TU MAYOR PALANCA" : "YOUR BIGGEST LEVER",
+                es ? $"No hay una fuga dominante: ninguna habilidad está más de 0.2 niveles por debajo de tu referencia.{shape}"
+                   : $"No dominant leak: no skill is more than 0.2 tiers below your reference.{shape}",
+                ConclusionTone.Neutral));
+        }
+
+        // 3. What already works.
+        var best = rated[0];
+        if (CoachRank.Rated(best.Tier) && best.Confidence >= 0.25f)
+            list.Add(new CoachConclusion(es ? "LO QUE YA FUNCIONA" : "WHAT ALREADY WORKS",
+                es ? $"{Skill(best.Skill)} en {Rank(best.Tier)} es tu base más fiable ({best.Headline}). Es lo que sostiene tu rango mientras trabajas lo demás: no lo descuides."
+                   : $"{Skill(best.Skill)} at {Rank(best.Tier)} is your most reliable base ({best.Headline}). It is what holds your rank while you work on the rest, so keep it warm.",
+                ConclusionTone.Good));
+
+        // 4. Trend.
+        if (p.Trend.Count > 0)
+        {
+            string span = p.TrendSpan == "week" ? (es ? "en la última semana" : "in the last week") : (es ? "en la segunda mitad de tu histórico" : "over the newer half of your history");
+            var up = p.Trend.OrderByDescending(kv => kv.Value).First();
+            var down = p.Trend.OrderBy(kv => kv.Value).First();
+            string body;
+            if (up.Value >= 0.1f || down.Value <= -0.1f)
+                body = es
+                    ? $"{span[..1].ToUpperInvariant()}{span[1..]}, {Skill(up.Key)} cambia {up.Value:+0.0;-0.0;0.0} niveles y {Skill(down.Key)} {down.Value:+0.0;-0.0;0.0}. " +
+                      (up.Value > 0 && down.Value < 0 ? "Ganas y pierdes a la vez: el plan ataca justo la que baja." : up.Value > 0 ? "La dirección es buena: mantén el volumen y no cambies de sensibilidad." : "Algo se está enfriando: dale una serie extra a esa habilidad esta semana.")
+                    : $"{span[..1].ToUpperInvariant()}{span[1..]}, {Skill(up.Key)} moved {up.Value:+0.0;-0.0;0.0} tiers and {Skill(down.Key)} {down.Value:+0.0;-0.0;0.0}. " +
+                      (up.Value > 0 && down.Value < 0 ? "You gain and lose at once: the plan targets the one going down." : up.Value > 0 ? "The direction is good: keep the volume and don't change sensitivity." : "Something is cooling off: give that skill an extra series this week.");
+            else
+                body = es ? $"Tus habilidades están estables {span}: ninguna se mueve más de 0.1 niveles. La constancia es buena señal; el plan busca el siguiente escalón."
+                          : $"Your skills are stable {span}: none moves more than 0.1 tiers. Consistency is a good sign; the plan is looking for the next step.";
+            list.Add(new CoachConclusion(es ? "TENDENCIA" : "TREND", body, up.Value >= 0.1f ? ConclusionTone.Good : ConclusionTone.Neutral));
+        }
+        else if (p.RunsAnalyzed >= 12)
+        {
+            list.Add(new CoachConclusion(es ? "TENDENCIA" : "TREND",
+                es ? "Todavía no hay dos mitades comparables con datos suficientes; en unas partidas más el coach podrá decir qué sube y qué baja."
+                   : "There are not two comparable halves with enough data yet; a few more runs and the coach can say what is rising and what is falling.",
+                ConclusionTone.Neutral));
+        }
+
+        // 5. Sensitivity.
+        if (p.Sens is { RecommendedSens: > 0 } a && a.CurrentSens > 0)
+        {
+            bool keep = a.Direction == "keep";
+            string body = keep
+                ? (es ? $"Mantén {a.CurrentSens:0.000} ({a.CurrentCm360:0.0} cm/360): no hay una dirección clara con confianza {Conf(a.Confidence)}. Cambiar por cambiar solo reinicia el aprendizaje."
+                      : $"Keep {a.CurrentSens:0.000} ({a.CurrentCm360:0.0} cm/360): there is no clear direction at {Conf(a.Confidence)} confidence. Changing for the sake of it only resets your learning.")
+                : (es ? $"{(a.Direction == "lower" ? "Baja" : "Sube")} de {a.CurrentSens:0.000} a {a.RecommendedSens:0.000} ({a.RecommendedCm360:0.0} cm/360), confianza {Conf(a.Confidence)}. Pruébalo antes en CA-VAL-AIM: tus ajustes de Valorant no cambian solos."
+                      : $"{(a.Direction == "lower" ? "Lower" : "Raise")} from {a.CurrentSens:0.000} to {a.RecommendedSens:0.000} ({a.RecommendedCm360:0.0} cm/360), {Conf(a.Confidence)} confidence. Try it in CA-VAL-AIM first: your Valorant settings are untouched.");
+            list.Add(new CoachConclusion(es ? "SENSIBILIDAD" : "SENSITIVITY", body, keep ? ConclusionTone.Neutral : ConclusionTone.Warn));
+        }
+        return list;
+    }
+
+    static bool Rated(SkillRating r) => r.Tier >= -0.5f && r.Confidence > 0 && !float.IsNaN(r.Tier);
+
+    static float Weight(Skill s) => Assess.SkillWeight.TryGetValue(s, out var w) ? w : 0.1f;
 }

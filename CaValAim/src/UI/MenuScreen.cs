@@ -112,6 +112,24 @@ public partial class MenuScreen : ScreenBase
 
     IEnumerable<string> Categories() => new[] { "ALL" }.Concat(modes.Select(m => m.Info.Category).Distinct());
 
+    /// <summary>
+    /// Short caption for the library category tabs. The full names do not fit the tab row at 1280×720 once the minimum
+    /// font size is applied; these stay readable and keep every filter reachable. Values are the real categories.
+    /// </summary>
+    static string CatTab(string category) => category.ToUpperInvariant() switch
+    {
+        "ALL" => L("ALL", "TODO"),
+        "AIM" => L("AIM", "PUNTERÍA"),
+        "RECOIL" => L("RECOIL", "RETRO"),
+        "MOVEMENT" => L("MOVE", "MOVIM."),
+        "MAP" => L("MAP", "MAPA"),
+        "UTILITY" => L("UTIL", "ÚTIL"),
+        "OTHER" => L("OTHER", "OTROS"),
+        "COACH" => "COACH",
+        "TRACKING" => L("TRACK", "TRACK"),
+        _ => category.ToUpperInvariant(),
+    };
+
     // ---------------- header ----------------
 
     Control Header()
@@ -134,6 +152,7 @@ public partial class MenuScreen : ScreenBase
         }
         Link("AGENTS", Main.I.ShowAgents, "All 29 agents: signature drills, role drills and an agent Lock-In");
         Link("COACH", Main.I.ShowProfile, "Your estimated rank, the problems holding you back and how to fix them");
+        Link("ROUTINES", Main.I.ShowRoutines, "Voltaic and cartoon routines, guide, glossary and credits for VALORANT");
         Link("PLAYLISTS", Main.I.ShowPlaylists, "Your own sets of drills, played back to back");
         Link("STATS", Main.I.ShowStats, "Personal bests and history");
         Link("SETTINGS", Main.I.ShowSettings, "Sensitivity, crosshair, graphics, audio and updates");
@@ -237,12 +256,13 @@ public partial class MenuScreen : ScreenBase
         left.AddChild(Spacer(0, 46 * k));
         var libHead = HBox(0);
         libHead.AddChild(new MText { K = k, Text = L("LIBRARY", "BIBLIOTECA"), Font = UiTheme.HudWide, Px = 11.5f, Color = UiTheme.Faint, Delay = 0.32f, CustomMinimumSize = new Vector2(110 * k, 34 * k) });
+        libHead.AddChild(Spacer(16 * k, 0));
         var cats = Categories().ToList();
         if (!cats.Contains(catFilter)) catFilter = "ALL";
         var tabs = new MSegment
         {
-            K = k, Delay = 0.34f, Px = 12f, Gap = 22, MaxWidth = libraryWidth,
-            Options = cats.Select(c => c.ToUpperInvariant()).ToArray(),
+            K = k, Delay = 0.34f, Px = 12f, Gap = 22, MaxWidth = libraryWidth, RawLabels = true,
+            Options = cats.Select(CatTab).ToArray(),
             Counts = cats.Select(c => c == "ALL" ? modes.Count : modes.Count(m => m.Info.Category == c)).ToArray(),
             Selected = cats.IndexOf(catFilter),
         };

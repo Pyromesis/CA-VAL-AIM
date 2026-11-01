@@ -11,6 +11,9 @@ namespace CaValAim.UI;
 public partial class PlaylistsScreen : ScreenBase
 {
     static string? selectedId;
+    /// <summary>Makes a playlist the one open on the next build (the coach selects the plan it just created).</summary>
+    public static void Select(string id) => selectedId = id;
+
     static readonly List<(Func<TrainingMode> Make, TrainingMode Info)> modes =
         ModeRegistry.All.Select(f => (Make: f, Info: f())).Where(m => m.Info.Category != MenuScreen.AgentsCategory).ToList();
 
@@ -26,6 +29,13 @@ public partial class PlaylistsScreen : ScreenBase
     protected override void Back() => Main.I.ShowMenu();
 
     static string L(string en, string es) => Loc.Spanish ? es : en;
+
+    /// <summary>Total length of the playlist, including the per-run minutes of a community routine.</summary>
+    static string TotalLabel(Playlist p)
+    {
+        float min = p.TotalMinutes;
+        return min >= 1f ? $"≈ {min:0.#} min" : L("under 1 min", "menos de 1 min");
+    }
 
     protected override void Build()
     {
@@ -59,6 +69,9 @@ public partial class PlaylistsScreen : ScreenBase
         var nav = HBox(34 * k);
         nav.SizeFlagsVertical = SizeFlags.ShrinkCenter;
         head.AddChild(nav);
+        var routines = new MLink { K = k, Label = L("ROUTINES", "RUTINAS"), Px = 12.5f, Delay = 0.04f, TooltipText = L("Voltaic and cartoon routines, guide and glossary", "Rutinas de Voltaic y cartoon, guía y glosario") };
+        routines.Pressed += Main.I.ShowRoutines;
+        nav.AddChild(routines);
         var back = new MLink { K = k, Label = L("← MENU", "← MENÚ"), Px = 12.5f, Delay = 0.06f, TooltipText = L("Back to the main menu", "Volver al menú principal") };
         back.Pressed += Main.I.ShowMenu;
         nav.AddChild(back);
@@ -153,7 +166,7 @@ public partial class PlaylistsScreen : ScreenBase
         {
             var row = new MDrillRow
             {
-                K = k, Title = p.Name, Meta = $"{p.Modes.Count} {L("drills", "ejercicios")}",
+                K = k, Title = p.Name, Meta = $"{p.Modes.Count} {L("drills", "ejercicios")} · {TotalLabel(p)}",
                 Value = p == selected ? L("OPEN", "ABIERTA") : "", Marked = p == selected,
                 Delay = 0.26f + Math.Min(0.25f, i++ * 0.03f),
                 CustomMinimumSize = new Vector2(0, 58 * k), SizeFlagsHorizontal = SizeFlags.ExpandFill,
@@ -211,7 +224,7 @@ public partial class PlaylistsScreen : ScreenBase
         {
             K = k, Font = UiTheme.Body, Px = 13, Color = UiTheme.Faint, Delay = 0.25f,
             Text = p.Modes.Count == 0 ? L("no drills yet · click one below", "aún no hay ejercicios · haz clic en uno abajo")
-                : $"{p.Modes.Count} {L("drills", "ejercicios")} · {p.Modes.Count} × 60 s",
+                : $"{p.Modes.Count} {L("drills", "ejercicios")} · {TotalLabel(p)}",
         };
         right.AddChild(countLine);
         right.AddChild(Spacer(0, 12 * k));
@@ -281,11 +294,11 @@ public partial class PlaylistsScreen : ScreenBase
                 {
                     countLine.Text = p.Modes.Count == 0
                         ? L("no drills yet · click one below", "aún no hay ejercicios · haz clic en uno abajo")
-                        : $"{p.Modes.Count} {L("drills", "ejercicios")}";
+                        : $"{p.Modes.Count} {L("drills", "ejercicios")} · {TotalLabel(p)}";
                     countLine.QueueRedraw();
                 }
                 foreach (var (lr, lp) in listRows)
-                    if (lp == p) { lr.Meta = $"{p.Modes.Count} {L("drills", "ejercicios")}"; lr.QueueRedraw(); }
+                    if (lp == p) { lr.Meta = $"{p.Modes.Count} {L("drills", "ejercicios")} · {TotalLabel(p)}"; lr.QueueRedraw(); }
             };
             drillRows.Add((row, key));
             grid.AddChild(row);

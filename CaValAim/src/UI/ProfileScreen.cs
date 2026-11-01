@@ -35,6 +35,7 @@ public partial class ProfileScreen : ScreenBase
     protected override void Tick(float dt)
     {
         PollShowMe();
+        PollLastRead();
         if (profile != null) return;
         spinT += dt;
         spinner?.QueueRedraw();
@@ -73,11 +74,22 @@ public partial class ProfileScreen : ScreenBase
         col.AddChild(body);
         float avail = GetViewportRect().Size.X - 96 * k - 24 * k;
         var left = VBox(16 * k);
-        left.CustomMinimumSize = new Vector2(Mathf.Min(900 * k, avail * 0.5f), 0);
+        left.CustomMinimumSize = new Vector2(Mathf.Clamp(avail * 0.44f, 340 * k, 820 * k), 0);
         body.AddChild(left);
+        // The right column is a whole page of cards (plan, conclusions, problems, last run, sens). It used to be a plain
+        // VBox, so any card wider than the column (the old plan button row) pushed the page past the window and the
+        // right-hand content was cut off. A vertical scroll gives every card the height it needs and keeps the width
+        // locked to the column; horizontal scrolling stays off.
+        var scroll = new ScrollContainer
+        {
+            HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            SizeFlagsVertical = SizeFlags.ExpandFill,
+        };
+        body.AddChild(scroll);
         var right = VBox(16 * k);
         right.SizeFlagsHorizontal = SizeFlags.ExpandFill;
-        body.AddChild(right);
+        scroll.AddChild(right);
 
         left.AddChild(new DrawBox
         {
@@ -85,10 +97,24 @@ public partial class ProfileScreen : ScreenBase
             TooltipText = "An aim-only estimate: CA-VAL-AIM rates your mechanics (aim, movement, flash dodging).\nYour in-game rank also depends on game sense, comms and utility.",
         });
         left.AddChild(SkillsPanel(p));
-        if (Plan(p) is { Count: > 0 } plan) right.AddChild(PlanPanel(plan));
+        var plan = CoachPlan.Build(p);
+        right.AddChild(PlanPanel(p, plan));
+        right.AddChild(ConclusionsPanel(p));
         right.AddChild(ProblemsPanel(p));
         right.AddChild(PlaysPanel());
         right.AddChild(SensPanel(p));
+
+        // Dev screenshot path (`--createplan`): press CREATE PLAYLIST for the profile on screen, then open the playlist
+        // editor, so a shot proves the generated series (order, runs, recoil map) reached the real playlist file.
+        if (Main.I.Dev && Core.CmdLine.Has("--createplan") && !devPlanDone)
+        {
+            devPlanDone = true;
+            Callable.From(() =>
+            {
+                CoachData.CreatePlaylist(plan);
+                Main.I.ShowScreen(new PlaylistsScreen());
+            }).CallDeferred();
+        }
     }
 
     // ---------------- header / loading ----------------
@@ -286,42 +312,152 @@ public partial class ProfileScreen : ScreenBase
 
     // ---------------- today's plan ----------------
 
-    /// <summary>Today's plan: one drill for each of the most important problems (no drill twice), up to three.</summary>
-    static List<(string Drill, Diagnosis D)> Plan(SkillProfile p)
-    {
-        var plan = new List<(string Drill, Diagnosis D)>();
-        foreach (var d in p.Problems)
-        {
-            var key = (d.Drills ?? Array.Empty<string>()).Where(CoachData.HasDrill).FirstOrDefault(k => plan.All(x => x.Drill != k));
-            if (key != null) plan.Add((key, d));
-            if (plan.Count == 3) break;
-        }
-        return plan;
-    }
-
-    /// <summary>The plan as a row of drill buttons, in order; each starts its drill with that problem as the coach focus.</summary>
-    Control PlanPanel(List<(string Drill, Diagnosis D)> plan)
+    /// <summary>
+    /// Today's plan as a vertical list (a row of buttons used to force the column wider than the window). Each step shows
+    /// what it fixes, how many series it wants and whether the camera climb should be on; the two bottom buttons turn the
+    /// whole plan into a playlist that plays every series with that recoil setting already applied.
+    /// </summary>
+    Control PlanPanel(SkillProfile p, CoachPlan plan)
     {
         float k = K;
+        bool es = Loc.Spanish;
         var panel = new VPanel
         {
             Title = "TODAY'S PLAN",
-            Caption = Loc.Spanish ? "un ejercicio por problema, el más importante primero · pasa el ratón para ver qué entrena"
-                : "one drill per problem, most important first · hover to see what it trains",
+            Caption = plan.IsEmpty ? null : es
+                ? $"{plan.Steps.Count} pasos · {plan.TotalRuns} series · ≈{plan.Minutes} min · el tutorial de tu próxima sesión"
+                : $"{plan.Steps.Count} steps · {plan.TotalRuns} runs · ≈{plan.Minutes} min · the guide to your next session",
             K = k,
         };
-        var row = HBox(10 * k);
-        panel.AddChild(row);
+        if (plan.IsEmpty) return panel;
+        // VPanel is a MarginContainer: it fits every direct child to the same rect, so multiple children would overlap.
+        // One root VBox owns the whole card body.
+        var root = VBox(0);
+        root.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        panel.AddChild(root);
+        var v = VBox(0);
+        v.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        root.AddChild(v);
         int n = 1;
-        foreach (var (key, d) in plan)
+        foreach (var step in plan.Steps)
         {
-            string name = $"{n++} · {CoachData.DrillName(key).ToUpperInvariant()}";
-            float w = Gfx.TextW(UiTheme.Display, name, UiTheme.Fs(18, k)) / k + 60;
-            var b = Btn(name, n == 2 ? VButton.Look.Primary : VButton.Look.Secondary, () => CoachData.StartDrill(key, CoachData.FocusFrom(d)),
-                Mathf.Max(150, w), 46, 18);
-            b.TooltipText = (Loc.Spanish ? "Entrena: " : "Works on: ") + d.Title;
-            b.SizeFlagsHorizontal = SizeFlags.ExpandFill;
-            row.AddChild(b);
+            if (n > 1) v.AddChild(new DrawBox { CustomMinimumSize = new Vector2(0, 1), OnDraw = d => d.DrawRect(new Rect2(0, 0, d.Size.X, 1), UiTheme.Line) });
+            v.AddChild(PlanStepRow(step, n++, p));
+        }
+        v.AddChild(Spacer(0, 12 * k));
+
+        var status = Lbl("", UiTheme.Body, 13, UiTheme.Dim);
+        status.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+        status.CustomMinimumSize = new Vector2(60 * k, 0);
+        status.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        status.SizeFlagsVertical = SizeFlags.ShrinkCenter;
+
+        var foot = HBox(10 * k);
+        var create = Btn(es ? "CREAR SERIE" : "CREATE PLAYLIST", VButton.Look.Secondary, () =>
+        {
+            var pl = CoachData.CreatePlaylist(plan);
+            status.Text = es
+                ? $"Serie «{pl.Name}» lista: {pl.Modes.Count} series. Está en SERIES."
+                : $"Playlist \"{pl.Name}\" ready: {pl.Modes.Count} runs. It is in PLAYLISTS.";
+        }, 200, 46, 15);
+        create.TooltipText = es
+            ? "Crea una serie con estos ejercicios, en este orden, y el recoil ya puesto en cada uno"
+            : "Creates a playlist with these drills, in this order, with the recoil already set for each";
+        var play = Btn(es ? "JUGAR SERIE" : "PLAY PLAN", VButton.Look.Primary, () => CoachData.PlayPlan(plan), 200, 46, 16);
+        play.TooltipText = es
+            ? "Crea la serie y empieza el primer ejercicio ahora"
+            : "Creates the playlist and starts the first drill now";
+        foot.AddChild(create);
+        foot.AddChild(play);
+        foot.AddChild(status);
+        root.AddChild(foot);
+        return panel;
+    }
+
+    /// <summary>One plan step: number, drill, recoil chip, what it fixes and a start button.</summary>
+    Control PlanStepRow(PlanStep step, int index, SkillProfile p)
+    {
+        float k = K;
+        var row = HBox(12 * k);
+        row.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+
+        row.AddChild(new DrawBox
+        {
+            CustomMinimumSize = new Vector2(30 * k, 0),
+            SizeFlagsVertical = SizeFlags.ExpandFill,
+            OnDraw = d =>
+            {
+                int fs = UiTheme.Fs(22, k);
+                Gfx.Text(d, UiTheme.Display, index.ToString("00"), 0, Gfx.Mid(d.Size.Y / 2, fs), fs, new Color(UiTheme.Text, 0.22f));
+            },
+        });
+
+        var text = VBox(3 * k);
+        text.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        text.SizeFlagsVertical = SizeFlags.ShrinkCenter;
+        var top = HBox(8 * k);
+        var name = Lbl(CoachData.DrillName(step.Drill).ToUpperInvariant(), UiTheme.Display, 17, UiTheme.Text);
+        name.ClipText = true;
+        name.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
+        name.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        name.CustomMinimumSize = new Vector2(40 * k, 0);
+        top.AddChild(name);
+        top.AddChild(new CoachChip
+        {
+            Text = CoachPlan.RecoilLabel(step.Recoil),
+            Color = step.Recoil == RecoilAdvice.On ? UiTheme.Good : UiTheme.Warn,
+            K = k,
+            TooltipText = step.RecoilWhy,
+        });
+        text.AddChild(top);
+        text.AddChild(Para(Loc.Spanish
+            ? $"{CoachSkills.Short(step.Skill).ToLowerInvariant()} · {step.Why}"
+            : $"{CoachSkills.Short(step.Skill).ToLowerInvariant()} · {step.Why}", UiTheme.Body, 13.5f, new Color(UiTheme.Text, 0.62f)));
+        row.AddChild(text);
+
+        var side = VBox(2 * k);
+        side.SizeFlagsVertical = SizeFlags.ShrinkCenter;
+        var runs = Lbl($"×{step.Runs}", UiTheme.Display, 16, UiTheme.Text);
+        runs.HorizontalAlignment = HorizontalAlignment.Center;
+        side.AddChild(runs);
+        var start = Btn(Loc.Spanish ? "EMPEZAR" : "START", VButton.Look.Secondary,
+            () => CoachData.StartDrill(step.Drill, step.Source is { } d ? CoachData.FocusFrom(d) : null), 108, 32, 13);
+        start.TooltipText = Loc.Spanish
+            ? $"Empezar {CoachData.DrillName(step.Drill)} · {CoachPlan.RecoilLabel(step.Recoil)}"
+            : $"Start {CoachData.DrillName(step.Drill)} · {CoachPlan.RecoilLabel(step.Recoil)}";
+        side.AddChild(start);
+        row.AddChild(side);
+        return row;
+    }
+
+    // ---------------- conclusions ----------------
+
+    /// <summary>The written synthesis: where the player is, the one thing that would move the rank most, what already
+    /// works, the trend and the sens verdict. Built from the same profile the rest of the page draws.</summary>
+    Control ConclusionsPanel(SkillProfile p)
+    {
+        float k = K;
+        var list = CoachConclusions.Build(p);
+        if (list.Count == 0) return new Control();
+        bool es = Loc.Spanish;
+        var panel = new VPanel
+        {
+            Title = es ? "CONCLUSIONES" : "THE COACH'S READ",
+            Caption = es ? $"síntesis de {p.RunsAnalyzed} partidas" : $"a synthesis of {p.RunsAnalyzed} runs",
+            K = k,
+        };
+        var v = VBox(9 * k);
+        panel.AddChild(v);
+        foreach (var c in list)
+        {
+            v.AddChild(new SectionLabel { Text = c.Title, K = k });
+            v.AddChild(Para(c.Body, UiTheme.Body, 15, c.Tone switch
+            {
+                ConclusionTone.Good => UiTheme.Good,
+                ConclusionTone.Warn => UiTheme.Warn,
+                ConclusionTone.Bad => new Color(UiTheme.Accent, 0.95f),
+                _ => new Color(UiTheme.Text, 0.86f),
+            }));
         }
         return panel;
     }
@@ -343,6 +479,13 @@ public partial class ProfileScreen : ScreenBase
         return null;
     }
 
+    /// <summary>What the newest recorded run was worth, read off the main thread.</summary>
+    sealed record LastRunRead(string Mode, string Verdict, string[] Drills);
+
+    /// <summary>The last run being read (static: rebuilding the screen must not start the read again).</summary>
+    static Task<LastRunRead?>? lastRead;
+    Label? lastReadLine;
+
     Control PlaysPanel()
     {
         float k = K;
@@ -354,7 +497,11 @@ public partial class ProfileScreen : ScreenBase
         };
         var row = HBox(14 * k);
         row.SizeFlagsHorizontal = SizeFlags.ExpandFill;
-        panel.AddChild(row);
+        // VPanel fits all direct children to the same rect; one root VBox keeps the button row and the verdict line stacked.
+        var root = VBox(10 * k);
+        root.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        panel.AddChild(root);
+        root.AddChild(row);
         var status = Lbl("", UiTheme.Body, 13.5f, UiTheme.Dim);
         status.SizeFlagsVertical = SizeFlags.ShrinkCenter;
         status.SizeFlagsHorizontal = SizeFlags.ExpandFill;
@@ -367,7 +514,71 @@ public partial class ProfileScreen : ScreenBase
             : "Every engagement, spray, reaction or round of your last run, with its advice";
         row.AddChild(b);
         row.AddChild(status);
+
+        // The verdict of the last run, in words: which run it was, how many plays of each grade, the repeated mistake
+        // and the drills that fix it. Reading the telemetry and analysing 40+ plays is not free, so it runs on a worker
+        // (the same way "Show me" searches) and the line fills in when it lands.
+        var read = Para(Loc.Spanish ? "Leyendo tu última partida…" : "Reading your last run…", UiTheme.Body, 14.5f, UiTheme.Dim);
+        lastReadLine = read;
+        root.AddChild(read);
+        StartLastRead();
         return panel;
+    }
+
+    /// <summary>Snapshots the recent telemetry paths (the run list is a Godot-side object) and analyses them off-thread.</summary>
+    static void StartLastRead()
+    {
+        if (lastRead != null) return;
+        List<string> files;
+        try
+        {
+            files = Main.I.Stats.Runs
+                .OrderByDescending(r => r.When)
+                .Take(12)
+                .Select(r => r.TelemetryFile)
+                .Where(f => !string.IsNullOrEmpty(f) && File.Exists(f))
+                .Select(f => f!)
+                .ToList();
+        }
+        catch { files = new List<string>(); }
+        lastRead = Task.Run(() => Summarize(files));
+    }
+
+    static LastRunRead? Summarize(List<string> files)
+    {
+        foreach (string file in files)
+        {
+            RunTelemetry? run = null;
+            try { run = RunTelemetry.Load(file); } catch { /* unreadable: try the next one */ }
+            if (run == null) continue;
+            var plays = PlayByPlay.Analyze(run);
+            if (!plays.HasData) continue;
+            return new LastRunRead(run.Mode, plays.Verdict.Trim(), plays.Drills);
+        }
+        return null;
+    }
+
+    /// <summary>Fills the verdict line once the worker finishes (called from the screen's Tick).</summary>
+    void PollLastRead()
+    {
+        if (lastRead is not { IsCompleted: true } task || !IsInstanceValid(lastReadLine)) return;
+        var read = task.IsCompletedSuccessfully ? task.Result : null;
+        lastRead = null;
+        var line = lastReadLine!;
+        if (read == null)
+        {
+            line.Text = Loc.Spanish ? "Aún no hay ninguna partida grabada que analizar." : "No recorded run to analyse yet.";
+            return;
+        }
+        var sb = new System.Text.StringBuilder();
+        sb.Append(Loc.T(CoachData.DrillName(read.Mode))).Append(": ").Append(read.Verdict);
+        if (read.Drills.Length > 0)
+        {
+            string list = string.Join(", ", read.Drills.Select(CoachData.DrillName).Select(Loc.T));
+            sb.Append(' ').Append(Loc.Spanish ? $"Para corregirlo: {list}." : $"To fix it: {list}.");
+        }
+        line.Text = sb.ToString();
+        line.AddThemeColorOverride("font_color", new Color(UiTheme.Text, 0.86f));
     }
 
     void OpenLastPlays(Label status)
@@ -474,36 +685,42 @@ public partial class ProfileScreen : ScreenBase
         }
         var drills = (d.Drills ?? Array.Empty<string>()).Where(CoachData.HasDrill).Distinct().Take(3).ToList();
         v.AddChild(Spacer(0, 6 * k));
-        var row = HBox(10 * k);
+        // "Show me": replay a moment from a recent run where this happened (searched on a worker thread)
+        var status = Lbl("", UiTheme.Body, 14, UiTheme.Dim);
+        status.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+        status.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        status.CustomMinimumSize = new Vector2(60 * k, 0);
+        // A flow container, not a plain row: the drill buttons plus SHOW ME are wider than the column at 1024×768, and a
+        // row simply overflowed (the last button was clipped at the right edge). This wraps onto a second line instead.
+        var flow = new HFlowContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        flow.AddThemeConstantOverride("h_separation", (int)(10 * k));
+        flow.AddThemeConstantOverride("v_separation", (int)(8 * k));
         if (drills.Count > 0)
         {
             var cap = Lbl("PRACTISE", UiTheme.HudWide, 13, UiTheme.Dim);
             cap.SizeFlagsVertical = SizeFlags.ShrinkCenter;
-            row.AddChild(cap);
-            row.AddChild(Spacer(4 * k, 0));
+            flow.AddChild(cap);
             foreach (var key in drills)
             {
                 string name = CoachData.DrillName(key).ToUpperInvariant();
                 float w = Gfx.TextW(UiTheme.Display, name, UiTheme.Fs(18, k)) / k + 60;
-                var b = Btn(name, VButton.Look.Secondary, () => CoachData.StartDrill(key, CoachData.FocusFrom(d)), Mathf.Max(150, w), 42, 18);
-                b.TooltipText = $"Start {CoachData.DrillName(key)} now";
-                row.AddChild(b);
+                var b = Btn(name, VButton.Look.Secondary, () => CoachData.StartDrill(key, CoachData.FocusFrom(d)), Mathf.Max(140, w), 42, 18);
+                // Every practice button says how the camera climb should be set: the coach's recoil rule is universal,
+                // so the problem card shows it too instead of only the plan.
+                var (advice, why) = CoachPlan.RecoilFor(key);
+                b.TooltipText = Loc.Spanish
+                    ? $"Empezar {CoachData.DrillName(key)} ahora · {CoachPlan.RecoilLabel(advice)}: {why}"
+                    : $"Start {CoachData.DrillName(key)} now · {CoachPlan.RecoilLabel(advice)}: {why}";
+                flow.AddChild(b);
             }
-            row.AddChild(Spacer(8 * k, 0));
         }
-        // "Show me": replay a moment from a recent run where this happened (searched on a worker thread)
-        var status = Lbl("", UiTheme.Body, 14, UiTheme.Dim);
-        status.SizeFlagsVertical = SizeFlags.ShrinkCenter;
-        status.SizeFlagsHorizontal = SizeFlags.ExpandFill;
-        status.AutowrapMode = TextServer.AutowrapMode.WordSmart;
-        status.CustomMinimumSize = new Vector2(60 * k, 0);
         VButton? sm = null;
         sm = Btn("SHOW ME", VButton.Look.Ghost, () => ShowMe(d, sm!, status), 130, 42, 17);
         sm.TitleFont = UiTheme.HudWide;
         sm.TooltipText = "Replay a moment from your recent runs where this happened";
-        row.AddChild(sm);
-        row.AddChild(status);
-        v.AddChild(row);
+        flow.AddChild(sm);
+        v.AddChild(flow);
+        v.AddChild(status);
         if (Main.I.Dev && !devShowMeDone && Core.CmdLine.After("--showme") == d.Id)
         {
             devShowMeDone = true; // dev screenshots: --screen profile --showme CODE
@@ -515,6 +732,7 @@ public partial class ProfileScreen : ScreenBase
     // ---------------- "Show me" ----------------
 
     static bool devShowMeDone;
+    static bool devPlanDone;
     Task<(RunTelemetry Run, RunInsights Ins)?>? search;
     /// <summary>The found run's 3D replay being read (after <see cref="search"/>; the button says "LOADING RUN…").</summary>
     Task? loading;

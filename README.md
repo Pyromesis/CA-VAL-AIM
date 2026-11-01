@@ -18,13 +18,13 @@
 
 <p align="center"><sub>Windows 10/11 · free and open source · fan-made, not affiliated with Riot Games</sub></p>
 
-<p align="center"><sub><a href="#download">Download</a> · <a href="#screenshots">Screenshots</a> · <a href="#drills">Drills</a> · <a href="#aim-coach">Aim coach</a> · <a href="#how-it-works">How it works</a> · <a href="#building-from-source">Build</a></sub></p>
+<p align="center"><sub><a href="#download">Download</a> · <a href="#screenshots">Screenshots</a> · <a href="#drills">Drills</a> · <a href="#routines-guide-and-glossary">Routines</a> · <a href="#aim-coach">Aim coach</a> · <a href="#how-it-works">How it works</a> · <a href="#building-from-source">Build</a></sub></p>
 
 <img src="docs/screenshots/01-menu-principal.jpg" alt="CA-VAL-AIM main menu: drills, tier, map and Deathmatch lobby in one place" width="100%">
 
 | **90+ drills** | **13 maps** | **29 agents** | **8 skills** |
 |:---:|:---:|:---:|:---:|
-| Aim, movement, utility, recoil and map drills | Real extracted geometry and minimaps | Signature, role and Lock-In routines | Ranked by a coach that explains the fix |
+| Aim, movement, utility, recoil and map drills | Real extracted geometry and minimaps | Signature, role, Lock-In and Voltaic routines | Ranked by a coach that explains the fix |
 
 ## Download
 
@@ -119,6 +119,30 @@ If several VALORANT accounts have played on the PC, pick one in Settings. Every 
 | **Other** | Reaction Test, Reaction Lab (visual, audio, peripheral, choice and flick; per-category stats in Stats → REACTION TIMES), Lock-In |
 
 **Playlists** chain any of these into a saved set and hand over from one drill's results to the next.
+
+## Routines, guide and glossary
+
+The **ROUTINES** screen adapts the VALORANT material published by **Voltaic** and **cartoon** to the drills above:
+
+| Tab | What it has |
+|---|---|
+| **Routines** | Eight VALORANT routines: five playable adaptations (Voltaic Easy, Advanced Classic, VALORANT Advanced, bardOZ Advanced and cartoon's warm-up), two external Kovaak's playlists with copyable share codes, and the in-game practice section. Every step has how-to-play and why-it-matters text, its source scenario name and the sensitivity/recoil it needs. |
+| **Guide** | cartoon's aim-training guide, summarised in English and Spanish. |
+| **Glossary** | 126 Voltaic aim terms with short Spanish/English definitions and a search box. |
+| **Data** | An Excel-style table of every routine, step, term and your saved progress, with a four-file CSV export. |
+| **Credits** | Full attribution, source links and the legal notice. |
+
+Playable routines can be saved as normal playlists and edited like any other. The trainer applies a source's
+sensitivity boost only on the steps that ask for it, keeps it above 15 cm/360 (1.5× cap when your normal sens is
+already faster than 35 cm/360) and keeps boosted runs out of your personal bests. The external Kovaak's playlists and
+the in-game VALORANT practice are not simulated: the screen gives you the share code or the exact routine to run
+outside CA-VAL-AIM.
+
+The routines are **adaptations, not the original scenarios**, and CA-VAL-AIM is not affiliated with or endorsed by
+Voltaic, cartoon, Aim Lab or Kovaak's. Original scenario names and share codes remain their authors' property; the
+adapted text is GPL-3.0-or-later. Official links: [Voltaic](https://voltaic.gg/) ·
+[Voltaic Discord](https://discord.gg/voltaic) · [cartoon](https://twitter.com/cartoonFPS). See
+[CaValAim/CREDITS.md](CaValAim/CREDITS.md) for the complete list.
 
 ## Maps
 
@@ -227,4 +251,4 @@ CA-VAL-AIM (formerly ValTraining) is a modified version of **ValTrainer** ([idor
 
 All 3D models, textures, skies and recorded sounds are CC0 (public domain), except the official VALORANT map minimaps and the optional extracted map geometry in `maps/` (© Riot Games, not CC0; see [CaValAim/CREDITS.md](CaValAim/CREDITS.md)). The Godot Engine and the bundled .NET runtime are MIT-licensed. CC0 and MIT are compatible with the GPL; the installer includes all notices in `THIRD-PARTY-NOTICES.txt`.
 
-CA-VAL-AIM is fan-made and is not endorsed by or affiliated with Riot Games. VALORANT and its agent and map names are trademarks of Riot Games, Inc.
+The community routines, guide summaries and glossary definitions are original paraphrases/adaptations of public documents by Voltaic and cartoon, distributed under GPL-3.0-or-later with attribution; see [CaValAim/CREDITS.md](CaValAim/CREDITS.md). They do not imply any endorsement by Voltaic, cartoon, Aim Lab or Kovaak's. CA-VAL-AIM is fan-made and is not endorsed by or affiliated with Riot Games, Voltaic, cartoon, Aim Lab or Kovaak's. VALORANT and its agent and map names are trademarks of Riot Games, Inc.; Aim Lab and Kovaak's are trademarks of their respective owners.

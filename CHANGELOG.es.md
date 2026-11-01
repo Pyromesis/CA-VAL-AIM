@@ -4,6 +4,22 @@
 
 ### Añadido
 
+- **Rutinas, guía y glosario de la comunidad.** La nueva pantalla **RUTINAS** reúne ocho rutinas de VALORANT de Voltaic
+  y cartoon: cinco adaptaciones jugables con los ejercicios de CA-VAL-AIM, dos playlists externas de Kovaak's con su
+  código para copiar y la práctica dentro de VALORANT. Cada paso explica en inglés y español cómo jugarlo y por qué
+  importa, conserva el nombre del escenario original y enlaza el Discord y la web oficiales de Voltaic. La misma pantalla
+  incluye la guía de puntería de cartoon, un glosario de 126 términos de Voltaic con buscador y todos los créditos y
+  avisos legales. Las rutinas integradas se pueden guardar como playlists normales; solo los pasos que su fuente sube de
+  sensibilidad la cambian, con límites seguros de cm/360, y esas pasadas no entran en tus récords.
+- **El plan de hoy se convierte en una playlist real.** El coach crea un plan ordenado de 3–4 pasos a partir de tus
+  peores problemas y tus habilidades más débiles, muestra el ajuste de retroceso que necesita cada paso y puede crear o
+  empezar una playlist con todos los pasos y ajustes ya aplicados. El perfil termina además con una lectura escrita de
+  conjunto: dónde estás, la palanca que más movería tu rango, lo que ya funciona, la tendencia y el veredicto de
+  sensibilidad.
+- **Datos de rutinas estilo Excel.** **RUTINAS → DATOS** muestra todas las rutinas, pasos, términos del glosario y el
+  progreso guardado en una tabla. **EXPORTAR CSV** escribe cuatro tablas UTF-8 con BOM separadas por punto y coma
+  (`voltaic-routines.csv`, `voltaic-routine-steps.csv`, `voltaic-glossary.csv` y `voltaic-progress.csv`) para Excel,
+  LibreOffice o Sheets.
 - **Minimapa en vivo.** El panel de arriba a la derecha ya no es un recorte fijo del sitio: ahora es un minimapa de
   verdad. Te sigue, gira con la vista para que la flecha blanca señale siempre hacia donde apuntas, queda recortado a
   su cuadrado y muestra la letra del sitio del ejercicio y los defensores que ves (siguen un momento en el mapa cuando
@@ -15,6 +31,12 @@
 
 ### Cambiado
 
+- **El coach y el menú caben en 1280×720.** Los pasos del plan son ahora una lista vertical, la columna derecha del
+  perfil se desplaza y los botones ya no ensanchan la página más que la ventana. Las categorías del menú usan etiquetas
+  cortas y un separador, así que la fila de categorías, los filtros y el pie caben en el tamaño mínimo admitido.
+- **Las playlists respetan la duración y el retroceso de cada pasada.** Las playlists del coach y las rutinas de la
+  comunidad llevan su propia sensibilidad, duración y ajuste de cámara por pasada; el reproductor devuelve tu ajuste de
+  retroceso al terminar la última pasada o al salir a mitad de playlist, y la cabecera muestra la duración total real.
 - **Nuevos brazos y rifles en primera persona.** Las manos son ahora una sola malla orgánica continua —palma esculpida,
   tenar e hipotenar, cresta de los nudillos, almohadillas del guante y puño de cuero con hebilla— en lugar de cápsulas
   ensambladas. La manga tiene conicidad real, puño ablusado y pliegues suaves de tela, y está iluminada para que se lea

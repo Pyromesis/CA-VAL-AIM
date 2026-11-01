@@ -1015,7 +1015,8 @@ public partial class SettingsScreen : ScreenBase
         var buttons = new List<VButton>();
         foreach (var (part, name) in new[]
                  {
-                     (AboutLicenses.Part.App, "CA-VAL-AIM"), (AboutLicenses.Part.Godot, "GODOT"),
+                     (AboutLicenses.Part.App, "CA-VAL-AIM"), (AboutLicenses.Part.Community, "COMMUNITY"),
+                     (AboutLicenses.Part.Godot, "GODOT"),
                      (AboutLicenses.Part.GodotThirdParty, "ENGINE PARTS"), (AboutLicenses.Part.DotNet, ".NET"), (AboutLicenses.Part.Assets, "ASSETS"),
                  })
         {

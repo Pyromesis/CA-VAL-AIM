@@ -30,6 +30,37 @@ public static class AboutLicenses
         "The optional maps folder contains Riot Games assets extracted for interoperability and is not covered by " +
         "the GNU GPL; see NOTICE and CREDITS.md.";
 
+    /// <summary>
+    /// The community content added on top of the trainer: Voltaic's VALORANT routines, guide and glossary, and
+    /// cartoon's guide and external playlists. Text is paraphrased or adapted with attribution; nothing here claims
+    /// an endorsement, and the trademark owners are named explicitly.
+    /// </summary>
+    public const string CommunityNotice =
+        "COMMUNITY ROUTINES, GUIDE AND GLOSSARY\n\n" +
+        "The VALORANT routines, the aim-training guide and the 126-term Aim Glossary in CA-VAL-AIM are adapted or " +
+        "paraphrased from documents published by Voltaic (https://voltaic.gg/, https://discord.gg/voltaic), and from " +
+        "cartoon's public aim-training guide. Scenario names and share codes are kept to credit their authors and to " +
+        "let players find the original material. The built-in versions are adaptations to CA-VAL-AIM's own drills; " +
+        "they are not the original scenarios and do not imply that Voltaic, cartoon, Aim Lab or Kovaak's endorses, " +
+        "sponsors or is affiliated with this project.\n\n" +
+        "CREDITS\n" +
+        "- Voltaic — https://voltaic.gg/ — owner and original creator: sini (https://twitter.com/sinizap).\n" +
+        "- Voltaic VALORANT routines (KovaaK's and Aim Lab), with bardOZ, Cartoon, Trustemix and Zeeq; the in-game " +
+        "section credits the bridge idea to Zeeq. Source documents are linked from ROUTINES → CREDITS.\n" +
+        "- Voltaic Aim Glossary and Aim Journey — https://docs.google.com/document/d/1evzPXTABYsNg3udHhl12ZkfBogscKhsEdF7AONjZPso/edit\n" +
+        "- cartoon — guide \"How to improve aim\" and the external Flicks/Micro-adjustment playlists; " +
+        "https://www.twitch.tv/cartoon, https://twitter.com/cartoonFPS, https://www.youtube.com/c/cartoonfps.\n" +
+        "- MiniGods RAMP warm-up, recommended by cartoon's guide: https://twitter.com/minigodcs.\n\n" +
+        "LEGAL\n" +
+        "CA-VAL-AIM is a free, non-commercial fan project. It is not affiliated with or endorsed by Riot Games, " +
+        "Voltaic, Aim Lab, Kovaak's or cartoon. VALORANT is a trademark of Riot Games, Inc. Aim Lab and Kovaak's are " +
+        "trademarks of their respective owners; their software is not included and the external share codes only work " +
+        "in those products. All trademarks remain the property of their owners.\n\n" +
+        "The adapted routine text, guide summaries and glossary definitions are original paraphrases written for this " +
+        "project and distributed under the same GNU GPL v3 as the rest of CA-VAL-AIM. The underlying ideas, scenario " +
+        "names, share codes and source documents remain credited to their authors. Optional Riot Games map assets are " +
+        "handled separately in CREDITS.md and are not covered by the GPL.";
+
     public const string DotNetLicense =
         "The MIT License (MIT)\n\n" +
         "Copyright (c) .NET Foundation and Contributors\n\n" +
@@ -47,7 +78,7 @@ public static class AboutLicenses
         "CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER " +
         "DEALINGS IN THE SOFTWARE.";
 
-    public enum Part { App, Godot, GodotThirdParty, DotNet, Assets }
+    public enum Part { App, Community, Godot, GodotThirdParty, DotNet, Assets }
 
     static string? text;
     static readonly Dictionary<Part, int> lines = new();
@@ -82,6 +113,9 @@ public static class AboutLicenses
         Heading(Part.App, $"CA-VAL-AIM {AppInfo.Version} — GNU GENERAL PUBLIC LICENSE v3");
         sb.Append(GplNotice);
         if (AppInfo.HasRepo) sb.Append("\n\nSource code: ").Append(AppInfo.RepoUrl);
+
+        Heading(Part.Community, "COMMUNITY ROUTINES, GUIDE AND GLOSSARY — CREDITS AND LEGAL NOTICE");
+        sb.Append(CommunityNotice);
 
         Heading(Part.Godot, $"GODOT ENGINE {Safe(() => Engine.GetVersionInfo()["string"].AsString())} — MIT LICENSE (https://godotengine.org/license)");
         sb.Append(Safe(Engine.GetLicenseText).Trim());

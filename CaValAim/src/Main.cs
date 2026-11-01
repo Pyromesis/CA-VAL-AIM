@@ -102,6 +102,22 @@ public partial class Main : Node
             GetTree().Quit(AboutLicenses.WriteFile(licenses) ? 0 : 1);
             return;
         }
+        if (Dev && args.Contains("--export-routines"))
+        {
+            // Dev tool (works with --headless): write the four Excel-friendly routine tables and quit. The same code
+            // backs ROUTINES → DATA → EXPORT ALL CSV, so this checks the real export without opening a window.
+            try
+            {
+                foreach (var file in RoutineLibrary.ExportAll()) GD.Print($"[routines] {file}");
+                GetTree().Quit();
+            }
+            catch (Exception e)
+            {
+                Log.Error($"--export-routines failed: {e.Message}");
+                GetTree().Quit(1);
+            }
+            return;
+        }
         PickFirstRunQuality();
         Log.Info($"CA-VAL-AIM {AppInfo.Version}; language {Loc.Language}; {SysInfo.Summary}; quality {Settings.Quality}{(Settings.AutoQualityReason != null ? $" (auto: {Settings.AutoQualityReason})" : "")}; " +
                  $"data {Paths.DataDir}{(Paths.DataDirProblem != null ? $" [{Paths.DataDirProblem}]" : "")}; " +
@@ -198,7 +214,21 @@ public partial class Main : Node
             case "senslab" or "sens-lab": Callable.From(ShowSensLab).CallDeferred(); break;
             case "warmup" or "lockin": Callable.From(ShowLockIn).CallDeferred(); break;
             case "agents": Callable.From(ShowAgents).CallDeferred(); break; // + --agent jett, --agent-go routine|<drill> (AgentsScreen)
+            case "playlists": Callable.From(ShowPlaylists).CallDeferred(); break;
+            case "routines" or "guide" or "glossary" or "data" or "credits":
+                RoutinesScreen.DevTab = CmdLine.After("--tab") ?? CmdLine.After("--screen");
+                Callable.From(ShowRoutines).CallDeferred();
+                break;
         }
+        // Dev-only: start a built-in community routine straight away (layout and playlist smoke tests).
+        if (Dev && CmdLine.After("--play-routine") is { } routineId)
+            Callable.From(() =>
+            {
+                if (RoutineLibrary.Find(routineId) is { } routine && routine.Play())
+                    GD.Print($"[routines] playing {routine.Id}");
+                else
+                    GD.PrintErr($"[routines] cannot play '{routineId}'");
+            }).CallDeferred();
         // Dev-only: "--lockin short|standard|training" (or the older "--warmup") starts a Lock-In; "demo", "demo-details",
         // "demo-breath" show those screens with made-up data. See WarmupRunner for --wuquick, --lockin-checkin E,C, --wuquit.
         if (Dev && make == null && (CmdLine.After("--lockin") ?? CmdLine.After("--warmup")) is { } wu) Callable.From(() => Warmup.WarmupRunner.StartDev(wu)).CallDeferred();
@@ -340,6 +370,7 @@ public partial class Main : Node
 
     public void ShowMenu()
     {
+        PlaylistRunner.Restore(); // a coach playlist may have changed the recoil per drill
         Warmup.WarmupRunner.Abandon(); // leaving a Lock-In mid-routine (pause → Back to menu)
         Input.MouseMode = Input.MouseModeEnum.Visible;
         if (ReturnToAgents) { ReturnToAgents = false; SetScreen(new AgentsScreen()); return; }
@@ -348,6 +379,8 @@ public partial class Main : Node
 
     public void ShowAgents() => SetScreen(new AgentsScreen());
     public void ShowPlaylists() => SetScreen(new PlaylistsScreen());
+    /// <summary>Voltaic/cartoon routines, cartoon's guide, the Voltaic glossary, the data table and the credits.</summary>
+    public void ShowRoutines() => SetScreen(new RoutinesScreen());
 
     public void ShowSettings() => SetScreen(new SettingsScreen());
     public void ShowStats() => SetScreen(new StatsScreen());

@@ -175,15 +175,22 @@ public static class Coach
     /// <summary>cm per 360° turn: 13063 / (sens · dpi).</summary>
     public static float Cm360(float sens, int dpi) => SensAdvisor.Cm360(sens, dpi);
 
-    /// <summary>Plain-language name of a skill.</summary>
-    public static string SkillName(Skill s) => s switch
+    /// <summary>Plain-language name of a skill (in the UI language, so it reads naturally inside coach sentences).</summary>
+    public static string SkillName(Skill s)
     {
-        Skill.CrosshairPlacement => "Crosshair placement",
-        Skill.SprayControl => "Spray control",
-        Skill.Precision => "Precision (micro-adjustment)",
-        Skill.Utility => "Utility (flashes)",
-        _ => s.ToString(),
-    };
+        bool es = Loc.Spanish;
+        return s switch
+        {
+            Skill.CrosshairPlacement => es ? "Colocación de mira" : "Crosshair placement",
+            Skill.SprayControl => es ? "Control de spray" : "Spray control",
+            Skill.Precision => es ? "Precisión" : "Precision (micro-adjustment)",
+            Skill.Utility => es ? "Utilidad" : "Utility (flashes)",
+            Skill.Tracking => es ? "Seguimiento" : "Tracking",
+            Skill.Reaction => es ? "Reacción" : "Reaction",
+            Skill.Movement => es ? "Movimiento" : "Movement",
+            _ => s.ToString(),
+        };
+    }
 
     // Telemetry re-analysis cache (runs saved before metrics existed). Keyed by file name + write time.
     static readonly Dictionary<string, Dictionary<string, float>> fileCache = new();

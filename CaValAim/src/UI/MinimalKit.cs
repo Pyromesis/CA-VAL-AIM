@@ -269,6 +269,8 @@ public partial class MSegment : Control
 
     /// <summary>Widest the row may be (pixels, 0 = no limit): the gap, then the type size shrink to fit, then the counts go.</summary>
     public float MaxWidth;
+    /// <summary>Draw <see cref="Options"/> exactly as given (already localised), instead of passing them through Loc.T.</summary>
+    public bool RawLabels;
 
     public override void _Ready()
     {
@@ -287,7 +289,7 @@ public partial class MSegment : Control
 
     float OptionW(int i)
     {
-        float w = Gfx.TextW(UiTheme.HudWide, Options[i], Fs);
+        float w = RawLabels ? Gfx.RawW(UiTheme.HudWide, Options[i], Fs) : Gfx.TextW(UiTheme.HudWide, Options[i], Fs);
         if (Counts != null && i < Counts.Length) w += Gfx.RawW(UiTheme.Hud, Counts[i].ToString(), UiTheme.Fs(Px * 0.8f, K)) + 5 * K;
         return w;
     }
@@ -391,9 +393,12 @@ public partial class MSegment : Control
             float x = OptionX(i), rise = (1 - r) * 8 * k;
             bool sel = i == Selected;
             var col = sel ? UiTheme.Text : UiTheme.Faint.Lerp(UiTheme.TextSoft, hover.Length > i ? hover[i] : 0);
-            Gfx.Text(this, UiTheme.HudWide, Options[i], x, Gfx.Mid(cy, fs) + rise, fs, Mn.A(col, r));
+            if (RawLabels)
+                DrawString(UiTheme.HudWide, new Vector2(x, Gfx.Mid(cy, fs) + rise), Options[i], HorizontalAlignment.Left, -1, fs, Mn.A(col, r));
+            else
+                Gfx.Text(this, UiTheme.HudWide, Options[i], x, Gfx.Mid(cy, fs) + rise, fs, Mn.A(col, r));
             if (Counts != null && i < Counts.Length)
-                DrawString(UiTheme.Hud, new Vector2(x + Gfx.TextW(UiTheme.HudWide, Options[i], fs) + 5 * k, Gfx.Mid(cy, fs) + rise),
+                DrawString(UiTheme.Hud, new Vector2(x + (RawLabels ? Gfx.RawW(UiTheme.HudWide, Options[i], fs) : Gfx.TextW(UiTheme.HudWide, Options[i], fs)) + 5 * k, Gfx.Mid(cy, fs) + rise),
                     Counts[i].ToString(), HorizontalAlignment.Left, -1, cs, Mn.A(UiTheme.Faint, 0.8f * r));
         }
         float ra = Mn.Reveal(t, Delay + 0.1f);
