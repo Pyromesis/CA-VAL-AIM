@@ -33,6 +33,8 @@ public static class CoachCli
         bool brief = args.Contains("--brief");
         bool insights = args.Contains("--insights") || args.Contains("--insights-trials");
         bool plays = args.Contains("--plays");
+        bool timeline = args.Contains("--timeline") || args.Contains("--timeline-seconds");
+        bool timelineSeconds = args.Contains("--timeline-seconds");
         trialDump = args.Contains("--insights-trials");
         bool replayCheck = args.Contains("--replay-check") || args.Contains("--replay-dump");
         replayDump = args.Contains("--replay-dump");
@@ -69,6 +71,7 @@ public static class CoachCli
             P("  summary: " + rv.Summary);
             foreach (var s in rv.Strengths) P("  + " + s);
             if (plays) PrintPlays(rv.Plays);
+            if (timeline) PrintTimeline(rv.Plays?.Timeline, timelineSeconds);
             if (insights) PrintInsights(t);
             if (replayCheck) ReplayCheck(f, t);
         }
@@ -145,6 +148,22 @@ public static class CoachCli
         foreach (var p in a.Plays)
             P(F($"    #{p.Index:00} {p.Letter} [{p.T0,7:0.00}-{p.T1,7:0.00}s] {p.Kind,-10} {p.Title} | {p.Detail} | {p.Advice} | drills={string.Join(",", p.Drills)}"));
     }
+
+    /// <summary>"--timeline": the second-by-second read of one run; "--timeline-seconds" also prints every second.</summary>
+    static void PrintTimeline(RunTimeline? tl, bool eachSecond)
+    {
+        if (tl == null) { P("  timeline: (none)"); return; }
+        var s = tl.Summary;
+        P(F($"  timeline: {s.Seconds} s in {tl.Bucket:0.##} s buckets, scored={s.ScoredSeconds} active={s.ActiveSeconds} aim={s.AimSeconds} dead={s.DeadSeconds}"));
+        P(F($"    shots={s.Shots} hits={s.Hits} hs={s.HeadshotPct * 100:0.#}% acc={s.Accuracy * 100:0.#}% ontarget={s.OnTargetPct * 100:0.#}% err={s.AimErrDeg:0.00}° moving={s.MovingShotPct * 100:0.#}%"));
+        P(F($"    score avg={s.Average:0.0} sd={s.Consistency:0.0} first={s.FirstThird:0.0} last={s.LastThird:0.0} trend={s.Trend:+0.0;-0.0} best={s.BestSecond}@{s.BestScore} worst={s.WorstSecond}@{s.WorstScore}"));
+        foreach (var f in tl.Findings)
+            P(F($"    finding {f.Code} [{f.T0:0.00}-{f.T1:0.00}] a={f.A:0.###} b={f.B:0.###} n={f.N} tone={f.Tone} title={f.Title()}"));
+        if (!eachSecond) return;
+        foreach (var x in tl.Seconds)
+            P(F($"    {x.Index,4} {x.T,8:0.00}s score={x.Score,3} {x.Tag,-8} frames={x.Frames,3} focus={x.FocusFrames,3} on={x.OnTargetPct * 100,5:0.#}% err={x.AimErrDeg,5:0.00}° shots={x.Shots,2} hits={x.Hits,2} spd={x.SpeedAvg:0.0} ev={x.Events,2}"));
+    }
+
 
     /// <summary>"--insights": the Rewind data of one run (engagements, time-to-hit split, flick sectors, shots, moments).</summary>
     static void PrintInsights(RunTelemetry t)
@@ -331,7 +350,90 @@ public static class CoachCli
             prev = t;
             P(F($"  {(ok ? "PASS" : "FAIL")} calibration: typical {name} mechanics → overall {t:0.00} {Coach.RankName(t)} (raw mean {a.RawMean:0.00}, evidence {a.OverallConf:0.00}), expected {lo:0.00}–{hi:0.00}"));
         }
+        TimelineCases();
         _ = CultureInfo.InvariantCulture;
+    }
+
+    /// <summary>
+    /// Second-by-second checks: fixed 1-second buckets over a long run, every play kept (no 48-card cap), the versioned
+    /// archive round trip, and corrupt input never throwing.
+    /// </summary>
+    static void TimelineCases()
+    {
+        var t = new RunTelemetry
+        {
+            Mode = "flick", Tier = 1, Sens = 0.35f, Dpi = 800, Weapon = "Vandal",
+            When = new DateTime(2026, 1, 2, 3, 4, 5, DateTimeKind.Local), Duration = 600,
+        };
+        for (int i = 0; i < 36000; i++)
+        {
+            float time = i / 60f;
+            var f = new FrameSample
+            {
+                T = time, Yaw = i * 0.01f, Speed = time % 3 > 1 ? 2.5f : 0.2f,
+                Flags = (byte)FrameFlags.Accurate,
+            };
+            if (i % 60 < 30)
+            {
+                f.FocusId = 1;
+                f.FocusYaw = 0.15f;
+                f.FocusPitch = -0.10f;
+                f.FocusRadius = 0.6f;
+            }
+            t.Frames.Add(f);
+        }
+        for (int k = 0; k < 60; k++)
+            t.Shots.Add(new ShotSample
+            {
+                T = k * 9 + 2, Zone = k % 4 == 0 ? (sbyte)-1 : (sbyte)(k % 3 == 0 ? 0 : 1),
+                Speed = k % 5 == 0 ? 3f : 0.2f, FocusRadius = 0.6f, ErrYaw = 0.1f, ErrPitch = 0.1f,
+            });
+        var tl = RunTimeline.Build(t);
+        bool seconds = tl.Seconds.Count == 600 && tl.Summary.Seconds == 600;
+        bool sums = tl.Summary.Shots == 60 && tl.Summary.Hits == 45;
+        bool scored = tl.Seconds.Any(x => x.Score > 0) && tl.Seconds.Any(x => x.OnTargetPct >= 0.99f);
+        P($"  {(seconds && sums && scored ? "PASS" : "FAIL")} timeline: {tl.Seconds.Count} seconds (expected 600), " +
+          $"{tl.Summary.Shots} shots (60), {tl.Summary.Hits} hits (45), avg {tl.Summary.Average:0.0}, findings {tl.Findings.Count}");
+
+        // No play cap: 60 separate kills must produce 60 cards, and the timeline covers the whole run.
+        var many = new RunTelemetry
+        {
+            Mode = "flick", Tier = 1, Sens = 0.35f, Dpi = 800,
+            When = new DateTime(2026, 1, 3, 3, 4, 5, DateTimeKind.Local), Duration = 130,
+        };
+        for (int k = 0; k < 60; k++) many.Events.Add(new TelemetryEvent(1 + k * 2, "kill", 320, k % 3 == 0 ? 1 : 0));
+        var pa = PlayByPlay.Analyze(many);
+        bool cap = pa.Plays.Count == 60;
+        bool cover = pa.Timeline is { Seconds.Count: 130 };
+        P($"  {(cap && cover ? "PASS" : "FAIL")} play cap: {pa.Plays.Count} plays (expected 60), timeline {pa.Timeline?.Seconds.Count} s (expected 130)");
+
+        // Versioned archive: every second and every play survives a write/read cycle.
+        string dir = Path.Combine(Path.GetTempPath(), "caval-timeline-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            Directory.CreateDirectory(dir);
+            var review = new RunReview { Summary = "synthetic archive check", Plays = pa };
+            string? path = CoachArchive.Save(t, review, null, dir, keep: 2);
+            var back = path == null ? null : CoachArchive.Load(path);
+            bool round = back != null && back.Schema == CoachArchive.CurrentSchema
+                && back.Review.Plays?.Timeline?.Seconds.Count == 130
+                && back.Review.Plays.Plays.Count == 60
+                && back.Review.Plays.Plays[0].Title == pa.Plays[0].Title
+                && back.Review.Summary == review.Summary;
+            P($"  {(round ? "PASS" : "FAIL")} coach archive: {(path == null ? "not written" : $"{new FileInfo(path).Length / 1024} KB, schema {back?.Schema}")}, " +
+              $"{back?.Review.Plays?.Timeline?.Seconds.Count ?? 0} seconds, {back?.Review.Plays?.Plays.Count ?? 0} plays");
+            if (path != null) { try { File.Delete(path); } catch { } }
+        }
+        catch (Exception e) { P("  FAIL coach archive: " + e.Message); }
+        finally { try { Directory.Delete(dir, true); } catch { } }
+
+        // Corrupt input: an empty run and NaNs must produce an empty timeline, never throw.
+        var bad = new RunTelemetry { Mode = "flick", Duration = float.NaN };
+        bad.Frames.Add(new FrameSample { T = float.NaN, FocusId = 1, FocusRadius = float.NaN, FocusYaw = float.PositiveInfinity });
+        bad.Shots.Add(new ShotSample { T = float.NaN });
+        bad.Events.Add(new TelemetryEvent(float.NaN, "kill"));
+        var safe = RunTimeline.Build(bad);
+        P($"  {(!safe.HasData ? "PASS" : "FAIL")} timeline corrupt run: {safe.Seconds.Count} seconds, hasData={safe.HasData}");
     }
 
     // ------------------------------------------------------------------ 3D Rewind (.vtr)

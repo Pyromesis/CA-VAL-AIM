@@ -234,8 +234,9 @@ public partial class Main : Node
         if (Dev && make == null && (CmdLine.After("--lockin") ?? CmdLine.After("--warmup")) is { } wu) Callable.From(() => Warmup.WarmupRunner.StartDev(wu)).CallDeferred();
         // Dev-only: "--rewind-file run.vtt [--rewind-code CODE] [--rewind-at S]" opens the Rewind of a saved run.
         if (Dev && make == null && CmdLine.After("--rewind-file") is { } rf) Callable.From(() => RewindScreen.OpenDevFile(rf)).CallDeferred();
-        // Dev-only: "--plays-file run.vtt" opens its play-by-play list (screenshots of the per-play review).
-        if (Dev && make == null && CmdLine.After("--plays-file") is { } pf) Callable.From(() => PlaysScreen.OpenDevFile(pf)).CallDeferred();
+        // Dev-only: "--plays-file run.vtt [--plays-seconds]" opens its play-by-play list (screenshots of the per-play
+        // review), or its second-by-second tab directly.
+        if (Dev && make == null && CmdLine.After("--plays-file") is { } pf) Callable.From(() => PlaysScreen.OpenDevFile(pf, CmdLine.Has("--plays-seconds"))).CallDeferred();
         Analysis.CoachWarmUp.Start(); // JIT the coach off the main thread before the first results screen
         // Dev-only: "--screenshot <path prefix> --screenshot-at 3,5.5,9" saves the game's own frame (any screen, DPI-proof,
         // works on a locked desktop) as <prefix>_<n>.png at those seconds after start, then quits after the last one.

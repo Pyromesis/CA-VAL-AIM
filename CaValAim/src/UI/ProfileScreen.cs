@@ -473,14 +473,19 @@ public partial class ProfileScreen : ScreenBase
             RunTelemetry? run = null;
             try { run = RunTelemetry.Load(r.TelemetryFile!); } catch { /* unreadable: try the next one */ }
             if (run == null) continue;
-            var plays = PlayByPlay.Analyze(run);
+            // The saved coach archive is the source of truth (it keeps the timeline exactly as it was analysed);
+            // older runs or a missing/corrupt file fall back to recomputing from the .vtt.
+            var saved = CoachArchive.LoadFor(r.TelemetryFile, r.CoachFile);
+            var plays = saved?.Review.Plays;
+            if (plays == null || !plays.HasData) plays = PlayByPlay.Analyze(run);
+            else plays.Timeline ??= RunTimeline.Build(run, plays);
             if (plays.HasData) return (run, plays);
         }
         return null;
     }
 
     /// <summary>What the newest recorded run was worth, read off the main thread.</summary>
-    sealed record LastRunRead(string Mode, string Verdict, string[] Drills);
+    sealed record LastRunRead(string Mode, string Verdict, string[] Drills, string Timeline);
 
     /// <summary>The last run being read (static: rebuilding the screen must not start the read again).</summary>
     static Task<LastRunRead?>? lastRead;
@@ -529,31 +534,52 @@ public partial class ProfileScreen : ScreenBase
     static void StartLastRead()
     {
         if (lastRead != null) return;
-        List<string> files;
+        List<(string File, string? Coach)> files;
         try
         {
             files = Main.I.Stats.Runs
                 .OrderByDescending(r => r.When)
                 .Take(12)
-                .Select(r => r.TelemetryFile)
-                .Where(f => !string.IsNullOrEmpty(f) && File.Exists(f))
-                .Select(f => f!)
+                .Where(r => !string.IsNullOrEmpty(r.TelemetryFile) && File.Exists(r.TelemetryFile))
+                .Select(r => (r.TelemetryFile!, r.CoachFile))
                 .ToList();
         }
-        catch { files = new List<string>(); }
+        catch { files = new List<(string, string?)>(); }
         lastRead = Task.Run(() => Summarize(files));
     }
 
-    static LastRunRead? Summarize(List<string> files)
+    static LastRunRead? Summarize(List<(string File, string? Coach)> files)
     {
-        foreach (string file in files)
+        foreach (var (file, coachFile) in files)
         {
             RunTelemetry? run = null;
             try { run = RunTelemetry.Load(file); } catch { /* unreadable: try the next one */ }
             if (run == null) continue;
-            var plays = PlayByPlay.Analyze(run);
+            var saved = CoachArchive.LoadFor(file, coachFile);
+            var plays = saved?.Review.Plays;
+            if (plays == null || !plays.HasData) plays = PlayByPlay.Analyze(run);
+            else plays.Timeline ??= RunTimeline.Build(run, plays);
             if (!plays.HasData) continue;
-            return new LastRunRead(run.Mode, plays.Verdict.Trim(), plays.Drills);
+
+            string timeline = "";
+            if (plays.Timeline is { HasData: true } tl)
+            {
+                var t = new System.Text.StringBuilder();
+                t.Append(Loc.Spanish
+                    ? $"Segundo a segundo: media {tl.Summary.Average:0}/100"
+                    : $"Second by second: average {tl.Summary.Average:0}/100");
+                if (tl.Summary.WorstWindow >= 0)
+                    t.Append(Loc.Spanish
+                        ? $", tramo más flojo {TimelineText.Clock(tl.Summary.WorstWindow)} ({tl.Summary.WorstWindowScore:0}/100)"
+                        : $", weakest stretch {TimelineText.Clock(tl.Summary.WorstWindow)} ({tl.Summary.WorstWindowScore:0}/100)");
+                if (tl.Summary.DeadPct >= 0.15f)
+                    t.Append(Loc.Spanish ? $", {tl.Summary.DeadPct * 100:0}% de tiempo muerto" : $", {tl.Summary.DeadPct * 100:0}% dead time");
+                if (tl.Actionable(1).FirstOrDefault() is { } finding)
+                    t.Append(". ").Append(finding.Title()).Append(": ").Append(finding.Detail());
+                else t.Append('.');
+                timeline = t.ToString();
+            }
+            return new LastRunRead(run.Mode, plays.Verdict.Trim(), plays.Drills, timeline);
         }
         return null;
     }
@@ -577,6 +603,7 @@ public partial class ProfileScreen : ScreenBase
             string list = string.Join(", ", read.Drills.Select(CoachData.DrillName).Select(Loc.T));
             sb.Append(' ').Append(Loc.Spanish ? $"Para corregirlo: {list}." : $"To fix it: {list}.");
         }
+        if (read.Timeline.Length > 0) sb.Append(' ').Append(read.Timeline);
         line.Text = sb.ToString();
         line.AddThemeColorOverride("font_color", new Color(UiTheme.Text, 0.86f));
     }

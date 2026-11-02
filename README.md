@@ -194,7 +194,8 @@ Every run records your mouse input, crosshair path, shots and events to `%APPDAT
 | | |
 |---|---|
 | **Rank and skills** | An estimated rank overall and for 8 skills (flicking, precision, tracking, reaction, crosshair placement, spray, movement, utility), each with a confidence level. |
-| **Play-by-play** | Every engagement graded on reaction, flick, settle, click, overshoot and first shot, with a verdict, what went wrong and the drill that fixes it. **WATCH** opens it in Rewind; **PRACTISE** launches the drill. Up to 48 plays, worst first. |
+| **Play-by-play** | Every engagement graded on reaction, flick, settle, click, overshoot and first shot, with a verdict, what went wrong and the drill that fixes it. **WATCH** opens it in Rewind; **PRACTISE** launches the drill. There is no play cap: long runs page through every card. |
+| **Second by second** | A one-second timeline built from the real telemetry: score bars, aim error, time on target, accuracy, movement, dead time, best and worst seconds and the weakest five-second stretch, with a paged table and **WATCH** at that exact moment. |
 | **Problems** | Sorted by importance, each with your numbers, why it happens, how to fix it and drills to practise. |
 | **Direction and tremor** | Separates left, right, up and down flicks, flags aim tremor, under- and overshooting, and points to a drill for each. |
 | **Live coach** | Short cues during the run (Settings → Gameplay → Live coach) with the evidence and one fix: crosshair too low, shooting while moving, overshooting or stopping short, sprays too long. |

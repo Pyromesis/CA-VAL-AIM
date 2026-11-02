@@ -26,6 +26,12 @@ public sealed class Play
     public string Reason = "clean";
     public int Score;
 
+    // Structured evidence for this play, filled from the same frames and shots the timeline uses. Counts of 0 mean
+    // "not recorded for this kind of play"; the text fields above stay the human explanation.
+    public int Frames, FocusFrames, OnTargetFrames;
+    public int Shots, Hits, Headshots, MovingShots;
+    public float Accuracy, AimErrR, AimErrDeg, OnTargetPct, ShotErrDeg, MovePct;
+
     public PlayGrade Grade => Score >= 85 ? PlayGrade.Excellent : Score >= 70 ? PlayGrade.Good
         : Score >= 55 ? PlayGrade.Fair : Score >= 40 ? PlayGrade.Poor : PlayGrade.Bad;
     /// <summary>S / A / B / C / D, the chip shown on the card.</summary>
@@ -41,12 +47,14 @@ public sealed class PlayAnalysis
     public string Mode = "";
     /// <summary>What the plays are: "engagements", "sprays", "reactions", "flashes", "rounds", "stops", "tracking", "kills".</summary>
     public string Kind = "";
-    public readonly List<Play> Plays = new();
+    public List<Play> Plays = new();
     public string Verdict = "";
     public int Excellent, Good, Fair, Poor;
     public float Average;
     /// <summary>Drills for the most repeated mistake (empty when the run was clean).</summary>
     public string[] Drills = Array.Empty<string>();
+    /// <summary>Second-by-second read of the same run, stored next to the plays.</summary>
+    public RunTimeline? Timeline;
     public bool HasData => Plays.Count > 0;
 }
 
@@ -91,7 +99,8 @@ public static class PlayByPlay
             Log.Error($"Play-by-play failed for {t.Mode}: {e.Message}");
             a.Plays.Clear();
         }
-        Finish(a);
+        Finish(a, t);
+        a.Timeline = RunTimeline.Build(t, a);
         return a;
     }
 
@@ -738,7 +747,7 @@ public static class PlayByPlay
     // Run verdict
     // =====================================================================================================
 
-    static void Finish(PlayAnalysis a)
+    static void Finish(PlayAnalysis a, RunTelemetry t)
     {
         if (a.Plays.Count == 0)
         {
@@ -747,8 +756,8 @@ public static class PlayByPlay
             return;
         }
         a.Plays.Sort((x, y) => x.T0.CompareTo(y.T0));
-        if (a.Plays.Count > 48) Trim(a);
         for (int i = 0; i < a.Plays.Count; i++) a.Plays[i].Index = i + 1;
+        foreach (var p in a.Plays) Enrich(t, p);
 
         foreach (var p in a.Plays)
         {
@@ -842,19 +851,68 @@ public static class PlayByPlay
     static string Pn(int n) => Es ? $"{n} jugada{(n == 1 ? "" : "s")}" : $"{n} play{(n == 1 ? "" : "s")}";
     static string Wn(int n) => Es ? $"{n} ventana{(n == 1 ? "" : "s")}" : $"{n} window{(n == 1 ? "" : "s")}";
 
-    /// <summary>Long runs keep every bad play and an even sample of the rest, never more than 48 cards.</summary>
-    static void Trim(PlayAnalysis a)
+    /// <summary>Fills a play's structured evidence from the same frames and shots the timeline uses. It never changes
+    /// the play's grade: it only makes the numbers behind the advice inspectable and storable.</summary>
+    static void Enrich(RunTelemetry t, Play p)
     {
-        var keep = a.Plays.Where(p => p.Score < 55).ToHashSet();
-        if (keep.Count > 32) keep = keep.OrderBy(p => p.Score).Take(32).ToHashSet();
-        int room = 48 - keep.Count;
-        var rest = a.Plays.Where(p => !keep.Contains(p)).ToList();
-        if (room > 0 && rest.Count > 0)
+        if (p.T1 < p.T0) return;
+        float t0 = p.T0, t1 = MathF.Max(p.T1, p.T0 + 0.001f);
+
+        int i0 = LowerFrame(t.Frames, t0), i1 = UpperFrame(t.Frames, t1);
+        int frames = 0, focus = 0, onTarget = 0, moving = 0;
+        double err = 0, errDeg = 0;
+        for (int i = i0; i < i1; i++)
         {
-            float step = (float)rest.Count / room;
-            for (int k = 0; k < room; k++) keep.Add(rest[Math.Min(rest.Count - 1, (int)(k * step))]);
+            var f = t.Frames[i];
+            if (!float.IsFinite(f.T) || f.T < t0 || f.T > t1) continue;
+            frames++;
+            if (float.IsFinite(f.Speed) && f.Speed > 0.8f) moving++;
+            if (f.FocusId == 0 || !float.IsFinite(f.FocusYaw) || !float.IsFinite(f.FocusPitch) ||
+                !float.IsFinite(f.FocusRadius) || f.FocusRadius <= 0.01f) continue;
+            float e = MathF.Sqrt(f.FocusYaw * f.FocusYaw + f.FocusPitch * f.FocusPitch);
+            if (!float.IsFinite(e)) continue;
+            focus++;
+            err += e / MathF.Max(0.05f, f.FocusRadius);
+            errDeg += e;
+            if (e <= f.FocusRadius) onTarget++;
         }
-        a.Plays.Clear();
-        a.Plays.AddRange(keep.OrderBy(p => p.T0));
+        int shots = 0, hits = 0, heads = 0, movingShots = 0;
+        double shotErr = 0;
+        foreach (var s in t.Shots)
+        {
+            if (!float.IsFinite(s.T) || s.T < t0 || s.T > t1) continue;
+            shots++;
+            if (s.Hit) { hits++; if (s.Zone == 0) heads++; }
+            if (float.IsFinite(s.Speed) && s.Speed > 1.35f) movingShots++;
+            if (float.IsFinite(s.Err)) shotErr += s.Err;
+        }
+
+        p.Frames = frames;
+        p.FocusFrames = focus;
+        p.OnTargetFrames = onTarget;
+        p.Shots = shots;
+        p.Hits = hits;
+        p.Headshots = heads;
+        p.MovingShots = movingShots;
+        p.Accuracy = shots > 0 ? (float)hits / shots : 0;
+        p.AimErrR = focus > 0 ? (float)(err / focus) : 0;
+        p.AimErrDeg = focus > 0 ? (float)(errDeg / focus) : 0;
+        p.OnTargetPct = focus > 0 ? (float)onTarget / focus : 0;
+        p.ShotErrDeg = shots > 0 ? (float)(shotErr / shots) : 0;
+        p.MovePct = frames > 0 ? (float)moving / frames : 0;
+    }
+
+    static int LowerFrame(List<FrameSample> f, float t)
+    {
+        int lo = 0, hi = f.Count;
+        while (lo < hi) { int m = (lo + hi) >> 1; if (f[m].T < t) lo = m + 1; else hi = m; }
+        return lo;
+    }
+
+    static int UpperFrame(List<FrameSample> f, float t)
+    {
+        int lo = 0, hi = f.Count;
+        while (lo < hi) { int m = (lo + hi) >> 1; if (f[m].T <= t) lo = m + 1; else hi = m; }
+        return lo;
     }
 }

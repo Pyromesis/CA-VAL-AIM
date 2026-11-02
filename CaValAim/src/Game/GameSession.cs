@@ -841,11 +841,22 @@ public partial class GameSession : Node3D, IGame
             // Written on a worker: ≈1.5 MB for 60 s at 600 FPS, ≈20 MB for a full Sens Finder run. This run's telemetry
             // is never touched again (Restart makes a new one) and the record already carries its metrics.
             var tel = Telemetry;
+            var review = Review;
             try
             {
                 string dir = RunTelemetry.Dir;
-                Record.TelemetryFile = tel.FileIn(dir);
-                Task.Run(() => { try { tel.Save(dir); } catch (Exception e) { Log.Error($"Saving telemetry failed: {e.Message}"); } });
+                string file = tel.FileIn(dir);
+                Record.TelemetryFile = file;
+                Record.CoachFile = CoachArchive.FileFor(file);
+                Task.Run(() =>
+                {
+                    try { tel.Save(dir); } catch (Exception e) { Log.Error($"Saving telemetry failed: {e.Message}"); }
+                    try
+                    {
+                        if (review != null) CoachArchive.Save(tel, review, file);
+                    }
+                    catch (Exception e) { Log.Error($"Saving the coach archive failed: {e.Message}"); }
+                });
             }
             catch { }
         }

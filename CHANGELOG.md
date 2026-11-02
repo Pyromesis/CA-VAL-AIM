@@ -2,8 +2,20 @@
 
 ## [Unreleased]
 
+## [2.4.0] - 2026-11-01
+
 ### Added
 
+- **Every second of the run, measured.** The coach now builds a one-second timeline from the real telemetry (frames,
+  shots and events): aim error, time on target, accuracy, movement, mouse counts, kills, dead time and a score for each
+  second. **PLAY BY PLAY** has a **PLAYS / SECOND BY SECOND** switch: the score bars, the best and worst seconds, a paged
+  table with every second and the findings drawn from it — fatigue, slow start, shots while moving, aim bias, dead time
+  and the weakest five-second stretch — with **WATCH** jumping the 3D Rewind to that exact moment. Plays are no longer
+  capped at 48: long runs page through every card instead of dropping plays.
+- **The coach's analysis is saved and can be reopened.** Each recorded run writes a versioned JSON archive next to its
+  telemetry (in `%APPDATA%\CA-VAL-AIM\coach`) with the full review, every play and the complete timeline. The profile's
+  last-run line reads that archive first and falls back to recomputing from the `.vtt`, so older runs keep working and a
+  corrupt file never blocks the game.
 - **Community routines, guide and glossary.** The new **ROUTINES** screen collects eight Voltaic and cartoon VALORANT
   routines: five playable adaptations to CA-VAL-AIM drills, two external Kovaak's playlists with copyable share codes
   and the in-game VALORANT practice. Every step has plain-English and Spanish instructions on how to play it and why it

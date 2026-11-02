@@ -57,6 +57,9 @@ public sealed class RunReview
     public SensFeedback? Sens;
     /// <summary>Every play of the run, judged on its own (see <see cref="PlayByPlay"/>).</summary>
     public PlayAnalysis? Plays;
+    /// <summary>Second-by-second read of the same run (lives inside <see cref="PlayAnalysis.Timeline"/>).</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public RunTimeline? Timeline => Plays?.Timeline;
 }
 
 /// <summary>

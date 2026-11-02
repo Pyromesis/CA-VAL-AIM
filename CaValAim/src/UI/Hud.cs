@@ -1747,18 +1747,21 @@ public partial class Hud : Control
     static ReviewLayout LayoutReview(RunReview rv, float w, float maxH, float k, Func<string, bool>? showable = null, Action<string>? showMe = null,
         Action? playByPlay = null)
     {
-        (int Issues, int Cues, int Strengths, int SumLines)[] variants = { (3, 2, 3, 6), (3, 1, 2, 5), (2, 2, 2, 5), (2, 1, 1, 4), (1, 1, 1, 3), (1, 0, 0, 3) };
+        (int Issues, int Cues, int Strengths, int SumLines, int Findings)[] variants =
+        {
+            (3, 2, 3, 6, 2), (3, 1, 2, 5, 2), (2, 2, 2, 5, 1), (2, 1, 1, 4, 1), (1, 1, 1, 3, 1), (1, 0, 0, 3, 0),
+        };
         ReviewLayout? l = null;
         foreach (var v in variants)
         {
-            l = TryLayoutReview(rv, w, k, v.Issues, v.Cues, v.Strengths, v.SumLines, showable, showMe, playByPlay);
+            l = TryLayoutReview(rv, w, k, v.Issues, v.Cues, v.Strengths, v.SumLines, v.Findings, showable, showMe, playByPlay);
             if (l.Height <= maxH) break;
         }
         return l!;
     }
 
     static ReviewLayout TryLayoutReview(RunReview rv, float w, float k, int maxIssues, int maxCues, int maxStrengths, int sumLines,
-        Func<string, bool>? showable = null, Action<string>? showMe = null, Action? playByPlay = null)
+        int maxFindings, Func<string, bool>? showable = null, Action<string>? showMe = null, Action? playByPlay = null)
     {
         var L = new ReviewLayout();
         var body = UiTheme.Body;
@@ -1872,6 +1875,27 @@ public partial class Hud : Control
                     CoachDraw.Para(d, body, g, o.X + x + 20 * k, o.Y + gy, tw - 20 * k, es, UiTheme.Text, 2);
                 });
                 y += h + 6 * k;
+            }
+        }
+
+        var findings = rv.Timeline?.Actionable(maxFindings).ToList() ?? new List<TimelineFinding>();
+        if (findings.Count > 0)
+        {
+            Section(Loc.Spanish ? "SEGUNDO A SEGUNDO" : "SECOND BY SECOND");
+            foreach (var f in findings)
+            {
+                float fy = y;
+                var col = TimelineUi.Tone(f.Tone);
+                string title = f.Title().ToUpperInvariant();
+                string detail = f.Detail();
+                float dh = CoachDraw.TextH(body, detail, tw - 12 * k, es, 2);
+                L.Ops.Add((d, o) =>
+                {
+                    d.DrawRect(new Rect2(o.X + x, o.Y + fy + 1 * k, MathF.Max(1.5f, 2 * k), 12 * k), col);
+                    Gfx.TextFit(d, UiTheme.HudWide, title, o.X + x + 10 * k, Gfx.Mid(o.Y + fy + 7 * k, cs), cs, col, tw - 10 * k);
+                    CoachDraw.Para(d, body, detail, o.X + x + 10 * k, o.Y + fy + 18 * k, tw - 10 * k, es, UiTheme.Dim, 2);
+                });
+                y += 18 * k + dh + 8 * k;
             }
         }
 

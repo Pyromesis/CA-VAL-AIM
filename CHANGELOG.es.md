@@ -2,8 +2,21 @@
 
 ## [Sin publicar]
 
+## [2.4.0] - 2026-11-01
+
 ### Añadido
 
+- **Cada segundo de la partida, medido.** El coach construye ahora una cronología de un segundo a partir de la
+  telemetría real (frames, disparos y eventos): error de mira, tiempo en objetivo, precisión, movimiento, cuentas de
+  ratón, kills, tiempo muerto y una puntuación por segundo. **JUGADA A JUGADA** tiene un selector
+  **JUGADAS / SEGUNDO A SEGUNDO**: las barras de puntuación, el mejor y el peor segundo, una tabla paginada con todos los
+  segundos y los hallazgos que salen de ella —fatiga, arranque lento, disparos en movimiento, sesgo de mira, tiempo
+  muerto y el tramo más flojo de cinco segundos— con **VER** para saltar el Rewind 3D a ese momento exacto. Las jugadas
+  ya no tienen tope de 48: las partidas largas paginan todas las tarjetas en vez de perder jugadas.
+- **El análisis del coach se guarda y se puede reabrir.** Cada partida registrada escribe un archivo JSON versionado
+  junto a su telemetría (en `%APPDATA%\CA-VAL-AIM\coach`) con la revisión completa, todas las jugadas y la cronología
+  entera. La línea de la última partida del perfil lee primero ese archivo y recurre a recalcular desde el `.vtt`, así
+  que las partidas antiguas siguen funcionando y un archivo corrupto nunca bloquea el juego.
 - **Rutinas, guía y glosario de la comunidad.** La nueva pantalla **RUTINAS** reúne ocho rutinas de VALORANT de Voltaic
   y cartoon: cinco adaptaciones jugables con los ejercicios de CA-VAL-AIM, dos playlists externas de Kovaak's con su
   código para copiar y la práctica dentro de VALORANT. Cada paso explica en inglés y español cómo jugarlo y por qué
