@@ -26,6 +26,7 @@ static class Agg
         "track.secs", "track.reversals",
         "xhair.n", "xhair.nh", "xhair.below", "xhair.on_head",
         "move.stops", "move.counter", "move.shots", "move.moving", "move.early",
+        "strafe.frames", "strafe.mirror", "strafe.anti",
         "spray.n", "spray.delay_n",
         "react.n", "react.early",
         "flash.n", "flash.turn_n",
@@ -61,6 +62,7 @@ static class Agg
         ["xhair.below_pct"] = "xhair.n", ["xhair.on_head_pct"] = "xhair.nh", ["xhair.err_deg"] = "xhair.nh", ["xhair.h_deg"] = "xhair.nh",
         ["move.moving_speed"] = "move.moving", ["move.stop_ms"] = "move.stops", ["move.counter_pct"] = "move.stops",
         ["move.moving_shot_pct"] = "move.shots", ["move.early_shot_pct"] = "move.shots",
+        ["strafe.mirror_pct"] = "strafe.frames", ["strafe.anti_pct"] = "strafe.frames", ["strafe.secs"] = "strafe.frames",
         ["spray.delay_ms"] = "spray.delay_n",
         ["flash.turn_ms"] = "flash.turn_n",
         ["pick.extra_deg"] = "pick.n",
@@ -70,6 +72,7 @@ static class Agg
     {
         ["flick"] = "flick.n", ["head"] = "head.n_first", ["speed"] = "speed.n", ["track"] = "track.secs", ["xhair"] = "xhair.n",
         ["move"] = "move.shots", ["spray"] = "spray.n", ["react"] = "react.n", ["flash"] = "flash.n", ["run"] = "run.secs", ["pick"] = "pick.n",
+        ["strafe"] = "strafe.frames",
     };
 
     static string Family(string key) { int i = key.IndexOf('.'); return i < 0 ? key : key[..i]; }

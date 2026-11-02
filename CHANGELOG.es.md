@@ -2,6 +2,40 @@
 
 ## [Sin publicar]
 
+## [2.5.0] - 2026-11-01
+
+### Añadido
+
+- **Las rutinas de cartoon, reproducidas ejercicio a ejercicio.** Los veinte escenarios de Kovaak's de las playlists de
+  flicks y microajustes de cartoon son ahora ejercicios reales de CA-VAL-AIM con el nombre exacto de la fuente, jugados
+  cuatro veces cada uno: ocho flicks (32 min) y doce microajustes (36 min). Usan los motores de flick, micro, tracking y
+  reflejos, conservan los códigos de Kovaak's para la atribución y aparecen como ejercicios normales en el menú, las
+  estadísticas y las series.
+- **Anti-Mirroring, entrenado y medido.** El nuevo ejercicio **Anti-Mirror** puntúa los frames en los que haces strafe
+  contra un objetivo que también strafea en vez de moverte con él. Cada partida guarda tu entrada A/D y la velocidad
+  lateral del objetivo enfocado, así que la cronología segundo a segundo gana los hallazgos `mirroring` / `antimirror`,
+  el coach lanza un diagnóstico **MIRRORING** con la corrección y el ejercicio, y las métricas conservan
+  `strafe.frames`, `strafe.mirror_pct` y `strafe.anti_pct` por partida.
+- **Cada término del glosario lleva a algo real.** 99 de los 126 términos de Voltaic tienen botones a la función que los
+  implementa —un ejercicio jugable, el coach, ajustes, Sens Lab, series por ejercicio, tiempos de reacción, Rewind,
+  rutinas, series, ejercicios por agente, la guía, los datos CSV o Lock-In— con una línea que explica qué mide esa
+  pantalla. Los otros 27 describen hardware, géneros o jerga de la comunidad y lo dicen, en vez de ofrecer un botón
+  muerto.
+
+### Cambiado
+
+- **Las rutinas muestran la tarea original y el ejercicio que la juega.** Cada paso conserva el nombre completo del
+  escenario de origen bajo **ESCENARIO ORIGINAL** y nombra el ejercicio interno bajo **AQUÍ**, ambos con salto de línea
+  completo en vez de recortados. La rutina in-game de Voltaic ya se puede jugar: sus cuatro tareas conservan las
+  instrucciones originales y se mapean a spray transfer, taps largos, limpieza de sitio y deathmatch.
+- **El glosario y la tabla de rutinas caben en 1280×720.** Los chips de destino son cortos y saltan de línea, y el panel
+  del paso es más alto para que la tarea original, su ejercicio y el texto de cómo/por qué se vean sin cortar la página.
+
+### Corregido
+
+- **Los códigos de cartoon coinciden entre los datos y las pantallas.** Las dos playlists usan el mismo código de
+  Kovaak's en la rutina y en su tabla de escenarios.
+
 ## [2.4.0] - 2026-11-01
 
 ### Añadido

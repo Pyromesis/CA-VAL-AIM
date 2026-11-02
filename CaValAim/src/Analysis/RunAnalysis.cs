@@ -47,6 +47,7 @@ static class RunAnalysis
         if (Base(t.Mode) is "tracking" or "airtrack" or "reacttrack" or "trackv") Tracking(p, m);
         Crosshair(p, m);
         Movement(p, m);
+        Strafing(p, m);
         if (t.Mode is "spray_vandal" or "spray_phantom" or "spray_transfer") Spray(p, m);
         if (t.Mode == "spray_transfer") foreach (var k in new[] { "spray.h", "spray.delay_n", "spray.delay_ms" }) m.Remove(k); // the drag between agents isn't spray error: vertical only
         Reaction(t, m);
@@ -900,9 +901,37 @@ static class RunAnalysis
     }
 
     // =====================================================================================================
-    // A5. Spray (sprays of ≥ 10 bullets; bullets 4–15)
+    // A4b. Anti-Mirroring (v2.5 telemetry): both the player and the target strafing in the same frame.
     // =====================================================================================================
 
+    static void Strafing(Prep p, Dictionary<string, float> m)
+    {
+        var fr = p.T.Frames;
+        int frames = 0, mirror = 0, anti = 0;
+        double secs = 0;
+        for (int i = 1; i < p.N; i++)
+        {
+            var f = fr[i];
+            if (f.FocusId == 0 || !float.IsFinite(f.MoveX) || !float.IsFinite(f.TargetVx)) continue;
+            if (MathF.Abs(f.MoveX) < 0.5f || MathF.Abs(f.TargetVx) < 0.35f) continue;
+            float dt = p.Ft[i] - p.Ft[i - 1];
+            if (!(dt > 0) || dt > 0.5f) continue;
+            frames++;
+            secs += dt;
+            if (MathF.Sign(f.MoveX) == MathF.Sign(f.TargetVx)) mirror++; else anti++;
+        }
+        if (frames < 20) return;
+        m["strafe.frames"] = frames;
+        m["strafe.mirror"] = mirror;
+        m["strafe.anti"] = anti;
+        m["strafe.secs"] = MathF.Round((float)secs, 1);
+        m["strafe.mirror_pct"] = 100f * mirror / frames;
+        m["strafe.anti_pct"] = 100f * anti / frames;
+    }
+
+    // =====================================================================================================
+    // A5. Spray (sprays of ≥ 10 bullets; bullets 4–15)
+    // =====================================================================================================
     static void Spray(Prep p, Dictionary<string, float> m, List<SprayInfo>? info = null)
     {
         var t = p.T;

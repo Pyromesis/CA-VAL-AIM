@@ -2,6 +2,38 @@
 
 ## [Unreleased]
 
+## [2.5.0] - 2026-11-01
+
+### Added
+
+- **cartoon's routines, reproduced drill by drill.** The twenty Kovaak's scenarios behind cartoon's flicks and
+  micro-adjustment playlists are now real CA-VAL-AIM drills with the exact source names, played four times each: eight
+  flicks (32 min) and twelve micro-adjustments (36 min). They run on the flick, micro, tracking and reflex engines, keep
+  the original Kovaak's share codes for attribution and appear as normal drills in the menu, stats and playlists.
+- **Anti-Mirroring, trained and measured.** The new **Anti-Mirror** drill scores the frames where you strafe against a
+  strafing target instead of moving with it. Every run now records your A/D input and the focused target's lateral speed,
+  so the second-by-second timeline gains `mirroring` / `antimirror` findings, the coach raises a **MIRRORING** diagnosis
+  with the fix and sends you to the drill, and the metrics keep `strafe.frames`, `strafe.mirror_pct` and
+  `strafe.anti_pct` per run.
+- **Every glossary term points somewhere.** 99 of the 126 Voltaic terms now carry buttons to the real feature that
+  implements them — a playable drill, the coach, settings, Sens Lab, per-drill series, reaction times, Rewind, routines,
+  playlists, agent drills, the guide, the CSV data or Lock-In — with a line explaining what that screen measures. The
+  remaining 27 describe hardware, genres or community slang and say so instead of offering a dead button.
+
+### Changed
+
+- **Routines show the original task and the drill that plays it.** Each step keeps the full source scenario name under
+  **ESCENARIO ORIGINAL** and names the built-in drill under **AQUÍ**, both wrapped at full width instead of truncated.
+  Voltaic's in-game routine is now playable: its four in-game tasks keep their original instructions and map to spray
+  transfer, long taps, site clearing and deathmatch.
+- **The glossary and the routine table fit 1280×720.** Destination chips are short and wrap onto new lines, and the step
+  detail panel is taller so the original task, its drill and the how/why text are visible without cutting the page.
+
+### Fixed
+
+- **The cartoon share codes match between the data and the screens.** Both playlists use the same Kovaak's code in the
+  routine and in its scenario table.
+
 ## [2.4.0] - 2026-11-01
 
 ### Added

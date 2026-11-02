@@ -123,7 +123,8 @@ public sealed record AimVariant(string Id, AimFamily Family, string Name, string
     };
 }
 
-/// <summary>The 60 drills: 15 flicking, 15 tracking, 15 micro-adjustment and 15 reflex drills.</summary>
+/// <summary>The 60-drill core set (15 per family) plus <see cref="ScenarioDrills"/>' reproductions of community
+/// scenarios. Both are real drills: the core set is parameterised, the scenario set keeps the source task names.</summary>
 public static class AimVariants
 {
     static AimVariant F(string id, string name, string desc) => new(id, AimFamily.Flick, name, desc);
@@ -131,7 +132,7 @@ public static class AimVariants
     static AimVariant M(string id, string name, string desc) => new(id, AimFamily.Micro, name, desc);
     static AimVariant X(string id, string name, string desc) => new(id, AimFamily.Reflex, name, desc);
 
-    public static readonly AimVariant[] All =
+    public static readonly AimVariant[] Base =
     {
         // ---- flicking: distance, size, spread and pattern ----
         F("close", "Close Flicks", "Big targets at 5–7 m, 20–40° apart: fast, wide arm flicks.") with { Radius = 0.3f, DistMin = 5, DistMax = 7, Yaw = 40, MinAngle = 20 },
@@ -202,6 +203,10 @@ public static class AimVariants
         X("mixed", "Mixed Reflex", "Every pop-up has a new distance, size and window.") with { Radius = 0.14f, DistMin = 6, DistMax = 35, Yaw = 25, MinAngle = 3, Window = 0.75f },
     };
 
+    /// <summary>Everything playable through "flickx:" / "trackv:" / "microx:" / "reflex:": the core set first, then the
+    /// scenario reproductions used by the routines.</summary>
+    public static readonly AimVariant[] All = Base.Concat(ScenarioDrills.All).ToArray();
+
     public static AimVariant? Find(string keyBase, string id) =>
         All.FirstOrDefault(v => v.KeyBase.Equals(keyBase, StringComparison.OrdinalIgnoreCase) && v.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
 
@@ -220,7 +225,7 @@ static class VariantMath
         Mathf.RadToDeg(Mathf.Asin(Mathf.Clamp((r + 0.2f - eyeY) / Mathf.Max(0.5f, d), -1f, 1f)));
 }
 
-/// <summary>Flicking drill from an <see cref="AimVariant"/>: 1–3 static (or drifting) targets, hit to respawn.</summary>
+/// <summary>Flicking drill from an <see cref="AimVariant"/>: 1–5 static (or drifting) targets, hit to respawn.</summary>
 public sealed class FlickVariantMode : TrainingMode
 {
     AimVariant v;
@@ -256,7 +261,7 @@ public sealed class FlickVariantMode : TrainingMode
     protected override void Setup()
     {
         v = v.At(Tier); // the tier chosen in the menu / pause menu scales the authored drill
-        int n = Math.Clamp(v.Count, 1, 3);
+        int n = Math.Clamp(v.Count, 1, 5);
         t = new Target[n]; ids = new int[n]; drift = new float[n];
         for (int i = 0; i < n; i++) { t[i] = G.SpawnTarget(v.Radius); Spawn(i, first: true); }
     }
@@ -385,7 +390,7 @@ public sealed class MicroVariantMode : TrainingMode
     protected override void Setup()
     {
         v = v.At(Tier);
-        int n = Math.Clamp(v.Count, 1, 2);
+        int n = Math.Clamp(v.Count, 1, 3);
         t = new Target[n]; ids = new int[n]; drift = new float[n]; home = new Vector3[n];
         for (int i = 0; i < n; i++) { t[i] = G.SpawnTarget(v.Radius); Place(i, i == 0 ? 0f : 2f, 2f, first: true); }
     }

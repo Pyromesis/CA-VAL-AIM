@@ -22,7 +22,9 @@ param(
   [string[]]$Modes = @("peek_mix", "flick", "gridshot", "spider", "tracking", "strafebots", "peek", "operator", "spray_vandal",
                        "spray_phantom", "spray_transfer", "counterstrafe", "peekduel", "siteclear", "flashmap", "deathmatch",
                        "microshot", "switch", "popup", "longtaps", "jumppeek", "jigglepeek", "postplant", "retake",
-                       "anchor", "sound", "flashpeek:phoenix", "recon:sova", "smokeexec:omen", "mobility:jett", "chamber:headhunter"),
+                       "anchor", "sound", "flashpeek:phoenix", "recon:sova", "smokeexec:omen", "mobility:jett", "chamber:headhunter",
+                       "anti-mirror", "flickx:sc-cartoon-dev-ts-static-angelic", "microx:sc-cartoon-1w3ts-pasu-micro-goated",
+                       "trackv:sc-cartoon-waldots"),
   # Extra cultures for the locale test (the invariant culture always runs).
   [string[]]$Cultures = @("de-DE", "tr-TR"),
   [switch]$SkipSmoke,

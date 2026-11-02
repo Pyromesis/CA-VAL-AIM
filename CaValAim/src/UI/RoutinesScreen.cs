@@ -1,6 +1,8 @@
 using System.Globalization;
 using Godot;
 using CaValAim.Core;
+using CaValAim.Game;
+using CaValAim.Modes;
 
 namespace CaValAim.UI;
 
@@ -22,6 +24,28 @@ public partial class RoutinesScreen : ScreenBase
 
     /// <summary>Dev-only: <c>--screen routines --tab glossary</c> opens that tab directly.</summary>
     public static string? DevTab { get; set; }
+
+    /// <summary>Dev-only: <c>--term "Anti-Mirroring"</c> preselects that glossary entry (chips screenshots).</summary>
+    public static string? DevTerm { get; set; }
+
+    /// <summary>Dev-only: <c>--routine cartoon-flicks</c> preselects that routine (table screenshots).</summary>
+    public static string? DevRoutine { get; set; }
+
+    /// <summary>Opens the routines screen on a specific tab (glossary term chips, the guide, the CSV data).</summary>
+    public static void OpenTab(Tab which)
+    {
+        tab = which;
+        Main.I.ShowRoutines();
+    }
+
+    /// <summary>Opens the routines screen with one routine selected (a glossary term or a coach reference).</summary>
+    public static void OpenRoutine(string id)
+    {
+        tab = Tab.Routines;
+        routineId = id;
+        stepIndex = -1;
+        Main.I.ShowRoutines();
+    }
 
     static readonly CultureInfo Inv = CultureInfo.InvariantCulture;
 
@@ -224,6 +248,12 @@ public partial class RoutinesScreen : ScreenBase
     void BuildRoutines(VBoxContainer body, float k)
     {
         var all = RoutineLibrary.Routines;
+        if (DevRoutine is { Length: > 0 } devRoutine)
+        {
+            DevRoutine = null;
+            routineId = devRoutine;
+            stepIndex = -1;
+        }
         if (routineId == null || all.All(r => r.Id != routineId)) routineId = all.FirstOrDefault()?.Id;
         var routine = RoutineLibrary.Find(routineId ?? "");
 
@@ -454,7 +484,7 @@ public partial class RoutinesScreen : ScreenBase
         }
 
         right.AddChild(Spacer(0, 6 * k));
-        var detailPanel = new VPanel { K = k, Pad = 11, CustomMinimumSize = new Vector2(0, 150 * k) };
+        var detailPanel = new VPanel { K = k, Pad = 11, CustomMinimumSize = new Vector2(0, 250 * k) };
         var detailScroll = new ScrollContainer { HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled };
         stepDetail = VBox(2 * k);
         stepDetail.SizeFlagsHorizontal = SizeFlags.ExpandFill;
@@ -470,26 +500,17 @@ public partial class RoutinesScreen : ScreenBase
         Clear(stepDetail);
         if (stepIndex < 0 || stepIndex >= r.Steps.Count) return;
         var s = r.Steps[stepIndex];
-        var head = HBox(10 * k);
-        head.AddChild(new MText
+        stepDetail.AddChild(new MText
         {
-            K = k, Text = $"{L("STEP", "PASO")} {stepIndex + 1} · {s.RunsLabel}",
-            Font = UiTheme.HudWide, Px = 9.5f, Color = UiTheme.Faint, SizeFlagsVertical = SizeFlags.ShrinkCenter,
-            CustomMinimumSize = new Vector2(175 * k, 0),
+            K = k, Text = $"{L("STEP", "PASO")} {stepIndex + 1} · {s.RunsLabel} · {L("ORIGINAL SCENARIO", "ESCENARIO ORIGINAL")}",
+            Font = UiTheme.HudWide, Px = 9.5f, Color = UiTheme.Faint,
         });
-        head.AddChild(new MText
-        {
-            K = k, Text = s.Scenario, Font = UiTheme.BodySemi, Px = 12.5f, Color = UiTheme.Text,
-            SizeFlagsHorizontal = SizeFlags.ExpandFill, SizeFlagsVertical = SizeFlags.ShrinkCenter,
-        });
+        // The original task and the drill that plays it here wrap at full width: no single-line ellipsis on the two
+        // fields the screen exists for.
+        stepDetail.AddChild(Para(s.Scenario, 12.5f, UiTheme.Text));
         if (s.DrillName.Length > 0)
-            head.AddChild(new MText
-            {
-                K = k, Text = $"{L("HERE", "AQUÍ")}: {s.DrillName}",
-                Font = UiTheme.HudWide, Px = 9.5f, Color = UiTheme.Teal, SizeFlagsVertical = SizeFlags.ShrinkCenter,
-                CustomMinimumSize = new Vector2(240 * k, 0), Align = HorizontalAlignment.Right,
-            });
-        stepDetail.AddChild(head);
+            stepDetail.AddChild(Para($"{L("HERE", "AQUÍ")}: {s.DrillName}", 10.5f, UiTheme.Teal));
+        stepDetail.AddChild(Spacer(0, 2 * k));
         stepDetail.AddChild(Kicker(L("HOW TO PLAY", "CÓMO JUGARLO"), UiTheme.Faint));
         stepDetail.AddChild(Para(L(s.HowEn, s.HowEs), 11, UiTheme.TextSoft));
         stepDetail.AddChild(Spacer(0, 2 * k));
@@ -593,7 +614,9 @@ public partial class RoutinesScreen : ScreenBase
         var left = VBox(0);
         left.CustomMinimumSize = new Vector2(listW, 0);
         row.AddChild(left);
-        left.AddChild(Kicker(L("126 TERMS · A–Z", "126 TÉRMINOS · A–Z"), UiTheme.Faint));
+        left.AddChild(Kicker(L(
+            $"{Glossary.All.Length} TERMS · {GlossaryActions.ImplementedCount} WITH A DESTINATION",
+            $"{Glossary.All.Length} TÉRMINOS · {GlossaryActions.ImplementedCount} CON DESTINO"), UiTheme.Faint));
         left.AddChild(Spacer(0, 5 * k));
         var listScroll = new ScrollContainer { SizeFlagsVertical = SizeFlags.ExpandFill, HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled };
         glossaryList = new GlossaryList { K = k, SizeFlagsHorizontal = SizeFlags.ExpandFill };
@@ -631,6 +654,13 @@ public partial class RoutinesScreen : ScreenBase
             ShowTermDetail(k);
         };
         Refresh(true);
+        if (DevTerm is { Length: > 0 } devTerm)
+        {
+            DevTerm = null;
+            query = devTerm;
+            search.Text = devTerm;
+            Refresh(false);
+        }
     }
 
     void ShowTermDetail(float k)
@@ -665,6 +695,44 @@ public partial class RoutinesScreen : ScreenBase
         glossaryDetail.AddChild(Spacer(0, 4 * k));
         glossaryDetail.AddChild(Kicker("ENGLISH", UiTheme.TextSoft));
         glossaryDetail.AddChild(Para(term.En, 13, UiTheme.Dim));
+
+        // Where the term is implemented: a real drill, the coach, a settings page or a data screen. Terms that only
+        // describe hardware, genres or community slang say so instead of offering a button that leads nowhere.
+        glossaryDetail.AddChild(Spacer(0, 6 * k));
+        glossaryDetail.AddChild(Kicker(L("IMPLEMENTED IN CA-VAL-AIM", "IMPLEMENTADO EN CA-VAL-AIM"), UiTheme.TextSoft));
+        var targets = GlossaryActions.For(term.Term);
+        if (targets.Count > 0)
+        {
+            var chips = new HFlowContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+            chips.AddThemeConstantOverride("h_separation", (int)(8 * k));
+            chips.AddThemeConstantOverride("v_separation", (int)(6 * k));
+            foreach (var target in targets)
+            {
+                string label = TargetLabel(target);
+                int fs = UiTheme.Fs(10.5f, k);
+                float width = Mathf.Max(140 * k, Gfx.TextW(UiTheme.HudWide, label, fs) + 80 * k);
+                var chip = new MAction
+                {
+                    K = k, Label = label, Px = 10.5f, TooltipText = TargetWhy(target),
+                    CustomMinimumSize = new Vector2(width, 32 * k),
+                    SizeFlagsVertical = SizeFlags.ShrinkBegin,
+                };
+                var captured = target;
+                chip.Pressed += () => GoToGlossaryTarget(captured);
+                chips.AddChild(chip);
+            }
+            glossaryDetail.AddChild(chips);
+        }
+        else
+        {
+            var note = GlossaryActions.ContextNote(term.Term);
+            glossaryDetail.AddChild(Para(L(
+                "Context term: it describes hardware, a genre or community slang and has no drill in this trainer.",
+                "Término de contexto: describe hardware, un género o jerga de la comunidad y no tiene ejercicio en este entrenador."),
+                10.5f, UiTheme.Faint));
+            if (note.En.Length > 0)
+                glossaryDetail.AddChild(Para(L(note.En, note.Es), 10.5f, UiTheme.Dim));
+        }
         glossaryDetail.AddChild(Spacer(0, 8 * k));
         var links = HBox(22 * k);
         links.AddChild(MkLink("VOLTAIC AIM GLOSSARY ↗", () => Open(CommunityLinks.AimGlossary),
@@ -675,6 +743,102 @@ public partial class RoutinesScreen : ScreenBase
             "Definitions are short paraphrases written for CA-VAL-AIM, not copies of the source. The glossary belongs to the Voltaic Aim Journey project.",
             "Las definiciones son paráfrasis breves escritas para CA-VAL-AIM, no copias de la fuente. El glosario pertenece al proyecto Aim Journey de Voltaic."),
             10.5f, UiTheme.Faint));
+    }
+
+    static string TargetLabel(GlossaryTarget t)
+    {
+        string kind = t.Kind switch
+        {
+            GlossaryTargetKind.Drill => L("PLAY", "JUGAR"),
+            GlossaryTargetKind.Coach => "COACH",
+            GlossaryTargetKind.Settings => L("SETTINGS", "AJUSTES"),
+            GlossaryTargetKind.SensLab => "SENS LAB",
+            GlossaryTargetKind.Stats => "SERIES",
+            GlossaryTargetKind.Reactions => L("REACTION", "REACCIÓN"),
+            GlossaryTargetKind.Rewind => "REWIND",
+            GlossaryTargetKind.Routines => L("ROUTINES", "RUTINAS"),
+            GlossaryTargetKind.Playlists => "PLAYLISTS",
+            GlossaryTargetKind.Agents => L("AGENTS", "AGENTES"),
+            GlossaryTargetKind.Guide => L("GUIDE", "GUÍA"),
+            GlossaryTargetKind.Data => L("DATA", "DATOS"),
+            GlossaryTargetKind.LockIn => "LOCK-IN",
+            _ => "",
+        };
+        string title = Loc.Spanish ? t.TitleEs : t.TitleEn;
+        // Only drills carry their name on the chip: coach / settings / series chips stay short so they never truncate at
+        // 1280×720, and the title still explains them in the tooltip.
+        return t.Kind == GlossaryTargetKind.Drill && title.Length > 0 ? $"{kind} · {title}" : kind;
+    }
+
+    static string TargetWhy(GlossaryTarget t)
+    {
+        string why;
+        if (Loc.Spanish && !string.IsNullOrEmpty(t.WhyEs)) why = t.WhyEs!;
+        else if (!Loc.Spanish && !string.IsNullOrEmpty(t.WhyEn)) why = t.WhyEn!;
+        else why = t.Kind switch
+        {
+            GlossaryTargetKind.Drill => L("Open this drill and play a run.", "Abre este ejercicio y juega una partida."),
+            GlossaryTargetKind.Coach => L("Your runs, the coach's signal and the plan that fixes it.", "Tus runs, la señal del coach y el plan para corregirlo."),
+            GlossaryTargetKind.Settings => L("The settings page for this parameter.", "La página de ajustes de este parámetro."),
+            GlossaryTargetKind.SensLab => L("cm/360 and sensitivity measured from your own runs.", "cm/360 y sensibilidad medidos con tus propias runs."),
+            GlossaryTargetKind.Stats => L("Your runs for this drill: best, average and last 20.", "Tus partidas de este ejercicio: mejor, media y últimas 20."),
+            GlossaryTargetKind.Reactions => L("Reaction times by category.", "Tiempos de reacción por categoría."),
+            GlossaryTargetKind.Rewind => L("The last saved run, second by second.", "La última run guardada, segundo a segundo."),
+            GlossaryTargetKind.Routines => L("The routines that apply this term.", "Las rutinas que aplican este término."),
+            GlossaryTargetKind.Playlists => L("Saved playlists and the coach's plan.", "Playlists guardadas y el plan del coach."),
+            GlossaryTargetKind.Agents => L("Ability and utility drills per agent.", "Ejercicios de habilidades y utilidad por agente."),
+            GlossaryTargetKind.Guide => L("How to practise, ordered and explained.", "Cómo practicar, ordenado y explicado."),
+            GlossaryTargetKind.Data => L("Local CSV tables with routines and progress.", "Tablas CSV locales con rutinas y progreso."),
+            GlossaryTargetKind.LockIn => L("Adaptive calibration for this skill.", "Calibración adaptativa de esta habilidad."),
+            _ => "",
+        };
+        string title = Loc.Spanish ? t.TitleEs : t.TitleEn;
+        return title.Length == 0 ? why : $"{title} — {why}";
+    }
+
+    void GoToGlossaryTarget(GlossaryTarget t)
+    {
+        switch (t.Kind)
+        {
+            case GlossaryTargetKind.Drill:
+                var make = ModeRegistry.Find(t.Arg);
+                if (make == null)
+                {
+                    SetStatus(L($"The drill “{t.Arg}” is not available in this build.",
+                        $"El ejercicio «{t.Arg}» no está disponible en esta compilación."), UiTheme.Warn);
+                    return;
+                }
+                Main.I.StartMode(make);
+                break;
+            case GlossaryTargetKind.Coach: Main.I.ShowProfile(); break;
+            case GlossaryTargetKind.Settings: Main.I.ShowSettings(); break;
+            case GlossaryTargetKind.SensLab: Main.I.ShowSensLab(); break;
+            case GlossaryTargetKind.Stats: Main.I.ShowStats(); break;
+            case GlossaryTargetKind.Reactions: Main.I.ShowReactionStats(); break;
+            case GlossaryTargetKind.Rewind: OpenLatestRewind(); break;
+            case GlossaryTargetKind.Routines:
+                if (string.IsNullOrEmpty(t.Arg)) OpenTab(Tab.Routines); else OpenRoutine(t.Arg);
+                break;
+            case GlossaryTargetKind.Playlists: Main.I.ShowPlaylists(); break;
+            case GlossaryTargetKind.Agents: Main.I.ShowAgents(); break;
+            case GlossaryTargetKind.Guide: OpenTab(Tab.Guide); break;
+            case GlossaryTargetKind.Data: OpenTab(Tab.Data); break;
+            case GlossaryTargetKind.LockIn: Main.I.ShowLockIn(); break;
+        }
+    }
+
+    void OpenLatestRewind()
+    {
+        foreach (var file in RunTelemetry.RecentFiles(8))
+        {
+            var run = RunTelemetry.Load(file);
+            if (run == null || !RewindData.CanRewind(run)) continue;
+            run.SourceFile ??= file;
+            RewindScreen.Open(Main.I, run);
+            return;
+        }
+        SetStatus(L("No saved run to rewind yet: play a drill and save the data first.",
+            "Aún no hay ninguna run guardada para el Rewind: juega un ejercicio y guarda los datos primero."), UiTheme.Warn);
     }
 
     // ---------------- DATA ----------------

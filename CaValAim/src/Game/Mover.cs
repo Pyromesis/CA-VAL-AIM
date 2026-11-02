@@ -76,6 +76,9 @@ public sealed partial class Mover
     public readonly List<float> ReleaseStopTimesMs = new();
     public float LastStopMs = -1;
     public bool LastStopWasCounter;
+    /// <summary>This frame's sideways input: +1 = D (right), −1 = A (left), 0 = neither or both. Recorded by the aim
+    /// coach to tell mirroring (moving with the target) from anti-mirroring (moving against it).</summary>
+    public float InputStrafe { get; private set; }
     bool stopping, stoppingCounter, opposedKeys;
     float stopT;
 
@@ -99,6 +102,7 @@ public sealed partial class Mover
         var wish = Vector3.Zero;
         bool f = Down(keys, GameAction.MoveForward), b = Down(keys, GameAction.MoveBack);
         bool l = Down(keys, GameAction.StrafeLeft), r = Down(keys, GameAction.StrafeRight);
+        InputStrafe = (r ? 1f : 0f) - (l ? 1f : 0f);
         if (f) wish += fwd;
         if (b) wish -= fwd;
         if (r) wish += right;

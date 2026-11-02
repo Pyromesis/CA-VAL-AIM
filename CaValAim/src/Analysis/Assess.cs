@@ -51,6 +51,7 @@ static class Assess
         "picks" => "elecciones",
         "direction changes" => "cambios de dirección",
         "s of tracking" => "segundos de tracking",
+        "frames" => "muestras",
         _ => unit,
     };
 
@@ -792,6 +793,25 @@ static class Assess
                     : cs < 0.5f ? S("none of your stops were counter-strafed", "ninguna de tus paradas fue contramovimiento")
                     : F2($"only {cs:0}% of your stops were counter-strafed", $"solo el {cs:0}% de tus paradas fueron contramovimiento"),
                 unit: "stops");
+
+        // ANTI-MIRRORING — both the player and the target strafe, and the player moves the same way (mirroring).
+        float mirrorPct = V(m, "strafe.mirror_pct"), antiPct = V(m, "strafe.anti_pct"), strafeFrames = N(m, "strafe.frames");
+        if (mirrorPct >= 62f && mirrorPct > antiPct && strafeFrames >= 45)
+            Add("MIRRORING", Skill.Movement, mirrorPct >= 75f ? 2 : 1, strafeFrames, 60,
+                "Mirroring: you strafe with the target",
+                F2($"{mirrorPct:0}% of the frames where both of you were strafing ({strafeFrames:0} frames) you moved in the same direction as the target",
+                    $"El {mirrorPct:0}% de los frames en los que ambos hacías strafe ({strafeFrames:0} frames) te moviste en la misma dirección que el objetivo"),
+                "Moving with the target doubles its angular speed across your screen: the crosshair has to travel twice as far and your correction arrives late. In a duel, the stable read is to strafe against the target, not with it.",
+                new[]
+                {
+                    "When the target strafes right, press A; when it strafes left, press D.",
+                    "Keep the crosshair still relative to the target: let your strafe cancel its movement.",
+                    "Play Anti-Mirror: the drill scores the frames you spend moving against a strafing target.",
+                    "Don't strafe just to strafe: if you cannot read the direction yet, plant and track first.",
+                },
+                new[] { "anti-mirror", "strafebots", "tracking" },
+                F2($"you mirrored the target's strafe in {mirrorPct:0}% of the shared strafe frames", $"hiciste espejo con el strafe del objetivo en el {mirrorPct:0}% de los frames compartidos"),
+                unit: "frames");
 
         // ---- spray ----
         float sn = N(m, "spray.n"), sv = V(m, "spray.v"), svAbs = V(m, "spray.v_abs"), sh = V(m, "spray.h"), sd = V(m, "spray.delay_ms");

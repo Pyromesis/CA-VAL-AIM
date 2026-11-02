@@ -46,6 +46,8 @@ public static class ModeRegistry
         () => new ArsenalMode(),
         () => new AirTrackingMode(),
         () => new ReactiveTrackingMode(),
+        // v2.5.0: the movement drill behind the Anti-Mirroring glossary entry and the MIRRORING coach diagnosis.
+        () => new AntiMirrorMode(),
         () => new ReactionLabMode(ReactionCategory.Visual),
         () => new ReactionLabMode(ReactionCategory.Audio),
         () => new ReactionLabMode(ReactionCategory.Peripheral),

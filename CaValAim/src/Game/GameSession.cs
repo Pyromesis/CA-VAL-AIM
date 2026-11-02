@@ -59,6 +59,11 @@ public partial class GameSession : Node3D, IGame
     public RunTelemetry Telemetry { get; private set; } = new();
     float frameDx, frameDy;
     int lastStopCount;
+    // Anti-Mirroring: previous focused target, to derive its lateral and angular velocity between frames.
+    bool hasFocusPrev;
+    int lastFocusId;
+    float lastFocusT, lastFocusYaw;
+    Vector3 lastFocusPos;
     static readonly string? TelemetryOut = ArgAfter("--telemetry-out");
 
     static string? ArgAfter(string flag)
@@ -270,6 +275,7 @@ public partial class GameSession : Node3D, IGame
         Review = null;
         frameDx = frameDy = 0;
         lastStopCount = 0;
+        hasFocusPrev = false; lastFocusId = 0;
         viewmodel = null;
         ResetTransientInput();
         wasReloading = false;
@@ -667,12 +673,31 @@ public partial class GameSession : Node3D, IGame
 
     void RecordFrame()
     {
-        var f = new FrameSample { T = Now, Yaw = View.ViewYaw, Pitch = View.ViewPitch, Dx = frameDx, Dy = frameDy, Speed = Mover.Speed };
+        var f = new FrameSample { T = Now, Yaw = View.ViewYaw, Pitch = View.ViewPitch, Dx = frameDx, Dy = frameDy, Speed = Mover.Speed, MoveX = Mover.InputStrafe };
         frameDx = frameDy = 0;
         if (!Mode.Is2D && Mode.Focus is { } focus)
         {
             var (fy, fp) = OffsetFromCrosshair(focus.Point);
             f.FocusId = focus.Id; f.FocusYaw = fy; f.FocusPitch = fp; f.FocusRadius = AngularRadius(focus.Point, focus.Radius);
+            var p = focus.Point;
+            float worldYaw = Mathf.RadToDeg(Mathf.Atan2(p.X - View.Eye.X, -(p.Z - View.Eye.Z)));
+            if (hasFocusPrev && f.FocusId == lastFocusId)
+            {
+                float dt = Now - lastFocusT;
+                if (dt > 1e-4f && dt < 0.5f)
+                {
+                    var vel = (p - lastFocusPos) / dt;
+                    float y = Mathf.DegToRad(View.ViewYaw);
+                    f.TargetVx = vel.Dot(new Vector3(Mathf.Cos(y), 0, Mathf.Sin(y)));
+                    float dy = Mathf.PosMod(worldYaw - lastFocusYaw + 180f, 360f) - 180f;
+                    f.TargetYawRate = dy / dt;
+                }
+            }
+            lastFocusPos = p; lastFocusYaw = worldYaw; lastFocusT = Now; lastFocusId = f.FocusId; hasFocusPrev = true;
+        }
+        else
+        {
+            hasFocusPrev = false; lastFocusId = 0;
         }
         byte flags = 0;
         if (fireHeld) flags |= (byte)FrameFlags.Firing;

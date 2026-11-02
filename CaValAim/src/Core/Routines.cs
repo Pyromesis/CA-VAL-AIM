@@ -74,7 +74,11 @@ public sealed class RoutineStep
         {
             if (Runs.Count == 0) return "—";
             if (Runs.All(r => MathF.Abs(r.Minutes - Runs[0].Minutes) < 0.001f))
+            {
+                if (Runs[0].Minutes < 1f)
+                    return $"{Runs.Count} × {Mathf.RoundToInt(Runs[0].Minutes * 60f)} s";
                 return $"{Runs.Count} × {Runs[0].Minutes:0.#} min";
+            }
             return $"{Minutes:0.#} min";
         }
     }
@@ -128,7 +132,7 @@ public sealed class Routine
     public Playlist ToPlaylist(out List<int> stepOfRun)
     {
         stepOfRun = new List<int>();
-        var p = new Playlist { Name = "Voltaic · " + Name };
+        var p = new Playlist { Name = Name };
         for (int i = 0; i < Steps.Count; i++)
         {
             var step = Steps[i];
@@ -152,7 +156,7 @@ public sealed class Routine
         var p = ToPlaylist(out _);
         if (p.Modes.Count == 0) return null;
         string name = Name.Length > 30 ? Name[..30] : Name;
-        return PlaylistStore.ReplaceRuns("VOLTAIC · " + name,
+        return PlaylistStore.ReplaceRuns("RUTINA · " + name,
             p.Modes.Select((k, i) => new PlaylistRun(k, p.Recoil[k], p.SensAt(i), p.MinutesAt(i))));
     }
 
@@ -175,14 +179,32 @@ public static class RoutineLibrary
 
     static RoutineStep Step(string scenario, string drill, RoutineFocus focus, float minutes,
         string howEn, string howEs, string whyEn, string whyEs, bool optional = false,
-        string? sensNoteEn = null, string? sensNoteEs = null)
+        string? sensNoteEn = null, string? sensNoteEs = null, bool recoil = false)
         => new()
         {
             Scenario = scenario, Drill = drill, Focus = focus,
             Runs = new List<RoutineRun> { new(minutes) },
             HowEn = howEn, HowEs = howEs, WhyEn = whyEn, WhyEs = whyEs,
-            Optional = optional, SensNoteEn = sensNoteEn, SensNoteEs = sensNoteEs,
+            Optional = optional, SensNoteEn = sensNoteEn, SensNoteEs = sensNoteEs, RecoilOn = recoil,
         };
+
+    /// <summary>A step repeated <paramref name="reps"/> times, each run lasting <paramref name="minutes"/>.</summary>
+    static RoutineStep Reps(string scenario, string drill, RoutineFocus focus, int reps, float minutes,
+        string howEn, string howEs, string whyEn, string whyEs, bool optional = false, bool recoil = false)
+    {
+        var runs = new List<RoutineRun>();
+        for (int i = 0; i < reps; i++) runs.Add(new RoutineRun(minutes));
+        return new()
+        {
+            Scenario = scenario, Drill = drill, Focus = focus, Runs = runs,
+            HowEn = howEn, HowEs = howEs, WhyEn = whyEn, WhyEs = whyEs, Optional = optional, RecoilOn = recoil,
+        };
+    }
+
+    /// <summary>One cartoon scenario, played four times, on the drill that reproduces it.</summary>
+    static RoutineStep CartoonStep(AimVariant v, RoutineFocus focus, int seconds,
+        string howEn, string howEs, string whyEn, string whyEs)
+        => Reps(v.Name, v.Key, focus, 4, seconds / 60f, howEn, howEs, whyEn, whyEs);
 
     static RoutineStep SensStep(string scenario, string drill, RoutineFocus focus, float factor, int boosted,
         string howEn, string howEs, string whyEn, string whyEs, bool optional = false,
@@ -714,38 +736,76 @@ public static class RoutineLibrary
             Id = "cartoon-flicks",
             Name = "CRTN · Flicks básicos",
             Source = "cartoon · Kovaak's 2.0",
-            LevelEn = "Intermediate · 4 reps per exercise", LevelEs = "Intermedio · 4 repeticiones por ejercicio",
+            LevelEn = "Intermediate · 8 scenarios · 4 reps each", LevelEs = "Intermedio · 8 escenarios · 4 repeticiones",
             SourceDoc = CommunityLinks.CartoonGuide,
             ShareCode = "KovaaKsReloadingMaroonLamp",
-            Playable = false,
-            External = true,
             DescriptionEn =
-                "cartoon's basic-flicks playlist: 32 minutes, four repetitions of every exercise. The document only " +
-                "publishes the Kovaak's share code, not the individual scenario list, so CA-VAL-AIM cannot reproduce " +
-                "it as a built-in playlist without inventing scenarios. Copy the code into Kovaak's Online Playlists " +
-                "to play the original.",
+                "cartoon's basic-flicks playlist: 32 minutes, four repetitions of each of its eight scenarios. Every " +
+                "task is reproduced here as a real CA-VAL-AIM drill with the same name and focus; the Kovaak's share " +
+                "code is kept so you can also play the original. Follow the guide's rules: clean lines, one shot per " +
+                "target in clicking scenarios, no trail-chasing and no chasing 100% accuracy.",
             DescriptionEs =
-                "La playlist de flicks básicos de cartoon: 32 minutos, cuatro repeticiones de cada ejercicio. El " +
-                "documento solo publica el código de Kovaak's, no la lista de escenarios, así que CA-VAL-AIM no puede " +
-                "reproducirla como playlist interna sin inventarse escenarios. Copia el código en las playlists " +
-                "online de Kovaak's para jugar la original.",
-            CreditEn = "Routine and guide by cartoon (Twitch/Twitter/YouTube). Share code from cartoon's public guide.",
-            CreditEs = "Rutina y guía de cartoon (Twitch/Twitter/YouTube). Código de la guía pública de cartoon.",
+                "La playlist de flicks básicos de cartoon: 32 minutos, cuatro repeticiones de cada uno de sus ocho " +
+                "escenarios. Cada tarea está reproducida aquí como un ejercicio real de CA-VAL-AIM con el mismo nombre " +
+                "y enfoque; se conserva el código de Kovaak's para que también puedas jugar la original. Respeta las " +
+                "reglas de la guía: líneas limpias, un disparo por objetivo en clicking, sin perseguir estelas y sin " +
+                "buscar el 100% de precisión.",
+            CreditEn = "Routine and guide by cartoon (Twitch/Twitter/YouTube). Scenario names from cartoon's public " +
+                       "playlist; share code from cartoon's guide.",
+            CreditEs = "Rutina y guía de cartoon (Twitch/Twitter/YouTube). Nombres de escenario de la playlist pública " +
+                       "de cartoon; código de la guía de cartoon.",
             Steps =
             {
-                Step("Playlist externa · 4 repeticiones por ejercicio", "", RoutineFocus.Clicking, 32,
-                    "Open Kovaak's → Playlists → Online Playlists, paste KovaaKsReloadingMaroonLamp and start it. " +
-                    "Complete four repetitions of every exercise. Keep the guide's rules: no dragging flicks, one " +
-                    "shot per target in clicking scenarios, do not track the trail of moving clicking targets, and " +
-                    "do not chase 100% accuracy.",
-                    "Abre Kovaak's → Playlists → Online Playlists, pega KovaaKsReloadingMaroonLamp y empieza. Completa " +
-                    "cuatro repeticiones de cada ejercicio. Respeta las reglas de la guía: no arrastres los flicks, un " +
-                    "disparo por objetivo en clicking, no sigas la estela de objetivos móviles de clicking y no " +
-                    "busques el 100% de precisión.",
-                    "A 32-minute focused block for flick speed and clean lines, meant to be alternated with a " +
-                    "micro-adjustment week rather than played every day.",
-                    "Un bloque de 32 minutos para velocidad de flick y líneas limpias, pensado para alternarse con una " +
-                    "semana de microajustes en vez de jugarse todos los días."),
+                CartoonStep(ScenarioDrills.CartoonFlicks[0], RoutineFocus.Clicking, 60,
+                    "Flick between the two heads without dropping or lifting the crosshair. One shot per target, then " +
+                    "reset to the other head.",
+                    "Haz flick entre las dos cabezas sin bajar ni subir la mira. Un disparo por objetivo y vuelve a la " +
+                    "otra cabeza.",
+                    "Horizontal flicks: the wrist stays on the head line and the arm stops dead on target.",
+                    "Flicks horizontales: la muñeca se queda en la línea de la cabeza y el brazo frena en seco."),
+                CartoonStep(ScenarioDrills.CartoonFlicks[1], RoutineFocus.Switching, 60,
+                    "Acquire the nearest head, kill it and move to the next before it settles. Four reps keep the pace " +
+                    "honest.",
+                    "Adquiere la cabeza más cercana, elimínala y pasa a la siguiente antes de que se asiente. Las cuatro " +
+                    "repeticiones mantienen el ritmo honesto.",
+                    "Target switching on larger heads: the first shot should not need a second correction.",
+                    "Cambio de objetivo con cabezas grandes: el primer disparo no debería necesitar una segunda corrección."),
+                CartoonStep(ScenarioDrills.CartoonFlicks[2], RoutineFocus.Switching, 60,
+                    "Four small targets across a wide wall. Plan the route left-to-right and stop on every head instead " +
+                    "of dragging through it.",
+                    "Cuatro objetivos pequeños en una pared amplia. Planifica la ruta de izquierda a derecha y frena en " +
+                    "cada cabeza en vez de arrastrar la mira.",
+                    "Wide-wall clicking: route planning and clean stops at the edge of your range.",
+                    "Clicking en pared amplia: planificación de ruta y paradas limpias en el borde de tu alcance."),
+                CartoonStep(ScenarioDrills.CartoonFlicks[3], RoutineFocus.Clicking, 60,
+                    "Two targets, one shot each. The first flick has to land and the second has to be just as clean.",
+                    "Dos objetivos, un disparo a cada uno. El primer flick tiene que llegar y el segundo tiene que ser " +
+                    "igual de limpio.",
+                    "The simplest switch: no spray, no correction, just two precise clicks.",
+                    "El cambio más simple: sin spray ni corrección, solo dos clics precisos."),
+                CartoonStep(ScenarioDrills.CartoonFlicks[4], RoutineFocus.Switching, 60,
+                    "Forgiving floating heads: read the drift, click when the head meets the dot and reset for the next.",
+                    "Cabezas flotantes permisivas: lee la deriva, haz clic cuando la cabeza se encuentre con el punto y " +
+                    "recoloca para la siguiente.",
+                    "Reading a moving head before the click, the base of reactive switching.",
+                    "Lectura de una cabeza móvil antes del clic, la base del cambio reactivo."),
+                CartoonStep(ScenarioDrills.CartoonFlicks[5], RoutineFocus.Clicking, 60,
+                    "Moving heads at 400% speed: time the click as the head crosses the crosshair. Never chase the trail.",
+                    "Cabezas móviles al 400% de velocidad: temporiza el clic cuando la cabeza cruza la mira. Nunca " +
+                    "persigas la estela.",
+                    "Click timing on a fast crossing target: the shot is released before the head arrives.",
+                    "Timing de clic sobre un objetivo rápido que cruza: el disparo sale antes de que llegue la cabeza."),
+                CartoonStep(ScenarioDrills.CartoonFlicks[6], RoutineFocus.Clicking, 60,
+                    "Static angelic targets: one tap per head, then a fast reset to the next target.",
+                    "Objetivos angelic estáticos: un tap por cabeza y una recolocación rápida al siguiente objetivo.",
+                    "Static clicking with a clean reset: accuracy without slowing down.",
+                    "Clicking estático con recolocación limpia: precisión sin bajar la velocidad."),
+                CartoonStep(ScenarioDrills.CartoonFlicks[7], RoutineFocus.Clicking, 60,
+                    "Pasu-style pair with a forgiving size: click, confirm the hit and move on immediately.",
+                    "Pareja estilo Pasu con tamaño permisivo: haz clic, confirma el impacto y pasa al siguiente de " +
+                    "inmediato.",
+                    "Confirmation and pace: the shot is finished before the next flick starts.",
+                    "Confirmación y ritmo: el disparo termina antes de empezar el siguiente flick."),
             },
         },
 
@@ -754,37 +814,98 @@ public static class RoutineLibrary
             Id = "cartoon-micro",
             Name = "CRTN · Microajustes",
             Source = "cartoon · Kovaak's 2.0",
-            LevelEn = "Intermediate · 4 reps per exercise", LevelEs = "Intermedio · 4 repeticiones por ejercicio",
+            LevelEn = "Intermediate · 12 scenarios · 4 reps each", LevelEs = "Intermedio · 12 escenarios · 4 repeticiones",
             SourceDoc = CommunityLinks.CartoonGuide,
             ShareCode = "KovaaKsScreamingMehCt",
-            Playable = false,
-            External = true,
             DescriptionEn =
-                "cartoon's micro-adjustment playlist: 36 minutes, four repetitions of every exercise. As with the " +
-                "flicks playlist, only the share code is public, so this is an external routine. Paste the code in " +
-                "Kovaak's Online Playlists.",
+                "cartoon's micro-adjustment playlist: 36 minutes, four repetitions of each of its twelve scenarios. Each " +
+                "task is a real CA-VAL-AIM drill here, with the same name and focus; the Kovaak's share code is kept " +
+                "for the original. Clean lines, one shot per target, no trail-chasing and no tension in the wrist or arm.",
             DescriptionEs =
-                "La playlist de microajustes de cartoon: 36 minutos, cuatro repeticiones de cada ejercicio. Igual que " +
-                "la de flicks, solo se publica el código, así que es una rutina externa. Pega el código en las " +
-                "playlists online de Kovaak's.",
-            CreditEn = "Routine and guide by cartoon. Share code from cartoon's public guide.",
-            CreditEs = "Rutina y guía de cartoon. Código de la guía pública de cartoon.",
+                "La playlist de microajustes de cartoon: 36 minutos, cuatro repeticiones de cada uno de sus doce " +
+                "escenarios. Cada tarea es aquí un ejercicio real de CA-VAL-AIM, con el mismo nombre y enfoque; se " +
+                "conserva el código de Kovaak's para la original. Líneas limpias, un disparo por objetivo, sin " +
+                "perseguir estelas y sin tensar muñeca ni brazo.",
+            CreditEn = "Routine and guide by cartoon. Scenario names from cartoon's public playlist; share code from " +
+                       "cartoon's guide.",
+            CreditEs = "Rutina y guía de cartoon. Nombres de escenario de la playlist pública de cartoon; código de la " +
+                       "guía de cartoon.",
             Steps =
             {
-                Step("Playlist externa · 4 repeticiones por ejercicio", "", RoutineFocus.Micro, 36,
-                    "Open Kovaak's → Playlists → Online Playlists, paste KovaaKsScreamingMehCt and complete four " +
-                    "repetitions of every exercise. Apply the same rules: clean lines, one shot per target, no " +
-                    "trail-chasing and no tension in the wrist or arm.",
-                    "Abre Kovaak's → Playlists → Online Playlists, pega KovaaKsScreamingMehCt y completa cuatro " +
-                    "repeticiones de cada ejercicio. Aplica las mismas reglas: líneas limpias, un disparo por " +
-                    "objetivo, sin perseguir estelas y sin tensar muñeca ni brazo.",
-                    "A 36-minute micro-adjustment block. Alternate it with the flicks playlist weekly so both skills " +
-                    "get enough time to develop.",
-                    "Un bloque de 36 minutos de microajustes. Altérnalo semanalmente con la playlist de flicks para " +
-                    "que ambas habilidades tengan tiempo de desarrollarse."),
+                CartoonStep(ScenarioDrills.CartoonMicro[0], RoutineFocus.Switching, 45,
+                    "Four small targets on a wide wall: micro-correct after each switch instead of over-flicking past " +
+                    "the head.",
+                    "Cuatro objetivos pequeños en una pared amplia: micro-corrige tras cada cambio en vez de pasarte " +
+                    "de la cabeza.",
+                    "The correction after a switch is the skill, not another full flick.",
+                    "La corrección después del cambio es la habilidad, no otro flick completo."),
+                CartoonStep(ScenarioDrills.CartoonMicro[1], RoutineFocus.Micro, 45,
+                    "Small target switches with a short correction: the first movement is the flick, the second is the " +
+                    "tiny settle.",
+                    "Cambios pequeños con una corrección corta: el primer movimiento es el flick y el segundo es el " +
+                    "ajuste mínimo.",
+                    "Separating the flick from the correction keeps the line short.",
+                    "Separar el flick de la corrección mantiene la línea corta."),
+                CartoonStep(ScenarioDrills.CartoonMicro[2], RoutineFocus.Tracking, 45,
+                    "A wandering tracking target: follow each direction change with the arm and keep the dot on it.",
+                    "Un objetivo de tracking errante: sigue cada cambio de dirección con el brazo y mantén el punto " +
+                    "sobre él.",
+                    "Smooth tracking through course changes, not a series of re-flicks.",
+                    "Tracking suave a través de cambios de rumbo, no una sucesión de re-flicks."),
+                CartoonStep(ScenarioDrills.CartoonMicro[3], RoutineFocus.Micro, 45,
+                    "Two narrow targets with more time to kill: settle on the head and make the correction count.",
+                    "Dos objetivos estrechos con más tiempo para eliminar: asiéntate en la cabeza y haz que la " +
+                    "corrección cuente.",
+                    "Higher TTK gives you time to place the second shot instead of spraying.",
+                    "Un TTK más alto te da tiempo para colocar el segundo disparo en vez de rociar."),
+                CartoonStep(ScenarioDrills.CartoonMicro[4], RoutineFocus.Clicking, 45,
+                    "A moving head at high speed: click when it meets the crosshair, not after it has passed.",
+                    "Una cabeza móvil a gran velocidad: haz clic cuando se encuentra con la mira, no después de que " +
+                    "haya pasado.",
+                    "Click timing on a fast head: the eye leads the hand.",
+                    "Timing de clic sobre una cabeza rápida: el ojo guía a la mano."),
+                CartoonStep(ScenarioDrills.CartoonMicro[5], RoutineFocus.Micro, 45,
+                    "Two targets on one horizontal line: a clean side-to-side micro-flick, with no vertical noise.",
+                    "Dos objetivos en una misma línea horizontal: un micro-flick lateral limpio, sin ruido vertical.",
+                    "Keeping the crosshair level turns a flick into a tiny correction.",
+                    "Mantener la mira nivelada convierte un flick en una corrección mínima."),
+                CartoonStep(ScenarioDrills.CartoonMicro[6], RoutineFocus.Micro, 45,
+                    "Three-target Pasu pattern reduced to the last few degrees: chain tiny corrections without lifting " +
+                    "the arm.",
+                    "Patrón Pasu de tres objetivos reducido a los últimos grados: encadena correcciones mínimas sin " +
+                    "levantar el brazo.",
+                    "Micro-chaining: each target is a few pixels away, not a new flick.",
+                    "Encadenar micro: cada objetivo está a unos píxeles, no es un flick nuevo."),
+                CartoonStep(ScenarioDrills.CartoonMicro[7], RoutineFocus.Switching, 45,
+                    "Controlled switching: one clean flick, a short confirm, then the next target.",
+                    "Cambio controlado: un flick limpio, una confirmación corta y el siguiente objetivo.",
+                    "Control means the switch never turns into a drag.",
+                    "Control significa que el cambio nunca se convierte en un arrastre."),
+                CartoonStep(ScenarioDrills.CartoonMicro[8], RoutineFocus.Switching, 45,
+                    "The hard version: faster drift and smaller heads, so the correction has to be immediate.",
+                    "La versión difícil: deriva más rápida y cabezas más pequeñas, así que la corrección tiene que ser " +
+                    "inmediata.",
+                    "The same switch under time pressure: no room for a second thought.",
+                    "El mismo cambio bajo presión: no hay sitio para un segundo pensamiento."),
+                CartoonStep(ScenarioDrills.CartoonMicro[9], RoutineFocus.Micro, 45,
+                    "Two small heads nearly level: keep the crosshair on the line and correct sideways.",
+                    "Dos cabezas pequeñas casi a la misma altura: mantén la mira en la línea y corrige de lado.",
+                    "Horizontal micro-adjustments with a target that barely moves.",
+                    "Microajustes horizontales con un objetivo que apenas se mueve."),
+                CartoonStep(ScenarioDrills.CartoonMicro[10], RoutineFocus.Switching, 45,
+                    "A wide three-target wall at half size: the flick still has to stop exactly on the head.",
+                    "Una pared amplia de tres objetivos a mitad de tamaño: el flick sigue teniendo que frenar exacto " +
+                    "en la cabeza.",
+                    "Wide angles with small heads: precision at the end of the movement.",
+                    "Ángulos amplios con cabezas pequeñas: precisión al final del movimiento."),
+                CartoonStep(ScenarioDrills.CartoonMicro[11], RoutineFocus.Micro, 45,
+                    "Two heads 30% smaller than the original: the last correction is a few pixels, not a new flick.",
+                    "Dos cabezas un 30% más pequeñas que la original: la última corrección son unos píxeles, no un " +
+                    "flick nuevo.",
+                    "Pixel-level settle: the difference between a hit and a miss is one small nudge.",
+                    "Asentamiento a nivel de píxel: la diferencia entre acierto y fallo es un pequeño empujón."),
             },
         },
-
         new()
         {
             Id = "voltaic-ingame",
@@ -792,55 +913,64 @@ public static class RoutineLibrary
             Source = "Voltaic · VALORANT",
             LevelEn = "Any level · 10–60 minutes", LevelEs = "Cualquier nivel · 10–60 minutos",
             SourceDoc = CommunityLinks.KvKsRoutines,
-            Playable = false,
+            Playable = true,
             DescriptionEn =
-                "The in-game section of Voltaic's VALORANT document. It is not a click drill: it trains weapon control, " +
-                "crosshair placement and counter-strafing in VALORANT itself, which is why it stays external. Use the " +
-                "practice range, the bridge and deathmatch; a custom game for site clearing is optional.",
+                "The in-game section of Voltaic's VALORANT document, with a built-in adaptation for every task. You " +
+                "can play it as written in VALORANT, or press PLAY ROUTINE to train the same mechanics here: spray " +
+                "transfer, long-range taps, site clearing and deathmatch. The original in-game instructions are kept " +
+                "in each step.",
             DescriptionEs =
-                "La sección in-game del documento de Voltaic para VALORANT. No es un drill de clic: entrena control de " +
-                "arma, colocación de mira y counter-strafe dentro de VALORANT, por eso queda como rutina externa. Usa " +
-                "el campo de práctica, el puente y deathmatch; la partida personalizada para limpiar sitios es opcional.",
+                "La sección in-game del documento de Voltaic para VALORANT, con una adaptación interna para cada " +
+                "tarea. Puedes jugarla tal cual en VALORANT o pulsar JUGAR RUTINA para entrenar aquí las mismas " +
+                "mecánicas: spray transfer, taps largos, limpieza de sitio y deathmatch. Las instrucciones originales " +
+                "in-game se conservan en cada paso.",
             CreditEn = "In-game section by Voltaic; bridge idea credited to Zeeq in the source document.",
             CreditEs = "Sección in-game de Voltaic; la idea del puente se atribuye a Zeeq en el documento original.",
             Steps =
             {
-                Step("Practice range — taps / spray transfer", "", RoutineFocus.InGame, 10,
+                Step("Practice range — taps / spray transfer", "spray_transfer", RoutineFocus.InGame, 10,
                     "Start the VALORANT practice range, raise the target spawn speed or enable strafing for 50–100 " +
                     "targets, and either tap heads or practise headshot spray transfers. Move and counter-strafe " +
-                    "between shots; add a Sage wall to practise corner peeks.",
+                    "between shots; add a Sage wall to practise corner peeks. Here the same task is played on the " +
+                    "spray-transfer drill.",
                     "Entra en el campo de práctica de VALORANT, sube la velocidad de aparición o activa el strafe para " +
                     "50–100 objetivos y practica taps a la cabeza o spray transfers a la cabeza. Muévete y haz " +
-                    "counter-strafe entre disparos; añade un muro de Sage para practicar asomarse por esquinas.",
-                    "Weapon control and crosshair placement in the real game, which an isolated aim drill cannot " +
-                    "reproduce.",
-                    "Control del arma y colocación de la mira en el juego real, algo que un drill aislado no reproduce."),
-                Step("Bridge — taps / spray transfer", "", RoutineFocus.InGame, 10,
+                    "counter-strafe entre disparos; añade un muro de Sage para practicar asomarse por esquinas. Aquí " +
+                    "la misma tarea se juega en el ejercicio de spray transfer.",
+                    "Weapon control and crosshair placement in the real game; the built-in drill isolates the transfer.",
+                    "Control del arma y colocación de la mira en el juego real; el ejercicio interno aísla el transfer.",
+                    recoil: true),
+                Step("Bridge — taps / spray transfer", "longtaps", RoutineFocus.InGame, 10,
                     "Go to the bridge in the practice range and get creative with the angles: flick to heads or " +
-                    "spray-transfer between targets. Move and counter-strafe, and use a Sage wall for corner peeks.",
+                    "spray-transfer between targets. Move and counter-strafe, and use a Sage wall for corner peeks. " +
+                    "Here the long-range tap drill reproduces the angle changes.",
                     "Ve al puente del campo de práctica y sé creativo con los ángulos: flicks a la cabeza o spray " +
-                    "transfers entre objetivos. Muévete y haz counter-strafe, y usa un muro de Sage para asomarte.",
+                    "transfers entre objetivos. Muévete y haz counter-strafe, y usa un muro de Sage para asomarte. " +
+                    "Aquí el ejercicio de taps largos reproduce los cambios de ángulo.",
                     "A less controlled environment than the range: it forces you to read distance and verticality.",
                     "Un entorno menos controlado que el campo: te obliga a leer distancia y verticalidad.",
-                    optional: true),
-                Step("Custom game — clearing bombsites", "", RoutineFocus.InGame, 20,
+                    optional: true, recoil: true),
+                Step("Custom game — clearing bombsites", "siteclear", RoutineFocus.InGame, 20,
                     "Play a custom game alone or with a friend and clear bomb sites with deliberate crosshair " +
                     "placement. Check every common angle at head height, clear near-to-far and pre-aim the next angle " +
-                    "while you move.",
+                    "while you move. Here Site Clear reproduces the route.",
                     "Juega una partida personalizada solo o con un amigo y limpia sitios con colocación de mira " +
                     "deliberada. Revisa cada ángulo común a la altura de la cabeza, limpia de cerca a lejos y " +
-                    "pre-apunta el siguiente ángulo mientras te mueves.",
+                    "pre-apunta el siguiente ángulo mientras te mueves. Aquí Limpieza de sitio reproduce la ruta.",
                     "Crosshair placement and site-clearing habits, the part of aim that wins rounds without a flick.",
                     "Colocación de la mira y hábitos de limpieza de sitio, la parte de la puntería que gana rondas sin " +
-                    "necesitar un flick."),
-                Step("Headshot deathmatch — taps / spray transfer", "", RoutineFocus.InGame, 20,
+                    "necesitar un flick.",
+                    recoil: true),
+                Step("Headshot deathmatch — taps / spray transfer", "deathmatch", RoutineFocus.InGame, 20,
                     "Play deathmatch and focus on headshots only: tap or spray-transfer, never spray the body. " +
-                    "Counter-strafe before every shot and reset your crosshair to the next angle.",
+                    "Counter-strafe before every shot and reset your crosshair to the next angle. Here Deathmatch " +
+                    "reproduces the same pressure with bots.",
                     "Juega deathmatch y céntrate solo en la cabeza: tap o spray transfer, nunca dispares al cuerpo. " +
-                    "Haz counter-strafe antes de cada disparo y recoloca la mira al siguiente ángulo.",
+                    "Haz counter-strafe antes de cada disparo y recoloca la mira al siguiente ángulo. Aquí Deathmatch " +
+                    "reproduce la misma presión con bots.",
                     "The bridge between the training and ranked: real players, real movement and real weapon control.",
                     "El puente entre el entrenamiento y la ranked: jugadores, movimiento y control de arma reales.",
-                    optional: true),
+                    optional: true, recoil: true),
             },
         },
     };

@@ -217,6 +217,8 @@ public partial class Main : Node
             case "playlists": Callable.From(ShowPlaylists).CallDeferred(); break;
             case "routines" or "guide" or "glossary" or "data" or "credits":
                 RoutinesScreen.DevTab = CmdLine.After("--tab") ?? CmdLine.After("--screen");
+                RoutinesScreen.DevTerm = CmdLine.After("--term");
+                RoutinesScreen.DevRoutine = CmdLine.After("--routine");
                 Callable.From(ShowRoutines).CallDeferred();
                 break;
         }

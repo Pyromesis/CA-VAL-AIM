@@ -16,6 +16,10 @@ public struct FrameSample
     public float FocusRadius;       // target angular radius (deg)
     public float Speed;             // player ground speed (m/s)
     public byte Flags;              // FrameFlags
+    // Anti-Mirroring (v2.5). Zero on old recordings and whenever there is no target / movement.
+    public float MoveX;             // player strafe input: +1 right (D), −1 left (A)
+    public float TargetVx;          // target lateral velocity along the camera's right axis (m/s)
+    public float TargetYawRate;     // target angular yaw speed around the player (deg/s)
 
     public float FocusErr => MathF.Sqrt(FocusYaw * FocusYaw + FocusPitch * FocusPitch);
     public bool Has(FrameFlags f) => (Flags & (byte)f) != 0;
@@ -92,13 +96,14 @@ public sealed class RunTelemetry
         using (var bw = new BinaryWriter(File.Create(file)))
         {
             bw.Write(Magic);
-            var meta = JsonSerializer.Serialize(new { Mode, Tier, Sens, Dpi, Weapon, Map, When, Duration, HFov, ZoomSensMult });
+            var meta = JsonSerializer.Serialize(new { Mode, Tier, Sens, Dpi, Weapon, Map, When, Duration, HFov, ZoomSensMult, FrameFields = 14 });
             bw.Write(meta);
             bw.Write(Frames.Count);
             foreach (var f in Frames)
             {
                 bw.Write(f.T); bw.Write(f.Yaw); bw.Write(f.Pitch); bw.Write(f.Dx); bw.Write(f.Dy);
                 bw.Write(f.FocusId); bw.Write(f.FocusYaw); bw.Write(f.FocusPitch); bw.Write(f.FocusRadius); bw.Write(f.Speed); bw.Write(f.Flags);
+                bw.Write(f.MoveX); bw.Write(f.TargetVx); bw.Write(f.TargetYawRate);
             }
             bw.Write(Shots.Count);
             foreach (var s in Shots)
@@ -154,13 +159,23 @@ public sealed class RunTelemetry
                 SourceFile = file, // its .vtr sidecar (3D Rewind) sits next to it
             };
             int n = br.ReadInt32();
+            int frameFields = m.TryGetProperty("FrameFields", out var ff) ? ff.GetInt32() : 11;
             for (int i = 0; i < n; i++)
-                t.Frames.Add(new FrameSample
+            {
+                var f = new FrameSample
                 {
                     T = br.ReadSingle(), Yaw = br.ReadSingle(), Pitch = br.ReadSingle(), Dx = br.ReadSingle(), Dy = br.ReadSingle(),
                     FocusId = br.ReadInt32(), FocusYaw = br.ReadSingle(), FocusPitch = br.ReadSingle(), FocusRadius = br.ReadSingle(),
                     Speed = br.ReadSingle(), Flags = br.ReadByte(),
-                });
+                };
+                if (frameFields >= 14)
+                {
+                    f.MoveX = br.ReadSingle();
+                    f.TargetVx = br.ReadSingle();
+                    f.TargetYawRate = br.ReadSingle();
+                }
+                t.Frames.Add(f);
+            }
             n = br.ReadInt32();
             for (int i = 0; i < n; i++)
                 t.Shots.Add(new ShotSample

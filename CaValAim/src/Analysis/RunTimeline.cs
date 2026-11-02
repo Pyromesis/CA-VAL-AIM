@@ -19,6 +19,9 @@ public sealed class TimelineSecond
     public int OnTargetFrames;        // frames whose crosshair was inside the target radius
     public int Shots, Hits, Headshots, MovingShots;
     public int FiringFrames, AdsFrames, BlindFrames, AirborneFrames, CrouchFrames;
+    /// <summary>Frames where both the player and the focused target were strafing (the Anti-Mirroring sample).</summary>
+    public int StrafeFrames, MirrorFrames, AntiFrames;
+    public float MirrorPct, AntiPct;  // 0..1 of StrafeFrames
     public float AimErrR;             // mean crosshair error / target radius (0 = perfect, 1 = edge)
     public float AimErrDeg;           // mean crosshair error in degrees
     public float OnTargetPct;         // 0..1 of focused frames inside the target
@@ -77,6 +80,9 @@ public sealed class TimelineSummary
     public float ShotsPerMinute, HitsPerMinute;
     public float MousePerSecond, AvgSpeed, MovingPct;
     public float BiasYaw, BiasPitch;
+    /// <summary>Anti-Mirroring: frames with both player and target strafing, and how many moved with / against it.</summary>
+    public int StrafeFrames, MirrorFrames, AntiFrames;
+    public float MirrorPct, AntiPct;
 }
 
 /// <summary>
@@ -136,6 +142,9 @@ public sealed class RunTimeline
         var blind = new int[n];
         var airborne = new int[n];
         var crouch = new int[n];
+        var strafe = new int[n];
+        var mirror = new int[n];
+        var anti = new int[n];
         var errR = new double[n];
         var errDeg = new double[n];
         var biasYaw = new double[n];
@@ -177,6 +186,13 @@ public sealed class RunTimeline
             {
                 speedSum[b] += f.Speed;
                 speedMax[b] = MathF.Max(speedMax[b], f.Speed);
+            }
+            // Anti-Mirroring: only frames where both the player and the focused target are strafing.
+            if (f.FocusId != 0 && float.IsFinite(f.MoveX) && float.IsFinite(f.TargetVx) &&
+                MathF.Abs(f.MoveX) >= 0.5f && MathF.Abs(f.TargetVx) >= 0.35f)
+            {
+                strafe[b]++;
+                if (MathF.Sign(f.MoveX) == MathF.Sign(f.TargetVx)) mirror[b]++; else anti[b]++;
             }
             if (f.FocusId != 0 && float.IsFinite(f.FocusYaw) && float.IsFinite(f.FocusPitch) &&
                 float.IsFinite(f.FocusRadius) && f.FocusRadius > 0.01f)
@@ -261,6 +277,9 @@ public sealed class RunTimeline
                 BlindFrames = blind[i],
                 AirborneFrames = airborne[i],
                 CrouchFrames = crouch[i],
+                StrafeFrames = strafe[i],
+                MirrorFrames = mirror[i],
+                AntiFrames = anti[i],
                 Events = events[i],
                 Kills = kills[i],
                 Deaths = deaths[i],
@@ -282,6 +301,8 @@ public sealed class RunTimeline
                 BiasYaw = focus[i] > 0 ? (float)(biasYaw[i] / focus[i]) : 0,
                 BiasPitch = focus[i] > 0 ? (float)(biasPitch[i] / focus[i]) : 0,
             };
+            s.MirrorPct = strafe[i] > 0 ? (float)mirror[i] / strafe[i] : 0;
+            s.AntiPct = strafe[i] > 0 ? (float)anti[i] / strafe[i] : 0;
             s.Score = ScoreOf(s);
             s.Tag = TagOf(s);
             Seconds.Add(s);
@@ -324,6 +345,8 @@ public sealed class RunTimeline
     {
         if (s.Dead) return "dead";
         if (s.Frames > 0 && s.BlindFrames > s.Frames / 2) return "blind";
+        if (s.StrafeFrames >= 20 && s.MirrorPct >= 0.65f) return "mirroring";
+        if (s.StrafeFrames >= 20 && s.AntiPct >= 0.65f) return "antimirror";
         if (s.Shots > 0 && (float)s.MovingShots / s.Shots >= 0.25f) return "rushed";
         if (s.Shots > 0 && s.Accuracy >= 0.8f) return "clean";
         if (s.FocusFrames > 0 && s.OnTargetPct >= 0.7f) return "locked";
@@ -371,6 +394,11 @@ public sealed class RunTimeline
         sum.MousePerSecond = Duration > 0 ? (float)(Seconds.Sum(s => s.MouseCounts) / Duration) : 0;
         sum.AvgSpeed = frames > 0 ? Seconds.Sum(s => s.SpeedAvg * s.Frames) / frames : 0;
         sum.MovingPct = frames > 0 ? (float)Seconds.Count(s => s.SpeedAvg > 0.8f) / Seconds.Count(s => s.Frames > 0) : 0;
+        sum.StrafeFrames = Seconds.Sum(s => s.StrafeFrames);
+        sum.MirrorFrames = Seconds.Sum(s => s.MirrorFrames);
+        sum.AntiFrames = Seconds.Sum(s => s.AntiFrames);
+        sum.MirrorPct = sum.StrafeFrames > 0 ? (float)sum.MirrorFrames / sum.StrafeFrames : 0;
+        sum.AntiPct = sum.StrafeFrames > 0 ? (float)sum.AntiFrames / sum.StrafeFrames : 0;
 
         if (aim.Count > 0)
         {
@@ -444,6 +472,15 @@ public sealed class RunTimeline
 
         if (s.Shots >= 8 && s.MovingShotPct >= 0.15f)
             Add("rushed", s.MovingShotPct >= 0.3f ? TimelineTone.Bad : TimelineTone.Warn, s.MovingShotPct, s.MovingShots, s.Shots);
+
+        // Anti-Mirroring: both player and target strafing. Mirroring = moving with the target, anti = against it.
+        if (s.StrafeFrames >= 45)
+        {
+            if (s.MirrorPct >= 0.62f)
+                Add("mirroring", s.MirrorPct >= 0.75f ? TimelineTone.Bad : TimelineTone.Warn, s.MirrorPct, s.StrafeFrames, s.StrafeFrames);
+            else if (s.AntiPct >= 0.62f)
+                Add("antimirror", TimelineTone.Good, s.AntiPct, s.StrafeFrames, s.StrafeFrames);
+        }
 
         if (s.Shots >= 10 && s.Accuracy < 0.35f)
             Add("accuracy_low", s.Accuracy < 0.22f ? TimelineTone.Bad : TimelineTone.Warn, s.Accuracy, s.Shots, s.Shots);
@@ -521,6 +558,8 @@ public static class TimelineText
         "volatile" => S("Inconsistent level", "Nivel irregular"),
         "dead" => S("Dead time", "Tiempo muerto"),
         "rushed" => S("Shots while moving", "Disparos en movimiento"),
+        "mirroring" => S("You mirror the target's strafe", "Te mueves con el strafe del objetivo"),
+        "antimirror" => S("You move against the target's strafe", "Te mueves contra el strafe del objetivo"),
         "accuracy_low" => S("Low accuracy", "Precisión baja"),
         "accuracy_high" => S("High accuracy", "Precisión alta"),
         "bias_left" => S("Crosshair left of the target", "Mira a la izquierda del objetivo"),
@@ -551,6 +590,10 @@ public static class TimelineText
                     $"{P(f.A)}% de la partida ({N(f.B)} s) estuvo sin objetivo, sin disparo y casi sin movimiento. Usa ese tiempo para reposicionarte y pre-apuntar."),
         "rushed" => S($"{P(f.A)}% of your shots ({N(f.B)} of {N(f.N)}) left while you were moving. Stop first: the first bullet is only accurate at zero speed.",
                       $"{P(f.A)}% de tus disparos ({N(f.B)} de {N(f.N)}) salieron en movimiento. Frena primero: la primera bala solo es precisa a velocidad cero."),
+        "mirroring" => S($"In {P(f.A)}% of the frames where both of you were strafing ({N(f.N)} frames) you moved the same way as the target. Move against it: mirroring doubles the angular speed and drags the crosshair off the head.",
+                         $"En el {P(f.A)}% de los frames en los que ambos hacías strafe ({N(f.N)} frames) te moviste en la misma dirección que el objetivo. Muévete al contrario: el espejo duplica la velocidad angular y arrastra la mira fuera de la cabeza."),
+        "antimirror" => S($"In {P(f.A)}% of the frames where both of you were strafing ({N(f.N)} frames) you moved against the target. Keep it: anti-mirroring keeps the angular speed low and the crosshair on the head.",
+                          $"En el {P(f.A)}% de los frames en los que ambos hacías strafe ({N(f.N)} frames) te moviste contra el objetivo. Mantenlo: el anti-espejo mantiene baja la velocidad angular y la mira sobre la cabeza."),
         "accuracy_low" => S($"{P(f.A)}% accuracy over {N(f.N)} shots. Slow the first movement down and fire only when the dot is inside the target.",
                             $"{P(f.A)}% de acierto en {N(f.N)} disparos. Baja la velocidad del primer movimiento y dispara solo cuando el punto esté dentro del objetivo."),
         "accuracy_high" => S($"{P(f.A)}% accuracy over {N(f.N)} shots. Keep this trigger discipline and raise the speed, not the volume.",
@@ -581,6 +624,8 @@ public static class TimelineText
         "dead" => S("dead time", "tiempo muerto"),
         "blind" => S("blinded", "cegado"),
         "rushed" => S("moving shot", "disparo en movimiento"),
+        "mirroring" => S("mirroring", "espejo"),
+        "antimirror" => S("anti-mirroring", "anti-espejo"),
         "clean" => S("clean shots", "disparos limpios"),
         "locked" => S("locked on", "mira fijada"),
         "sloppy" => S("off target", "fuera del objetivo"),

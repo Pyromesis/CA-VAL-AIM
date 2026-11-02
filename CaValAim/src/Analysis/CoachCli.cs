@@ -4,6 +4,7 @@ using System.Text;
 using Godot;
 using CaValAim.Core;
 using CaValAim.Game;
+using CaValAim.Modes;
 
 namespace CaValAim.Analysis;
 
@@ -351,6 +352,7 @@ public static class CoachCli
             P(F($"  {(ok ? "PASS" : "FAIL")} calibration: typical {name} mechanics → overall {t:0.00} {Coach.RankName(t)} (raw mean {a.RawMean:0.00}, evidence {a.OverallConf:0.00}), expected {lo:0.00}–{hi:0.00}"));
         }
         TimelineCases();
+        RoutineCases();
         _ = CultureInfo.InvariantCulture;
     }
 
@@ -434,6 +436,125 @@ public static class CoachCli
         bad.Events.Add(new TelemetryEvent(float.NaN, "kill"));
         var safe = RunTimeline.Build(bad);
         P($"  {(!safe.HasData ? "PASS" : "FAIL")} timeline corrupt run: {safe.Seconds.Count} seconds, hasData={safe.HasData}");
+
+        // Anti-Mirroring: the same frame fields the game records (A/D input vs the target's lateral speed) must produce
+        // the per-second strafe split, the mirroring / antimirror finding, the strafe.* metrics and the coach diagnosis.
+        RunTelemetry StrafeRun(float targetDir)
+        {
+            var run = new RunTelemetry
+            {
+                Mode = "anti-mirror", Tier = 1, Sens = 0.35f, Dpi = 800, Weapon = "Vandal",
+                When = new DateTime(2026, 1, 4, 3, 4, 5, DateTimeKind.Local), Duration = 30,
+            };
+            for (int i = 0; i < 1800; i++)
+                run.Frames.Add(new FrameSample
+                {
+                    T = i / 60f, Yaw = 0, Pitch = 0, FocusId = 9, FocusYaw = 0.08f, FocusPitch = 0.05f, FocusRadius = 0.6f,
+                    MoveX = 1f, TargetVx = 0.9f * targetDir,
+                });
+            return run;
+        }
+        var mirrorRun = StrafeRun(1f);
+        var antiRun = StrafeRun(-1f);
+        var mtl = RunTimeline.Build(mirrorRun);
+        var atl = RunTimeline.Build(antiRun);
+        bool split = mtl.Summary.StrafeFrames == 1800 && mtl.Summary.MirrorPct >= 0.99f
+            && atl.Summary.AntiPct >= 0.99f && mtl.Seconds[10].StrafeFrames == 60 && mtl.Seconds[10].MirrorPct >= 0.99f;
+        bool tags = mtl.Seconds[10].Tag == "mirroring" && atl.Seconds[10].Tag == "antimirror";
+        bool findings = mtl.Findings.Any(f => f.Code == "mirroring") && atl.Findings.Any(f => f.Code == "antimirror");
+        var mm = RunAnalysis.Run(mirrorRun);
+        var am = RunAnalysis.Run(antiRun);
+        bool metrics = mm.TryGetValue("strafe.mirror_pct", out var mp) && mp >= 99f
+            && am.TryGetValue("strafe.anti_pct", out var ap) && ap >= 99f
+            && mm.TryGetValue("strafe.frames", out var sf) && sf >= 1799f;
+        var md = Assess.Run(mm, false, 1).Issues.FirstOrDefault(x => x.D.Id == "MIRRORING");
+        var ad = Assess.Run(am, false, 1).Issues.FirstOrDefault(x => x.D.Id == "MIRRORING");
+        bool coach = md != null && md.D.Drills.Contains("anti-mirror") && ad == null;
+        P($"  {(split && tags && findings && metrics && coach ? "PASS" : "FAIL")} anti-mirroring: {mtl.Summary.StrafeFrames} strafe frames, " +
+          $"mirror {mtl.Summary.MirrorPct * 100:0}%, anti {atl.Summary.AntiPct * 100:0}%, tags {mtl.Seconds[10].Tag}/{atl.Seconds[10].Tag}, " +
+          $"findings {mtl.Findings.Count(f => f.Code == "mirroring")}/{atl.Findings.Count(f => f.Code == "antimirror")}, " +
+          $"strafe.mirror_pct {(mm.TryGetValue("strafe.mirror_pct", out var mv) ? mv : float.NaN):0.#}, " +
+          $"MIRRORING {(md != null ? "yes" : "no")}/{(ad != null ? "yes" : "no")}");
+    }
+
+    /// <summary>
+    /// Routine and glossary audit: every step shows its original task name, every step of a playable routine points at a
+    /// drill that resolves, the cartoon routines reproduce all their scenarios with the source durations, and every
+    /// glossary term is either implemented somewhere real or explicitly marked as context.
+    /// </summary>
+    static void RoutineCases()
+    {
+        P();
+        P("##### ROUTINES AND GLOSSARY AUDIT");
+        var routines = RoutineLibrary.Routines;
+        var problems = new List<string>();
+        void Bad(string id, string what) => problems.Add($"{id}: {what}");
+        foreach (var r in routines)
+        {
+            if (r.Steps.Count == 0) Bad(r.Id, "no steps");
+            if (r.Playable && r.Steps.Count(s => s.Drill.Length > 0) == 0)
+                Bad(r.Id, "marked playable but no step has a drill");
+            foreach (var s in r.Steps)
+            {
+                if (string.IsNullOrWhiteSpace(s.Scenario)) Bad(r.Id, "step without the original task name");
+                else if (s.Scenario.Contains("Playlist externa", StringComparison.OrdinalIgnoreCase)
+                    || s.Scenario.Contains("external playlist", StringComparison.OrdinalIgnoreCase)
+                    || s.Scenario.Contains("AQUÍ", StringComparison.OrdinalIgnoreCase))
+                    Bad(r.Id, $"placeholder scenario “{s.Scenario}”");
+                if (!r.Playable) continue;
+                if (s.Drill.Length == 0) { Bad(r.Id, $"step “{s.Scenario}” has no drill"); continue; }
+                if (ModeRegistry.Find(s.Drill) == null) Bad(r.Id, $"drill “{s.Drill}” does not resolve");
+                if (s.Runs.Count == 0 || s.Minutes <= 0) Bad(r.Id, $"step “{s.Scenario}” has no runs");
+                if (s.DrillName.Length == 0) Bad(r.Id, $"drill “{s.Drill}” has no display name");
+            }
+        }
+        Routine? ById(string id) => routines.FirstOrDefault(r => r.Id == id);
+        var flicks = ById("cartoon-flicks");
+        var micro = ById("cartoon-micro");
+        var ingame = ById("voltaic-ingame");
+        bool flicksOk = flicks is { Steps.Count: 8 } && MathF.Abs(flicks.Minutes - 32f) < 0.01f
+            && flicks.Steps.All(s => s.Scenario == s.DrillName);
+        bool microOk = micro is { Steps.Count: 12 } && MathF.Abs(micro.Minutes - 36f) < 0.01f
+            && micro.Steps.All(s => s.Scenario == s.DrillName);
+        bool ingameOk = ingame is { Playable: true } && ingame.Steps.Count > 0
+            && ingame.Steps.All(s => s.Drill.Length > 0 && ModeRegistry.Find(s.Drill) != null);
+        bool antiDrill = ModeRegistry.Find("anti-mirror") != null;
+        if (!flicksOk) Bad("cartoon-flicks", "expected 8 steps, 32 min, name = drill name");
+        if (!microOk) Bad("cartoon-micro", "expected 12 steps, 36 min, name = drill name");
+        if (!ingameOk) Bad("voltaic-ingame", "expected a playable routine with a drill on every step");
+        if (!antiDrill) Bad("anti-mirror", "the drill does not resolve");
+        P($"  {(problems.Count == 0 ? "PASS" : "FAIL")} routines: {routines.Count} routines, {routines.Sum(r => r.Steps.Count)} steps, " +
+          $"{routines.Sum(r => r.PlayableSteps)} with a built-in drill, {problems.Count} problems; " +
+          $"cartoon {flicks?.Minutes:0.#}/{micro?.Minutes:0.#} min (32/36), in-game {ingame?.PlayableSteps ?? 0} playable steps");
+        foreach (var problem in problems.Take(12)) P("    " + problem);
+
+        var terms = Glossary.All.Select(t => t.Term).ToList();
+        var known = new HashSet<string>(terms, StringComparer.OrdinalIgnoreCase);
+        var missing = terms.Where(t => !GlossaryActions.Applicable(t) && !GlossaryActions.IsContext(t)).ToList();
+        var stale = GlossaryActions.MappedTerms.Concat(GlossaryActions.ContextTerms).Where(t => !known.Contains(t)).ToList();
+        var both = GlossaryActions.MappedTerms.Where(GlossaryActions.IsContext).ToList();
+        var empty = GlossaryActions.MappedTerms.Where(t => GlossaryActions.For(t).Count == 0).ToList();
+        var broken = new List<string>();
+        foreach (var term in GlossaryActions.MappedTerms)
+            foreach (var target in GlossaryActions.For(term))
+            {
+                if (target.Kind == GlossaryTargetKind.Drill && ModeRegistry.Find(target.Arg) == null)
+                    broken.Add($"{term} → drill “{target.Arg}”");
+                if (target.Kind == GlossaryTargetKind.Routines && target.Arg.Length > 0
+                    && routines.All(r => r.Id != target.Arg))
+                    broken.Add($"{term} → routine “{target.Arg}”");
+            }
+        var anti = GlossaryActions.For("Anti-Mirroring");
+        bool antiOk = anti.Any(t => t.Kind == GlossaryTargetKind.Drill && t.Arg == "anti-mirror")
+            && anti.Any(t => t.Kind == GlossaryTargetKind.Coach);
+        if (!antiOk) broken.Add("Anti-Mirroring → expected a drill and a coach destination");
+        bool glossaryOk = missing.Count == 0 && stale.Count == 0 && both.Count == 0 && empty.Count == 0 && broken.Count == 0;
+        P($"  {(glossaryOk ? "PASS" : "FAIL")} glossary: {terms.Count} terms, {GlossaryActions.ImplementedCount} linked, " +
+          $"{GlossaryActions.ContextCount} context; missing {missing.Count}, stale {stale.Count}, both {both.Count}, " +
+          $"empty {empty.Count}, broken {broken.Count}; Anti-Mirroring drill+coach {(antiOk ? "yes" : "no")}");
+        foreach (var line in missing.Take(8).Select(t => "missing " + t)
+            .Concat(stale.Take(8).Select(t => "stale " + t)).Concat(broken.Take(8)))
+            P("    " + line);
     }
 
     // ------------------------------------------------------------------ 3D Rewind (.vtr)

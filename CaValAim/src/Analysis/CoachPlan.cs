@@ -130,7 +130,7 @@ public sealed class CoachPlan
     {
         "tracking" or "strafebots" or "trackv" or "airtrack" or "reacttrack" => Skill.Tracking,
         "peek" or "siteclear" or "anchor" => Skill.CrosshairPlacement,
-        "counterstrafe" or "peekduel" or "jumppeek" or "jigglepeek" or "peek_mix" => Skill.Movement,
+        "counterstrafe" or "peekduel" or "jumppeek" or "jigglepeek" or "peek_mix" or "anti-mirror" => Skill.Movement,
         "spray_vandal" or "spray_phantom" or "spray_transfer" => Skill.SprayControl,
         "flashmap" or "flashpeek" => Skill.Utility,
         "reaction" or "reflex" => Skill.Reaction,
@@ -155,7 +155,7 @@ public sealed class CoachPlan
             return (RecoilAdvice.Off, es
                 ? "Desactívalo: son tiros sueltos y la cámara quieta aísla tu puntería."
                 : "Off: single shots, and a quiet camera isolates your aim.");
-        if (key is "tracking" or "strafebots" or "airtrack" or "reacttrack" or "trackv")
+        if (key is "tracking" or "strafebots" or "airtrack" or "reacttrack" or "trackv" or "anti-mirror")
             return (RecoilAdvice.Off, es
                 ? "Desactívalo: aísla el seguimiento; el control de subida se entrena en Ráfaga."
                 : "Off: it isolates tracking; spray control is trained in the spray drills.");
@@ -176,7 +176,7 @@ public sealed class CoachPlan
         Skill.Reaction => new[] { "reaction", "reflex:centre", "reflex:near" },
         Skill.CrosshairPlacement => new[] { "peek", "siteclear", "anchor" },
         Skill.SprayControl => new[] { "spray_vandal", "spray_phantom" },
-        Skill.Movement => new[] { "counterstrafe", "peekduel" },
+        Skill.Movement => new[] { "anti-mirror", "counterstrafe", "peekduel" },
         Skill.Utility => new[] { "flashmap" },
         _ => Array.Empty<string>(),
     };
