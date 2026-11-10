@@ -304,7 +304,7 @@ public static class CultureCheck
             t.Events.Add(new TelemetryEvent(0.5f, "kill", 412.5f, 1));
             string file = t.Save(Paths.DataSubDir("telemetry"));
             var t2 = RunTelemetry.Load(file);
-            Check("telemetry file name is ASCII digits", Path.GetFileName(file) == "20261002_134507_flick.vtt", Path.GetFileName(file));
+            Check("telemetry file name is ASCII digits", Path.GetFileName(file) == "20261002_134507_0000000_flick.vtt", Path.GetFileName(file));
             Check("telemetry round trip", t2 != null && Near(t2.Sens, 0.352f) && Near(t2.Duration, 12.5f) && t2.Frames.Count == 1 && Near(t2.Frames[0].Pitch, -3.75f)
                                           && t2.Events.Count == 1 && Near(t2.Events[0].A, 412.5f) && t2.When == t.When,
                 t2 == null ? "null" : $"{F(t2.Sens)} {F(t2.Duration)}");
