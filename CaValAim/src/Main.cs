@@ -24,6 +24,7 @@ public partial class Main : Node
     public ValorantProfile Valorant = new();
 
     Node? screen;
+    internal GameSession? TrainingSession => screen as GameSession;
     /// <summary>A drill owns the screen: full frame cap. Menus stay at 60 to keep the GPU/CPU idle.</summary>
     bool inGame;
 
@@ -164,6 +165,8 @@ public partial class Main : Node
             GetTree().Quit(failures == 0 ? 0 : 1);
             return;
         }
+        if (Dev && args.Contains("--routine-playback-check"))
+            Callable.From(() => AddChild(new RoutinePlaybackCheck())).CallDeferred();
         if (Dev && args.Contains("--preview-check"))
         {
             // Dev self-test (works with --headless --fixed-fps 60): every drill's preview demo plays and saves nothing.

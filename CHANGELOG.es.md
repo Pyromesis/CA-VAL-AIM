@@ -2,6 +2,15 @@
 
 ## [Sin publicar]
 
+## [2.8.3] - 2026-11-10
+
+### Corregido
+
+- El reloj y la barra usan la duración real de la sesión, incluidas las duraciones de rutinas y listas.
+- Se muestran la tarea y la repetición actuales para distinguir las repeticiones de un bloqueo en la primera tarea.
+- Los límites de tiempo explícitos se aplican de forma coherente. Añadida una prueba de reproducción completa de todas las rutinas jugables, sus repeticiones y su finalización.
+
+
 ## [2.8.2] - 2026-11-10
 
 ### Corregido

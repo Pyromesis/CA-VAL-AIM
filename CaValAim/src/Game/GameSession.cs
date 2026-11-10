@@ -1,4 +1,4 @@
-﻿using Godot;
+using Godot;
 using CaValAim.Analysis;
 using CaValAim.Audio;
 using CaValAim.Core;
@@ -713,7 +713,7 @@ public partial class GameSession : Node3D, IGame
             Log.Info($"[adapt] t={Now:0} {Adaptive}"); // dev: the staircase every 10 s
         // A keybind test owns its run (KeybindTest.cs): the drill's clock or kill target must not end it mid-check;
         // the test quits by itself with its failure count.
-        if (!DevKeybindTest && ((Mode.Timed && Now >= RunDuration) || Mode.Done)) Finish();
+        if (!DevKeybindTest && ((HasTimeLimit && Now >= RunDuration) || Mode.Done)) Finish();
     }
 
     /// <summary>Angular offset (deg) of a world point from the crosshair: +yaw = right, +pitch = above.</summary>
@@ -1077,6 +1077,8 @@ public partial class GameSession : Node3D, IGame
     public float EaseLastSeconds { get; set; }
     /// <summary>Length of this timed run in seconds (the mode's own, a routine override or the dev --duration).</summary>
     public float RunLength => RunDuration;
+    public bool HasTimeLimit => Mode.Timed || DurationOverride.HasValue;
+    public float ClockSeconds => HasTimeLimit ? Mathf.Max(0, RunLength - Now) : Now;
 
     // ---------------- IGame ----------------
 

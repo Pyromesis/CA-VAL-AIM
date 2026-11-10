@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [2.8.3] - 2026-11-10
+
+### Fixed
+
+- Use the session's actual duration for the countdown and progress bar, including routine and playlist overrides.
+- Show task and repetition progress during routines so repeated one-minute runs cannot be mistaken for a stuck first task.
+- Apply explicit session time limits consistently and add end-to-end playback checks for every playable routine, its repetitions and final completion.
+
+
 ## [2.8.2] - 2026-11-10
 
 ### Fixed

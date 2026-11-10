@@ -348,21 +348,22 @@ public partial class Hud : Control
         }
 
         // timer
-        float remain = m.Timed ? Mathf.Max(0, m.Duration - s.Now) : s.Now;
-        int secs = m.Timed ? Mathf.CeilToInt(remain) : (int)remain;
+        float remain = s.ClockSeconds;
+        bool timed = s.HasTimeLimit;
+        int secs = timed ? Mathf.CeilToInt(remain) : (int)remain;
         var tr = new Rect2(cx - tw / 2, top, tw, bh);
         DrawRect(tr, UiTheme.Plate);
         DrawRect(new Rect2(tr.Position.X, tr.End.Y - 2 * k, tw, 2 * k), new Color(UiTheme.Text, 0.18f));
-        bool hurry = m.Timed && remain < 10f && s.State == GameSession.St.Running;
+        bool hurry = timed && remain < 10f && s.State == GameSession.St.Running;
         int fs = UiTheme.Fs(42, k);
         string clock = cClock.Get(secs, v => $"{v / 60}:{v % 60:00}");
         float sc = 1f;
         if (hurry) { float f = remain - Mathf.Floor(remain); sc = 1f + 0.14f * Mathf.Max(0, (f - 0.7f) / 0.3f); }
-        var clockCol = hurry ? UiTheme.Accent : m.Timed ? UiTheme.Text : UiTheme.Dim;
+        var clockCol = hurry ? UiTheme.Accent : timed ? UiTheme.Text : UiTheme.Dim;
         ScaledTextC(UiTheme.Display, clock, new Vector2(cx, Gfx.Mid(top + bh / 2, fs)), fs, clockCol, sc);
-        if (m.Timed)
+        if (timed)
         {
-            float frac = m.Duration > 0 ? remain / m.Duration : 0;
+            float frac = s.RunLength > 0 ? Mathf.Clamp(remain / s.RunLength, 0, 1) : 0;
             DrawRect(new Rect2(tr.Position.X, tr.End.Y - 2 * k, tw * frac, 2 * k), hurry ? UiTheme.Accent : UiTheme.Text);
         }
 
@@ -403,6 +404,14 @@ public partial class Hud : Control
         {
             y += 24 * k;
             TL(UiTheme.HudWide, Upper(ref subSrc, ref subUpper, sub), x + 26 * k, Gfx.Mid(y, ts), ts, new Color(UiTheme.Text, 0.85f));
+        }
+        if (PlaylistRunner.TaskCount > 0)
+        {
+            y += 24 * k;
+            string progress = Loc.Spanish
+                ? $"TAREA {PlaylistRunner.TaskNumber}/{PlaylistRunner.TaskCount} · REPETICIÓN {PlaylistRunner.RunOfStep}/{PlaylistRunner.RunsInStep}"
+                : $"TASK {PlaylistRunner.TaskNumber}/{PlaylistRunner.TaskCount} · RUN {PlaylistRunner.RunOfStep}/{PlaylistRunner.RunsInStep}";
+            TL(UiTheme.HudWide, progress, x + 26 * k, Gfx.Mid(y, ts), ts, UiTheme.Teal);
         }
         y += 34 * k;
         int ls = UiTheme.Fs(18, k);

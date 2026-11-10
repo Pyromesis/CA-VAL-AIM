@@ -88,7 +88,7 @@ function Invoke-GodotUnlocked([string]$Label, [string[]]$GodotArgs) {
   $out = $p.StandardOutput.ReadToEndAsync()
   $err = $p.StandardError.ReadToEndAsync()
   # The expanded catalogs exercise hundreds of sessions; keep a bounded, longer budget for these two sweeps.
-  $runTimeout = if ($Label -in @("preview-check", "reaction-games-check")) { [Math]::Max($TimeoutSec, 1200) } else { $TimeoutSec }
+  $runTimeout = if ($Label -in @("preview-check", "reaction-games-check", "routine-playback-check")) { [Math]::Max($TimeoutSec, 1200) } else { $TimeoutSec }
   $timedOut = -not $p.WaitForExit($runTimeout * 1000)
   if ($timedOut) { & taskkill.exe /PID $p.Id /T /F 2>&1 | Out-Null; $p.WaitForExit() }
   $p.WaitForExit()
@@ -135,6 +135,12 @@ $completed = @($r.Text -split "`r?`n" | Where-Object { $_ -match '^\[reaction-ga
 $why = if ($r.Code -ne 0) { "exit code $($r.Code)" } elseif ($completed.Count -ne 50) { "$($completed.Count)/50 complete clean rounds" } `
     elseif ($r.Text -notmatch 'RESULT: PASS') { "no passing sweep result" } else { "" }
 Report "50 reaction games (16 trials each)" ($why -eq "") $why $r
+
+# Real routine transitions, including every repetition, final callback and saved completion marker.
+$r = Invoke-Godot "routine-playback-check" (@("--headless", "--fixed-fps", "120", "--path", $Project, "--") + $sandbox +
+    @("--routine-playback-check", "--routine-minutes", "0.01"))
+$why = if ($r.Code -ne 0) { "exit code $($r.Code)" } elseif ($r.Text -notmatch '\[routine-playback\] RESULT: PASS') { "no passing playback result" } else { "" }
+Report "all playable routines advance and complete" ($why -eq "") $why $r
 
 # ---- 2. Locale tests: parsers and number formatting in the invariant culture and comma-decimal cultures ----
 foreach ($c in @("") + $Cultures) {

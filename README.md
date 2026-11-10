@@ -152,7 +152,7 @@ The **ROUTINES** screen adapts the VALORANT material published by **Voltaic** an
 | **Data** | An Excel-style table of every routine, step, term and your saved progress, with a four-file CSV export. |
 | **Credits** | Full attribution, source links and the legal notice. |
 
-Playable routines can be saved as normal playlists and edited like any other. While paused, **â€¹ â€º** jumps to the
+Playable routines can be saved as normal playlists and edited like any other. The HUD shows the current task and repetition; its clock follows the actual run duration. For example, Cartoon’s three-minute tasks contain three one-minute runs before advancing. While paused, **â€¹ â€º** jumps to the
 previous or next task without saving the abandoned run. The trainer applies a source's sensitivity boost only on the
 steps that ask for it, keeps it above 15 cm/360 (1.5Ã— cap when your normal sens is already faster than 35 cm/360) and
 keeps boosted runs out of your personal bests. Recoil, deathmatch and map drills always use a real magazine and camera

@@ -364,15 +364,20 @@ public static class PlaylistRunner
         int runIndex = plan.Index;
         if (Main.I.Dev)
             GD.Print($"[playlist] run {runIndex} task {taskIndex + 1}/{TaskCount} {plan.Key} " +
-                     $"sens={sensFactor:0.##}x min={minutes:0.#} " +
+                     $"sens={sensFactor:0.##}x min={minutes:0.###} " +
                      $"recoil={(plannedRecoil is { } rc ? rc ? "on" : "off" : "keep")}");
         started?.Invoke(runIndex);
         // Every run reports its finish, including the last one, which then keeps its normal results screen.
         session.OnFinished = _ =>
         {
             finished?.Invoke(runIndex);
+            if (Main.I.Dev) GD.Print($"[playlist] finished run {runIndex} {plan.Key} elapsed={session.Now:0.00} limit={session.RunLength:0.00}");
             if (!last) Callable.From(() => StartRun(index + 1)).CallDeferred();
-            else Restore();
+            else
+            {
+                Restore();
+                if (Main.I.Dev && CmdLine.Has("--routine-quit")) Main.I.GetTree().Quit();
+            }
         };
         Main.I.ShowScreen(session);
     }
