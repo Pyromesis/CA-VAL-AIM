@@ -138,7 +138,8 @@ public sealed class ArsenalMode : BotMode
     public override IEnumerable<string> HudLines()
     {
         var w = Weapons.AllPlayable[index];
-        yield return $"{w.Name} · {Weapons.ClassName(w.Class)} · Q / E change weapon";
+        yield return $"{w.Name} · {Weapons.ClassName(w.Class)}";
+        if (ShowInstructions) yield return "Q / E change weapon";
     }
 
     public override void Draw2D(CanvasItem c, Vector2 size)

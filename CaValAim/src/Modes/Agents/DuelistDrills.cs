@@ -322,7 +322,7 @@ public sealed partial class MobilityEntryMode : MapMode
     public override IEnumerable<string> HudLines()
     {
         if (between > 0 || Kit == null) yield break;
-        if (rounds <= 1 || (Kit.RoundsUsed == 0 && rounds <= 3))
+        if (ShowInstructions)
             foreach (var s in Kit.HowTo.Split(". ", StringSplitOptions.RemoveEmptyEntries)) yield return s.TrimEnd('.') + ".";
         yield return Loc.Spanish
             ? $"Defensores restantes: {defenders.Count(d => d.Alive)}"

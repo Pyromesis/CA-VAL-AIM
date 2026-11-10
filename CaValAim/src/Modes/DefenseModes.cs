@@ -605,13 +605,13 @@ public sealed partial class AnchorMode : MapMode
     {
         if (phase == Phase.Setup)
         {
-            if (kits.Count == 0) { yield return Loc.Spanish ? "Aguanta tu ángulo — escucha la entrada" : "Hold your angle — listen for the push"; yield break; }
+            if (kits.Count == 0) { if (ShowInstructions) yield return Loc.Spanish ? "Aguanta tu ángulo — escucha la entrada" : "Hold your angle — listen for the push"; yield break; }
             foreach (var k in kits)
             {
                 bool placed = devices.Any(d => d.A == k.A && !d.Dead) || k.Charges < k.A.Charges;
                 yield return $"[{k.KeyText}] {k.A.Ability}{(placed ? (Loc.Spanish ? " — colocada" : " — placed") : "")}";
             }
-            if (rounds == 0)
+            if (ShowInstructions)
                 foreach (var k in kits) yield return k.A.HowTo;
             yield break;
         }
@@ -647,8 +647,8 @@ public sealed partial class AnchorMode : MapMode
         Gfx.TextC(c, UiTheme.Display,
             kits.Count > 0
                 ? (Loc.Spanish ? $"PREPARACIÓN  {left:0}" : $"SETUP  {left:0}")
-                : (Loc.Spanish ? $"PREPÁRATE  {left:0}" : $"GET READY  {left:0}"), cx, y, fs, UiTheme.Text);
-        Gfx.TextC(c, UiTheme.HudWide, kits.Count > 0 ? "PLACE YOUR UTILITY — THE PUSH COMES AFTER THE SETUP" : "THE ATTACKERS EXECUTE THROUGH THE CHOKE", cx, y + 24 * k, ss, UiTheme.Dim);
+                : (Loc.Spanish ? $"ENTRADA  {left:0}" : $"INCOMING  {left:0}"), cx, y, fs, UiTheme.Text);
+        if (ShowInstructions) Gfx.TextC(c, UiTheme.HudWide, kits.Count > 0 ? "PLACE YOUR UTILITY — THE PUSH COMES AFTER THE SETUP" : "THE ATTACKERS EXECUTE THROUGH THE CHOKE", cx, y + 24 * k, ss, UiTheme.Dim);
         float w = 320 * k;
         c.DrawRect(new Rect2(cx - w / 2, y + 36 * k, w, 3 * k), new Color(1, 1, 1, 0.12f));
         c.DrawRect(new Rect2(cx - w / 2, y + 36 * k, w * (left / Mathf.Max(0.1f, setupLen)), 3 * k), kits.Count > 0 ? kits[0].A.Color : UiTheme.Warn);
@@ -679,9 +679,9 @@ public sealed partial class AnchorMode : MapMode
             SentinelKit.Phase.Equipping => es ? "EQUIPANDO…" : "EQUIPPING…",
             SentinelKit.Phase.Equipped => kit.A.Kind == SentKind.BarrierOrb
                 ? (es ? $"COLOCAR · {(kit.Alt ? "GIRADO" : "AL OTRO LADO")}" : $"PLACE · {(kit.Alt ? "ROTATED" : "ACROSS")}")
-                : (es ? "COLÓCALO" : "PLACE IT"),
+                : (es ? "EQUIPADA" : "EQUIPPED"),
             _ => out_ is RazorvineDev { CanActivate: true } || out_ is InterceptorDev { CanActivate: true }
-                ? (es ? "FUERA · TECLA PARA ACTIVAR" : "OUT · KEY TO ACTIVATE")
+                ? (es ? "ACTIVABLE" : "ACTIVATABLE")
                 : out_ != null ? (es ? "FUERA" : "OUT") : ready ? (es ? "LISTA" : "READY") : (es ? "USADA" : "USED"),
         };
         Gfx.Text(c, UiTheme.HudWide, state, tx, Gfx.Mid(r.Position.Y + 44 * k, ss), ss, kit.State != SentinelKit.Phase.Ready ? accent : UiTheme.Dim);

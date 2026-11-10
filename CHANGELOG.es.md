@@ -2,6 +2,16 @@
 
 ## [Sin publicar]
 
+## [2.8.2] - 2026-11-10
+
+### Corregido
+
+- Las instrucciones aparecen solo durante la presentación inicial en todas las secciones, rutinas y prácticas guiadas.
+- Eliminados los textos de espera, los títulos grandes repetidos y las ayudas persistentes de reacción, movimiento, recoil y agentes durante el juego.
+- Se mantienen los estímulos, números de memoria, reglas activas, contadores y estado de reaparición necesarios para jugar.
+- El coach sigue analizando en segundo plano y archivando observaciones sin carteles sobre la tarea; descripción del ajuste actualizada.
+
+
 ## [2.8.1] - 2026-11-10
 
 ### Corregido

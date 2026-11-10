@@ -555,7 +555,7 @@ public sealed class SoundLockMode : MapMode
     {
         bool es = Loc.Spanish;
         yield return es ? $"Repetición {Math.Max(1, reps)} · en el ángulo {locked}/{errs.Count}" : $"Rep {Math.Max(1, reps)} · on the angle {locked}/{errs.Count}";
-        if (ph == Ph.Live && walkers.All(w => !w.Seen)) yield return es ? "Escucha: ¿por dónde van a venir?" : "Listen — where will they come from?";
+        if (ShowInstructions && ph == Ph.Live && walkers.All(w => !w.Seen)) yield return es ? "Escucha: ¿por dónde van a venir?" : "Listen — where will they come from?";
         if (lastLine.Length > 0) yield return lastLine;
         if (ents.Count == 0) yield return es ? "No hay esquinas usables en este punto del mapa" : "No usable corners on this map spot";
     }

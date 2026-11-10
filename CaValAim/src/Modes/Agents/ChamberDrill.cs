@@ -311,7 +311,7 @@ public sealed partial class ChamberMode
     public override IEnumerable<string> HudLines()
     {
         bool es = Loc.Spanish;
-        if (rounds <= 1)
+        if (ShowInstructions)
         {
             if (Tdf)
             {

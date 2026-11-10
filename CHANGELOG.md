@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [2.8.2] - 2026-11-10
+
+### Fixed
+
+- Show task instructions only during the opening countdown across all training sections, routines and guided practice.
+- Remove repeated waiting text, large reaction-game headings and persistent tutorial hints from reaction, movement, recoil and agent drills.
+- Keep active stimuli, memory samples, current rules, gameplay counters and respawn status visible while training.
+- Keep live coaching analysis in the background and archive its observations without pop-up coaching cards over active play; update the setting description.
+
+
 ## [2.8.1] - 2026-11-10
 
 ### Fixed

@@ -477,7 +477,7 @@ public sealed partial class DeathmatchMode : MapMode
             if (Now - feed[i].T < 5f) { yield return feed[i].Text; n++; }
     }
 
-    public override string? Prompt => G.Player.Dead && playerRespawnAt > 0
+    public override string? StatusPrompt => G.Player.Dead && playerRespawnAt > 0
         ? Loc.Spanish
             ? $"Reapareciendo en {Mathf.Max(0, playerRespawnAt - Now):0.0}s"
             : $"Respawning in {Mathf.Max(0, playerRespawnAt - Now):0.0}s"

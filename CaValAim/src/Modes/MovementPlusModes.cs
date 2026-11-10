@@ -70,13 +70,13 @@ public sealed class JumpPeekMode : OpAngleMode
         {
             Score -= (int)Mathf.Min(s.Damage, 150f);
             if (s.Zone == HitZone.Legs)
-                G.Banner(Loc.Spanish ? "TIRO A LA PIERNA — 120 de daño. ¡Asomadas más cortas!" : "LEG SHOT — 120 damage. Shorter peeks!", UiTheme.Warn);
+                G.Banner(Loc.Spanish ? "TIRO A LA PIERNA — 120 de daño" : "LEG SHOT — 120 damage", UiTheme.Warn);
             return;
         }
         dodged++;
         if (s.TargetAirborne) airDodged++;
         Score += 50;
-        G.Banner(Loc.Spanish ? "EL OP FALLA — ASÓMATE YA" : "OP MISSED — SWING NOW", UiTheme.Good);
+        G.Banner(Loc.Spanish ? "EL OP FALLA" : "OP MISSED", UiTheme.Good);
     }
 
     protected override void OnOpKilled(bool inPunishWindow)
@@ -255,7 +255,7 @@ public sealed class JigglePeekMode : OpAngleMode
         }
         baits++;
         Score += 50;
-        G.Banner(Loc.Spanish ? "¡CEBO! ASÓMATE ANCHO YA" : "BAITED — WIDE SWING NOW", UiTheme.Good);
+        G.Banner(Loc.Spanish ? "CEBO CONFIRMADO" : "BAITED", UiTheme.Good);
     }
 
     protected override void OnOpKilled(bool inPunishWindow)
@@ -298,10 +298,10 @@ public sealed class JigglePeekMode : OpAngleMode
             {
                 noteCooldown = Now + 2.5f;
                 G.Banner(Loc.Spanish
-                    ? Op.ShoulderSight ? "SIN REACCIÓN — demasiado rápido: enseña el hombro un poco más"
-                                        : "SIN REACCIÓN — este Op ignora un hombro suelto: asómate un poco más"
-                    : Op.ShoulderSight ? "NO REACTION — too quick for him: show the shoulder a bit longer"
-                                        : "NO REACTION — this Op ignores a lone shoulder: show a bit more of you", UiTheme.Warn);
+                    ? Op.ShoulderSight ? "SIN REACCIÓN — exposición breve"
+                                        : "SIN REACCIÓN — hombro ignorado"
+                    : Op.ShoulderSight ? "NO REACTION — brief exposure"
+                                        : "NO REACTION — shoulder ignored", UiTheme.Warn);
             }
         }
     }
@@ -314,7 +314,7 @@ public sealed class JigglePeekMode : OpAngleMode
         if (Now > noteCooldown)
         {
             noteCooldown = Now + 2.5f;
-            G.Banner(Loc.Spanish ? "NO DISPARÓ — te escondiste pronto: aguanta un poco más" : "HE HELD FIRE — you hid too early: stay out a touch longer", UiTheme.Warn);
+            G.Banner(Loc.Spanish ? "NO DISPARÓ — exposición breve" : "HE HELD FIRE — brief exposure", UiTheme.Warn);
         }
     }
 

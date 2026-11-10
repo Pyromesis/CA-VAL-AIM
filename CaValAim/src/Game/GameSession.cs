@@ -354,7 +354,7 @@ public partial class GameSession : Node3D, IGame
         };
         // The coach during the run (Analysis/LiveCoach): never in a preview; every drill with a gun or a reaction test.
         sensitivityChanged = false;
-        Live = !Demo
+        Live = !Demo && (GuidedPractice || Main.I.Settings.LiveCoach)
             && Mode.Key is not ("sensfinder" or "xhairfinder") ? new Analysis.LiveCoach(Telemetry, Mode.Key, Mode.Movement) : null;
         replay = Demo ? null : StartReplay(extras); // before Begin: it spawns the first bots / targets
         Mode.Begin(this);

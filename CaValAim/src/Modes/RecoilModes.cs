@@ -159,7 +159,7 @@ public sealed class SprayControlMode : TrainingMode
     {
         yield return S($"Distance {Dist:0} m · spray ≥ {Required} bullets", $"Distancia {Dist:0} m · ráfaga ≥ {Required} balas");
         if (lastPct >= 0) yield return S($"Last spray {lastPct * 100:0}% on target", $"Última ráfaga: {lastPct * 100:0}% en el objetivo");
-        if (tip.Length > 0) yield return tip;
+        if (ShowInstructions && tip.Length > 0) yield return tip;
     }
 
     public override float Accuracy => countedShots == 0 ? (Shots == 0 ? 0 : (float)Hits / Shots) : (float)countedHits / countedShots;
@@ -317,7 +317,7 @@ public sealed class SprayTransferMode : BotMode
         {
             rounds++;
             Event("round_lost");
-            G.Banner("Spray broken — keep holding until everyone is down", UiTheme.Accent);
+            G.Banner("Spray broken", UiTheme.Accent);
             G.Sound("fail", 0.6f);
             EndRound();
         }

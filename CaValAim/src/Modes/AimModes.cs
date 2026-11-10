@@ -395,7 +395,7 @@ public sealed class ReactionMode : TrainingMode
         var bg = st switch { St.Go => G.Enemy, St.Early => new Color(0.24f, 0.12f, 0.12f), _ => new Color(0.09f, 0.12f, 0.16f) };
         c.DrawRect(new Rect2(Vector2.Zero, size), bg);
         bool es = Loc.Spanish;
-        string big = st switch { St.Wait => es ? "Espera…" : "Wait for it…", St.Go => es ? "¡YA!" : "CLICK!", St.Show => $"{lastMs:0} ms", _ => es ? "¡Demasiado pronto!" : "Too early!" };
+        string big = st switch { St.Wait or St.Go => "", St.Show => $"{lastMs:0} ms", _ => es ? "¡Demasiado pronto!" : "Too early!" };
         var col = st == St.Go ? Colors.Black : UI.UiTheme.Text;
         float k = size.Y / 1080f;
         void Center(string s, float y, int fs, Color cc)

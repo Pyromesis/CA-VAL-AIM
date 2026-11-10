@@ -107,7 +107,7 @@ public sealed class ReactionGameMode : TrainingMode
         if (pressed) seen = click;
         if (phase == Phase.Wait)
         {
-            if (pressed) { early++; Event("early_click"); End(false, L("Anticipado: espera la señal", "Early: wait for the signal")); }
+            if (pressed) { early++; Event("early_click"); End(false, L("Anticipado", "Early")); }
             else if (elapsed >= wait)
             {
                 phase = Phase.Signal; elapsed = 0; stimulus = Time.GetTicksUsec();
@@ -181,12 +181,14 @@ public sealed class ReactionGameMode : TrainingMode
         float k = size.Y / 720; var center = size / 2;
         c.DrawRect(new Rect2(Vector2.Zero, size), new Color(0.025f, 0.035f, 0.055f));
         void Text(string text, float y, int fs, Color color) => Gfx.TextC(c, UiTheme.Display, text, center.X, y, UiTheme.Fs(fs, k), color);
-        Text(Name, size.Y * 0.19f, 25, UiTheme.Teal);
-        Text(Description, size.Y * 0.27f, 14, UiTheme.Text);
+        // The shared countdown presents Name and Description once; do not repeat them here.
         if (Kind == ReactionGameKind.Rules) Text(completed % 2 == 0 ? L("REGLA: PAR", "RULE: EVEN") : L("REGLA: ROMBO", "RULE: DIAMOND"), size.Y * 0.34f, 20, UiTheme.Teal);
         if (phase == Phase.Feedback) Text(feedback, size.Y * 0.57f, 30, UiTheme.Text);
         else if (phase == Phase.Wait)
-            Text(Kind == ReactionGameKind.Memory ? L($"Memoriza: {memory}", $"Remember: {memory}") : L("Espera…", "Wait…"), size.Y * 0.55f, 32, UiTheme.Text);
+        {
+            // Memory needs its sample number; every other waiting phase stays visually quiet.
+            if (Kind == ReactionGameKind.Memory && !ShowInstructions) Text(memory.ToString(), size.Y * 0.55f, 32, UiTheme.Text);
+        }
         else if (NeedsAim)
         {
             float scale = size.Y / 70f; Vector2 pos = center + AimError * scale;

@@ -77,16 +77,11 @@ public sealed class AntiMirrorMode : TrackingDrill
     public override IEnumerable<string> HudLines()
     {
         bool es = Loc.Spanish;
-        if (strafeFrames == 0)
-        {
-            yield return es ? "Esperando strafe: muévete con A/D cuando el objetivo se mueva."
-                            : "Waiting for strafe: move with A/D while the target moves.";
-            yield break;
-        }
+        if (strafeFrames == 0) yield break;
         yield return es
             ? $"Anti-espejo {Anti * 100:0}% · espejo {Mirror * 100:0}% · {strafeTime:0.0} s"
             : $"Anti-mirror {Anti * 100:0}% · mirroring {Mirror * 100:0}% · {strafeTime:0.0} s";
-        yield return es
+        if (ShowInstructions) yield return es
             ? "Cuenta solo cuando ambos hacéis strafe; quedarte quieto no puntúa."
             : "Only counts when both of you strafe; standing still does not score.";
     }

@@ -326,7 +326,7 @@ static class ControllerDraw
         Gfx.Text(ci, UiTheme.HudWide, es ? "TU KIT" : "YOUR KIT", x, y, ss, UiTheme.Accent);
         y += 26 * k;
         y = Para(ci, UiTheme.Body, $"{m.Kit.Ability}: {m.Kit.Summary}", x, y, bs, w, UiTheme.Text) + 4 * k;
-        y = Para(ci, UiTheme.Body, m.Kit.HowTo, x, y, UiTheme.Fs(15, k), w, UiTheme.Dim) + 10 * k;
+        if (m.Rounds.Count == 0) y = Para(ci, UiTheme.Body, m.Kit.HowTo, x, y, UiTheme.Fs(15, k), w, UiTheme.Dim) + 10 * k;
         Gfx.Text(ci, UiTheme.HudWide, es ? "LEYENDA" : "LEGEND", x, y, ss, UiTheme.Accent);
         y += 24 * k;
         ci.DrawLine(new Vector2(x, y - 5 * k), new Vector2(x + 30 * k, y - 5 * k), Open, 2 * k);
@@ -431,7 +431,7 @@ static class ControllerDraw
 
         int ts = UiTheme.Fs(26, k), hs = UiTheme.Fs(15, k);
         Gfx.TextC(ci, UiTheme.Display, title, size.X / 2, mr.Position.Y - 16 * k, ts, UiTheme.Text);
-        Gfx.TextC(ci, UiTheme.HudWide, help, size.X / 2, mr.End.Y + 30 * k, hs, UiTheme.Dim);
+        if (m.ShowInstructions) Gfx.TextC(ci, UiTheme.HudWide, help, size.X / 2, mr.End.Y + 30 * k, hs, UiTheme.Dim);
         if (m.CurrentPhase == SmokeExecuteMode.Phase.Place)
             Gfx.TextC(ci, UiTheme.HudWide, es
                 ? $"TIEMPO DE COLOCACIÓN {Mathf.Max(0, m.PhaseLeft):0.0} S"
@@ -523,12 +523,12 @@ static class ControllerDraw
                 if (s == target)
                 {
                     ci.DrawArc(sp, 18 * k, 0, Mathf.Tau, 32, UiTheme.Text, 2 * k, true);
-                    Gfx.TextC(ci, UiTheme.HudWide, neb.Charges > 0
+                    if (m.ShowInstructions) Gfx.TextC(ci, UiTheme.HudWide, neb.Charges > 0
                         ? (es ? "E  NEBULOSA   ·   F  DISIPAR" : "E  NEBULA   ·   F  DISSIPATE")
                         : (es ? "F  DISIPAR" : "F  DISSIPATE"), sp.X, sp.Y + 38 * k, UiTheme.Fs(13, k), UiTheme.Text);
                 }
             }
-            if (m.Stars.Count == 0 && m.StarsLeft > 0)
+            if (m.ShowInstructions && m.Stars.Count == 0 && m.StarsLeft > 0)
                 Gfx.TextC(ci, UiTheme.HudWide, es ? "X  FORMA ASTRAL — COLOCA TUS ESTRELLAS" : "X  ASTRAL FORM — PLACE YOUR STARS", size.X / 2, size.Y * 0.64f, UiTheme.Fs(16, k), UiTheme.Warn);
         }
 
@@ -538,7 +538,7 @@ static class ControllerDraw
         {
             var c = size / 2;
             Gfx.TextC(ci, UiTheme.HudWide, $"{aim.Distance:0} M", c.X, c.Y + 46 * k, UiTheme.Fs(16, k), aim.InRange ? UiTheme.Text : UiTheme.Accent);
-            Gfx.TextC(ci, UiTheme.HudWide, es
+            if (m.ShowInstructions) Gfx.TextC(ci, UiTheme.HudWide, es
                 ? $"MANTÉN CLIC FUERA · MANTÉN CLIC DERECHO DENTRO · {Key(m.Kit.SmokeKey)} LANZAR · R VISTA DESDE ARRIBA"
                 : $"HOLD CLICK OUT · HOLD RIGHT-CLICK IN · {Key(m.Kit.SmokeKey)} THROW · R OVERHEAD", c.X, c.Y + 70 * k, UiTheme.Fs(13, k), UiTheme.Dim);
             var inset = new Rect2(size.X - 400 * k, 150 * k, 370 * k, 300 * k);
@@ -579,13 +579,13 @@ static class ControllerDraw
         }
 
         // what to do next (no map open)
-        if (!m.AnyMapOpen && place && abil.All(a => !a.Equipped))
+        if (m.ShowInstructions && !m.AnyMapOpen && place && abil.All(a => !a.Equipped))
         {
             var next = abil.FirstOrDefault(a => !a.Spent);
             if (next != null)
                 Gfx.TextC(ci, UiTheme.HudWide, $"{Key(next.HotKey)}  {next.Name.ToUpperInvariant()}", size.X / 2, size.Y * 0.64f, UiTheme.Fs(16, k), UiTheme.Warn);
         }
-        if (m.Kit.Placing == SmokePlacing.Throw && !place)
+        if (m.ShowInstructions && m.Kit.Placing == SmokePlacing.Throw && !place)
         {
             var gases = abil.OfType<ViperGas>().ToList();
             if (gases.Count > 0 && gases.All(x => x.Deployed && !x.On) && m.Fuel.Fuel >= ViperFuel.Min)

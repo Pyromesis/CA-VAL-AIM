@@ -472,8 +472,10 @@ public partial class SettingsScreen : ScreenBase
                 1 => "A line from the crosshair to the nearest target",
                 _ => "Aim line, plus the shortest route to the nearest enemy on map drills",
             }));
-        v.AddChild(Segmented("Live coach", new[] { "OFF", "ON" }, () => St.LiveCoach ? 1 : 0, i => St.LiveCoach = i == 1,
-            note: () => St.LiveCoach ? "Short cues during the run: what is going wrong and how to fix it" : "The coach only reviews the run at the end"));
+        v.AddChild(Segmented(Loc.Spanish ? "Análisis del coach en directo" : "Live coach analysis", new[] { "OFF", "ON" }, () => St.LiveCoach ? 1 : 0, i => St.LiveCoach = i == 1,
+            note: () => St.LiveCoach
+                ? (Loc.Spanish ? "Analiza en segundo plano y guarda las observaciones para la revisión, sin carteles durante el juego." : "Analyzes in the background and saves observations for review, without pop-up instructions during play.")
+                : (Loc.Spanish ? "El coach revisa la ronda al terminar." : "The coach reviews the round when it ends.")));
         v.AddChild(Segmented("Weapon hand", new[] { "RIGHT", "LEFT" }, () => St.LeftHandedWeapon ? 1 : 0, i => St.LeftHandedWeapon = i == 1,
             note: () => Main.I.Valorant.Found
                 ? Loc.Spanish

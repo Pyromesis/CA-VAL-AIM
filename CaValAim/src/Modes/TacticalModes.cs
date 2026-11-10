@@ -721,7 +721,7 @@ public sealed class RetakeMode : TacticalMode
 
     protected override void OnBotKilled(TacBot bot, bool headshot)
     {
-        if (AliveBots == 0 && Live) G.Banner(Loc.Spanish ? "SITIO DESPEJADO — ¡DESACTIVA!" : "SITE CLEAR — DEFUSE!", UiTheme.Good);
+        if (AliveBots == 0 && Live) G.Banner(Loc.Spanish ? "SITIO DESPEJADO" : "SITE CLEAR", UiTheme.Good);
     }
 
     public override string? Prompt
@@ -745,7 +745,7 @@ public sealed class RetakeMode : TacticalMode
             ? $"Ronda {Round}   Ganadas {Won}  Perdidas {Lost}"
             : $"Round {Round}   Won {Won}  Lost {Lost}";
         if (DefuseCheckpoint && !PlayerDefusing && Live)
-            yield return Loc.Spanish ? "Desactivada a medias — continúa desde 3,5 s" : "Half defused — it resumes from 3.5 s";
+            yield return Loc.Spanish ? "Desactivación: punto de control 3,5 s" : "Defuse checkpoint: 3.5 s";
     }
 
     public override IEnumerable<(string Label, string Value)> ResultLines()

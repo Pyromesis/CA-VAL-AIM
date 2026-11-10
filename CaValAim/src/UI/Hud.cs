@@ -245,13 +245,12 @@ public partial class Hud : Control
             if (m.Movement) DrawSpeed(size, k);
             DrawReload(size, k);
         }
-        if ((m.Prompt ?? s.WorldPrompt) is { } p) DrawPrompt(size, k, Main.I.Valorant.Binds.Hint(p));
+        if ((m.ShowInstructions ? m.Prompt ?? m.StatusPrompt ?? s.WorldPrompt : m.StatusPrompt ?? s.WorldPrompt) is { } p) DrawPrompt(size, k, Main.I.Valorant.Binds.Hint(p));
         if (s.BannerTime > 0 && s.BannerText.Length > 0) DrawBanner(size, k);
-        if (s.State == GameSession.St.Running && (s.GuidedPractice || Main.I.Settings.LiveCoach) &&
-            s.Live?.Current is { } tip) DrawLiveTip(size, k, tip);
+        // Live analysis still runs and is archived; tutorial/coaching cards never cover active play.
         if (m.KillBanner.Time > 0 && m.KillBanner.Count > 0) DrawKillBanner(size, k, m.KillBanner.Count, m.KillBanner.Time);
         if (s.State == GameSession.St.Countdown) DrawCountdown(size, k, m);
-        if (focus != null && (s.State == GameSession.St.Countdown || (s.State == GameSession.St.Running && s.Now < 2f))) DrawFocus(size, k, focus);
+        if (focus != null && m.ShowInstructions) DrawFocus(size, k, focus);
     }
 
     readonly Cache cGuide = new();

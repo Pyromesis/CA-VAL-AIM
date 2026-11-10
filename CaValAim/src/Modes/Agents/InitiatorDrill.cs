@@ -609,7 +609,7 @@ public abstract partial class InitiatorDrill : MapMode
     public override IEnumerable<string> HudLines()
     {
         if (between > 0) yield break;
-        if (!castThisRun && rounds <= 2)
+        if (ShowInstructions)
             foreach (var s in Ability.HowTo.Split(". ", StringSplitOptions.RemoveEmptyEntries)) yield return s.TrimEnd('.') + ".";
         yield return Loc.Spanish
             ? $"Defensores restantes: {defenders.Count(d => d.Alive)}"

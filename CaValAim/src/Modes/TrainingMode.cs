@@ -14,6 +14,8 @@ public abstract class TrainingMode
     public abstract string Key { get; }
     public abstract string Name { get; }
     public abstract string Description { get; }
+    /// <summary>Tutorial copy is confined to the initial countdown, never repeated during play.</summary>
+    public bool ShowInstructions => G is GameSession { State: GameSession.St.Countdown };
     public virtual string Category => "Aim";
     /// <summary>GitHub handle of the community member who made this drill: a COMMUNITY tag on its card and a credit
     /// line on its countdown. Null = made by the CA-VAL-AIM team.</summary>
@@ -162,6 +164,8 @@ public abstract class TrainingMode
         : $"Level {Difficulty.LevelName(a.Level)} ({a.Level:0.0}) · adapts to {a.TargetHitRate * 100:0}% hits";
     /// <summary>Centre prompt (e.g. "Keep strafing").</summary>
     public virtual string? Prompt => null;
+    /// <summary>Live state rather than tutorial copy (for example the respawn countdown).</summary>
+    public virtual string? StatusPrompt => null;
     /// <summary>Custom 2D drawing on the HUD canvas (reaction test, etc.).</summary>
     public virtual void Draw2D(CanvasItem canvas, Vector2 size) { }
 

@@ -221,7 +221,7 @@ Completed runs record mouse input, crosshair path, shots and events to `%APPDATA
 | **Second by second** | A one-second timeline built from the real telemetry: score bars, aim error, time on target, accuracy, movement, dead time, best and worst seconds and the weakest five-second stretch, with a paged table and **WATCH** at that exact moment. |
 | **Problems** | Sorted by importance, each with your numbers, why it happens, how to fix it and drills to practise. |
 | **Direction and tremor** | Separates left, right, up and down flicks, flags aim tremor, under- and overshooting, and points to a drill for each. |
-| **Live coach** | Short cues during the run (Settings â†’ Gameplay â†’ Live coach) with the evidence and one fix: crosshair too low, shooting while moving, overshooting or stopping short, sprays too long. |
+| **Live coach** | Background analysis stores observations for review. Task instructions appear during the opening countdown; tutorial and coaching cards stay off the active play area. |
 | **Run review** | The results screen adds a summary of that run, the top problems with fixes and what went well. |
 | **Independent observations** | A play can retain overshoot, undershoot, corrections and delayed response together. Moving targets are excluded from static sensitivity braking judgments. |
 | **Guided practice** | Instructions before each task, feedback afterward, and reproducible personal drill variants generated from diagnosis and severity. Save a plan as a playlist and reopen it later. |

@@ -1,4 +1,4 @@
-﻿# Entrenamiento y seguimiento del coach
+# Entrenamiento y seguimiento del coach
 
 La biblioteca añade 180 progresiones propias y 50 ejercicios de reacción y queda en 402 ejercicios visibles:
 
@@ -20,7 +20,7 @@ Las progresiones combinan cinco disposiciones con cuatro exigencias; cambian dis
 
 ## Seguimiento y prescripción
 
-Las rondas completadas guardan telemetría, revisión y cronología por segundo. La revisión añade observaciones independientes con tiempo, valor, unidad y un indicador de muestra controlada: exceso, movimiento corto, respuesta, correcciones, anticipaciones, disparos imprecisos, recuperación y retraso de seguimiento, y desviación de ráfaga cuando hay evidencia de esas mecánicas. Una jugada puede tener varias observaciones. Los avisos durante la partida mantienen su límite de frecuencia.
+Las rondas completadas guardan telemetría, revisión y cronología por segundo. La revisión añade observaciones independientes con tiempo, valor, unidad y un indicador de muestra controlada: exceso, movimiento corto, respuesta, correcciones, anticipaciones, disparos imprecisos, recuperación y retraso de seguimiento, y desviación de ráfaga cuando hay evidencia de esas mecánicas. Una jugada puede tener varias observaciones. El análisis en directo sigue guardando observaciones en segundo plano. Las instrucciones y ayudas del coach se presentan al inicio o en la revisión, sin carteles superpuestos durante el juego.
 
 Los blancos móviles no se usan para clasificar el frenado como exceso o defecto de sensibilidad. En bots se conserva la observación y se identifica si el contexto permite una interpretación controlada. Las pruebas A/B también reciben revisión. El entrenamiento libre archiva cada ciclo completado antes de continuar; no añade puntuaciones competitivas por esos ciclos.
 

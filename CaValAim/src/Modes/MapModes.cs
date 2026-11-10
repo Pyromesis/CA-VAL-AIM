@@ -636,8 +636,11 @@ public sealed class FlashDodgeMode : MapMode
 
     public override IEnumerable<string> HudLines()
     {
-        if (st == St.Hold) yield return "Hold the angle — listen for the flash";
-        if (st == St.Dizzy && !dzDead && !dzFired) yield return "Gekko's Dizzy: shoot her or get out of her sight";
+        if (ShowInstructions)
+        {
+            if (st == St.Hold) yield return "Hold the angle — listen for the flash";
+            if (st == St.Dizzy && !dzDead && !dzFired) yield return "Gekko's Dizzy: shoot her or get out of her sight";
+        }
     }
 
     public override float Accuracy => Shots == 0 ? 0 : (float)Hits / Shots;

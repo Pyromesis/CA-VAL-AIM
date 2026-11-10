@@ -119,7 +119,7 @@ public sealed class ReactionLabMode : TrainingMode
             case St.Stim:
                 if (cat == ReactionCategory.Choice && noGo)
                 {
-                    if (newClick) { lastClickSeen = click; falseAlarms++; noGoTrials++; Finish(Loc.Spanish ? "¡Rojo: no hagas clic!" : "Red: don't click!", false); G.Sound("fail"); Event("false_alarm"); }
+                    if (newClick) { lastClickSeen = click; falseAlarms++; noGoTrials++; Finish(Loc.Spanish ? "Respuesta incorrecta" : "Incorrect response", false); G.Sound("fail"); Event("false_alarm"); }
                     else if (t > 1.0f) { noGoTrials++; Finish(Loc.Spanish ? "Aguantaste: correcto" : "Held it: correct", true); }
                     break;
                 }
@@ -271,15 +271,7 @@ public sealed class ReactionLabMode : TrainingMode
 
         string big = st switch
         {
-            St.Wait => cat switch
-            {
-                ReactionCategory.Audio => "Listen…",
-                ReactionCategory.Peripheral => "Eyes on the centre",
-                ReactionCategory.Choice => "Green = click · Red = wait",
-                ReactionCategory.Flick => "Get ready to flick",
-                _ => "Wait for it…",
-            },
-            St.Stim => cat == ReactionCategory.Visual ? "CLICK!" : "",
+            St.Wait or St.Stim => "",
             St.Early => "Too early!",
             _ => lastText,
         };
