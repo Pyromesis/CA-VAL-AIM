@@ -1,4 +1,4 @@
-using CaValAim.Analysis;
+﻿using CaValAim.Analysis;
 using CaValAim.Audio;
 using CaValAim.Core;
 using CaValAim.Game;
@@ -136,6 +136,7 @@ public partial class PracticeScreen : ScreenBase
                 var step = plan[round];
                 Line($"{round + 1}/{plan.Length} · {Loc.T(CoachData.DrillName(step.Drill))}", UiTheme.Teal);
                 Line(Cue(step), UiTheme.Text);
+                if (ModeRegistry.Find(step.Drill) is { } factory) Line(factory().Description, UiTheme.Dim);
                 if (ForecastFor(step) is { } forecast)
                     Line(L($"Red neuronal local · precisión prevista {forecast.Accuracy:P0} · validada en {forecast.ValidationRuns} rondas.",
                         $"Local neural network · predicted accuracy {forecast.Accuracy:P0} · validated on {forecast.ValidationRuns} runs."), UiTheme.Dim);
@@ -176,7 +177,7 @@ public partial class PracticeScreen : ScreenBase
     });
 
     AimForecast? ForecastFor(PlanStep step) =>
-        Main.I.Tier == profile!.ForecastTier && SensLab.SameSens(Main.I.Sens, profile.ForecastSens)
+        profile != null && Main.I.Tier == profile.ForecastTier && SensLab.SameSens(Main.I.Sens, profile.ForecastSens)
             ? profile.Forecasts.FirstOrDefault(f => f.Drill == step.Drill) : null;
 
     void RunGuided(PlanStep step)
@@ -214,6 +215,17 @@ public partial class PracticeScreen : ScreenBase
                             $" Against the previous repetition of this drill: {change:+0.0;-0.0;0} accuracy points. One round does not establish a trend.");
                     }
                     previous[step.Drill] = current;
+                }
+                if (review != null)
+                {
+                    int over = review.Observations.Count(o => o.Code == "over");
+                    int under = review.Observations.Count(o => o.Code == "under");
+                    var reaction = review.Observations.Where(o => o.Code == "reaction_ms").ToArray();
+                    score += L($" Registro de jugadas: {over} movimientos que se pasan y {under} que quedan cortos.",
+                        $" Play log: {over} overshoots and {under} undershoots.");
+                    if (reaction.Length > 0)
+                        score += L($" Respuesta media registrada: {reaction.Average(o => o.Value):0} ms.",
+                            $" Average recorded response: {reaction.Average(o => o.Value):0} ms.");
                 }
                 string sensitivity = review?.Sens is { HasData: true } sens
                     ? L("Sensibilidad en la ronda · ", "Sensitivity this round · ") + SensLabText.Metrics(sens)

@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   Headless self-tests for CA-VAL-AIM: the coach self-test (with the .vtr replay round trip), the locale (culture) tests, the bug report
   checks, a short smoke test of the drills with the simulated player, the 3D Rewind sidecar check of those runs and the Rewind insights
@@ -87,7 +87,9 @@ function Invoke-GodotUnlocked([string]$Label, [string[]]$GodotArgs) {
   $p = [System.Diagnostics.Process]::Start($psi)
   $out = $p.StandardOutput.ReadToEndAsync()
   $err = $p.StandardError.ReadToEndAsync()
-  $timedOut = -not $p.WaitForExit($TimeoutSec * 1000)
+  # The expanded catalogs exercise hundreds of sessions; keep a bounded, longer budget for these two sweeps.
+  $runTimeout = if ($Label -in @("preview-check", "reaction-games-check")) { [Math]::Max($TimeoutSec, 1200) } else { $TimeoutSec }
+  $timedOut = -not $p.WaitForExit($runTimeout * 1000)
   if ($timedOut) { & taskkill.exe /PID $p.Id /T /F 2>&1 | Out-Null; $p.WaitForExit() }
   $p.WaitForExit()
   $text = $out.Result + $err.Result
@@ -123,6 +125,16 @@ $fail = @($lines | Where-Object { $_ -match '^\s+FAIL ' })
 $why = if ($r.Code -ne 0) { "exit code $($r.Code)" } elseif ($r.Text -notmatch '##### SELF-TEST') { "no SELF-TEST output" } `
        elseif ($fail.Count -gt 0) { "$($fail.Count) case(s) failed: " + ($fail -join "; ").Trim() } elseif ($pass -lt 1) { "no PASS lines" } else { "" }
 Report "coach self-test ($pass cases)" ($why -eq "") $why $r
+
+# New 2D games use their own deterministic test driver (never enabled outside --dev).
+$gameKinds = @("flash", "audio", "peripheral", "inhibition", "parity", "memory", "rules", "aimpop", "aimsearch", "aimmoving")
+$gameKeys = foreach ($kind in $gameKinds) { foreach ($level in 0..4) { "reactgame:$kind-$level" } }
+$r = Invoke-Godot "reaction-games-check" (@("--headless", "--fixed-fps", "60", "--path", $Project, "--") + $sandbox +
+    @("--preview-check", "--preview-check-only", ($gameKeys -join ","), "--preview-check-secs", "20", "--reaction-games-autoplay"))
+$completed = @($r.Text -split "`r?`n" | Where-Object { $_ -match '^\[reaction-games\] .*: 16 completed, 0 errors,' })
+$why = if ($r.Code -ne 0) { "exit code $($r.Code)" } elseif ($completed.Count -ne 50) { "$($completed.Count)/50 complete clean rounds" } `
+    elseif ($r.Text -notmatch 'RESULT: PASS') { "no passing sweep result" } else { "" }
+Report "50 reaction games (16 trials each)" ($why -eq "") $why $r
 
 # ---- 2. Locale tests: parsers and number formatting in the invariant culture and comma-decimal cultures ----
 foreach ($c in @("") + $Cultures) {

@@ -1,4 +1,4 @@
-using CaValAim.Core;
+﻿using CaValAim.Core;
 using CaValAim.Game;
 
 namespace CaValAim.Analysis;
@@ -92,7 +92,8 @@ public static class PlayByPlay
         var a = new PlayAnalysis { Mode = t.Mode };
         try
         {
-            Gather(t, a);
+            if (RunAnalysis.Base(t.Mode) == "reactgame") ReactionGameCoach.Gather(t, a);
+            else Gather(t, a);
         }
         catch (Exception e)
         {

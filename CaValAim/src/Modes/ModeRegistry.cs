@@ -1,9 +1,9 @@
-namespace CaValAim.Modes;
+﻿namespace CaValAim.Modes;
 
 public static class ModeRegistry
 {
     // The 60-drill aim set (15 flicking, 15 tracking, 15 micro-adjustment, 15 reflex: Modes/AimVariants.cs), after the rest.
-    static ModeRegistry() => All.AddRange(AimVariants.Factories());
+    static ModeRegistry() { All.AddRange(AimVariants.Factories()); All.AddRange(ReactionGameMode.Factories()); }
 
     public static readonly List<Func<TrainingMode>> All = new()
     {
@@ -71,6 +71,7 @@ public static class ModeRegistry
         ["chamber"] = a => new ChamberMode(a),
         ["anchor"] = a => new AnchorMode(a),
         [ReactionStats.Base] = a => new ReactionLabMode(a),
+        ["reactgame"] = a => ReactionGameMode.Parse(a) ?? new ReactionGameMode(ReactionGameKind.Flash, 0),
         ["flickx"] = a => AimVariants.Make("flickx", a),
         ["trackv"] = a => AimVariants.Make("trackv", a),
         ["microx"] = a => AimVariants.Make("microx", a),

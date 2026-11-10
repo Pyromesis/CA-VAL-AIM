@@ -2,6 +2,22 @@
 
 ## [Sin publicar]
 
+## [2.8.0] - 2026-11-10
+
+### Añadido
+
+- 180 progresiones de entrenamiento y 50 ejercicios de reacción: 402 ejercicios en 11 secciones, además de los ejercicios de agentes.
+- 35 minijuegos sin puntería y 15 con puntería: señales visuales, sonoras y periféricas, inhibición, números, memoria, cambio de regla, búsqueda e intercepción; cinco niveles por mecánica.
+- Observaciones independientes del coach con marcas de tiempo y ejercicios personales reproducibles, con instrucciones y revisión en la práctica guiada.
+
+### Mejorado
+
+- Los minijuegos guardan sus 16 intentos, respuesta e inicio del movimiento, errores de decisión y cronología por segundo. Al continuar tras una pausa se prepara de nuevo el intento pendiente.
+- El entrenamiento libre archiva los ciclos completados y las comparativas de sensibilidad reciben revisión del coach.
+- Los blancos móviles no se interpretan como errores de frenado de sensibilidad; las previsiones neuronales comparan el mismo mapa y arma.
+- Selector de secciones, nombres en español e inglés, README y capturas actualizados.
+
+
 ## [2.7.1] - 2026-11-10
 
 ## [2.7.0] - 2026-11-10

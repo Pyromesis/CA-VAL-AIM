@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using Godot;
 using CaValAim.Analysis;
 using CaValAim.Core;
@@ -270,8 +270,17 @@ public static class CoachData
     static Dictionary<string, string> Names => names ??= ModeRegistry.All.Select(f => f())
         .GroupBy(m => m.Key, StringComparer.OrdinalIgnoreCase).ToDictionary(g => g.Key, g => g.First().Name, StringComparer.OrdinalIgnoreCase);
 
-    public static bool HasDrill(string key) => Names.ContainsKey(key);
-    public static string DrillName(string key) => Names.TryGetValue(key, out var n) ? n : key;
+    static AimVariant? VariantFor(string key)
+    {
+        var parts = key.Split(':', 2);
+        return parts.Length == 2 ? AimVariants.Find(parts[0], parts[1]) ?? PersonalDrills.Resolve(parts[1]) : null;
+    }
+    public static bool HasDrill(string key) => Names.ContainsKey(key) || VariantFor(key) != null;
+    public static string DrillName(string key)
+    {
+        if (key.StartsWith("reactgame:", StringComparison.Ordinal) && ReactionGameMode.Parse(key[10..]) is { } game) return game.Name;
+        return VariantFor(key)?.DisplayName ?? (Names.TryGetValue(key, out var n) ? n : key);
+    }
 
     /// <summary>Starts a drill; the optional focus cue is shown during its countdown.</summary>
     public static void StartDrill(string key, Focus? focus = null)

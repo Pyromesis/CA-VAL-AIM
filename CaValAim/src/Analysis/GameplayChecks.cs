@@ -1,4 +1,4 @@
-using Godot;
+﻿using Godot;
 using CaValAim.Game;
 using CaValAim.Game.Weapon;
 using CaValAim.Audio;
@@ -11,6 +11,57 @@ static class GameplayChecks
     public static void Run(Action<string> report)
     {
         void Check(bool ok, string label) => report($"  {(ok ? "PASS" : "FAIL")} gameplay: {label}");
+        foreach (string section in Modes.TrainingCatalog.Sections)
+        {
+            var tasks = Modes.ModeRegistry.All.Select(make => make())
+                .Where(m => m.Category != "Agents" && Modes.TrainingCatalog.SectionOf(m) == section).ToArray();
+            Check(tasks.Length >= 20, $"training section {section}: {tasks.Length} exercises");
+        }
+        Check(Modes.TrainingCatalog.All.Select(v => v.Key).Distinct().Count() == 180,
+            "180 unique progression keys");
+        foreach (var variant in Modes.TrainingCatalog.All)
+            Check(Modes.ModeRegistry.Find(variant.Key)?.Invoke().Key == variant.Key,
+                $"catalog resolves {variant.Key}");
+        var prescription = PersonalDrills.For(new Diagnosis("FLICK_SMALL", Skill.Flicking, Severity.Major,
+            "", "", "", Array.Empty<string>(), Array.Empty<string>(), 12));
+        Check(prescription != null && Modes.ModeRegistry.Find(prescription)?.Invoke().Key == prescription,
+            "missing authored drill gets a reproducible personal task");
+        Check(!RunAnalysis.StaticTargetMode("flickx:course-dynamic-0-0") &&
+            RunAnalysis.StaticTargetMode("flickx:course-precision-0-0"),
+            "moving click targets cannot masquerade as sensitivity braking errors");
+        var reactionRun = new RunTelemetry { Mode = "reaction", Duration = 1 };
+        reactionRun.Events.Add(new TelemetryEvent(0.8f, "reaction", 420));
+        reactionRun.Shots.Add(new ShotSample { T = 0.8f, Accurate = false, Speed = 2 });
+        var observations = CoachObservations.Build(reactionRun);
+        Check(observations.Count == 2 && observations.Any(o => o.Code == "reaction_ms" && o.Value == 420) &&
+            observations.Any(o => o.Code == "inaccurate_shot"), "independent observations preserve concurrent findings");
+        var archive = CoachArchive.From(reactionRun, new RunReview { Observations = observations,
+            PrescribedDrills = new[] { prescription! } }, null);
+        var jsonOptions = new System.Text.Json.JsonSerializerOptions { IncludeFields = true };
+        var restored = System.Text.Json.JsonSerializer.Deserialize<CoachArchive>(
+            System.Text.Json.JsonSerializer.Serialize(archive, jsonOptions), jsonOptions);
+        Check(restored?.Review.Observations.Count == 2 && restored.Review.PrescribedDrills[0] == prescription,
+            "coach observations and generated prescriptions survive JSON round trip");
+        var reactionGames = Modes.ReactionGameMode.Factories().Select(f => (Modes.ReactionGameMode)f()).ToArray();
+        Check(reactionGames.Length == 50 && reactionGames.Select(g => g.Key).Distinct().Count() == 50 &&
+            reactionGames.Count(g => !g.NeedsAim) == 35 && reactionGames.All(g => Modes.ModeRegistry.Find(g.Key)?.Invoke().Key == g.Key),
+            "50 reaction games resolve, 35 without aiming and 15 with aiming");
+        Check(Modes.ReactionGameMode.ShouldGo(Modes.ReactionGameKind.Memory, 3, 3, false, 0) &&
+            !Modes.ReactionGameMode.ShouldGo(Modes.ReactionGameKind.Memory, 2, 3, false, 0) &&
+            Modes.ReactionGameMode.ShouldGo(Modes.ReactionGameKind.Rules, 2, 1, false, 0) &&
+            !Modes.ReactionGameMode.ShouldGo(Modes.ReactionGameKind.Rules, 2, 1, false, 1) &&
+            !Modes.ReactionGameMode.ShouldGo(Modes.ReactionGameKind.Parity, 3, 1, true, 0),
+            "memory, parity and rule-switch decisions follow their instructions");
+        var gameRun = new RunTelemetry { Mode = "reactgame:rules-3", Duration = 4 };
+        gameRun.Events.Add(new TelemetryEvent(1, "reaction_game", 450));
+        gameRun.Events.Add(new TelemetryEvent(2, "reaction_game_false_alarm"));
+        gameRun.Events.Add(new TelemetryEvent(2, "reaction_game_trial", 0));
+        gameRun.Events.Add(new TelemetryEvent(3, "reaction_game_trial", 1));
+        var gameReview = Coach.ReviewRun(gameRun, Coach.Summarize(gameRun), 1);
+        Check(gameReview.Metrics.GetValueOrDefault("game.response_ms") == 450 && !gameReview.Metrics.ContainsKey("react.ms") &&
+            gameReview.Plays?.Plays.Count == 2 && gameReview.Timeline?.Seconds.Count >= 4 && gameReview.Observations.Count == 2 && gameReview.Issues.Any(d => d.Id == "REACTION_GAME_RULE") && gameReview.PrescribedDrills.Single() == "reactgame:rules-2" &&
+            CoachPlan.FromRun(gameReview).Steps[0].Drill == "reactgame:rules-2",
+            "game coach records decision errors and prescribes an easier matching game without simple-reaction rank norms");
         foreach (var (name, make) in new (string, Action<VmMesh>)[]
         {
             ("box", m => m.Box(Vector3.One, Transform3D.Identity)),

@@ -1,4 +1,4 @@
-using CaValAim.Core;
+﻿using CaValAim.Core;
 using CaValAim.Game;
 
 namespace CaValAim.Analysis;
@@ -52,6 +52,8 @@ public sealed class SkillProfile
 /// <summary>Post-run review shown on the results screen.</summary>
 public sealed class RunReview
 {
+    public List<CoachObservation> Observations = new();
+    public string[] PrescribedDrills = Array.Empty<string>();
     public string Summary = "";
     public List<Diagnosis> Issues = new();
     public List<string> Strengths = new();
@@ -82,13 +84,16 @@ public static class Coach
     {
         var review = new RunReview { Metrics = metrics };
         if (t.Mode is SensFinderKey or CrosshairFinderKey) return review; // these drills show their own result
+        review.Observations = CoachObservations.Build(t);
+        review.Plays = PlayByPlay.Analyze(t);
+        if (RunAnalysis.Base(t.Mode) == "reactgame") { ReactionGameCoach.Review(t, review); return review; }
         review.Sens = SensLab.Feedback(metrics, tier);
         if (metrics.Count == 0) { review.Summary = RunSummary.NoData(t.Mode); return review; }
         var a = Assess.Run(metrics, runLevel: true, tierPlayed: tier);
         review.Issues = a.Issues.Take(3).Select(i => i.D).ToList();
         review.Strengths = a.Strengths.Take(2).Select(s => s.Text).ToList();
         review.Summary = RunSummary.Write(t.Mode, tier, metrics, a);
-        review.Plays = PlayByPlay.Analyze(t);
+        review.PrescribedDrills = CoachPlan.FromRun(review).Drills.ToArray();
         return review;
     }
 

@@ -1,4 +1,4 @@
-using CaValAim.Core;
+﻿using CaValAim.Core;
 using CaValAim.Game;
 
 namespace CaValAim.Analysis;
@@ -242,7 +242,7 @@ public sealed class RunTimeline
                 case "kill": kills[b]++; break;
                 case "died": deaths[b]++; break;
                 case "target_spawn": spawns[b]++; break;
-                case "reaction": reactions[b]++; break;
+                case "reaction": case "reaction_game": reactions[b]++; break;
                 case "stop": stops[b]++; break;
                 case "flash": flashes[b]++; break;
                 case "spray_end": sprays[b]++; break;

@@ -1,4 +1,4 @@
-using CaValAim.Core;
+﻿using CaValAim.Core;
 using CaValAim.Game;
 
 namespace CaValAim.Analysis;
@@ -36,7 +36,7 @@ public sealed class LiveCoach
         movementDrill = movement;
         staticDrill = b is "flick" or "gridshot" or "spider" or "microshot" or "popup" or "switch" or "flickx" or "microx" or "reflex";
         trackingDrill = b is "tracking" or "airtrack" or "reacttrack" or "trackv";
-        reactionDrill = b is "reaction" or "reactlab";
+        reactionDrill = b is "reaction" or "reactlab" or "reactgame";
         botDrill = !staticDrill && !trackingDrill && !reactionDrill && b is not ("sensfinder" or "xhairfinder" or "crosshairfinder");
     }
 
@@ -104,7 +104,7 @@ public sealed class LiveCoach
                     var counted = new HashSet<(int, double)>();
                     foreach (var (_, r) in RunAnalysis.Trials(p))
                     {
-                        if (r is not { HasPrimary: true } || (r.Bot && !RunAnalysis.CleanAimSample(p, r))) continue;
+                        if (r is not { HasPrimary: true } || (!r.Bot && !RunAnalysis.StaticTargetMode(snap.Mode)) || (r.Bot && !RunAnalysis.CleanAimSample(p, r))) continue;
                         if (r.Bot && !counted.Add((r.TrialId, Math.Round(r.TeP, 1)))) continue;
                         flicks++;
                         gain += r.Gain;
@@ -141,6 +141,19 @@ public sealed class LiveCoach
                 return Tip("EARLY", now, "Wait for the signal", "Espera a la señal",
                     "Guessing costs more than it saves: react to what you see or hear.", "Adivinar cuesta más de lo que ahorra: reacciona a lo que ves u oyes.",
                     $"{early} early clicks in the last {Window:0} s", $"{early} clics adelantados en los últimos {Window:0} s");
+            int ruleErrors = events.Count(e => e.Kind == "reaction_game_false_alarm");
+            if (ruleErrors >= 2 && Ready("GAME_RULE", now))
+                return Tip("GAME_RULE", now, "Read the rule first", "Lee primero la regla",
+                    "Prioritize the correct decision. Withhold your response when the rule does not match.",
+                    "Prioriza la decisión correcta. No pulses si la señal no cumple la regla.",
+                    $"{ruleErrors} false alarms in the last {Window:0} s", $"{ruleErrors} falsas alarmas en los últimos {Window:0} s");
+            var reactions = events.Where(e => e.Kind == "reaction" && e.A > 0).Select(e => e.A).ToArray();
+            if (reactions.Length >= 5 && reactions.Average() > 350 && Ready("REACTION_SLOW", now))
+                return Tip("REACTION_SLOW", now, "React after the signal", "Reacciona a la señal",
+                    "Keep your hand ready, watch the cue and click without anticipating.",
+                    "Prepara la mano, observa la señal y pulsa sin anticiparte.",
+                    $"Average {reactions.Average():0} ms over {reactions.Length} visual trials",
+                    $"Media de {reactions.Average():0} ms en {reactions.Length} intentos visuales");
             return null;
         }
 

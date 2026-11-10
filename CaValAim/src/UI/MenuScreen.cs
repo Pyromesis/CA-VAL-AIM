@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using Godot;
 using CaValAim.Core;
 using CaValAim.Game;
@@ -28,7 +28,6 @@ public partial class MenuScreen : ScreenBase
     GridContainer? grid;
     MText? tierNote, dmNote, subLine;
     int gridColumns = 3;
-    float libraryWidth;
     static int setupTab;
 
     protected override bool AnimatedBackdrop => false;
@@ -108,7 +107,6 @@ public partial class MenuScreen : ScreenBase
 
         float leftW = vp.X - side * 2 - rightW - body.GetThemeConstant("separation");
         gridColumns = leftW >= 1050 * k ? 3 : leftW >= 640 * k ? 2 : 1;
-        libraryWidth = leftW;
         BuildLeft(left);
         BuildRight(right);
 
@@ -120,27 +118,7 @@ public partial class MenuScreen : ScreenBase
 
     static string L(string en, string es) => Loc.Spanish ? es : en;
 
-    IEnumerable<string> Categories() => new[] { "ALL" }.Concat(modes.Select(m => m.Info.Category).Distinct());
-
-    /// <summary>
-    /// Short caption for the library category tabs. The full names do not fit the tab row at 1280×720 once the minimum
-    /// font size is applied; these stay readable and keep every filter reachable. Values are the real categories.
-    /// </summary>
-    static string CatTab(string category) => category.ToUpperInvariant() switch
-    {
-        "ALL" => L("ALL", "TODO"),
-        "AIM" => L("AIM", "PUNTERÍA"),
-        "RECOIL" => L("RECOIL", "RETRO"),
-        "MOVEMENT" => L("MOVE", "MOVIM."),
-        "MAP" => L("MAP", "MAPA"),
-        "UTILITY" => L("UTIL", "ÚTIL"),
-        "OTHER" => L("OTHER", "OTROS"),
-        "COACH" => "COACH",
-        "TRACKING" => L("TRACK", "SEGUIM."),
-        "SENSITIVITY" => L("SENS", "SENS."),
-        "REFLEX" => L("REFLEX", "REFLEJOS"),
-        _ => category.ToUpperInvariant(),
-    };
+    IEnumerable<string> Categories() => new[] { "ALL" }.Concat(TrainingCatalog.Sections);
 
     // ---------------- header ----------------
 
@@ -281,13 +259,15 @@ public partial class MenuScreen : ScreenBase
         left.AddChild(Caption(L("DRILL LIBRARY", "BIBLIOTECA DE EJERCICIOS"), 0.32f));
         var cats = Categories().ToList();
         if (!cats.Contains(catFilter)) catFilter = "ALL";
-        var tabs = new MSegment
+        var tabs = new OptionButton { SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            CustomMinimumSize = new Vector2(0, 38 * k) };
+        foreach (string category in cats)
         {
-            K = k, Delay = 0.34f, Px = 12f, Gap = 16, MaxWidth = libraryWidth, RawLabels = true,
-            Options = cats.Select(CatTab).ToArray(),
-            Selected = cats.IndexOf(catFilter),
-        };
-        tabs.Changed = i => { catFilter = cats[i]; FillGrid(); };
+            int count = modes.Count(m => category == "ALL" || TrainingCatalog.SectionOf(m.Info) == category);
+            tabs.AddItem($"{(category == "ALL" ? L("All exercises", "Todos los ejercicios") : TrainingCatalog.SectionName(category))} · {count}");
+        }
+        tabs.Selected = cats.IndexOf(catFilter);
+        tabs.ItemSelected += i => { catFilter = cats[(int)i]; FillGrid(); };
         left.AddChild(tabs);
         left.AddChild(Spacer(0, 8 * k));
         left.AddChild(new MRule { Delay = 0.36f });
@@ -333,11 +313,11 @@ public partial class MenuScreen : ScreenBase
         foreach (var c in grid.GetChildren()) { grid.RemoveChild(c); c.QueueFree(); }
         rows.Clear();
         int i = 0;
-        foreach (var (make, info) in modes.Where(m => catFilter == "ALL" || m.Info.Category == catFilter))
+        foreach (var (make, info) in modes.Where(m => catFilter == "ALL" || TrainingCatalog.SectionOf(m.Info) == catFilter))
         {
             var row = new MDrillRow
             {
-                K = k, Title = info.Name, Meta = catFilter == "ALL" ? $"{Loc.T(info.Category)}  ·  {Loc.T(info.Description)}" : Loc.T(info.Description),
+                K = k, Title = info.Name, Meta = catFilter == "ALL" ? $"{TrainingCatalog.SectionName(TrainingCatalog.SectionOf(info))}  ·  {Loc.T(info.Description)}" : Loc.T(info.Description),
                 IsNew = IsNew(info.Key), Delay = delay + Math.Min(0.42f, i++ * 0.018f),
                 CustomMinimumSize = new Vector2(0, 62 * k), SizeFlagsHorizontal = SizeFlags.ExpandFill,
                 TooltipText = $"{Loc.T(info.Name)} — {Loc.T(info.Description)}" + (info.MadeBy is { } by ? $"\nMade by the community: @{by}" : ""),

@@ -1,4 +1,4 @@
-using CaValAim.Core;
+﻿using CaValAim.Core;
 using CaValAim.Game;
 
 namespace CaValAim.Analysis;
@@ -31,6 +31,7 @@ static class RunAnalysis
     public static Dictionary<string, float> Run(RunTelemetry t)
     {
         var m = new Dictionary<string, float>();
+        if (Base(t.Mode) == "reactgame") return ReactionGameCoach.Measure(t);
         if (t.Mode == "sensfinder")
         {
             // The sens changes mid-run: never feed skill ratings / sens history. Keep only the drill's result.
@@ -184,6 +185,14 @@ static class RunAnalysis
         public float ShotErr = float.NaN;
     }
 
+    internal static bool StaticTargetMode(string mode)
+    {
+        var key = mode.Split(':', 2);
+        if (key.Length != 2) return true;
+        var variant = Modes.AimVariants.Find(key[0], key[1]) ?? PersonalDrills.Resolve(key[1]);
+        return variant == null || (variant.Drift == 0 && variant.VerticalDrift == 0 && !variant.SideStep);
+    }
+
     static void Flicks(Prep p, Dictionary<string, float> m)
     {
         var t = p.T;
@@ -221,7 +230,7 @@ static class RunAnalysis
             m["flick.peak_cms"] = Dsp.Median(prim.Select(r => r.PeakCms));
             m["flick.end_err_pct"] = 100 * Dsp.Median(prim.Select(r => r.EndErr));
             // Over/undershoot and gain only on targets that don't move: leading a strafing bot would read as overshoot.
-            var still = prim.Where(r => !r.Bot).ToList();
+            var still = prim.Where(r => !r.Bot && StaticTargetMode(t.Mode)).ToList();
             if (still.Count > 0) { m["flick.n_still"] = still.Count; m["flick.gain"] = Dsp.Mean(still.Select(r => r.Gain)); }
             m["flick.perp_deg"] = Dsp.Median(prim.Select(r => r.Perp));
             m["flick.curv"] = Dsp.Median(prim.Select(r => r.Curv));

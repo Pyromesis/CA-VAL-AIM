@@ -1,4 +1,4 @@
-using CaValAim.Core;
+﻿using CaValAim.Core;
 using CaValAim.Modes;
 
 namespace CaValAim.Analysis;
@@ -50,6 +50,12 @@ public sealed class CoachPlan
     {
         bool es = Loc.Spanish;
         var plan = new CoachPlan();
+        if (review.Metrics.ContainsKey("game.trials") && review.PrescribedDrills.Length > 0)
+        {
+            foreach (string key in review.PrescribedDrills.Where(k => ModeRegistry.Find(k) != null).Take(3))
+                Add(key, Skill.Reaction, review.Issues.FirstOrDefault());
+            if (!plan.IsEmpty) return plan;
+        }
         if (review.Sens is { } f && SensLab.Enough(f))
         {
             string drill = f.Verdict switch
@@ -83,7 +89,7 @@ public sealed class CoachPlan
         }
         foreach (var issue in review.Issues)
         {
-            string? drill = issue.Drills.FirstOrDefault(k => ModeRegistry.Find(k) != null && plan.Steps.All(s => s.Drill != k));
+            string? drill = PersonalDrills.For(issue) ?? issue.Drills.FirstOrDefault(k => ModeRegistry.Find(k) != null && plan.Steps.All(s => s.Drill != k));
             if (drill == null) continue;
             Add(drill, issue.Skill, issue);
             if (plan.Steps.Count >= 3) break;
@@ -94,6 +100,7 @@ public sealed class CoachPlan
 
         void Add(string drill, Skill skill, Diagnosis? source)
         {
+            if (plan.Steps.Any(s => s.Drill == drill)) return;
             var (recoil, why) = RecoilFor(drill);
             plan.Steps.Add(new PlanStep(drill, skill, 1, recoil, why, source?.Title ?? "", source));
         }
@@ -112,7 +119,7 @@ public sealed class CoachPlan
 
         void Add(string drill, Skill skill, int runs, string why, Diagnosis? source)
         {
-            string key = drill.Split(':')[0];
+            string key = drill;
             if (plan.Steps.Count >= MaxSteps || !used.Add(key)) return;
             if (ModeRegistry.Find(drill) == null) return;
             var (advice, adviceWhy) = RecoilFor(drill);
@@ -121,8 +128,8 @@ public sealed class CoachPlan
 
         foreach (var d in p.Problems)
         {
-            string? drill = (d.Drills ?? Array.Empty<string>())
-                .FirstOrDefault(k => ModeRegistry.Find(k) != null && !used.Contains(k.Split(':')[0]));
+            string? drill = PersonalDrills.For(d) ?? (d.Drills ?? Array.Empty<string>())
+                .FirstOrDefault(k => ModeRegistry.Find(k) != null && !used.Contains(k));
             if (drill == null) continue;
             int runs = d.Severity switch { Severity.Major => 3, Severity.Minor => 2, _ => 1 };
             Add(drill, d.Skill, runs, d.Title, d);
@@ -144,7 +151,7 @@ public sealed class CoachPlan
             foreach (var (rating, gap) in weak)
             {
                 if (plan.Steps.Count >= MaxSteps) break;
-                string? drill = DrillsFor(rating.Skill).FirstOrDefault(k => ModeRegistry.Find(k) != null && !used.Contains(k.Split(':')[0]));
+                string? drill = DrillsFor(rating.Skill).FirstOrDefault(k => ModeRegistry.Find(k) != null && !used.Contains(k));
                 if (drill == null) continue;
                 string why = es
                     ? $"{SkillText(rating.Skill)}: {gap:0.0} niveles por debajo de tu media. {rating.Headline}"

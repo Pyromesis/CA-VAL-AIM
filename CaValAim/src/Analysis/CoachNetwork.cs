@@ -1,4 +1,4 @@
-using CaValAim.Core;
+﻿using CaValAim.Core;
 
 namespace CaValAim.Analysis;
 
@@ -15,10 +15,12 @@ public static class CoachNetwork
         var runs = newestFirst.Where(r => !r.Warmup && r.Tier == tier && SensLab.SameSens(r.Sens, sens)).ToArray();
         foreach (string drill in runs.Select(r => r.Mode).Distinct().Where(IsSupported))
         {
-            var history = runs.Where(r => r.Mode == drill && r.Accuracy is >= 0 and <= 1 &&
+            var latest = runs.Where(r => r.Mode == drill).OrderByDescending(r => r.When).First();
+            var history = runs.Where(r => r.Mode == drill && r.Map == latest.Map &&
+                r.Metrics?.GetValueOrDefault("run.weapon", -1) == latest.Metrics?.GetValueOrDefault("run.weapon", -1) && r.Accuracy is >= 0 and <= 1 &&
                 (r.Metrics?.GetValueOrDefault("sens.changed") ?? 0) == 0 &&
                 HasSample(r))
-                .Take(96).Reverse().Select(r => r.Accuracy).ToArray();
+                .OrderByDescending(r => r.When).Take(96).Reverse().Select(r => r.Accuracy).ToArray();
             if (history.Length < 24) continue;
 
             int split = history.Length * 3 / 4;

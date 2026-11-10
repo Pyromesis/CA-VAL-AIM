@@ -19,6 +19,10 @@ public enum TrackMotion { Strafe, Orbit, Bob, Figure8, Zigzag, Jump, Wander, Sur
 /// </summary>
 public sealed record AimVariant(string Id, AimFamily Family, string Name, string Description)
 {
+    public string? NameEs { get; init; }
+    public string? DescriptionEs { get; init; }
+    public string DisplayName => Loc.Spanish && NameEs != null ? NameEs : Name;
+    public string DisplayDescription => Loc.Spanish && DescriptionEs != null ? DescriptionEs : Description;
     // shared
     public float Radius { get; init; } = 0.14f;
     public float DistMin { get; init; } = 10f;
@@ -243,14 +247,14 @@ public static class AimVariants
 
     /// <summary>Everything playable through "flickx:" / "trackv:" / "microx:" / "reflex:": the core set first, then the
     /// scenario reproductions used by the routines.</summary>
-    public static readonly AimVariant[] All = Base.Concat(ScenarioDrills.All).ToArray();
+    public static readonly AimVariant[] All = Base.Concat(ScenarioDrills.All).Concat(TrainingCatalog.All).ToArray();
 
     public static AimVariant? Find(string keyBase, string id) =>
         All.FirstOrDefault(v => v.KeyBase.Equals(keyBase, StringComparison.OrdinalIgnoreCase) && v.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>Factory for "flickx:close" style keys; an unknown id falls back to the family's first drill.</summary>
     public static TrainingMode Make(string keyBase, string id) =>
-        (Find(keyBase, id) ?? All.First(v => v.KeyBase.Equals(keyBase, StringComparison.OrdinalIgnoreCase))).Create();
+        (Find(keyBase, id) ?? CaValAim.Analysis.PersonalDrills.Resolve(id) ?? All.First(v => v.KeyBase.Equals(keyBase, StringComparison.OrdinalIgnoreCase))).Create();
 
     public static IEnumerable<Func<TrainingMode>> Factories() => All.Select(v => (Func<TrainingMode>)v.Create);
 }
@@ -270,8 +274,8 @@ public sealed class FlickVariantMode : TrainingMode
     public FlickVariantMode(AimVariant v) => this.v = v;
 
     public override string Key => v.Key;
-    public override string Name => v.Name;
-    public override string Description => v.Description;
+    public override string Name => v.DisplayName;
+    public override string Description => v.DisplayDescription;
     public override string Category => v.Category;
     public override int? PreferredTier => v.Id.StartsWith("sc-", StringComparison.Ordinal) ? 2 : null;
     public override string SimKind => v.ContactSeconds > 0 ? "track"
@@ -478,8 +482,8 @@ public sealed class MicroVariantMode : TrainingMode
     public MicroVariantMode(AimVariant v) => this.v = v;
 
     public override string Key => v.Key;
-    public override string Name => v.Name;
-    public override string Description => v.Description;
+    public override string Name => v.DisplayName;
+    public override string Description => v.DisplayDescription;
     public override string Category => v.Category;
     public override int? PreferredTier => v.Id.StartsWith("sc-", StringComparison.Ordinal) ? 2 : null;
     public override string SimKind => v.Id.StartsWith("sc-", StringComparison.Ordinal) && (v.Drift > 0 || v.VerticalDrift > 0)
@@ -630,8 +634,8 @@ public sealed class ReflexVariantMode : TrainingMode
     public ReflexVariantMode(AimVariant v) => this.v = v;
 
     public override string Key => v.Key;
-    public override string Name => v.Name;
-    public override string Description => v.Description;
+    public override string Name => v.DisplayName;
+    public override string Description => v.DisplayDescription;
     public override string Category => v.Category;
     public override int? PreferredTier => v.Id.StartsWith("sc-", StringComparison.Ordinal) ? 2 : null;
     public override string SimKind => "static";
@@ -786,8 +790,8 @@ public sealed class TrackVariantMode : TrackingDrill
     public TrackVariantMode(AimVariant v) => this.v = v;
 
     public override string Key => v.Key;
-    public override string Name => v.Name;
-    public override string Description => v.Description;
+    public override string Name => v.DisplayName;
+    public override string Description => v.DisplayDescription;
     public override string Category => v.Category;
     public override int? PreferredTier => v.Id.StartsWith("sc-", StringComparison.Ordinal) ? 2 : null;
 

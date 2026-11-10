@@ -1,4 +1,4 @@
-using Godot;
+﻿using Godot;
 using CaValAim.Analysis;
 using CaValAim.Audio;
 using CaValAim.Core;
@@ -354,9 +354,9 @@ public partial class GameSession : Node3D, IGame
         };
         // The coach during the run (Analysis/LiveCoach): never in a preview; every drill with a gun or a reaction test.
         sensitivityChanged = false;
-        Live = !Demo && ComparisonSeed == null
+        Live = !Demo
             && Mode.Key is not ("sensfinder" or "xhairfinder") ? new Analysis.LiveCoach(Telemetry, Mode.Key, Mode.Movement) : null;
-        replay = Demo || FreePlay ? null : StartReplay(extras); // before Begin: it spawns the first bots / targets
+        replay = Demo ? null : StartReplay(extras); // before Begin: it spawns the first bots / targets
         Mode.Begin(this);
         if (Main.I.Dev && !Demo) DevAdsArgs(); // --force-ads (AdsSession.cs)
         if (Demo && Mode.Key == "counterstrafe") Mover.KeyOverride = DemoStrafeKey;
@@ -545,6 +545,7 @@ public partial class GameSession : Node3D, IGame
     public void Resume()
     {
         State = resumeTo;
+        if (State == St.Running && Mode is ReactionGameMode game) game.ResumeTrial();
         ResetTransientInput(); // a stale click must never fire on resume
         SetWorldRunning(true);
         LockMouse();
@@ -760,6 +761,10 @@ public partial class GameSession : Node3D, IGame
         {
             hasFocusPrev = false; lastFocusId = 0;
         }
+        if (Mode is ReactionGameMode game && game.AngularFocus is { } angular)
+        {
+            f.FocusId = angular.Id; f.FocusYaw = angular.Error.X; f.FocusPitch = angular.Error.Y; f.FocusRadius = angular.Radius;
+        }
         byte flags = 0;
         if (fireHeld) flags |= (byte)FrameFlags.Firing;
         if (Gun?.Scoped == true) flags |= (byte)FrameFlags.Ads;
@@ -946,7 +951,6 @@ public partial class GameSession : Node3D, IGame
     void Finish()
     {
         if (Demo) { Restart(); return; } // the preview loops: no results, no stats, no telemetry
-        if (FreePlay) { freePlayLoop = true; Restart(); return; } // free play keeps going: no results, nothing saved
         State = St.Results;
         ResetTransientInput();
         SetWorldRunning(false);
@@ -962,7 +966,8 @@ public partial class GameSession : Node3D, IGame
         try
         {
             Record.Metrics = Coach.Summarize(Telemetry);
-            if (ComparisonSeed == null) Review = Coach.ReviewRun(Telemetry, Record.Metrics, Tier);
+            Record.Metrics["run.weapon"] = (float)Mode.SelectedWeapon;
+            Review = Coach.ReviewRun(Telemetry, Record.Metrics, Tier);
         }
         catch (Exception ex) { GD.PushWarning($"Coach failed: {ex.Message}"); }
         foreach (var (key, value) in Mode.ExtraMetrics())
@@ -1007,11 +1012,12 @@ public partial class GameSession : Node3D, IGame
         }
         else if (TelemetryOut != null) { try { Telemetry.Save(TelemetryOut, keep: 500); } catch { } }
         // Automated/dev runs never touch the user's stats; adaptive runs' scores aren't comparable with fixed-tier runs.
-        if (app.SavesData && KeepInStats && !adaptive)
+        if (app.SavesData && KeepInStats && !adaptive && !FreePlay)
         {
             app.Stats.Runs.Add(Record);
             app.Stats.Save();
         }
+        if (FreePlay) { freePlayLoop = true; Restart(); return; } // archive each completed cycle before continuing
         ApplyProgressive();
         if (OnFinished is { } done) { OnFinished = null; done(this); } // routine: next step instead of the results screen
     }
