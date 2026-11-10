@@ -169,6 +169,10 @@ public static class Collision
     static CollisionGrid Grid(IReadOnlyList<Box> world) =>
         grids.GetValue(world, key => new CollisionGrid((IReadOnlyList<Box>)key));
 
+    /// <summary>Builds the broadphase now. Used after adding boxes whose cell footprint must be registered
+    /// before their final (smaller) extents are written into the list, e.g. the turning stone door.</summary>
+    public static void Warm(IReadOnlyList<Box> world) => _ = Grid(world);
+
     [ThreadStatic] static List<int>? resolveScratch;
 
     public static void MoveAndSlide(ref Vector3 feet, ref Vector3 vel, Vector3 delta, IReadOnlyList<Box> world) =>
@@ -179,10 +183,13 @@ public static class Collision
     public static void MoveAndSlide(ref Vector3 feet, ref Vector3 vel, Vector3 delta, IReadOnlyList<Box> world, float step, float height)
     {
         feet.X += delta.X;
-        if (Resolve(ref feet, world, axisX: true, delta.X, step, height)) vel.X = 0;
+        if (Resolve(ref feet, world, axisX: true, delta.X, HeadroomStep(feet, world, step, height), height)) vel.X = 0;
         feet.Z += delta.Z;
-        if (Resolve(ref feet, world, axisX: false, delta.Z, step, height)) vel.Z = 0;
+        if (Resolve(ref feet, world, axisX: false, delta.Z, HeadroomStep(feet, world, step, height), height)) vel.Z = 0;
     }
+
+    public static float HeadroomStep(Vector3 feet, IReadOnlyList<Box> world, float step, float height) =>
+        Mathf.Clamp(Ceiling(feet, world, feet.Y + height) - feet.Y - height, 0f, step);
 
     static bool Resolve(ref Vector3 feet, IReadOnlyList<Box> world, bool axisX, float moved, float step, float height)
     {
@@ -229,7 +236,14 @@ public static class Collision
         if (b.Max.Y <= feet.Y + step || b.Min.Y >= feet.Y + height) return false;
         float minX = b.Min.X - PlayerRadius, maxX = b.Max.X + PlayerRadius;
         float minZ = b.Min.Z - PlayerRadius, maxZ = b.Max.Z + PlayerRadius;
-        if (feet.X <= minX || feet.X >= maxX || feet.Z <= minZ || feet.Z >= maxZ) return false;
+        // Test the swept interval, not only the endpoint: dashes and slow frames can
+        // end beyond a thin wall without ever overlapping it at the frame boundary.
+        float end = axisX ? feet.X : feet.Z;
+        float start = end - moved;
+        float lo = axisX ? minX : minZ, hi = axisX ? maxX : maxZ;
+        float cross = axisX ? feet.Z : feet.X;
+        if (cross <= (axisX ? minZ : minX) || cross >= (axisX ? maxZ : maxX)) return false;
+        if (Mathf.Max(start, end) <= lo || Mathf.Min(start, end) >= hi) return false;
         if (axisX)
         {
             float prev = feet.X - moved;

@@ -24,6 +24,7 @@ static class Agg
         "head.n_first", "head.first_hits", "head.n_hit",
         "speed.n",
         "track.secs", "track.reversals",
+        "sens.n", "sens.over", "sens.under",
         "xhair.n", "xhair.nh", "xhair.below", "xhair.on_head",
         "move.stops", "move.counter", "move.shots", "move.moving", "move.early",
         "strafe.frames", "strafe.mirror", "strafe.anti",
@@ -59,6 +60,7 @@ static class Agg
         ["head.fsh_pct"] = "head.n_first", ["head.tc_ms"] = "head.n_hit", ["head.nc"] = "head.n_hit",
         ["speed.tier"] = "speed.n", ["speed.score_min"] = "speed.n",
         ["track.reacq_ms"] = "track.reversals", ["track.overrun_deg"] = "track.reversals", ["track.overrun_r"] = "track.reversals", ["track.overrun_excess_deg"] = "track.reversals",
+        ["sens.over_pct"] = "sens.over", ["sens.under_deg"] = "sens.under",
         ["xhair.below_pct"] = "xhair.n", ["xhair.on_head_pct"] = "xhair.nh", ["xhair.err_deg"] = "xhair.nh", ["xhair.h_deg"] = "xhair.nh",
         ["move.moving_speed"] = "move.moving", ["move.stop_ms"] = "move.stops", ["move.counter_pct"] = "move.stops",
         ["move.moving_shot_pct"] = "move.shots", ["move.early_shot_pct"] = "move.shots",
@@ -72,7 +74,7 @@ static class Agg
     {
         ["flick"] = "flick.n", ["head"] = "head.n_first", ["speed"] = "speed.n", ["track"] = "track.secs", ["xhair"] = "xhair.n",
         ["move"] = "move.shots", ["spray"] = "spray.n", ["react"] = "react.n", ["flash"] = "flash.n", ["run"] = "run.secs", ["pick"] = "pick.n",
-        ["strafe"] = "strafe.frames",
+        ["strafe"] = "strafe.frames", ["sens"] = "sens.n",
     };
 
     static string Family(string key) { int i = key.IndexOf('.'); return i < 0 ? key : key[..i]; }

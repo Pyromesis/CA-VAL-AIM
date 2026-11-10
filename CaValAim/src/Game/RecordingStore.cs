@@ -32,7 +32,7 @@ public static class RecordingStore
     static string IndexFile(string dir) => Path.Combine(dir, "recordings.json");
 
     /// <summary>Applies the keep rules with the coach's current problem ids. Never throws.</summary>
-    public static void Maintain(IEnumerable<string> activeProblems, string? dir = null)
+    public static void Maintain(IEnumerable<string> activeProblems, string? dir = null, bool retainAll = false)
     {
         dir ??= Dir;
         lock (gate)
@@ -43,6 +43,13 @@ public static class RecordingStore
                 var active = new HashSet<string>(activeProblems);
                 var idx = LoadIndex(dir);
                 var files = Directory.GetFiles(dir, "*.vtt").OrderByDescending(Path.GetFileName, StringComparer.Ordinal).ToList();
+                if (retainAll)
+                {
+                    int recentAnalysed = 0;
+                    foreach (string file in files.Take(KeepRecent)) Codes(idx, file, ref recentAnalysed);
+                    SaveIndex(dir, idx);
+                    return;
+                }
                 var now = DateTime.Now;
                 var perProblem = new Dictionary<string, int>();
                 int analysed = 0, deleted = 0;

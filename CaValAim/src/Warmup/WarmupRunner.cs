@@ -201,6 +201,7 @@ public sealed class WarmupRunner
             // Shifted-sens runs stay out of stats.json (the coach's sens advice would read them as a sens change), and so do
             // adaptive runs (their difficulty moves, so their scores aren't comparable with normal runs).
             KeepInStats = !st.Shifted && !st.Adaptive && !quick,
+            WarmupSession = true,
             OnFinished = OnStepDone,
         };
         Log.Info($"[lockin] step {st.Index + 1}/{Plan.Steps.Count} {st.Mode} {Phases.Name(st.Phase)} {WarmupPlan.Clock(quick ? st.Seconds : secs)} tier {st.Tier}" +

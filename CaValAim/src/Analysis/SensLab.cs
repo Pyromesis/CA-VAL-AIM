@@ -61,27 +61,38 @@ public static class SensLab
     /// <summary>Signals from one run's metric dictionary.</summary>
     public static SensFeedback Feedback(Dictionary<string, float> m, float refTier)
     {
-        int flicks = I(m, "flick.n_prim");
+        if (Get(m, "sens.changed") > 0) return new(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, SensVerdict.NoData);
+        int staticFlicks = I(m, "flick.n_still");
+        int controlled = I(m, "sens.n");
+        int flicks = staticFlicks + controlled;
         int off = I(m, "flick.n_off");
+        int controlledOver = I(m, "sens.over"), controlledUnder = I(m, "sens.under");
+        int totalOff = off + controlledOver + controlledUnder;
         float secs = Get(m, "track.secs");
-        float over = Get(m, "flick.overshoot_share");
-        float under = Get(m, "flick.under_share");
+        float over = totalOff > 0 ? (Get(m, "flick.overshoot_share") * off + controlledOver) / totalOff : 0;
+        float under = totalOff > 0 ? (Get(m, "flick.under_share") * off + controlledUnder) / totalOff : 0;
         float jitter = Get(m, "track.jitter");
         float on = Get(m, "track.ontarget");
         float corr = Get(m, "flick.nc");
-        float conf = Confidence(off, secs);
-        bool enough = conf >= 0.35f && (off >= 8 || secs >= 15f);
-        var verdict = enough ? Classify(over, under, off, flicks, jitter, on, secs, refTier) : SensVerdict.NoData;
+        float conf = Confidence(flicks, secs);
+        var verdict = Enough(flicks, totalOff, secs) ? Classify(over, under, totalOff, flicks, jitter, on, secs, refTier) : SensVerdict.NoData;
         float delta = SensAdvisor.Step(m, refTier).Delta;
-        return new SensFeedback(flicks, off, secs, over, under,
-            Get(m, "flick.mean_overshoot_pct"), Get(m, "flick.mean_undershoot_deg"),
+        return new SensFeedback(flicks, totalOff, secs, over, under,
+            Mean(m, "flick.mean_overshoot_pct", "flick.n_over", "sens.over_pct", controlledOver),
+            Mean(m, "flick.mean_undershoot_deg", "flick.n_under", "sens.under_deg", controlledUnder),
             corr, jitter, on, float.IsNaN(delta) ? 0 : delta, conf, verdict);
+    }
+
+    static float Mean(Dictionary<string, float> m, string first, string weight, string second, int count)
+    {
+        float n = Get(m, weight);
+        return n + count > 0 ? (n * Get(m, first) + count * Get(m, second)) / (n + count) : 0;
     }
 
     /// <summary>Groups runs by sensitivity and aggregates the newest useful blocks.</summary>
     internal static SensLabData Build(IEnumerable<SensAdvisor.RunInfo> runs, float currentSens, int dpi, float refTier)
     {
-        var all = runs.Where(r => r.Sens > 0 && r.M is { Count: > 0 }).OrderBy(r => r.When).ToList();
+        var all = runs.Where(r => r.Sens > 0 && r.M is { Count: > 0 } && Get(r.M, "sens.changed") == 0).OrderBy(r => r.When).ToList();
         var groups = new List<(float Sens, List<SensAdvisor.RunInfo> Runs)>();
         foreach (var r in all)
         {
@@ -107,27 +118,14 @@ public static class SensLab
     static SensBlock Block(float sens, List<SensAdvisor.RunInfo> runs, float refTier)
     {
         var m = Agg.Aggregate(runs.Select(r => (r.When, r.M)), DateTime.Now);
-        int flicks = I(m, "flick.n_prim"), off = I(m, "flick.n_off");
-        float secs = Get(m, "track.secs");
-        float over = Get(m, "flick.overshoot_share"), under = Get(m, "flick.under_share");
-        float jitter = Get(m, "track.jitter"), on = Get(m, "track.ontarget");
-        float conf = Confidence(off, secs);
-        float delta = SensAdvisor.Step(m, refTier).Delta;
-        bool enough = conf >= 0.35f && (off >= 8 || secs >= 15f);
-        var verdict = enough ? Classify(over, under, off, flicks, jitter, on, secs, refTier) : SensVerdict.NoData;
+        var f = Feedback(m, refTier);
         return new SensBlock(sens, runs.Count, Sessions(runs), runs.Min(r => r.When), runs.Max(r => r.When),
-            flicks, off, secs, over, under,
-            Get(m, "flick.mean_overshoot_pct"), Get(m, "flick.mean_undershoot_deg"),
-            Get(m, "flick.nc"), jitter, on,
-            float.IsNaN(delta) ? 0 : delta, conf, verdict);
+            f.Flicks, f.OffTarget, f.TrackSeconds, f.OvershootShare, f.UndershootShare,
+            f.MeanOvershootPct, f.MeanUndershootDeg, f.Corrections, f.Jitter, f.TrackOnPct, f.Delta, f.Confidence, f.Verdict);
     }
 
-    static float Confidence(int off, float secs)
-    {
-        float a = off <= 0 ? 0 : Math.Min(1f, off / 40f);
-        float b = secs <= 0 ? 0 : Math.Min(1f, secs / 90f);
-        return (a + b) / 2f;
-    }
+    static float Confidence(int flicks, float secs) => Math.Min(1f, Math.Max(flicks / 40f, secs / 60f));
+    static bool Enough(int flicks, int off, float secs) => flicks >= 14 || off >= 8 || secs >= 22f;
 
     static SensVerdict Classify(float over, float under, int off, int flicks, float jitter, float on, float secs, float refTier)
     {
@@ -138,9 +136,9 @@ public static class SensLab
         // Tremor first: a shaky hand changes the meaning of an over/undershoot (it can produce both).
         float bandJ = Bench.ValueAt(refTier, Bench.Jitter);
         if (hasTrack && jitter > bandJ * 1.35f) return SensVerdict.Shaky;
-        if (hasTrack && on > 0 && on < Bench.ValueAt(refTier, Bench.TrackOnPct) * 0.8f) return SensVerdict.Tracking;
+        if (hasTrack && on < Bench.ValueAt(refTier, Bench.TrackOnPct) * 0.8f) return SensVerdict.Tracking;
 
-        if (hasFlick)
+        if (hasFlick && off >= 8)
         {
             if (over >= 0.55f && under <= 0.35f) return SensVerdict.Overshoot;
             if (under >= 0.55f && over <= 0.35f) return SensVerdict.Undershoot;
@@ -162,8 +160,8 @@ public static class SensLab
     }
 
     /// <summary>False when the evidence is too thin for a real recommendation (the UI shows a "keep collecting" note).</summary>
-    public static bool Enough(SensFeedback f) => f.Confidence >= 0.35f && (f.OffTarget >= 8 || f.TrackSeconds >= 15f);
-    public static bool Enough(SensBlock b) => b.Confidence >= 0.35f && (b.OffTarget >= 8 || b.TrackSeconds >= 15f);
+    public static bool Enough(SensFeedback f) => Enough(f.Flicks, f.OffTarget, f.TrackSeconds);
+    public static bool Enough(SensBlock b) => Enough(b.Flicks, b.OffTarget, b.TrackSeconds);
 
     /// <summary>Net bias in [-1, 1]: + = overshooting, - = stopping short, 0 = balanced.</summary>
     public static float Bias(SensBlock b) => Clip(b.OvershootShare - b.UndershootShare);

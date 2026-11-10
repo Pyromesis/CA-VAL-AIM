@@ -527,7 +527,7 @@ public partial class AgentsScreen : ScreenBase
             },
         });
 
-        var start = Btn(Loc.Spanish ? $"LOCK-IN COMO {a.Name.ToUpperInvariant()}" : $"LOCK IN AS {a.Name.ToUpperInvariant()}",
+        var start = Btn(Loc.Spanish ? $"CALENTAMIENTO CON {a.Name.ToUpperInvariant()}" : $"LOCK IN AS {a.Name.ToUpperInvariant()}",
             VButton.Look.Primary, () => AgentRoutines.Start(a), 0, 56, 21);
         start.TooltipText = Loc.Spanish
             ? $"{WarmupPresets.BlurbOf(plan.Preset)} · el mismo chequeo, tarjetas y cierre que el LOCK-IN del menú"

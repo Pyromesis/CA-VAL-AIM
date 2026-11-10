@@ -1,4 +1,5 @@
 using Godot;
+using CaValAim.Game;
 
 namespace CaValAim.Maps;
 
@@ -18,6 +19,14 @@ public static partial class MapSpots
         StartFeet = V(-18.00f, 0.00f, 30.50f), StartYaw = 10.6f, Choke = V(-13.00f, 0.00f, 8.50f),
         Palette = new MapPalette(C(130,118,102), C(220,194,154), C(170,70,126), C(186,146,98), C(184,174,158), C(172,198,214)),
         RealMapFolder = "maps/lotus",
+        // The A stone door (between A Rubble and A Tree) is baked shut in the art and the extractor made it a
+        // solid slab. Cut a walk-through opening, drop the art triangles inside it and build the real door in
+        // code: two stone wings that turn 180° in 10 s when the button on either face is pressed (F). The rope
+        // by A Top is an automatic ascender: walk into the loop and it lifts you onto the ledge.
+        Cuts = new[] { Box3(0.30f, -0.15f, 20.35f, 3.70f, 3.40f, 21.15f) },
+        HideArt = new[] { Box3(0.30f, 0.26f, 20.35f, 3.70f, 3.45f, 21.15f) },
+        Door = new DoorSpot(V(2.00f, 0.00f, 20.75f), 1.75f, 3.45f, 10f),
+        Rope = new RopeClimb(V(-4.18f, 0.00f, -12.28f), 3.75f, V(-1.15f, 0.00f, 0.00f)),
         // Only used when the external real-map files are absent.
         Boxes = new[] { B(-80f, -0.1f, -80f, 80f, 0f, 80f, Surf.Floor) },
         Enemies = new[]
@@ -25,7 +34,7 @@ public static partial class MapSpots
             E("Site", 0.50f, 0.00f, 2.00f),
             E("Hut", -4.50f, 0.00f, 2.00f),
             E("Tree", 4.00f, 0.35f, 14.00f),
-            E("Top", -4.00f, 0.00f, -12.00f),
+            E("Top", -6.00f, 3.75f, -13.90f),
             E("A Stairs", -19.00f, 0.00f, -2.50f),
             E("Drop", 3.00f, 0.75f, -15.50f, Stance.Crouch),
             E("Default", 2.00f, 0.00f, -3.50f),

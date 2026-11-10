@@ -50,6 +50,10 @@ public sealed class WeaponController
         heat = yawHeat = 0;
         sprayShots = 0;
         triggerWasDown = false;
+        lastShot = -99f;
+        nextShotAt = 0;
+        side = Def.Kind == WeaponKind.Phantom ? 1 : -1;
+        sideBlend = side;
     }
 
     public void StartReload(bool infinite)
@@ -83,18 +87,19 @@ public sealed class WeaponController
             }
         }
 
-        // Recovery while not firing.
-        bool firingNow = triggerHeld && Def.Auto || triggerPressed;
-        if (!firingNow || Reloading)
+        bool wantShot = Def.Auto ? triggerHeld : triggerPressed;
+        // An empty or unequipped weapon still settles even if the trigger is held.
+        if (!wantShot || Reloading || EquipLeft > 0 || Ammo <= 0)
         {
-            float before = heat;
-            heat = Mathf.Max(0, heat - dt * 2f * Mathf.Sqrt(Mathf.Max(heat, 1e-3f)) / Def.RecoveryTime);
-            yawHeat = Mathf.Max(0, yawHeat - dt * 2f * Mathf.Sqrt(Mathf.Max(yawHeat, 1e-3f)) / Def.RecoveryTime);
+            // Exact solution of dh/dt = -2 sqrt(h) / recovery. Euler made low-FPS
+            // players recover earlier and changed the rhythm of accurate taps.
+            heat = Recover(heat, dt, Def.RecoveryTime);
+            yawHeat = Recover(yawHeat, dt, Def.RecoveryTime);
             if (heat <= 0f) sprayShots = 0;
         }
 
         float interval = Def.Interval / (Scoped && !Def.Sniper ? Def.AdsRpsMul : 1f);
-        bool wantShot = Def.Auto ? triggerHeld : triggerPressed;
+        ApplyViewRecoil(view, mover, movementMode);
         if (wantShot && !Reloading && EquipLeft <= 0)
         {
             if (Ammo <= 0) StartReload(infiniteAmmo);
@@ -106,10 +111,11 @@ public sealed class WeaponController
                 int guard = 0;
                 while (now >= nextShotAt && Ammo > 0 && guard++ < 4)
                 {
-                    var first = FireOne(now, view, mover, rng, movementMode);
+                    var first = FireOne(nextShotAt, view, mover, rng, movementMode);
                     shots.Add(first);
                     // Shotguns: the other pellets of the same shell, spread around the first one's direction.
                     for (int pi = 1; pi < Def.Pellets; pi++) shots.Add((PlayerView.Spread(first.Item1, Def.PelletSpread, rng, uniform: true), first.Item2));
+                    ApplyViewRecoil(view, mover, movementMode);
                     nextShotAt += interval;
                     if (!Def.Auto) { nextShotAt = now + interval; break; }
                 }
@@ -122,16 +128,26 @@ public sealed class WeaponController
         if (!Def.FixedRecoil)
             sideBlend = Mathf.MoveToward(sideBlend, side, dt * 2f / Def.YawSwitchTime);
 
-        // Camera follows the recoil (and drifts back as heat recovers).
+        ApplyViewRecoil(view, mover, movementMode);
+        SpreadNow = CurrentError(mover, movementMode);
+        return shots;
+    }
+
+    internal static float Recover(float value, float dt, float recovery)
+    {
+        float root = Mathf.Max(0f, Mathf.Sqrt(Mathf.Max(0f, value)) - Mathf.Max(0f, dt) / recovery);
+        return root * root;
+    }
+
+    void ApplyViewRecoil(PlayerView view, Mover mover, bool movementMode)
+    {
         float crouchMul = mover.Crouching && mover.Speed < 0.5f ? 0.85f : 1f;
         float runMul = movementMode && mover.Speed > mover.WalkMax ? 1.8f : 1f;
-        view.RecoilPitch = RecoilOn ? WeaponDef.Lerp(Def.Pitch, heat) * crouchMul * runMul : 0f;
+        view.RecoilPitch = RecoilOn ? WeaponDef.Lerp(Def.Pitch, heat) * runMul : 0f;
         view.RecoilYaw = !RecoilOn ? 0f : Def.FixedRecoil
             ? WeaponDef.Lerp(Def.Yaw, heat) * crouchMul
             : sideBlend * WeaponDef.Lerp(Def.Yaw, yawHeat) * crouchMul;
 
-        SpreadNow = CurrentError(mover, movementMode);
-        return shots;
     }
 
     float CurrentError(Mover mover, bool movementMode)

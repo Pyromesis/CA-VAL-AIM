@@ -342,7 +342,7 @@ static class VmOrganicHand
     public static void AddHand(VmMesh glove, VmMesh pad, HandShape s, bool mirror)
     {
         var surf = SurfaceFor(s);
-        var t = mirror ? VmMesh.Mirror(Transform3D.Identity) : Transform3D.Identity;
+        var t = mirror ? Transform3D.Identity.Scaled(new Vector3(-1, 1, 1)) : Transform3D.Identity;
         glove.Add(surf.V, surf.N, surf.Glove, t, fixWinding: false);
         pad.Add(surf.V, surf.N, surf.Pad, t, fixWinding: false);
     }

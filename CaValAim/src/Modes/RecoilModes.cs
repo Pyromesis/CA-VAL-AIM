@@ -44,6 +44,7 @@ public sealed class SprayControlMode : TrainingMode
     public override bool WeaponSlots => false;     // the drill measures this rifle's pattern
     public override bool InfiniteAmmo => false;   // real magazine: a full spray is 25 (Vandal) / 30 (Phantom)
     public override bool InfiniteReserve => true;
+    public override bool SimulatesMatch => true;  // real magazine + camera climb, whatever the global settings say
     public override bool UsesHeadshots => true;
 
     float Dist => RecoilTiers.Distance(Tier);
@@ -273,6 +274,7 @@ public sealed class SprayTransferMode : BotMode
 
     public override string Key => "spray_transfer";
     public override string Name => "Spray Transfer";
+    public override bool SimulatesMatch => true; // one continuous real spray: real magazine + camera climb
     public override string Description => "Kill all the agents in one continuous rifle spray: control the recoil while dragging between targets.";
     public override string Category => "Recoil";
     public override bool WeaponSlots => false; // one continuous rifle spray

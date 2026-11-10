@@ -76,7 +76,7 @@ public static class MapAssets
             var boxes = new List<Box>(list.GetArrayLength());
             foreach (var e in list.EnumerateArray())
             {
-                if (e.ValueKind != JsonValueKind.Array || e.GetArrayLength() < 6) continue;
+                if (e.ValueKind != JsonValueKind.Array || e.GetArrayLength() != 6) return null;
                 float[] v = new float[6];
                 int i = 0;
                 foreach (var n in e.EnumerateArray())
@@ -85,10 +85,10 @@ public static class MapAssets
                     if (n.ValueKind != JsonValueKind.Number || !n.TryGetSingle(out v[i])) { i = -1; break; }
                     i++;
                 }
-                if (i != 6) continue;
+                if (i != 6 || v.Any(value => !float.IsFinite(value))) return null;
                 var min = new Vector3(v[0], v[1], v[2]);
                 var max = new Vector3(v[3], v[4], v[5]);
-                if (min.X > max.X || min.Y > max.Y || min.Z > max.Z) continue;
+                if (min.X > max.X || min.Y > max.Y || min.Z > max.Z) return null;
                 boxes.Add(new Box(min, max));
             }
             return boxes.Count > 0 ? boxes.ToArray() : null;

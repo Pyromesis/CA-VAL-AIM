@@ -67,6 +67,17 @@ public static class MovementTuning
 /// <param name="Distance">Horizontal distance from take-off to landing.</param>
 public readonly record struct AirInfo(bool FromJump, float AirTime, float FeetRise, float EyeRise, float Drop, float Distance);
 
+/// <summary>A climbable rope/fixed line (Lotus A Top): inside the column, holding forward or jump rides it up to
+/// <paramref name="TopY"/> and then steps off by <paramref name="Exit"/> onto the ledge.</summary>
+public readonly record struct RopeClimb(Vector3 Base, float TopY, Vector3 Exit, float Radius = 0.85f)
+{
+    public bool Contains(Vector3 feet)
+    {
+        float dx = feet.X - Base.X, dz = feet.Z - Base.Z;
+        return dx * dx + dz * dz <= Radius * Radius && feet.Y >= Base.Y - 0.5f && feet.Y <= TopY + 0.05f;
+    }
+}
+
 public sealed partial class Mover
 {
     /// <summary>Standing on something. False while jumping, falling or launched.</summary>
@@ -115,6 +126,9 @@ public sealed partial class Mover
     /// <summary>Touched the ground after any airborne phase (jump, fall, impulse). <see cref="LastAir"/> is already updated.</summary>
     public event Action? Landed;
 
+    /// <summary>Riding a rope right now (see <see cref="RopeClimb"/>): no gravity, the body rises along the line.</summary>
+    public bool OnRope { get; private set; }
+
     bool boosting, jumpQueued, jumpWasHeld, bodyCrouched, airFromJump;
     float airT, airStartY, airTopY, airStartEye, airTopEye;
     Vector3 airStart;
@@ -126,9 +140,11 @@ public sealed partial class Mover
     /// One physics frame of the player body: jump input, crouch-jump tuck, horizontal movement (ground or air control),
     /// wall sliding, then gravity with ceiling and landing. <paramref name="feet"/> is the body's feet position (in/out).
     /// </summary>
-    public void Step(float dt, float yawDeg, ValorantProfile keys, ref Vector3 feet, IReadOnlyList<Box> world)
+    public void Step(float dt, float yawDeg, ValorantProfile keys, ref Vector3 feet, IReadOnlyList<Box> world,
+        RopeClimb? rope = null)
     {
         if (Grounded) sinceLanded += dt;
+        if (rope is { } line && Climb(dt, keys, ref feet, line)) { CamStepOffset *= Mathf.Exp(-StepCamDamping * dt); return; }
         // Jump: a fresh press of a jump key (or a queued mouse-bind jump) while standing on something. Holding the key
         // doesn't re-jump on landing; press again.
         bool held = Down(keys, GameAction.Jump);
@@ -147,7 +163,7 @@ public sealed partial class Mover
         Shape(Down(keys, GameAction.Crouch), ref feet, world);
         var delta = Update(dt, yawDeg, keys);
         Collision.MoveAndSlide(ref feet, ref Vel, delta, world,
-            Grounded ? Collision.StepHeight : Collision.AirStep, Grounded ? Collision.PlayerHeight : BodyHeight);
+            Grounded ? Collision.StepHeight : Collision.AirStep, BodyHeight);
         bool wasGrounded = Grounded;
         float floorY = feet.Y;
         Vertical(dt, ref feet, world);
@@ -163,11 +179,64 @@ public sealed partial class Mover
         if (Mathf.Abs(CamStepOffset) < 1e-4f) CamStepOffset = 0f;
     }
 
+    /// <summary>Rope riding (Lotus A Top): walk into the line (or hold forward/jump in it) and it lifts you at a
+    /// steady speed, then steps you off onto the ledge. Returns true while it owns the frame (no gravity, no jumping).</summary>
+    bool Climb(float dt, ValorantProfile keys, ref Vector3 feet, RopeClimb rope)
+    {
+        bool inside = rope.Contains(feet);
+        if (!OnRope)
+        {
+            // VALORANT's ascender is automatic: simply walking into the line grabs it (strafing in counts too).
+            float speed = new Vector2(Vel.X, Vel.Z).Length();
+            bool moving = speed > 0.55f || Down(keys, GameAction.Jump) || Down(keys, GameAction.MoveForward);
+            if (!inside || !moving) return false;
+            OnRope = true;
+            Grounded = false;
+            VelY = 0;
+            airFromJump = true;
+            airT = 0f;
+            airStart = feet;
+            airStartY = airTopY = feet.Y;
+            airStartEye = airTopEye = feet.Y + EyeHeight;
+            if (MovementScript.Log) GD.Print($"[move] rope grabbed at {feet}, climbing to {rope.TopY:0.00}");
+        }
+        if (!inside) { OnRope = false; return false; }
+
+        // Hang on the line (no drifting off) and rise at a steady 3.6 m/s.
+        float k = Mathf.Min(1f, 12f * dt);
+        feet.X = Mathf.Lerp(feet.X, rope.Base.X, k);
+        feet.Z = Mathf.Lerp(feet.Z, rope.Base.Z, k);
+        if (feet.Y < rope.TopY - 0.001f)
+        {
+            feet.Y = Mathf.Min(rope.TopY, feet.Y + 3.6f * dt);
+            VelY = 0f;
+            return true;
+        }
+
+        // Top: step onto the ledge and stand there (no fall, no landing penalty).
+        feet += new Vector3(rope.Exit.X, 0f, rope.Exit.Z);
+        feet.Y = rope.TopY;
+        OnRope = false;
+        Grounded = true;
+        VelY = 0f;
+        sinceLanded = 0f;
+        LastAir = default;
+        Vel = Vector3.Zero;
+        if (MovementScript.Log) GD.Print($"[move] rope top, stepped off to {feet}");
+        return true;
+    }
+
     /// <summary>Crouch on the ground lowers the head; crouch in the air pulls the legs up instead (feet rise by
     /// <see cref="MovementTuning.CrouchTuck"/>), which is what lets a crouch-jump land on higher ledges.</summary>
     void Shape(bool crouch, ref Vector3 feet, IReadOnlyList<Box> world)
     {
-        if (Grounded) { bodyCrouched = crouch; return; }
+        if (Grounded)
+        {
+            // Releasing crouch under a low ceiling must not grow the body through it.
+            bodyCrouched = crouch || (bodyCrouched && feet.Y + Collision.PlayerHeight >
+                Collision.Ceiling(feet, world, feet.Y + MovementTuning.CrouchHeight));
+            return;
+        }
         if (crouch == bodyCrouched) return;
         float tuck = MovementTuning.CrouchTuck;
         if (crouch)
@@ -191,7 +260,8 @@ public sealed partial class Mover
     {
         if (Grounded)
         {
-            float g = Collision.Ground(feet, world);
+            float g = Collision.Ground(feet, world,
+                Collision.HeadroomStep(feet, world, Collision.StepHeight, BodyHeight));
             if (g >= feet.Y - 0.001f) { feet.Y = g; VelY = 0; return; }                       // flat / step up (unchanged)
             if (feet.Y - g <= MovementTuning.SnapDown) { feet.Y = g; VelY = 0; return; }      // walking down a step
             Grounded = false;                                                                 // walked off a ledge

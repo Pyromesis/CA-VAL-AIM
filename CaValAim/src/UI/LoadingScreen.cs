@@ -107,7 +107,7 @@ public partial class LoadingScreen : ScreenBase
         title = map != null ? map.Map : Loc.T(first.Name);
         subtitle = map != null ? $"{Loc.T(first.Name)}  ·  {map.Name}" : Loc.T(first.Description);
         folder = map?.RealMapFolder;
-        parts = RealMap.HasArt(folder) ? RealMap.PartFiles(folder) : new List<RealMap.PartFile>();
+        parts = RealMap.IsComplete(folder) ? RealMap.PartFiles(folder) : new List<RealMap.PartFile>();
         if (parts.Count == 0)
         {
             // The range or a blockout map: nothing heavy left to read. Straight in (the screen-change crossfade

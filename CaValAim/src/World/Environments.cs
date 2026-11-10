@@ -16,7 +16,7 @@ public static class Environments
     public const float RangeHalfWidth = 40f, RangeBack = 12f, RangeFront = -80f;
     const float RangeWallHeight = 16f;
 
-    public sealed record Built(Node3D Root, List<Box> Solid);
+    public sealed record Built(Node3D Root, List<Box> Solid, RevolvingDoor? Door = null);
 
     static int Quality(int requested) => EnvDev.Quality(requested);
 
@@ -61,14 +61,18 @@ public static class Environments
         // Real extracted Ascent: the GLBs are external and optional. When present they replace the
         // traced blockout completely, and the collision file generated from the same meshes is used
         // for movement/LOS. When they are absent the normal blockout path below remains untouched.
-        if (!string.IsNullOrWhiteSpace(map.RealMapFolder) && RealMap.TryBuild(root, map.RealMapFolder))
+        _ = map.Solid; // Resolve and validate collision before selecting matching art.
+        if (map.UsesRealCollision && !string.IsNullOrWhiteSpace(map.RealMapFolder)
+            && RealMap.TryBuild(root, map.RealMapFolder, map.HideArt))
         {
             var realSolid = map.Solid.ToList();
+            RevolvingDoor? doorNode = map.Door is { } door ? BuildDoor(root, door, map.Palette) : null;
+            if (map.Rope is { } rope) BuildRope(root, rope, map.Palette);
             CaValAim.Game.Fx.FlashOrb.Prewarm(root, map.StartFeet + new Vector3(0, -1.2f, -4f));
             if (!EnvDev.Has("nosigns")) MapSigns(root, map);
             Finish(root, th, quality, BoundsOf(realSolid));
             LightRealMap(root);
-            return new Built(root, realSolid);
+            return new Built(root, realSolid, doorNode);
         }
 
         // A missing GLB must not leave the player in an invisible map: make a neutral blockout from
@@ -76,7 +80,11 @@ public static class Environments
         if (!string.IsNullOrWhiteSpace(map.RealMapFolder))
         {
             var fallback = map.Solid.ToList();
-            if (fallback.Count > 0) return BuildCollisionFallback(map, root, th, quality, fallback);
+            if (fallback.Count > 0)
+            {
+                if (Core.CmdLine.Dev) GD.Print($"[maps] {map.Key}: collision blockout ({fallback.Count} boxes)");
+                return BuildCollisionFallback(map, root, th, quality, fallback);
+            }
         }
 
         var solid = new List<Box>();
@@ -107,6 +115,189 @@ public static class Environments
         Finish(root, th, quality, wb.Bounds);
         return new Built(root, solid);
     }
+
+    /// <summary>
+    /// Built twice in code because the extracted art has the door baked shut: a stone frame around the carved
+    /// opening, a bronze ring on each face, two buttons, and the two solid stone wings that turn 180° in 10 s.
+    /// Collision is added by the session (it follows <see cref="RevolvingDoor.Angle"/> every frame).
+    /// </summary>
+    static RevolvingDoor BuildDoor(Node3D root, DoorSpot door, MapPalette palette)
+    {
+        var stone = new StandardMaterial3D { AlbedoColor = Darken(palette.Wall, 0.72f), Roughness = 0.95f };
+        var bronze = new StandardMaterial3D { AlbedoColor = palette.Cover, Metallic = 0.55f, Roughness = 0.45f };
+        var pivot = new RevolvingDoor
+        {
+            Name = "RevolvingDoor", Position = door.Pivot,
+            Radius = door.Radius, Height = door.Height, Seconds = door.Seconds,
+        };
+        // The real door is a round stone disc: one disc rotating around its vertical diameter looks exactly
+        // like the two-wing version (and covers the carved opening). The collision is still built from wings.
+        var disc = new MeshInstance3D
+        {
+            Name = "Disc",
+            Mesh = new CylinderMesh { TopRadius = door.Radius, BottomRadius = door.Radius, Height = 0.22f, RadialSegments = 48 },
+            Position = new Vector3(0f, door.Height * 0.5f, 0f),
+            RotationDegrees = new Vector3(90f, 0f, 0f),
+            MaterialOverride = stone,
+        };
+        pivot.AddChild(disc);
+        // Bronze concentric bands on both faces plus a stud at the centre: the carved door of the real map.
+        for (int face = 0; face < 2; face++)
+        {
+            float z = face == 0 ? -0.14f : 0.14f;
+            pivot.AddChild(new MeshInstance3D
+            {
+                Name = face == 0 ? "InsetS" : "InsetN",
+                Mesh = new TorusMesh { InnerRadius = door.Radius - 0.30f, OuterRadius = door.Radius - 0.18f, Rings = 48, RingSegments = 10 },
+                Position = new Vector3(0f, door.Height * 0.5f, z),
+                RotationDegrees = new Vector3(90f, 0f, 0f),
+                MaterialOverride = bronze,
+            });
+            pivot.AddChild(new MeshInstance3D
+            {
+                Name = face == 0 ? "HubS" : "HubN",
+                Mesh = new SphereMesh { Radius = 0.12f, Height = 0.22f },
+                Position = new Vector3(0f, door.Height * 0.5f, z),
+                MaterialOverride = bronze,
+            });
+            for (int k = 0; k < 8; k++)
+            {
+                float a = Mathf.Pi * 0.25f * k;
+                pivot.AddChild(new MeshInstance3D
+                {
+                    Name = $"FaceStud{face}{k}",
+                    Mesh = new SphereMesh { Radius = 0.045f, Height = 0.09f },
+                    Position = new Vector3(Mathf.Cos(a) * 1.05f, door.Height * 0.5f + Mathf.Sin(a) * 1.05f, z),
+                    MaterialOverride = bronze,
+                });
+            }
+        }
+        root.AddChild(pivot);
+
+        // Stepped stone spandrels turn the rectangular cut into the round doorway of the real map. They are
+        // visual only: the door's rectangular collision wings already seal the whole opening when closed.
+        float left = door.Pivot.X - door.Radius, right = door.Pivot.X + door.Radius;
+        float zs = door.Pivot.Z - 0.25f, zn = door.Pivot.Z + 0.25f;
+        void Spandrel(float x0, float x1, float y0, float y1) =>
+            FrameBox(root, new Vector3(x0, y0, zs), new Vector3(x1, y1, zn), stone);
+        for (int k = 0; k < 3; k++)
+        {
+            float inset = 1.05f - 0.35f * k, y0 = 3.20f - 0.20f * k;
+            Spandrel(left, left + inset, y0, door.Height + 0.02f);
+            Spandrel(right - inset, right, y0, door.Height + 0.02f);
+        }
+        Spandrel(left, left + 0.30f, -0.02f, 0.30f);
+        Spandrel(right - 0.30f, right, -0.02f, 0.30f);
+
+        // Stone lining that hides the raw cut edges of the wall.
+        FrameBox(root, new Vector3(left - 0.06f, -0.02f, zs), new Vector3(left + 0.06f, door.Height + 0.06f, zn), stone);
+        FrameBox(root, new Vector3(right - 0.06f, -0.02f, zs), new Vector3(right + 0.06f, door.Height + 0.06f, zn), stone);
+        FrameBox(root, new Vector3(left - 0.06f, door.Height - 0.04f, zs), new Vector3(right + 0.06f, door.Height + 0.08f, zn), stone);
+
+        // Bronze ring on both faces, centred on the passage axis.
+        var ringMesh = new TorusMesh { InnerRadius = door.Radius - 0.09f, OuterRadius = door.Radius + 0.09f, Rings = 64, RingSegments = 10 };
+        for (int i = 0; i < 2; i++)
+        {
+            float z = door.Pivot.Z + (i == 0 ? -0.20f : 0.20f);
+            root.AddChild(new MeshInstance3D
+            {
+                Name = i == 0 ? "DoorRingS" : "DoorRingN",
+                Mesh = ringMesh,
+                Position = new Vector3(door.Pivot.X, door.Height * 0.5f, z),
+                RotationDegrees = new Vector3(90f, 0f, 0f),
+                MaterialOverride = bronze,
+            });
+        }
+
+        // Buttons on the wall beside the opening, one on each face (both work, like VALORANT).
+        var btnMesh = new CylinderMesh { TopRadius = 0.075f, BottomRadius = 0.085f, Height = 0.09f, RadialSegments = 20 };
+        var lit = new StandardMaterial3D
+        {
+            AlbedoColor = palette.Cover,
+            Metallic = 0.4f,
+            Roughness = 0.35f,
+            EmissionEnabled = true,
+            Emission = new Color(1f, 0.72f, 0.32f),
+            EmissionEnergyMultiplier = 0.7f,
+        };
+        // Centre of the 0.22 m stone strip left of the opening (x 0.08–0.30): the plate must not float off it.
+        float bx = 0.19f;
+        pivot.ButtonA = new Vector3(bx, 0.85f, door.Pivot.Z - 0.30f);
+        pivot.ButtonB = new Vector3(bx, 0.85f, door.Pivot.Z + 0.30f);
+        for (int i = 0; i < 2; i++)
+        {
+            float sign = i == 0 ? -1f : 1f;
+            // The wall slab is 0.34 m thick (faces at pivot.Z ± 0.17): mount the plate on the face and let the
+            // button stick out ~0.1 m, instead of floating in front of it. It sits below the bronze ring (whose
+            // lower band crosses this strip at y 1.06–1.39) so the button stays visible from both sides.
+            float faceZ = door.Pivot.Z + sign * 0.17f;
+            FrameBox(root, new Vector3(bx - 0.09f, 0.65f, faceZ - 0.015f), new Vector3(bx + 0.09f, 1.05f, faceZ + 0.015f), bronze);
+            root.AddChild(new MeshInstance3D
+            {
+                Name = i == 0 ? "DoorButtonS" : "DoorButtonN",
+                Mesh = btnMesh,
+                Position = new Vector3(bx, 0.85f, faceZ + sign * 0.06f),
+                RotationDegrees = new Vector3(90f, 0f, 0f),
+                MaterialOverride = lit,
+            });
+        }
+        GD.Print($"[door] {door.Pivot} r={door.Radius:0.00} {door.Seconds:0}s buttons {pivot.ButtonA} / {pivot.ButtonB}");
+        return pivot;
+    }
+
+    static void FrameBox(Node3D root, Vector3 min, Vector3 max, Material mat) =>
+        root.AddChild(new MeshInstance3D
+        {
+            Mesh = new BoxMesh { Size = max - min },
+            Position = (min + max) * 0.5f,
+            MaterialOverride = mat,
+        });
+
+    /// <summary>
+    /// The rope ascender is not in the extracted art. Draw the thick line, its bottom loop and the bronze
+    /// spool that anchors it to the A Top ledge; walking into it rides it up (MovementBody.Climb).
+    /// </summary>
+    static void BuildRope(Node3D root, RopeClimb rope, MapPalette palette)
+    {
+        var node = new Node3D { Name = "RopeAscender", Position = new Vector3(rope.Base.X, rope.Base.Y, rope.Base.Z) };
+        var line = new StandardMaterial3D { AlbedoColor = new Color(0.24f, 0.18f, 0.12f), Roughness = 0.85f };
+        var bronze = new StandardMaterial3D { AlbedoColor = palette.Cover, Metallic = 0.5f, Roughness = 0.45f };
+        float top = rope.TopY + 0.06f;
+        node.AddChild(new MeshInstance3D
+        {
+            Name = "Line",
+            Mesh = new CylinderMesh { TopRadius = 0.045f, BottomRadius = 0.055f, Height = top - 0.18f, RadialSegments = 10 },
+            Position = new Vector3(0f, (top + 0.18f) * 0.5f, 0f),
+            MaterialOverride = line,
+        });
+        node.AddChild(new MeshInstance3D
+        {
+            Name = "Loop",
+            Mesh = new TorusMesh { InnerRadius = 0.13f, OuterRadius = 0.24f, RingSegments = 24, Rings = 10 },
+            Position = new Vector3(0f, 1.02f, 0f),
+            MaterialOverride = bronze,
+        });
+        // The spool hangs off the ledge, west of the line (the arm reaches the A Top platform edge at x = -5).
+        const float reach = 0.85f;
+        node.AddChild(new MeshInstance3D
+        {
+            Name = "Arm",
+            Mesh = new BoxMesh { Size = new Vector3(reach, 0.15f, 0.20f) },
+            Position = new Vector3(-reach * 0.5f, top - 0.02f, 0f),
+            MaterialOverride = bronze,
+        });
+        node.AddChild(new MeshInstance3D
+        {
+            Name = "Spool",
+            Mesh = new CylinderMesh { TopRadius = 0.19f, BottomRadius = 0.19f, Height = 0.36f, RadialSegments = 18 },
+            Position = new Vector3(-reach + 0.05f, top - 0.05f, 0f),
+            RotationDegrees = new Vector3(0f, 0f, 90f),
+            MaterialOverride = bronze,
+        });
+        root.AddChild(node);
+    }
+
+    static Color Darken(Color c, float k) => new(c.R * k, c.G * k, c.B * k, c.A);
 
     /// <summary>
     /// The extracted art is darker than the blockout because many materials are metallic and the real
@@ -153,17 +344,18 @@ public static class Environments
     /// <summary>Neutral box fallback built from the collision file when the extracted art is absent.</summary>
     static Built BuildCollisionFallback(MapSpot map, Node3D root, Theme th, int quality, List<Box> solid)
     {
-        var wb = new WorldBuilder(th, root, solid, map.Key.Aggregate(17, (h, ch) => h * 31 + ch) & 0xffff);
+        var batch = new MeshBatch();
+        var floor = SurfaceLib.Get(th.Floor);
+        var wall = SurfaceLib.Get(th.Wall);
         foreach (var b in solid)
-        {
-            if (b.Size.Y <= 0.65f) wb.Floor(b);
-            else wb.Wall(b);
-        }
+            batch.Box(b.Size.Y <= 0.65f ? floor : wall, b, grime: false);
+        RevolvingDoor? door = map.Door is { } entry ? BuildDoor(root, entry, map.Palette) : null;
+        if (map.Rope is { } rope) BuildRope(root, rope, map.Palette);
         CaValAim.Game.Fx.FlashOrb.Prewarm(root, map.StartFeet + new Vector3(0, -1.2f, -4f));
-        wb.Commit();
+        batch.Commit(root, "CollisionBlockout");
         if (!EnvDev.Has("nosigns")) MapSigns(root, map);
-        Finish(root, th, quality, wb.Bounds);
-        return new Built(root, solid);
+        Finish(root, th, quality, BoundsOf(solid));
+        return new Built(root, solid, door);
     }
 
     /// <summary>

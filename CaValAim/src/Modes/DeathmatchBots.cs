@@ -36,7 +36,7 @@ public sealed partial class DeathmatchMode
         float repathAt, holdUntil, protectedUntil;
         Vector3 holdDir;
         Vector3? lkp, noise;
-        float lkpAt = -99f, rumorAt, noiseAt = -99f;
+        float lkpAt = -99f, noiseAt = -99f;
         int lastHp;
         Bot? attackerBot;
         bool hitByPlayer;
@@ -46,7 +46,7 @@ public sealed partial class DeathmatchMode
         int foeShot;
         // engagement movement
         float strafeUntil, nextStrafeAt;
-        float strafeSign = 1f;
+        Vector3 strafeDirection;
         // stuck detection
         float stuckAt;
         Vector3 stuckPos;
@@ -85,7 +85,6 @@ public sealed partial class DeathmatchMode
             // VALORANT: respawning reveals every enemy for a moment → the bot knows where you are.
             if (playerFeet is { } pf && !m.G.Player.Dead && Now - m.playerSpawnedAt > 3f) { lkp = pf; lkpAt = Now; State = St.Hunt; }
             else { lkp = null; State = St.Roam; }
-            rumorAt = Now + R(6f, 12f);
             repathAt = Now + R(0f, 0.3f);
         }
 
@@ -140,8 +139,8 @@ public sealed partial class DeathmatchMode
             {
                 if (hitByPlayer && !brain!.SeesPlayer && m.PlayerAlive)
                 {
-                    lkp = m.PlayerFeet; lkpAt = Now;
-                    if (foe == null) { Face(G.View.Eye - b.Head, snap: 0.6f); if (State is St.Roam or St.Noise or St.Hold) { State = St.Hunt; Replan(); } }
+                    // Incoming damage reveals a bearing, not an exact position to path to.
+                    if (foe == null) Face(G.View.Eye - b.Head, snap: 0.6f);
                 }
                 else if (attackerBot != null && attackerBot.Alive && foe == null && !brain!.SeesPlayer)
                 {
@@ -178,13 +177,27 @@ public sealed partial class DeathmatchMode
             float speed = Mover.RunSpeed;
             if (fighting)
             {
-                if (Tier >= 2 && Now >= nextStrafeAt)
+                bool recovering = fightPlayer
+                    ? brain.BetweenBursts && brain.NextShotAt - Now > 0.19f
+                    : foeShot > 0 && foeShot % skill.Burst == 0 && foeFireAt - Now > 0.19f;
+                if (Tier >= 2 && recovering && !b.Crouched && Now >= nextStrafeAt)
                 {
-                    // A-D jiggle between bursts (brain holds fire while moving faster than ~1.5 m/s): Medium now and then,
-                    // Hard and Nightmare all the time.
-                    strafeSign = -strafeSign;
-                    strafeUntil = Now + R(0.16f, 0.26f);
-                    nextStrafeAt = Now + (Tier >= 3 ? R(0.7f, 1.5f) : R(1.6f, 3.2f));
+                    var threat = fightPlayer ? G.View.Eye : foe!.Body!.Head;
+                    var facing = (threat - b.Head).Normalized();
+                    var side = new Vector3(-facing.Z, 0, facing.X).Normalized();
+                    if (Rng.NextDouble() < 0.5) side = -side;
+                    strafeDirection = Vector3.Zero;
+                    for (int i = 0; i < 2; i++, side = -side)
+                    {
+                        var landing = b.Feet + side * 0.85f;
+                        if (m.nav.At(landing, Collision.StepHeight) < 0
+                            || Collision.Blocked(b.Head, b.Head + side * 0.85f, G.Solid)) continue;
+                        // Prefer a step that breaks the opponent's line of sight.
+                        if (strafeDirection == Vector3.Zero) strafeDirection = side;
+                        if (!G.LineOfSight(threat, b.Head + side * 0.85f)) { strafeDirection = side; break; }
+                    }
+                    strafeUntil = Now + R(0.14f, 0.23f);
+                    nextStrafeAt = Now + (Tier >= 3 ? R(0.55f, 1.05f) : R(1.3f, 2.3f));
                 }
                 // Hard+: crouch into the spray once the duel has started (smaller head, VALORANT's crouch spray).
                 if (fightPlayer && Tier >= 3 && !crouchDecided && brain.FirstSeenAt >= 0 && Now - brain.FirstSeenAt > 0.25f)
@@ -192,11 +205,7 @@ public sealed partial class DeathmatchMode
                     crouchDecided = true;
                     if (Rng.NextDouble() < (Nightmare ? 0.5 : 0.3)) { b.Crouched = true; crouchUntil = Now + R(0.6f, 1.1f); }
                 }
-                if (Now < strafeUntil)
-                {
-                    var f = brain.HeldDir; var side = new Vector3(-f.Z, 0, f.X).Normalized() * strafeSign;
-                    if (m.nav.At(b.Feet + side * 0.8f, Collision.StepHeight) >= 0) want = side;
-                }
+                if (Now < strafeUntil && !b.Crouched) want = strafeDirection;
             }
             else
             {
@@ -207,7 +216,8 @@ public sealed partial class DeathmatchMode
                     if (path != null && wp < path.Count)
                     {
                         var to = path[wp] - b.Feet; to.Y = 0;
-                        if (to.Length() < 0.45f) { wp++; if (wp >= path.Count) Arrived(); }
+                        if (to.Length() < 0.45f && Mathf.Abs(path[wp].Y - b.Feet.Y) <= MovementTuning.SnapDown)
+                        { wp++; if (wp >= path.Count) Arrived(); }
                         else want = to.Normalized();
                         // Veteran+ walk (silently) the last metres toward where you were.
                         if (State == St.Hunt && Tier >= 2 && lkp is { } k && b.Feet.DistanceTo(k) < 9f) speed = Mover.WalkSpeed;
@@ -270,16 +280,7 @@ public sealed partial class DeathmatchMode
 
             HearFootsteps();
 
-            if (Now >= rumorAt && m.PlayerAlive && Now - m.playerSpawnedAt > 4f) // never tip bots off to a fresh spawn
-            {
-                // DM players drift toward the action: every few seconds a bot "hears" roughly where you are.
-                rumorAt = Now + (Nightmare ? 6.5f : Difficulty.T(Tier, 14f, 12f, 10f, 9f, 8f)) * R(0.7f, 1.3f);
-                if (State is St.Roam or St.Noise && Rng.NextDouble() < Difficulty.T(Tier, 0.45f, 0.55f, 0.65f, 0.7f, 0.75f))
-                {
-                    lkp = m.PlayerFeet + new Vector3(R(-5, 5), 0, R(-5, 5));
-                    lkpAt = Now; State = St.Hunt; Replan();
-                }
-            }
+
         }
 
         /// <summary>
@@ -422,8 +423,7 @@ public sealed partial class DeathmatchMode
                 b.FacingYaw = Mathf.RadToDeg(Mathf.Atan2(to.X, -to.Z));
                 brain!.HeldDir = to.Normalized();
                 b.AimTarget = foe.Body.Head;
-                int guard = 0;
-                while (foe != null && Now >= foeFireAt && guard++ < 3) FireAtFoe();
+                if (Now >= foeFireAt) FireAtFoe();
                 return;
             }
             b.AimTarget = null;
@@ -431,24 +431,33 @@ public sealed partial class DeathmatchMode
             foeScanAt = Now + 0.4f;
             // Bots are here to fight YOU: while chasing a fresh lead on you they mostly ignore each other.
             if (State == St.Hunt && Now - lkpAt < 4f && Rng.NextDouble() < 0.6) return;
+            float bestThreat = float.PositiveInfinity;
+            float bestAngle = 0, bestDistance = 0;
+            Bot? bestFoe = null;
             foreach (var o in m.bots)
             {
                 if (o == this || !o.Alive || o.Protected) continue;
                 var to = o.Body!.Head - b.Head;
                 float dist = to.Length();
-                if (dist > 30f) continue;
+                if (dist is < 0.01f or > 30f) continue;
                 float ang = Mathf.RadToDeg(Mathf.Acos(Mathf.Clamp(brain!.HeldDir.Dot(to / dist), -1, 1)));
-                if (ang > brain.HalfFovDeg || !G.LineOfSight(b.Head, o.Body.Head)) continue;
-                // Same model as BotBrain.OnLosGained: reaction, then a Fitts' law settle from the crosshair misplacement.
-                float react = Mathf.Max(120f, Gauss(skill.ReactMs, skill.ReactSd)) / 1000f;
-                float err = Mathf.Sqrt(ang * ang + Mathf.Pow(Gauss(0, skill.XhairErrDeg), 2));
-                float w = Mathf.RadToDeg(2f * Mathf.Atan(0.14f / Mathf.Max(1f, dist)));
-                float settle = err <= w / 2 ? 0 : skill.MsPerBit * Mathf.Log(err / w + 1f) / Mathf.Log(2f) / 1000f;
-                foe = o; foeShot = 0; foeFireAt = Now + react + settle;
-                protectedUntil = 0;
-                State = St.Fight;
-                return;
+                float threat = dist + ang * 0.22f;
+                if (ang > brain.HalfFovDeg || threat >= bestThreat || !G.LineOfSight(b.Head, o.Body.Head)) continue;
+                bestThreat = threat;
+                bestFoe = o;
+                bestAngle = ang;
+                bestDistance = dist;
             }
+            if (bestFoe == null) return;
+            float react = Mathf.Max(120f, Gauss(skill.ReactMs, skill.ReactSd)) / 1000f;
+            float err = Mathf.Sqrt(bestAngle * bestAngle + Mathf.Pow(Gauss(0, skill.XhairErrDeg), 2));
+            float w = Mathf.RadToDeg(2f * Mathf.Atan(0.14f / Mathf.Max(1f, bestDistance)));
+            float settle = err <= w / 2 ? 0 : skill.MsPerBit * Mathf.Log(err / w + 1f) / Mathf.Log(2f) / 1000f;
+            foe = bestFoe;
+            foeShot = 0;
+            foeFireAt = Now + react + settle;
+            protectedUntil = 0;
+            State = St.Fight;
         }
 
         void FireAtFoe()
@@ -460,7 +469,7 @@ public sealed partial class DeathmatchMode
             float p = Mathf.Max(skill.PHit1 * 0.35f, skill.PHit1 * Mathf.Pow(skill.Decay, s));
             if (moving)
             {
-                if (!skill.RunAndGun) { foeFireAt += 0.05f; return; }
+                if (!skill.RunAndGun) { foeFireAt = Now + 0.05f; return; }
                 p *= 0.25f;
             }
             var target = o.Body!.Head + Vector3.Down * 0.35f;
@@ -483,7 +492,7 @@ public sealed partial class DeathmatchMode
             G.SoundAt("enemyshot", b.Head, maxRange: 60f, floor: 0.6f);
             m.Noise(b.Feet, this, 25f);
             foeShot++;
-            foeFireAt += w.Interval;
+            foeFireAt = Now + w.Interval;
             if (foeShot % skill.Burst == 0) foeFireAt += skill.GapMs / 1000f - w.Interval;
         }
 

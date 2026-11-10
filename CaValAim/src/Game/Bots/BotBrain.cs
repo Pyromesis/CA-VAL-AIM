@@ -31,7 +31,10 @@ public sealed class BotBrain
     public bool ShoulderSight = true;
 
     float? fireAt;
-    int shot;
+    int shot, burstLength;
+    float turnAt;
+    public bool BetweenBursts { get; private set; }
+    public float NextShotAt => fireAt ?? float.PositiveInfinity;
     float alertUntil = -99f;
     bool hadLos;
     public bool SeesPlayer => hadLos;
@@ -87,6 +90,7 @@ public sealed class BotBrain
     }
 
     bool headVisible;
+    Vector3 visiblePoint;
 
     /// <summary>
     /// Line-of-sight rays are the most expensive part of a bot tick on a real map (17k collision boxes);
@@ -105,9 +109,9 @@ public sealed class BotBrain
         if (Mathf.RadToDeg(Mathf.Acos(Mathf.Clamp(HeldDir.Dot(toPlayer), -1, 1))) > HalfFovDeg) return false;
         if (g.Now < NearsightUntil && eye.DistanceTo(g.View.Eye) > NearsightRange) return false; // nearsighted: only close range
         headVisible = g.LineOfSight(eye, g.View.Eye);
-        if (headVisible) return true;
+        if (headVisible) { visiblePoint = g.View.Eye; return true; }
         foreach (var p in Exposure(g.View).Skip(1).Take(ShoulderSight ? 3 : 1)) // chest, then shoulders
-            if (g.LineOfSight(eye, p)) return true;
+            if (g.LineOfSight(eye, p)) { visiblePoint = p; return true; }
         return false;
     }
 
@@ -145,17 +149,25 @@ public sealed class BotBrain
         hadLos = los;
         if (!los || fireAt == null) return;
 
-        // Turn to face the player while engaging.
-        var to = g.View.Eye - Body.Head;
-        Body.FacingYaw = Mathf.RadToDeg(Mathf.Atan2(to.X, -to.Z));
+        if (now < turnAt) return;
+        var to = visiblePoint - Body.Head;
+        float yaw = Mathf.RadToDeg(Mathf.Atan2(to.X, -to.Z));
+        float error = Mathf.Wrap(yaw - Body.FacingYaw, -180f, 180f);
+        Body.FacingYaw += Mathf.Clamp(error, -540f * dt, 540f * dt);
+        // Once engaged, keep the perceived target in view while the body catches up.
         HeldDir = to.Normalized();
-        Body.AimTarget = g.View.Eye; // aim the rifle up/down at the player
+        Body.AimTarget = visiblePoint;
 
         // Easy tiers wait out your blind, then still need a full reaction before the first shot.
         if (HoldFireWhileBlind && g.Blind.FullyBlind) { fireAt = Mathf.Max(fireAt ?? now, now + Skill.ReactMs / 1000f); return; }
         if (fireAt < now - weapon.Interval * 2) fireAt = now; // never dump a backlog of shots after a hitch
-        int guard = 0;
-        while (fireAt != null && now >= fireAt && guard++ < 4) FireShot(g);
+        if (now >= fireAt)
+        {
+            if (Mathf.Abs(error) > 7f) { fireAt = now + 0.02f; return; }
+            // Cached sight is for perception. Verify the current ray before committing damage.
+            if (!CanSee(g)) { losCached = false; return; }
+            FireShot(g);
+        }
     }
 
     void OnLosGained(IGame g, float now)
@@ -174,7 +186,9 @@ public sealed class BotBrain
         float w = Mathf.RadToDeg(2f * Mathf.Atan(0.14f / dist)); // angular size of a head
         float settle = err <= w / 2 ? 0 : Skill.MsPerBit * Mathf.Log(err / w + 1f) / Mathf.Log(2f) / 1000f;
 
-        fireAt = now + react + settle;
+        BetweenBursts = false;
+        turnAt = now + react;
+        fireAt = turnAt + settle;
         shot = 0;
     }
 
@@ -182,24 +196,36 @@ public sealed class BotBrain
     {
         float interval = weapon.Interval;
         bool moving = Body.Velocity.Length() > 1.5f;
-        int s = shot % Skill.Burst; // accuracy recovers between bursts
+        float dist = Body.Head.DistanceTo(visiblePoint);
+        if (shot == 0)
+            burstLength = dist >= 24f ? Math.Min(Skill.Burst, 3) : Skill.Burst;
+        int s = shot;
         float p = Mathf.Max(Skill.PHit1 * 0.35f, Skill.PHit1 * Mathf.Pow(Skill.Decay, s));
         if (!headVisible) p *= 0.5f; // only a shoulder/chest is exposed
         if (g.Now < DazedUntil) p *= 0.6f; // dazed after a flash
         if (moving)
         {
-            if (!Skill.RunAndGun) { fireAt += 0.05f; return; } // good players stop before shooting
+            if (!Skill.RunAndGun) { fireAt = g.Now + 0.05f; return; } // good players stop before shooting
             p *= 0.25f;
         }
 
-        var target = g.View.Eye + Vector3.Down * 0.35f;
-        float dist = (target - Body.Head).Length();
+        var target = visiblePoint;
         bool hit = rng.NextDouble() < p;
         if (hit)
         {
             double r = rng.NextDouble();
             int zone = headVisible && r < Skill.PHead1 * (s == 0 ? 1f : 0.6f) ? 0 : (rng.NextDouble() < 0.08 ? 2 : 1);
-            g.DamagePlayer(weapon.Damage(zone, dist), Body.Head);
+            var impact = zone == 0 ? g.View.Eye : g.View.Eye + Vector3.Down * (zone == 2 ? 1.05f : 0.45f);
+            if (g.LineOfSight(Body.Head, impact))
+            {
+                target = impact;
+                g.DamagePlayer(weapon.Damage(zone, dist), Body.Head);
+            }
+            else if (zone == 2 && g.LineOfSight(Body.Head, g.View.Eye + Vector3.Down * 0.45f))
+            {
+                target = g.View.Eye + Vector3.Down * 0.45f;
+                g.DamagePlayer(weapon.Damage(1, dist), Body.Head);
+            }
         }
         else
         {
@@ -209,9 +235,15 @@ public sealed class BotBrain
         Body.ShootFx(target);
         g.SoundAt("enemyshot", Body.Head, maxRange: 60f, floor: 0.6f);
 
+        BetweenBursts = false;
         shot++;
-        fireAt += interval;
-        if (shot % Skill.Burst == 0) fireAt += Skill.GapMs / 1000f - interval;
+        fireAt = Math.Max(g.Now + interval * 0.25f, fireAt!.Value + interval);
+        if (shot >= burstLength)
+        {
+            shot = 0;
+            BetweenBursts = true;
+            fireAt = g.Now + Math.Max(interval, Skill.GapMs / 1000f);
+        }
     }
 
     float R(float a, float b) => a + (float)rng.NextDouble() * (b - a);

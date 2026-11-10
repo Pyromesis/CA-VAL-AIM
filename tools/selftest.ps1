@@ -24,7 +24,9 @@ param(
                        "microshot", "switch", "popup", "longtaps", "jumppeek", "jigglepeek", "postplant", "retake",
                        "anchor", "sound", "flashpeek:phoenix", "recon:sova", "smokeexec:omen", "mobility:jett", "chamber:headhunter",
                        "anti-mirror", "flickx:sc-cartoon-dev-ts-static-angelic", "microx:sc-cartoon-1w3ts-pasu-micro-goated",
-                       "trackv:sc-cartoon-waldots"),
+                       "trackv:sc-cartoon-waldots", "flickx:sc-voltaic-pat-target-switch",
+                       "microx:sc-voltaic-microshot-speed-medium", "trackv:sc-voltaic-thin-gauntlet-easy",
+                       "reflex:sc-voltaic-reactive-clicking"),
   # Extra cultures for the locale test (the invariant culture always runs).
   [string[]]$Cultures = @("de-DE", "tr-TR"),
   [switch]$SkipSmoke,

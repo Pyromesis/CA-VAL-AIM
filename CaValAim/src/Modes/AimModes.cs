@@ -304,7 +304,11 @@ public sealed class TrackingMode : TrainingMode
         if (G.TriggerHeld)
         {
             held += dt;
-            if (onNow) { onTarget += dt; if ((int)(onTarget * 10) != (int)((onTarget - dt) * 10)) G.Sound("tick", 0.15f, 1.6f); }
+            if (onNow)
+            {
+                onTarget += dt;
+                if ((int)(onTarget * 5) != (int)((onTarget - dt) * 5)) G.Sound("track_contact", 0.45f);
+            }
         }
         Score = (int)(onTarget * 100);
     }

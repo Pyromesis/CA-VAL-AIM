@@ -931,13 +931,13 @@ public partial class SettingsScreen : ScreenBase
                 Gfx.TextFit(d, UiTheme.Body, dir, 10 * k, Gfx.Mid(cy - 10 * k, ls), ls, UiTheme.Text, d.Size.X - 10 * k);
                 Gfx.TextFit(d, UiTheme.Body,
                     Loc.Spanish
-                        ? $"Se guardan: tus últimas {RecordingStore.KeepRecent} partidas + ejemplos de los problemas que el coach aún detecta."
-                        : $"Kept: your last {RecordingStore.KeepRecent} runs + examples of problems the coach still sees.",
+                        ? "Las rondas terminadas se guardan localmente, incluida la práctica."
+                        : "Completed rounds are stored locally, including practice.",
                     10 * k, Gfx.Mid(cy + 9 * k, ns), ns, UiTheme.Faint, d.Size.X - 10 * k);
                 Gfx.TextFit(d, UiTheme.Body,
                     Loc.Spanish
-                        ? $"Se borran solas: los problemas que ya has corregido y las partidas de más de {RecordingStore.MaxAgeDays} días."
-                        : $"Deleted automatically: problems you fixed, and runs older than {RecordingStore.MaxAgeDays} days.",
+                        ? "Puedes liberar espacio desde este panel."
+                        : "You can free disk space from this panel.",
                     10 * k, Gfx.Mid(cy + 25 * k, ns), ns, UiTheme.Faint, d.Size.X - 10 * k);
             },
         };

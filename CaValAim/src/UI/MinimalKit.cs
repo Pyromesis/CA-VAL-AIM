@@ -206,6 +206,7 @@ public partial class MAction : MButtonBase
 {
     public string Label = "";
     public bool Primary;
+    public bool SweepHighlight;
     public float Px = 14f;
 
     public override void _Draw()
@@ -220,6 +221,12 @@ public partial class MAction : MButtonBase
         {
             var fill = UiTheme.Accent.Lerp(UiTheme.AccentHover, Hover * 0.6f).Darkened(0.12f * Down);
             DrawRect(r, fill);
+            if (SweepHighlight && Hover > 0.01f)
+            {
+                float lead = Size.X * Hover;
+                DrawRect(new Rect2(0, 0, lead, Mathf.Max(1f, 2 * k)), new Color(1, 0.89f, 0.75f, 0.7f));
+                DrawRect(new Rect2(0, 0, lead, Size.Y), new Color(1, 0.89f, 0.75f, 0.08f * Hover));
+            }
             text = Colors.White;
         }
         else

@@ -79,7 +79,15 @@ internal static class SensLabText
         _ => Es ? "Todavía no hay suficientes datos." : "There isn't enough data yet.",
     };
 
-    public static string Advice(SensFeedback f) => Advice(f.Verdict, f.Delta, f.OvershootShare, f.UndershootShare);
+    public static string Advice(SensFeedback f) => f.Verdict switch
+    {
+        SensVerdict.Overshoot => Es ? "Frena el gesto antes de llegar y confirma la mira antes de pulsar." : "Slow the motion before arrival and confirm your aim before clicking.",
+        SensVerdict.Undershoot => Es ? "Completa el primer gesto hasta el centro del blanco." : "Finish the first motion all the way to the center.",
+        SensVerdict.Mixed => Es ? "Haz los gestos a un ritmo constante y deja que la mira se asiente." : "Use a consistent pace and let the crosshair settle.",
+        SensVerdict.Shaky or SensVerdict.Tracking => Es ? "Relaja el agarre y sigue los cambios de dirección con un movimiento continuo." : "Relax your grip and follow direction changes in one continuous motion.",
+        SensVerdict.Balanced => Es ? "Conserva tu ajuste mientras comparas más rondas." : "Keep your setting while you compare more rounds.",
+        _ => Es ? "Prueba un ejercicio con blancos visibles para obtener una muestra comparable." : "Try a drill with visible targets to collect comparable aim samples.",
+    };
     public static string Advice(SensBlock b) => Advice(b.Verdict, b.Delta, b.OvershootShare, b.UndershootShare);
 
     static string Advice(SensVerdict v, float delta, float over, float under) => v switch
@@ -217,6 +225,18 @@ public partial class SensLabScreen : ScreenBase
         head.AddChild(back);
         col.AddChild(head);
 
+        var drills = new HFlowContainer();
+        drills.AddThemeConstantOverride("h_separation", (int)(10 * k));
+        drills.AddThemeConstantOverride("v_separation", (int)(6 * k));
+        foreach (var (key, en, es) in new[]
+        {
+            ("flickx:sens-braking", "BRAKING", "FRENADO"),
+            ("microx:sens-fine", "FINE CORRECTIONS", "AJUSTES FINOS"),
+            ("trackv:sens-smooth", "STEADY TRACKING", "SEGUIMIENTO ESTABLE"),
+        })
+            drills.AddChild(Btn(Loc.Spanish ? es : en, VButton.Look.Secondary, () => CoachData.StartDrill(key), 205, 40, 15));
+        col.AddChild(drills);
+
         if (profile == null)
         {
             col.AddChild(Lbl("LOADING…", UiTheme.HudWide, 18, UiTheme.Dim));
@@ -224,6 +244,16 @@ public partial class SensLabScreen : ScreenBase
         }
 
         var lab = profile.SensLab;
+        var compare = HBox(10 * k);
+        col.AddChild(compare);
+        float sens = Main.I.Sens;
+        foreach (float factor in new[] { 0.95f, 1.05f })
+        {
+            float candidate = factor > 1 ? SensShift.Applied(sens, Main.I.Settings.Dpi, factor) : sens * factor;
+            if (candidate < 0.001f || !float.IsFinite(candidate) || SensLab.SameSens(candidate, sens)) continue;
+            string compareLabel = Loc.Spanish ? $"COMPARAR CON {candidate:0.0000}" : $"COMPARE WITH {candidate:0.0000}";
+            compare.AddChild(Btn(compareLabel, VButton.Look.Secondary, () => PracticeScreen.Compare(candidate), 200, 40, 14));
+        }
         if (lab == null || !lab.HasData)
         {
             col.AddChild(EmptyState(profile));

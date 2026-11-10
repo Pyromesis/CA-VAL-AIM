@@ -5,7 +5,7 @@
 .DESCRIPTION
   Output (in -OutDir, default dist\ in the repo root):
     ValTraining-<version>-Setup.exe      Inno Setup installer (all users, one UAC prompt, Program Files)
-    ValTraining-<version>-Portable.zip   the portable folder (CA-VAL-AIM.exe + data folder + maps) with LICENSE.txt, THIRD-PARTY-NOTICES.txt and README.txt
+    ValTraining-<version>-Portable.zip   the portable folder (one self-contained CA-VAL-AIM.exe + maps) with LICENSE.txt, THIRD-PARTY-NOTICES.txt and README.txt
     SHA256SUMS.txt                      "<sha256>  <file>" lines (sha256sum -c compatible)
 
   Stages (-Stage). Without -Stage the script runs all three in one go, as it always did:
@@ -418,8 +418,11 @@ function Invoke-PackageStage {
   $need = @()
   if (-not $SkipPortable) {
     $need += @($portExe, (Join-Path $outPort 'LICENSE.txt'), (Join-Path $outPort 'NOTICE.txt'),
-      (Join-Path $outPort 'THIRD-PARTY-NOTICES.txt'),
-      (Join-Path $outPort 'data_CaValAim_windows_x86_64\CaValAim.dll'))
+      (Join-Path $outPort 'THIRD-PARTY-NOTICES.txt'))
+    # The portable preset embeds the PCK and the .NET runtime inside the exe, so a normal build has no data
+    # folder. Only demand the sidecar DLL if the preset was switched back to a non-embedded export.
+    $portData = Join-Path $outPort 'data_CaValAim_windows_x86_64'
+    if (Test-Path -LiteralPath $portData) { $need += @((Join-Path $portData 'CaValAim.dll')) }
   }
   if (-not $SkipInstaller) {
     $need += @($instExe, (Join-Path $outInst $PckName), (Join-Path $outInst 'data_CaValAim_windows_x86_64'),
@@ -429,6 +432,9 @@ function Invoke-PackageStage {
   }
   foreach ($f in $need) {
     if (-not (Test-Path -LiteralPath $f)) { Fail "app folder incomplete: $f is missing (run -Stage app first, or pass -AppDir)" }
+  }
+  if (-not $SkipPortable -and (Get-Item -LiteralPath $portExe).Length -lt 50MB) {
+    Fail "portable exe is too small to embed its data: $portExe (re-run the app stage)"
   }
   $exes = @()
   if (-not $SkipPortable) { $exes += $portExe }

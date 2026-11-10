@@ -111,7 +111,7 @@ public sealed partial class Mover
         if (wants) wish = wish.Normalized();
         opposedKeys = !wants && ((l && r) || (f && b));
 
-        Crouching = Down(keys, GameAction.Crouch);
+        Crouching = bodyCrouched || Down(keys, GameAction.Crouch);
         Walking = Down(keys, GameAction.Walk);
         float target = Crouching ? CrouchEye : StandEye;
         EyeHeight += (target - EyeHeight) * (1f - Mathf.Exp(-14f * dt));
@@ -256,6 +256,7 @@ public sealed partial class Mover
         SteerLockLeft = 0;
         boosting = false;
         jumpQueued = false;
+        OnRope = false;
         sinceLanded = 99f;
         CamStepOffset = 0f;
     }

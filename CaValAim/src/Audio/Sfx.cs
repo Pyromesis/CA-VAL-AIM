@@ -20,6 +20,27 @@ public partial class Sfx : Node
     readonly List<AudioStreamPlayer> players2D = new();
     readonly List<AudioStreamPlayer3D> players3D = new();
     int next2D, next3D;
+    readonly Dictionary<AudioStreamPlayer3D, (float Range, float Floor, float Gain)> spatial = new();
+
+    public override void _Process(double delta)
+    {
+        if (GetViewport().GetCamera3D() is not { } camera) return;
+        foreach (var (player, settings) in spatial)
+        {
+            if (!player.Playing) continue;
+            float distance = player.GlobalPosition.DistanceTo(camera.GlobalPosition);
+            player.VolumeDb = Mathf.LinearToDb(Mathf.Max(1e-6f,
+                Volume * settings.Gain * DistanceGain(distance, settings.Range, settings.Floor)));
+        }
+    }
+
+    internal static float DistanceGain(float distance, float range, float floor)
+    {
+        if (range <= 0 || distance >= range) return 0;
+        float k = Mathf.Clamp((distance - 2f) / MathF.Max(0.001f, range - 2f), 0f, 1f);
+        floor = Mathf.Clamp(floor, 0f, 1f);
+        return (floor + (1 - floor) * (1 - k) * (1 - k)) * (k < 0.9f ? 1f : (1 - k) / 0.1f);
+    }
 
     public override void _Ready()
     {
@@ -31,8 +52,8 @@ public partial class Sfx : Node
             AddChild(p);
             players3D.Add(p);
         }
-        Build();
         LoadRecorded();
+        Build();
     }
 
     /// <summary>CC0 recordings from assets/audio (Free Firearm Sound Library, OpenGameArt, Kenney). See CREDITS.md.</summary>
@@ -53,6 +74,14 @@ public partial class Sfx : Node
         Rec("reload_pistol", W + "pistol_reload.wav");
         const string F = "res://assets/audio/footsteps/";
         Rec("footstep", Enumerable.Range(0, 5).Select(i => $"{F}footstep_concrete_00{i}.ogg").ToArray());
+
+        // Lotus stone door / rope ascender: CC0 impact recordings (mining = grinding rock, plate = button clunk,
+        // bell = the door's stop, metal = the ascender's spool).
+        const string IM = "res://assets/audio/impacts/";
+        Rec("stone_turn", Enumerable.Range(0, 5).Select(i => $"{IM}impactMining_00{i}.ogg").ToArray());
+        Rec("stone_start", Enumerable.Range(0, 5).Select(i => $"{IM}impactPlate_heavy_00{i}.ogg").ToArray());
+        Rec("stone_stop", Enumerable.Range(0, 5).Select(i => $"{IM}impactBell_heavy_00{i}.ogg").ToArray());
+        Rec("rope", IM + "impactMetal_light_002.ogg");
 
         // Agent flash cues, rendered offline by our own tools/sfx/flash_sfx.py (pure synthesis, no samples).
         // <agent>_windup lasts exactly the windup and peaks at its end, so start it at (pop - windup).
@@ -122,6 +151,7 @@ public partial class Sfx : Node
                 + Sin(1794, t) * Env(t, 0.001f, 0.07f) * 0.2f)) * 0.6f;
         });
         int[] semis = { 0, 2, 4, 7, 12 };
+        float[] chord = { 1.26f, 1.5f, 2f };
         for (int k = 1; k <= 5; k++)
         {
             float f = 660f * MathF.Pow(2, semis[k - 1] / 12f);
@@ -135,7 +165,7 @@ public partial class Sfx : Node
                               + hp.HP(N()) * Env(t, 0, 0.06f) * 0.08f + Sin(90, t) * Env(t, 0, 0.04f) * 0.35f;
                     if (ace)
                         for (int i = 1; i <= 3; i++)
-                            s += Sin(f * new[] { 1.26f, 1.5f, 2f }[i - 1], t) * Env(t - 0.04f * i, 0.002f, 0.3f) * 0.25f;
+                            s += Sin(f * chord[i - 1], t) * Env(t - 0.04f * i, 0.002f, 0.3f) * 0.25f;
                     return s;
                 };
             });
@@ -152,12 +182,21 @@ public partial class Sfx : Node
 
         // ---- UI ----
         Add("tick", 0.06f, 2, () => t => (Sin(880, t) + 0.25f * Sin(2640, t)) * Env(t, 0.001f, 0.025f) * 0.35f);
+        Add("track_contact", 0.055f, 1, () => t =>
+            (Sin(620, t) + 0.15f * Sin(1240, t)) * Env(t, 0.006f, 0.011f) * 0.32f);
+        Add("practice_complete", 0.25f, 1, () => t =>
+            (Sin(520, t) * Env(t, 0.006f, 0.04f) + Sin(695, t) * Env(t - 0.075f, 0.008f, 0.05f)) * 0.28f);
         // Interface (1.18): soft and low, no bright harmonics. A click is a 60 ms "tock" whose pitch settles from 560 to
         // 470 Hz; a confirmation is two quiet rounded notes a fifth apart.
-        Add("ui_click", 0.07f, 3, () => t =>
+        Add("ui_hover", 0.055f, 1, () =>
+        {
+            var sweep = new Sweep(820, 590, 0.035f);
+            return t => sweep.Next(t) * Env(t, 0.004f, 0.012f) * 0.22f;
+        });
+        Add("ui_click", 0.085f, 3, () => t =>
         {
             float f = 470f + 90f * MathF.Exp(-t / 0.012f);
-            return MathF.Sin(2 * MathF.PI * f * t) * (1f - MathF.Exp(-t / 0.002f)) * MathF.Exp(-t / 0.016f) * 0.55f;
+            return MathF.Sin(2 * MathF.PI * f * t) * (1f - MathF.Exp(-t / 0.002f)) * MathF.Exp(-t / 0.016f) * 0.42f + Sin(170, t) * Env(t, 0.003f, 0.026f) * 0.15f;
         });
         Add("ui_confirm", 0.32f, 1, () => t =>
             (Sin(587, t) * (1f - MathF.Exp(-t / 0.004f)) * MathF.Exp(-t / 0.05f)
@@ -165,7 +204,8 @@ public partial class Sfx : Node
         Add("go", 0.45f, 1, () =>
         {
             var sw = new BPSweep(500, 4000, 0.4f, 1.5f);
-            return t => (Sin(660, t) * Env(t, 0.002f, 0.12f) + Sin(990, t) * Env(t - 0.05f, 0.002f, 0.12f)) * 0.3f + sw.Next(t, N()) * 0.25f;
+            return t => (Sin(587, t) * Env(t, 0.004f, 0.065f) + Sin(880, t) * Env(t - 0.065f, 0.006f, 0.11f)) * 0.32f
+                + sw.Next(t, N()) * Env(t, 0.006f, 0.07f) * 0.14f;
         });
         Add("fail", 0.25f, 2, () => { var sw = new Sweep(220, 120, 0.25f); return t => sw.Next(t) * Env(t, 0, 0.11f) * 0.45f; });
         Add("damage", 0.12f, 2, () =>
@@ -242,27 +282,28 @@ public partial class Sfx : Node
 
     public void Play(string name, float vol = 1f, float pitch = 1f)
     {
-        if (Pick(name) is not { } s) return;
-        var p = players2D[next2D = (next2D + 1) % players2D.Count];
+        if (Volume <= 0 || vol <= 0 || Pick(name) is not { } s) return;
+        var p = players2D.FirstOrDefault(p => !p.Playing)
+            ?? players2D[next2D = (next2D + 1) % players2D.Count];
         p.Stream = s;
         p.VolumeDb = Mathf.LinearToDb(Mathf.Max(1e-4f, Volume * vol));
-        p.PitchScale = pitch;
+        p.PitchScale = Mathf.Clamp(pitch, 0.1f, 4f);
         p.Play();
     }
 
     /// <summary>Positional sound with VALORANT-like flat attenuation (volume floor, fade near max range).</summary>
     public void PlayAt(string name, Vector3 pos, Vector3 listener, float maxRange = 40f, float floor = 0.45f, float vol = 1f, float pitchJitter = 0f)
     {
-        if (Pick(name) is not { } s) return;
-        float d = pos.DistanceTo(listener);
-        if (d > maxRange) return;
-        float k = Mathf.Clamp((d - 2f) / (maxRange - 2f), 0f, 1f);
-        float g = (floor + (1 - floor) * (1 - k) * (1 - k)) * (k < 0.9f ? 1f : (1 - k) / 0.1f);
-        var p = players3D[next3D = (next3D + 1) % players3D.Count];
+        if (Volume <= 0 || vol <= 0 || maxRange <= 0 || pos.DistanceSquaredTo(listener) >= maxRange * maxRange
+            || Pick(name) is not { } s) return;
+        float g = DistanceGain(pos.DistanceTo(listener), maxRange, floor);
+        var p = players3D.FirstOrDefault(p => !p.Playing)
+            ?? players3D[next3D = (next3D + 1) % players3D.Count];
+        spatial[p] = (maxRange, floor, vol);
         p.Stream = s;
         p.GlobalPosition = pos;
         p.VolumeDb = Mathf.LinearToDb(Mathf.Max(1e-4f, Volume * vol * g));
-        p.PitchScale = 1f + (pitchJitter > 0 ? ((float)Random.Shared.NextDouble() * 2 - 1) * pitchJitter : 0f);
+        p.PitchScale = Mathf.Clamp(1f + (pitchJitter > 0 ? ((float)Random.Shared.NextDouble() * 2 - 1) * pitchJitter : 0f), 0.1f, 4f);
         p.Play();
     }
 
@@ -319,6 +360,7 @@ public partial class Sfx : Node
 
     void Add(string name, float seconds, int voices, Func<Func<float, float>> make)
     {
+        if (recorded.ContainsKey(name)) return;
         var f = make();
         int n = (int)(seconds * SR);
         var data = new byte[n * 2];

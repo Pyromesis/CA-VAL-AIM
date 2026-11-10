@@ -121,7 +121,7 @@ sealed class WorldBuilder
                 Band(Gold, b, top - 0.46f, top - 0.38f, 0.036f, Faces.Sides | Faces.NegY | Faces.PosY);
                 break;
             case DecorStyle.Range:
-                Band(RangeOrange, b, mn.Y + baseH, mn.Y + baseH + 0.22f, 0.032f, Faces.Sides | Faces.PosY | Faces.NegY);
+                Band(M(th.Cap), b, mn.Y + baseH, mn.Y + baseH + 0.22f, 0.032f, Faces.Sides | Faces.PosY | Faces.NegY);
                 break;
         }
     }
@@ -168,7 +168,6 @@ sealed class WorldBuilder
     static readonly StandardMaterial3D Iron = SurfaceLib.Flat(new Color(0.07f, 0.07f, 0.075f), 0.45f, 0.6f);
     static readonly StandardMaterial3D Gold = SurfaceLib.Flat(new Color(0.83f, 0.62f, 0.24f), 0.35f, 0.8f);
     static readonly StandardMaterial3D LampGlass = SurfaceLib.Glow(new Color(1f, 0.78f, 0.48f), 1.6f);
-    static readonly StandardMaterial3D RangeOrange = SurfaceLib.Flat(new Color(0.95f, 0.42f, 0.1f), 0.6f);
     static readonly StandardMaterial3D NeonPink = SurfaceLib.Glow(new Color(1f, 0.18f, 0.55f), 3f);
     static readonly StandardMaterial3D NeonCyan = SurfaceLib.Glow(new Color(0.15f, 0.85f, 1f), 3f);
     static readonly StandardMaterial3D SignWarm = SurfaceLib.Glow(new Color(1f, 0.85f, 0.6f), 2.2f);
@@ -380,56 +379,41 @@ sealed class WorldBuilder
 
     public void RangeDressing(float halfWidth, float front, float back)
     {
-        var orange = RangeOrange;
-        var yellow = SurfaceLib.Flat(new Color(0.98f, 0.78f, 0.16f), 0.6f);
-        var white = SurfaceLib.Flat(new Color(0.85f, 0.86f, 0.88f), 0.7f);
-        // Distance lines every 10 m (the player stands at z = 0), short ticks every 5 m.
-        for (int d = 10; d < -front; d += 10)
-            batch.FloorQuad(orange, -halfWidth + 0.6f, -d - 0.1f, halfWidth - 0.6f, -d + 0.1f, 0.004f);
-        for (int d = 5; d < -front; d += 10)
-            batch.FloorQuad(yellow, -1.2f, -d - 0.06f, 1.2f, -d + 0.06f, 0.004f);
-        // Lane edges.
-        foreach (var x in new[] { -halfWidth + 3f, halfWidth - 3f })
-            batch.FloorQuad(white, x - 0.06f, front + 1, x + 0.06f, back - 1, 0.003f);
-        // Spawn pad.
-        const float P = 1.6f, W = 0.08f;
-        batch.FloorQuad(SurfaceLib.Flat(new Color(0.16f, 0.17f, 0.2f), 0.8f), -P, -P, P, P, 0.002f);
-        batch.FloorQuad(orange, -P, -P, P, -P + W, 0.004f);
-        batch.FloorQuad(orange, -P, P - W, P, P, 0.004f);
-        batch.FloorQuad(orange, -P, -P + W, -P + W, P - W, 0.004f);
-        batch.FloorQuad(orange, P - W, -P + W, P, P - W, 0.004f);
+        var ink = SurfaceLib.Flat(new Color("#665b48"), 0.92f);
+        var brass = SurfaceLib.Flat(new Color("#b29a68"), 0.85f);
+        var slate = SurfaceLib.Flat(new Color("#45625d"), 0.9f);
+        for (int d = 5; d < -front; d += 5)
+        {
+            float width = d % 10 == 0 ? 0.95f : 0.42f;
+            foreach (float x in new[] { -4.8f, 4.8f })
+                batch.FloorQuad(ink, x - width, -d - 0.05f, x + width, -d + 0.05f, 0.004f);
+        }
+        foreach (float x in new[] { -halfWidth + 2.6f, halfWidth - 2.6f })
+            batch.FloorQuad(brass, x - 0.07f, front + 1, x + 0.07f, back - 1, 0.004f);
+        batch.FloorQuad(slate, -1.65f, -1.65f, 1.65f, 1.65f, 0.003f);
+        batch.FloorQuad(brass, -1.65f, -1.65f, 1.65f, -1.56f, 0.005f);
 
-        for (int d = 10; d < -front; d += 10)
-            foreach (var x in new[] { -6.5f, 6.5f })
-                root.AddChild(new Label3D
-                {
-                    Text = $"{d}M", FontSize = 120, PixelSize = 0.008f, Modulate = new Color(0.98f, 0.55f, 0.15f),
-                    OutlineSize = 0, Shaded = false, AlphaCut = Label3D.AlphaCutMode.Discard,
-                    Position = new Vector3(x, 0.01f, -d + 0.75f), RotationDegrees = new Vector3(-90, 0, 0),
-                    CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
-                });
-
-        // Panel seams and flood-light panels on the inside faces of the walls.
-        var seam = M(th.Base);
-        float baseTop = th.BaseH + 0.22f, top = 16f - th.CapH;
-        for (float x = -halfWidth + 8; x < halfWidth - 1; x += 8)
+        // Architectural details hug the perimeter. The central firing volume has no new blockers.
+        var stone = M(th.Trim);
+        var terracotta = M(th.Cap);
+        for (float z = front + 4; z < back - 1; z += 9)
         {
-            Add(seam, new Box(new Vector3(x - 0.07f, baseTop, front), new Vector3(x + 0.07f, top, front + 0.02f)));
-            Add(seam, new Box(new Vector3(x - 0.07f, baseTop, back - 0.02f), new Vector3(x + 0.07f, top, back)));
+            Add(stone, new Box(new Vector3(-halfWidth, 0, z - 0.48f), new Vector3(-halfWidth + 0.08f, 16, z + 0.48f)));
+            Add(stone, new Box(new Vector3(halfWidth - 0.08f, 0, z - 0.48f), new Vector3(halfWidth, 16, z + 0.48f)));
         }
-        for (float z = front + 8; z < back - 1; z += 8)
+        // The rear terrace steps up behind the solid wall, with a shaded gallery in the skyline.
+        Add(M(th.Backdrop), new Box(new Vector3(-halfWidth - 8, 0, front - 12), new Vector3(halfWidth + 8, 20, front - 2)));
+        Add(terracotta, new Box(new Vector3(-halfWidth - 9, 19.7f, front - 13), new Vector3(halfWidth + 9, 20.4f, front - 1.5f)));
+        for (float x = -halfWidth + 3; x < halfWidth; x += 8)
+            Add(stone, new Box(new Vector3(x - 0.55f, 20, front - 7), new Vector3(x + 0.55f, 25, front - 4)));
+        Add(terracotta, new Box(new Vector3(-halfWidth + 1, 24.6f, front - 9), new Vector3(halfWidth - 1, 25.5f, front - 2.5f)));
+        foreach (float x in new[] { -halfWidth - 3f, halfWidth + 3f })
         {
-            Add(seam, new Box(new Vector3(-halfWidth, baseTop, z - 0.07f), new Vector3(-halfWidth + 0.02f, top, z + 0.07f)));
-            Add(seam, new Box(new Vector3(halfWidth - 0.02f, baseTop, z - 0.07f), new Vector3(halfWidth, top, z + 0.07f)));
+            Add(M(th.Backdrop), new Box(new Vector3(x - 4, 0, front - 13), new Vector3(x + 4, 28, front - 3)));
+            Add(terracotta, new Box(new Vector3(x - 4.6f, 27.7f, front - 13.6f), new Vector3(x + 4.6f, 28.6f, front - 2.4f)));
         }
-        var flood = SurfaceLib.Glow(new Color(0.9f, 0.95f, 1f), 1.4f);
-        for (float x = -halfWidth + 12; x < halfWidth - 4; x += 16)
-        {
-            Add(DarkPanel, new Box(new Vector3(x - 1.2f, 11.6f, front), new Vector3(x + 1.2f, 12.4f, front + 0.1f)));
-            Add(flood, new Box(new Vector3(x - 1.05f, 11.7f, front + 0.1f), new Vector3(x + 1.05f, 12.3f, front + 0.12f)));
-        }
-        // Big orange stripe high on the far wall (reads as the range's back board).
-        Add(orange, new Box(new Vector3(-halfWidth, 7.0f, front), new Vector3(halfWidth, 7.35f, front + 0.03f)));
+        // Keep the target backdrop plain at head height. The decorative inlay sits well above it.
+        Add(slate, new Box(new Vector3(-halfWidth, 10.5f, front), new Vector3(halfWidth, 11.2f, front + 0.035f)));
     }
 
     // ------------------------------------------------------------------ outside the play space

@@ -212,6 +212,7 @@ public partial class Main : Node
             case "stats": Callable.From(ShowStats).CallDeferred(); break;
             case "reaction" or "reactions": Callable.From(ShowReactionStats).CallDeferred(); break;
             case "senslab" or "sens-lab": Callable.From(ShowSensLab).CallDeferred(); break;
+            case "practice": Callable.From(ShowPractice).CallDeferred(); break;
             case "warmup" or "lockin": Callable.From(ShowLockIn).CallDeferred(); break;
             case "agents": Callable.From(ShowAgents).CallDeferred(); break; // + --agent jett, --agent-go routine|<drill> (AgentsScreen)
             case "playlists": Callable.From(ShowPlaylists).CallDeferred(); break;
@@ -340,7 +341,8 @@ public partial class Main : Node
         // Crossfade: a still of the outgoing screen lies over the new one and fades out (UI/MinimalKit.cs ScreenFade), so
         // a screen change never shows an empty or half-built frame. Not on the first screen, in headless runs, or when
         // the dev flag --no-transitions asks for instant switches (pixel-exact screenshots).
-        Image? still = screen != null && IsInstanceValid(screen) && !noTransitions ? ScreenFade.Capture(GetViewport()) : null;
+        Image? still = screen != null && IsInstanceValid(screen) && !noTransitions &&
+            screen is not GameSession && n is not GameSession ? ScreenFade.Capture(GetViewport()) : null;
         screen?.QueueFree();
         screen = n;
         AddChild(n);
@@ -373,7 +375,7 @@ public partial class Main : Node
 
     public void ShowMenu()
     {
-        PlaylistRunner.Restore(); // a coach playlist may have changed the recoil per drill
+        PlaylistRunner.Restore();
         Warmup.WarmupRunner.Abandon(); // leaving a Lock-In mid-routine (pause → Back to menu)
         Input.MouseMode = Input.MouseModeEnum.Visible;
         if (ReturnToAgents) { ReturnToAgents = false; SetScreen(new AgentsScreen()); return; }
@@ -390,6 +392,7 @@ public partial class Main : Node
     /// <summary>Reaction times by category (Stats → REACTION TIMES).</summary>
     public void ShowReactionStats() => SetScreen(new ReactionStatsScreen());
     public void ShowProfile() => SetScreen(new ProfileScreen());
+    public void ShowPractice() => SetScreen(new PracticeScreen());
     public void ShowSensLab() => SetScreen(new SensLabScreen());
     /// <summary>The Lock-In setup screen (menu LOCK IN).</summary>
     public void ShowLockIn() => SetScreen(new Warmup.WarmupScreen());

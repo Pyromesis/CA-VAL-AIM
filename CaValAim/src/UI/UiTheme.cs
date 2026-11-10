@@ -107,7 +107,14 @@ public static class UiTheme
 
     // Interface sounds (1.18): hover is silent (it played a bright 1.5 kHz tick on every pointer move); a click is a
     // short, soft low "tock" and a confirmation two quiet notes. Both follow Settings → Audio → Interface sounds / volume.
-    public static void HoverSound() { }
+    static ulong nextHoverSound;
+    public static void HoverSound()
+    {
+        ulong now = Time.GetTicksMsec();
+        if (now < nextHoverSound) return;
+        nextHoverSound = now + 75;
+        UiSound("ui_hover", 0.35f);
+    }
     public static void ClickSound() => UiSound("ui_click");
     public static void ConfirmSound() => UiSound("ui_confirm");
 

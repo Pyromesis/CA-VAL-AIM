@@ -19,6 +19,10 @@ public static partial class MapSpots
         Drill = "Climb Hookah, swing the window and drop in: clear Under Window, Default, Elevator, Back Site, Hall, Elbow and Garden",
         StartFeet = V(-6.08f, 0.6f, 30.81f), StartYaw = 11, Choke = V(-6.08f, 1.9f, 30.81f),
         RealMapFolder = "maps/bind",
+        // The Hookah window: the art opens it from y=3.05 (a 0.55 m sill over the 2.5 m floor), but the extracted
+        // collision included the sill as a slab up to y=3.5 and a 0.5 m lip outside it, so a standing jump hit an
+        // invisible wall. Cut both above the real sill; authored in the pre-mirror frame like every other point.
+        Cuts = new[] { Box3(-7.08f, 3.06f, 16.3f, -3.42f, 3.7f, 17.6f) },
         Palette = new MapPalette(C(178, 150, 112), C(222, 190, 142), C(178, 98, 62), C(170, 124, 82), C(44, 128, 134), C(165, 195, 220)),
         // Only used when the external real-map files are absent: a floor at site level so the drills still run.
         Boxes = new[] { B(-80f, -0.1f, -80f, 80f, 0.6f, 80f, Surf.Floor) },

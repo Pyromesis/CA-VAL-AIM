@@ -41,10 +41,11 @@ public sealed class LiveCoach
     }
 
     /// <summary>Call every frame while the run is running.</summary>
-    public void Tick(float now)
+    public void Tick(float now, bool stableSensitivity = true)
     {
         if (Current != null && now - Current.At > Show) Current = null;
-        if (staticDrill) PollFlicks(now);
+        if (stableSensitivity && (staticDrill || botDrill)) PollFlicks(now);
+        if (!stableSensitivity) flick = null;
         if (now < nextCheck) return;
         nextCheck = now + Every;
         if (now - lastTipAt < MinGap) return;
@@ -85,8 +86,12 @@ public sealed class LiveCoach
         int fi = tel.Frames.Count - 1;
         while (fi > 0 && tel.Frames[fi - 1].T >= from) fi--;
         for (int i = Math.Max(0, fi); i < tel.Frames.Count; i++) snap.Frames.Add(tel.Frames[i]);
-        foreach (var sh in tel.Shots) if (sh.T >= from) snap.Shots.Add(sh);
-        foreach (var e in tel.Events) if (e.T >= from) snap.Events.Add(e);
+        int si = tel.Shots.Count;
+        while (si > 0 && tel.Shots[si - 1].T >= from) si--;
+        for (; si < tel.Shots.Count; si++) snap.Shots.Add(tel.Shots[si]);
+        int ei = tel.Events.Count;
+        while (ei > 0 && tel.Events[ei - 1].T >= from) ei--;
+        for (; ei < tel.Events.Count; ei++) snap.Events.Add(tel.Events[ei]);
         float at = now;
         flickTask = System.Threading.Tasks.Task.Run(() =>
         {
@@ -95,14 +100,18 @@ public sealed class LiveCoach
             try
             {
                 if (RunAnalysis.Prepare(snap) is { } p)
+                {
+                    var counted = new HashSet<(int, double)>();
                     foreach (var (_, r) in RunAnalysis.Trials(p))
                     {
-                        if (r is not { HasPrimary: true, Bot: false }) continue;
+                        if (r is not { HasPrimary: true } || (r.Bot && !RunAnalysis.CleanAimSample(p, r))) continue;
+                        if (r.Bot && !counted.Add((r.TrialId, Math.Round(r.TeP, 1)))) continue;
                         flicks++;
                         gain += r.Gain;
                         if (r.Over) { over++; overDeg += r.S; overPct += r.S / r.A; overR += r.R; }
                         else if (r.Under) under++;
                     }
+                }
             }
             catch { /* a partial window the analysis can't read: no cue this time */ }
             return over > 0
@@ -119,8 +128,10 @@ public sealed class LiveCoach
     LiveTip? Evaluate(float now)
     {
         float from = now - Window;
-        var shots = tel.Shots.Where(s => s.T >= from).ToList();
-        var events = tel.Events.Where(e => e.T >= from).ToList();
+        int firstShot = tel.Shots.FindLastIndex(s => s.T < from) + 1;
+        int firstEvent = tel.Events.FindLastIndex(e => e.T < from) + 1;
+        var shots = tel.Shots.GetRange(firstShot, tel.Shots.Count - firstShot);
+        var events = tel.Events.GetRange(firstEvent, tel.Events.Count - firstEvent);
 
         // ---- reaction tests: anticipation
         if (reactionDrill)
@@ -185,7 +196,7 @@ public sealed class LiveCoach
         // ---- overshoot / stopping short on flicks (static targets). The same measure as the after-run coach
         // (RunAnalysis: where the primary submovement of each flick ends, along the flick, relative to the target's
         // radius), computed on a snapshot of the last seconds off the main thread (see PollFlicks).
-        if (staticDrill && Ready("FLICK", now) && flick is { } fl)
+        if (Ready("FLICK", now) && flick is { } fl && now - fl.At <= FlickWindow)
         {
             int n = fl.Over + fl.Under;
             if (CmdLine.Dev && CmdLine.Has("--livecoach-debug"))
@@ -212,7 +223,8 @@ public sealed class LiveCoach
         // ---- tracking: distance from the target while firing
         if (trackingDrill && Ready("TRACK", now))
         {
-            var fr = tel.Frames.Where(f => f.T >= from && f.FocusId != 0 && f.Has(FrameFlags.Firing)).ToList();
+            int firstFrame = tel.Frames.FindLastIndex(f => f.T < from) + 1;
+            var fr = tel.Frames.Skip(firstFrame).Where(f => f.FocusId != 0 && f.Has(FrameFlags.Firing)).ToList();
             if (fr.Count >= 120)
             {
                 float on = fr.Count(f => f.FocusErr <= f.FocusRadius) / (float)fr.Count;

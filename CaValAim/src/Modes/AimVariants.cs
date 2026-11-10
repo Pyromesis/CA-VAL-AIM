@@ -34,6 +34,15 @@ public sealed record AimVariant(string Id, AimFamily Family, string Name, string
     public float Life { get; init; }
     /// <summary>Sideways drift of flick / micro targets (m/s, 0 = still).</summary>
     public float Drift { get; init; }
+    public float VerticalDrift { get; init; }
+    public float DriftWidth { get; init; }
+    public float ContactSeconds { get; init; }
+    public float RegenDelay { get; init; }
+    public float RegenSeconds { get; init; }
+    public int HitsToClear { get; init; } = 1;
+    public int Walls { get; init; }
+    public bool SideStep { get; init; }
+    public bool TapOnly { get; init; }
     // micro
     public float OffMin { get; init; } = 1.5f;
     public float OffMax { get; init; } = 5f;
@@ -57,10 +66,11 @@ public sealed record AimVariant(string Id, AimFamily Family, string Name, string
 
     public string Key => KeyBase + ":" + Id;
 
-    public string Category => Family switch
+    public string? CategoryOverride { get; init; }
+    public string Category => CategoryOverride ?? (Family switch
     {
         AimFamily.Flick => "Flick", AimFamily.Track => "Tracking", AimFamily.Micro => "Micro", _ => "Reflex",
-    };
+    });
 
     /// <summary>
     /// The same drill at a skill tier (0 Rookie … 4 Radiant). Authored numbers are the tier-2 baseline (Regular): lower
@@ -69,6 +79,9 @@ public sealed record AimVariant(string Id, AimFamily Family, string Name, string
     /// </summary>
     public AimVariant At(int tier)
     {
+        // Named community scenarios have their own difficulty (Easy/Small/Hard).
+        // A global rank must not silently alter their size, timing and speed.
+        if (Id.StartsWith("sc-", StringComparison.Ordinal)) return this;
         tier = Math.Clamp(tier, 0, 4);
         float radiusMul = new[] { 1.42f, 1.18f, 1f, 0.84f, 0.70f }[tier];
         float distMul = new[] { 0.82f, 0.91f, 1f, 1.07f, 1.14f }[tier];
@@ -101,6 +114,7 @@ public sealed record AimVariant(string Id, AimFamily Family, string Name, string
             MinAngle = Math.Clamp(MinAngle * angleMul, 0f, 120f),
             Life = Life > 0 ? Math.Clamp(Life * lifeMul, 0.25f, 12f) : 0f,
             Drift = Drift > 0 ? Math.Clamp(Drift * speedMul, 0.15f, 10f) : 0f,
+            VerticalDrift = VerticalDrift * speedMul,
             OffMin = offMin,
             OffMax = offMax,
             Speed = speed,
@@ -116,6 +130,7 @@ public sealed record AimVariant(string Id, AimFamily Family, string Name, string
 
     public TrainingMode Create() => Family switch
     {
+        _ when Walls > 0 || SideStep => new FlickVariantMode(this),
         AimFamily.Flick => new FlickVariantMode(this),
         AimFamily.Track => new TrackVariantMode(this),
         AimFamily.Micro => new MicroVariantMode(this),
@@ -134,6 +149,21 @@ public static class AimVariants
 
     public static readonly AimVariant[] Base =
     {
+        F("sens-braking", "Sensitivity: braking", "Stop at each head and check whether you overshoot or stop short.")
+            with { CategoryOverride = "Sensitivity", Walls = 1, TapOnly = true, Pattern = AimPattern.Horizontal, Yaw = 36, MinAngle = 12 },
+        M("sens-fine", "Sensitivity: fine corrections", "Use tiny corrections. Keep the same sensitivity and aim for clean single clicks.")
+            with { CategoryOverride = "Sensitivity", TapOnly = true, OffMin = 0.65f, OffMax = 2.1f, Radius = 0.11f },
+        T("sens-smooth", "Sensitivity: steady tracking", "Follow the center smoothly and compare your time on target across rounds.")
+            with { CategoryOverride = "Sensitivity", Speed = 2.8f, Radius = 0.26f, TurnMin = 0.85f, TurnMax = 1.5f },
+        X("signal-near", "React to the signal", "Wait through a variable delay, then confirm the target before clicking.")
+            with { TapOnly = true, Yaw = 5f, MinAngle = 0f, DelayMin = 0.8f, DelayMax = 3.2f, Window = 0.95f },
+        X("signal-angle", "React and acquire", "Spot the target off center, move to it, and click within the window.")
+            with { TapOnly = true, Yaw = 28f, MinAngle = 9f, DelayMin = 0.7f, DelayMax = 2.4f, Window = 1.05f },
+        T("control-curves", "Tracking: curved control", "Follow the curve without breaking contact when it changes direction.")
+            with { Motion = TrackMotion.Figure8, Radius = 0.23f, Speed = 3.5f, Width = 5f, Height = 0.9f },
+        T("react-diagonal", "Tracking: diagonal reversals", "React to the direction change and settle back on the target.")
+            with { Motion = TrackMotion.Zigzag, Radius = 0.26f, Speed = 4.4f, Width = 6f, TurnMin = 0.38f, TurnMax = 1.15f },
+
         // ---- flicking: distance, size, spread and pattern ----
         F("close", "Close Flicks", "Big targets at 5–7 m, 20–40° apart: fast, wide arm flicks.") with { Radius = 0.3f, DistMin = 5, DistMax = 7, Yaw = 40, MinAngle = 20 },
         F("mid", "Mid-range Flicks", "Head-size targets at 12–18 m, 8–25° away: the VALORANT duel distance.") with { DistMin = 12, DistMax = 18, Yaw = 25, MinAngle = 8 },
@@ -201,6 +231,14 @@ public static class AimVariants
         X("double", "Double Reflex", "Two heads pop together: hit both before they vanish.") with { Count = 2, Yaw = 18, MinAngle = 4, Window = 1.1f },
         X("close", "Close Reflex", "Big heads at 4–6 m, wide angles: a close-range surprise.") with { Radius = 0.2f, DistMin = 4, DistMax = 6, Yaw = 35, MinAngle = 10, Window = 0.7f },
         X("mixed", "Mixed Reflex", "Every pop-up has a new distance, size and window.") with { Radius = 0.14f, DistMin = 6, DistMax = 35, Yaw = 25, MinAngle = 3, Window = 0.75f },
+        F("settle-confirm", "Brake and confirm", "Hold fire and keep your aim steady on each target for 120 ms before switching.")
+            with { Walls = 1, Count = 3, ContactSeconds = 0.12f, Radius = 0.14f, Yaw = 28f },
+        F("moving-confirm", "Acquire and follow", "Acquire a moving target, follow it for 160 ms and switch after the kill.")
+            with { Count = 3, ContactSeconds = 0.16f, Radius = 0.18f, Drift = 1.8f, VerticalDrift = 0.35f },
+        F("stop-tap", "Stop and shoot", "Strafe with the Classic, release movement and confirm the shot on a stationary target.")
+            with { SideStep = true, TapOnly = true, Walls = 1, Count = 2, Radius = 0.16f, DistMin = 12, DistMax = 18 },
+        X("double-confirm", "Confirm two hits", "Hit once, read the new position and fire again within the same window.")
+            with { HitsToClear = 2, TapOnly = true, Window = 1.2f, Radius = 0.18f, Yaw = 18f },
     };
 
     /// <summary>Everything playable through "flickx:" / "trackv:" / "microx:" / "reflex:": the core set first, then the
@@ -235,12 +273,28 @@ public sealed class FlickVariantMode : TrainingMode
     public override string Name => v.Name;
     public override string Description => v.Description;
     public override string Category => v.Category;
-    public override string SimKind => "static";
+    public override int? PreferredTier => v.Id.StartsWith("sc-", StringComparison.Ordinal) ? 2 : null;
+    public override string SimKind => v.ContactSeconds > 0 ? "track"
+        : (v.Id.StartsWith("sc-", StringComparison.Ordinal) && (v.Drift > 0 || v.VerticalDrift > 0)) ? "bot" : "static";
     public override bool UsesHeadshots => false;
+    public override bool Movement => v.SideStep;
+    public bool RegeneratingTargets => v.RegenSeconds > 0;
+    public override bool WeaponSlots => !v.SideStep && Weapon != WeaponKind.None;
+    public override bool SingleClick => v.TapOnly && v.ContactSeconds <= 0;
+    public override WeaponKind Weapon => v.SideStep ? WeaponKind.Classic
+        : v.ContactSeconds > 0 || v.TapOnly ? WeaponKind.None : base.Weapon;
+    public override string? Prompt => v.ContactSeconds > 0
+        ? (Loc.Spanish ? "Mantén pulsado disparo y conserva la mira en el blanco hasta eliminarlo." : "Hold fire and stay on each target until it clears.")
+        : null;
+    public override float Accuracy => v.ContactSeconds > 0 ? (held > 0 ? onTarget / held : 0) : base.Accuracy;
 
     Target[] t = Array.Empty<Target>();
     int[] ids = Array.Empty<int>();
     float[] drift = Array.Empty<float>();
+    Vector3[] home = Array.Empty<Vector3>();
+    int contactIndex = -1;
+    float contact, held, onTarget;
+    ContactHealth[] health = Array.Empty<ContactHealth>();
     int nextId = 1, expired;
     bool atCentre;
 
@@ -261,8 +315,10 @@ public sealed class FlickVariantMode : TrainingMode
     protected override void Setup()
     {
         v = v.At(Tier); // the tier chosen in the menu / pause menu scales the authored drill
-        int n = Math.Clamp(v.Count, 1, 5);
+        int n = Math.Clamp(v.Count, 1, 18);
         t = new Target[n]; ids = new int[n]; drift = new float[n];
+        home = new Vector3[n];
+        health = Enumerable.Range(0, n).Select(_ => new ContactHealth()).ToArray();
         for (int i = 0; i < n; i++) { t[i] = G.SpawnTarget(v.Radius); Spawn(i, first: true); }
     }
 
@@ -281,32 +337,58 @@ public sealed class FlickVariantMode : TrainingMode
             atCentre = false;
             for (int k = 0; k < 40; k++)
             {
-                yaw = G.View.ViewYaw * (v.Pattern == AimPattern.Wide ? 1f : 0f) + R(-v.Yaw, v.Yaw);
+                float centre = v.Walls > 0 ? (i % v.Walls) * (360f / v.Walls) : v.Pattern == AimPattern.Wide ? G.View.ViewYaw : 0;
+                yaw = centre + R(-v.Yaw, v.Yaw);
                 pitch = v.Pattern switch
                 {
                     AimPattern.Horizontal => R(0f, 1.2f),
                     _ => R(lo, hi),
                 };
                 if (v.Pattern == AimPattern.Vertical) yaw = R(-Mathf.Min(8f, v.Yaw), Mathf.Min(8f, v.Yaw));
-                var p = G.View.Eye + PlayerView.Dir(yaw, pitch) * d;
+                var p = PositionFor(yaw, pitch, d, centre);
                 bool farEnough = first || AngleFromCrosshair(p) >= v.MinAngle;
                 bool apart = true;
                 for (int j = 0; j < t.Length; j++) if (j != i && t[j] != null && t[j].Position.DistanceTo(p) < v.Radius * 4f) apart = false;
                 if (farEnough && apart) break;
             }
         }
-        t[i].Position = atCentre ? G.View.Eye + PlayerView.Dir(0f, 1f) * d : G.View.Eye + PlayerView.Dir(yaw, pitch) * d;
+        float wallYaw = v.Walls > 0 ? (i % v.Walls) * (360f / v.Walls) : 0;
+        home[i] = t[i].Position = atCentre ? G.View.Eye + PlayerView.Dir(0f, 1f) * d : PositionFor(yaw, pitch, d, wallYaw);
         t[i].SpawnTime = Now;
         drift[i] = v.Drift > 0 ? (Rng.Next(2) == 0 ? -1 : 1) * v.Drift : 0f;
         ids[i] = nextId++;
+        health[i].Reset();
         if (!first) Event("target_spawn", ids[i], AngleFromCrosshair(t[i].Position));
+    }
+
+    Vector3 PositionFor(float yaw, float pitch, float distance, float wallYaw)
+    {
+        var dir = PlayerView.Dir(yaw, pitch);
+        if (v.Walls == 0) return G.View.Eye + dir * distance;
+        float depth = (v.DistMin + v.DistMax) * 0.5f;
+        if (v.Walls > 1) depth = Math.Min(depth, 9f); // all panels must fit inside the range, including the rear wall
+        float along = dir.Dot(PlayerView.Dir(wallYaw, 0));
+        var point = G.View.Eye + dir * (depth / Math.Max(0.2f, along));
+        point.Y = Math.Max(v.Radius + 0.03f, point.Y);
+        return point;
     }
 
     public override void Update(float dt)
     {
         for (int i = 0; i < t.Length; i++)
         {
-            if (drift[i] != 0)
+            if (v.VerticalDrift != 0 || v.DriftWidth > 0)
+            {
+                float age = Now - t[i].SpawnTime;
+                float horizontal = v.DriftWidth > 0
+                    ? v.DriftWidth * Mathf.Sin(age * drift[i] / v.DriftWidth)
+                    : drift[i] * 0.42f * Mathf.Sin(age * 2.4f);
+                var p = home[i] + new Vector3(horizontal,
+                    v.VerticalDrift * (Mathf.Sin(age * 3.1f + i) - Mathf.Sin(i)), 0);
+                p.Y = Math.Max(v.Radius + 0.03f, p.Y);
+                t[i].Position = p;
+            }
+            else if (drift[i] != 0)
             {
                 var p = t[i].Position;
                 p.X += drift[i] * dt;
@@ -320,33 +402,69 @@ public sealed class FlickVariantMode : TrainingMode
                 Spawn(i);
             }
         }
+        if (v.ContactSeconds > 0) TrackContact(dt);
+    }
+
+    int TargetAlong(Vector3 o, Vector3 d, float limit, out float bestD)
+    {
+        int best = -1;
+        bestD = limit;
+        for (int i = 0; i < t.Length; i++)
+        {
+            float h = t[i].Ray(o, d);
+            if (h < bestD) { bestD = h; best = i; }
+        }
+        return best;
+    }
+
+    void TrackContact(float dt)
+    {
+        int best = G.TriggerHeld ? TargetAlong(G.View.Eye, G.View.Forward, float.PositiveInfinity, out _) : -1;
+        if (v.RegenSeconds > 0)
+            for (int i = 0; i < health.Length; i++)
+                health[i].Tick(i == best, dt, v.ContactSeconds, v.RegenDelay, v.RegenSeconds);
+        if (G.TriggerHeld) held += dt;
+        if (best != contactIndex) { contactIndex = best; contact = 0; }
+        if (best < 0) return;
+        onTarget += dt;
+        contact = v.RegenSeconds > 0 ? health[best].Progress : contact + dt;
+        if (contact + 1e-5f < v.ContactSeconds) return;
+        ClearTarget(best);
+        contact = 0;
     }
 
     public override float OnBullet(Vector3 o, Vector3 d, bool accurate)
     {
         Shots++;
-        int best = -1; float bestD = float.PositiveInfinity;
-        for (int i = 0; i < t.Length; i++)
-        {
-            float h = t[i].Ray(o, d);
-            if (h < bestD && h < G.BulletWallDist) { bestD = h; best = i; }
-        }
+        int best = TargetAlong(o, d, G.BulletWallDist, out float bestD);
         if (best < 0) { Score -= 20; return float.PositiveInfinity; }
-        float ms = (Now - t[best].SpawnTime) * 1000f;
-        Hits++; Kills++;
+        Hits++;
         LastShotZone = HitZone.Head;
+        ClearTarget(best);
+        return bestD;
+    }
+
+    void ClearTarget(int best)
+    {
+        float ms = (Now - t[best].SpawnTime) * 1000f;
+        Kills++;
         KillTimes.Add(ms);
         Event("target_hit", ids[best], ms);
-        Score += 100 + (int)Mathf.Max(0, (900 - ms) / 6);
+        Score += v.ContactSeconds > 0 ? 100 : 100 + (int)Mathf.Max(0, (900 - ms) / 6);
         G.Sound(v.Radius <= 0.16f ? "head" : "body", 0.8f);
         t[best].Hit();
         Spawn(best);
-        return bestD;
     }
 
     public override IEnumerable<(string Label, string Value)> ResultLines()
     {
         bool es = Loc.Spanish;
+        if (v.ContactSeconds > 0)
+        {
+            yield return (es ? "Tiempo en blanco al disparar" : "Time on target while firing", $"{Accuracy:P1}");
+            yield return (es ? "Blancos eliminados" : "Targets cleared", Kills.ToString());
+            yield break;
+        }
         yield return (es ? "Precisión" : "Accuracy", $"{Accuracy * 100:0.0}%  ({Hits}/{Shots})");
         yield return (es ? "Tiempo medio de impacto" : "Median time to hit", KillTimes.Count > 0 ? $"{Median(KillTimes):0} ms" : "—");
         if (v.Life > 0) yield return (es ? "Objetivos caducados" : "Expired targets", expired.ToString());
@@ -363,7 +481,11 @@ public sealed class MicroVariantMode : TrainingMode
     public override string Name => v.Name;
     public override string Description => v.Description;
     public override string Category => v.Category;
-    public override string SimKind => "static";
+    public override int? PreferredTier => v.Id.StartsWith("sc-", StringComparison.Ordinal) ? 2 : null;
+    public override string SimKind => v.Id.StartsWith("sc-", StringComparison.Ordinal) && (v.Drift > 0 || v.VerticalDrift > 0)
+        ? "bot" : "static";
+    public override bool SingleClick => v.TapOnly;
+    public override WeaponKind Weapon => v.TapOnly ? WeaponKind.None : base.Weapon;
 
     Target[] t = Array.Empty<Target>();
     int[] ids = Array.Empty<int>();
@@ -448,8 +570,14 @@ public sealed class MicroVariantMode : TrainingMode
     {
         for (int i = 0; i < t.Length; i++)
         {
-            if (drift[i] != 0) // slides back and forth around its spot (amplitude = Drift m/s over ~0.6 s)
-                t[i].Position = home[i] + Vector3.Right * (drift[i] * 0.6f * Mathf.Sin((Now - t[i].SpawnTime) * 2.6f));
+            if (drift[i] != 0 || v.VerticalDrift != 0)
+            {
+                float age = Now - t[i].SpawnTime;
+                var p = home[i] + new Vector3(drift[i] * 0.6f * Mathf.Sin(age * 2.6f),
+                    v.VerticalDrift * (Mathf.Sin(age * 3.1f + i) - Mathf.Sin(i)), 0);
+                p.Y = Math.Max(v.Radius + 0.03f, p.Y);
+                t[i].Position = p;
+            }
             if (v.Life > 0 && Now - t[i].SpawnTime > v.Life)
             {
                 expired++; Score -= 30; G.Sound("fail", 0.4f); Event("target_expired", ids[i]);
@@ -505,11 +633,15 @@ public sealed class ReflexVariantMode : TrainingMode
     public override string Name => v.Name;
     public override string Description => v.Description;
     public override string Category => v.Category;
+    public override int? PreferredTier => v.Id.StartsWith("sc-", StringComparison.Ordinal) ? 2 : null;
     public override string SimKind => "static";
+    public override bool SingleClick => v.TapOnly;
+    public override WeaponKind Weapon => v.TapOnly ? WeaponKind.None : base.Weapon;
 
     Target[] heads = Array.Empty<Target>();
     bool[] up = Array.Empty<bool>();
     int[] ids = Array.Empty<int>();
+    int[] landed = Array.Empty<int>();
     float nextAt = 0.8f, window, lastMs = -1;
     int nextId = 1, shown, expired;
 
@@ -532,7 +664,7 @@ public sealed class ReflexVariantMode : TrainingMode
     {
         v = v.At(Tier);
         int n = Math.Clamp(v.Count, 1, 2);
-        heads = new Target[n]; up = new bool[n]; ids = new int[n];
+        heads = new Target[n]; up = new bool[n]; ids = new int[n]; landed = new int[n];
         for (int i = 0; i < n; i++)
         {
             heads[i] = G.SpawnTarget(v.Radius);
@@ -562,6 +694,7 @@ public sealed class ReflexVariantMode : TrainingMode
             heads[i].Visible = true;
             heads[i].SpawnTime = Now;
             up[i] = true;
+            landed[i] = 0;
             ids[i] = nextId++;
             maxA = Mathf.Max(maxA, a);
             shown++;
@@ -605,8 +738,20 @@ public sealed class ReflexVariantMode : TrainingMode
         }
         if (best < 0) { Score -= 20; return float.PositiveInfinity; }
         float ms = (Now - heads[best].SpawnTime) * 1000f;
-        Hits++; Kills++;
+        Hits++;
         LastShotZone = HitZone.Head;
+        if (++landed[best] < v.HitsToClear)
+        {
+            G.Sound("body", 0.55f);
+            var target = heads[best];
+            float shift = target.Position.DistanceTo(G.View.Eye) * Mathf.Tan(Mathf.DegToRad(R(3, 6)));
+            target.Position += PlayerView.Dir(G.View.ViewYaw + (Rng.Next(2) == 0 ? -90 : 90), 0) * shift;
+            ids[best] = nextId++;
+            Event("target_spawn", ids[best], AngleFromCrosshair(target.Position));
+            heads[best].Hit();
+            return bestD;
+        }
+        Kills++;
         KillTimes.Add(ms);
         lastMs = ms;
         Event("target_hit", ids[best], ms);
@@ -644,6 +789,7 @@ public sealed class TrackVariantMode : TrackingDrill
     public override string Name => v.Name;
     public override string Description => v.Description;
     public override string Category => v.Category;
+    public override int? PreferredTier => v.Id.StartsWith("sc-", StringComparison.Ordinal) ? 2 : null;
 
     float vx, vy, targetVx, targetVy, nextTurn, phase, dir = 1f, z, vz, speedNow;
     const float Ground = PlayerView.EyeHeight - 0.2f;

@@ -58,6 +58,16 @@ public static class Loc
     /// </summary>
     public static string T(string? text)
     {
+        string localized = Translate(text);
+        if (!Spanish) return localized;
+        return WarmupTerms.Replace(localized, match =>
+            MatchCase(match.Value, match.Value.EndsWith("s", StringComparison.OrdinalIgnoreCase) ? "Calentamientos" : "Calentamiento"));
+    }
+
+    static readonly Regex WarmupTerms = new(@"\bLock[ -]ins?\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+
+    static string Translate(string? text)
+    {
         if (!Spanish || string.IsNullOrEmpty(text)) return text ?? "";
         if (translated.Contains(text)) return text;
         if (Overrides.TryGetValue(text, out var over))
@@ -1346,6 +1356,29 @@ public static class Loc
     /// </summary>
     static readonly Dictionary<string, string> Overrides = new(StringComparer.OrdinalIgnoreCase)
     {
+
+        ["Brake and confirm"] = "Frenar y confirmar",
+        ["Hold fire and keep your aim steady on each target for 120 ms before switching."] = "Mantén disparo y estabiliza la mira 120 ms sobre cada blanco antes de cambiar.",
+        ["Acquire and follow"] = "Adquirir y acompañar",
+        ["Acquire a moving target, follow it for 160 ms and switch after the kill."] = "Adquiere un blanco móvil, acompáñalo 160 ms y cambia al siguiente al eliminarlo.",
+        ["Stop and shoot"] = "Parar y disparar",
+        ["Strafe with the Classic, release movement and confirm the shot on a stationary target."] = "Desplázate lateralmente con la Classic, suelta la dirección y confirma el tiro sobre un blanco fijo.",
+        ["Confirm two hits"] = "Confirmar dos impactos",
+        ["Hit once, read the new position and fire again within the same window."] = "Acierta, lee la nueva posición y vuelve a disparar dentro de la misma ventana.",
+        ["Sensitivity: braking"] = "Sensibilidad: frenado",
+        ["Stop at each head and check whether you overshoot or stop short."] = "Frena en cada cabeza y observa si te pasas o te quedas corto.",
+        ["Sensitivity: fine corrections"] = "Sensibilidad: ajustes finos",
+        ["Use tiny corrections. Keep the same sensitivity and aim for clean single clicks."] = "Haz ajustes mínimos. Mantén tu sensibilidad y busca acertar con un solo clic.",
+        ["Sensitivity: steady tracking"] = "Sensibilidad: seguimiento estable",
+        ["Follow the center smoothly and compare your time on target across rounds."] = "Sigue el centro con suavidad y compara el tiempo en blanco entre rondas.",
+        ["React to the signal"] = "Reacciona a la señal",
+        ["Wait through a variable delay, then confirm the target before clicking."] = "Espera un intervalo variable, confirma el blanco y haz clic.",
+        ["React and acquire"] = "Reacciona y apunta",
+        ["Spot the target off center, move to it, and click within the window."] = "Detecta el blanco fuera del centro, lleva la mira hasta él y haz clic a tiempo.",
+        ["Tracking: curved control"] = "Seguimiento: control en curvas",
+        ["Follow the curve without breaking contact when it changes direction."] = "Sigue la curva y mantén el contacto cuando cambie de dirección.",
+        ["Tracking: diagonal reversals"] = "Seguimiento: giros diagonales",
+        ["React to the direction change and settle back on the target."] = "Reacciona al cambio de dirección y vuelve a estabilizar la mira.",
         // ---- shell ----
         ["LOCK IN"] = "LOCK-IN",
         ["AGENTS"] = "AGENTES",
@@ -1550,6 +1583,10 @@ public static class Loc
         ["Flash Dodge"] = "Esquivar flashes",
         ["Counter-Strafe"] = "Contra-strafe",
         ["Peek Duels"] = "Duelos de asomada",
+        ["Close Corner Duels"] = "Duelos de esquina cercanos",
+        ["Long Corner Duels"] = "Duelos de esquina lejanos",
+        ["At close range, clear the corner, stop quickly and land the first shot."] = "A corta distancia, despeja la esquina, frena y acierta el primer tiro.",
+        ["At long range, clear the corner and use deliberate taps between bursts."] = "A larga distancia, despeja la esquina y dispara tiros sueltos con calma.",
         ["Jump Peek"] = "Asomada con salto",
         ["Jiggle Peek"] = "Asomada corta",
         ["Mixed Peeks"] = "Asomadas mixtas",
@@ -1625,7 +1662,7 @@ public static class Loc
         ["SENS LAB"] = "SENSIBILIDAD",
         ["SENSITIVITY LAB"] = "LABORATORIO DE SENSIBILIDAD",
         ["OVER/UNDERSHOOT, TREMOR AND TRACKING · ACCUMULATED OVER TIME"] =
-            "PASARSE / QUEDARSE CORTO, TEMBLOR Y TRACKING · ACUMULADO EN EL TIEMPO",
+            "PASARSE / QUEDARSE CORTO, TEMBLOR Y SEGUIMIENTO · HISTORIAL",
         ["WHAT WE MEASURE"] = "QUÉ MEDIMOS",
         ["HISTORY BY SENSITIVITY"] = "HISTORIAL POR SENSIBILIDAD",
         ["COACH ADVICE"] = "CONSEJO DEL COACH",
@@ -1642,8 +1679,8 @@ public static class Loc
         ["SHORT"] = "CORTO",
         ["TREMOR"] = "TEMBLOR",
         ["TRACKING"] = "TRACKING",
-        ["RUN SENS FINDER"] = "BUSCADOR DE SENS",
-        ["AIM COACH"] = "COACH DE PUNTERÍA",
+        ["RUN SENS FINDER"] = "PROBAR SENSIBILIDAD",
+        ["AIM COACH"] = "ENTRENADOR DE PUNTERÍA",
 
         // ---- coach / profile ----
         ["YOUR ESTIMATED RANK · WHAT HOLDS YOU BACK · HOW TO FIX IT"] =

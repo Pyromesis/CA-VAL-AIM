@@ -35,7 +35,11 @@ public partial class GameSession : Node3D, IGame
     /// screen keeps reporting the tier that was actually played.</summary>
     int? playedTier;
     public Color Enemy => Main.I.EnemyColor;
-    public Random Rng { get; } = new();
+    public Random Rng { get; private set; } = new();
+    public int? ComparisonSeed { get; init; }
+    public bool? SessionRecoil { get; init; }
+    public bool GuidedPractice { get; init; }
+    public bool WarmupSession { get; init; }
     public float Now { get; private set; }
     public Node3D World { get; private set; } = null!;
     public IReadOnlyList<Box> Solid => solid;
@@ -43,6 +47,22 @@ public partial class GameSession : Node3D, IGame
     public BlindOverlay Blind { get; private set; } = null!;
 
     List<Box> solid = new();
+    /// <summary>Lotus' stone door (null on every other map): its collision boxes live at the end of <see cref="solid"/>.</summary>
+    RevolvingDoor? door;
+    int doorStart = -1;
+    bool doorWasTurning;
+    float doorNoise;
+    bool nearDoor;
+    bool useWasHeld;
+    /// <summary>Dev-only <c>--doorlog</c>: prints the door angle and the player's feet while testing the door.</summary>
+    static readonly bool DevDoorLog = OS.GetCmdlineUserArgs().Concat(OS.GetCmdlineArgs()).Contains("--doorlog");
+    float devDoorT;
+    /// <summary>Dev-only <c>--ropelog</c>: prints the player's feet and rope state while testing the ascender.</summary>
+    static readonly bool DevRopeLog = OS.GetCmdlineUserArgs().Concat(OS.GetCmdlineArgs()).Contains("--ropelog");
+    float devRopeT;
+    /// <summary>Prompt for a world interaction (the stone door's button) shown when the mode has no prompt of its own.</summary>
+    public string? WorldPrompt { get; private set; }
+    readonly List<Box> doorBoxes = new();
     WeaponDef? weaponDef;
     readonly Dictionary<WeaponKind, (int Ammo, int Reserve)> slotAmmo = new();
     public WeaponController? Gun { get; private set; }
@@ -99,7 +119,8 @@ public partial class GameSession : Node3D, IGame
     /// <summary>The preview's simulated player: the coach's "good" player with the steady settings of the promo clips (less
     /// tremor and jitter). In the peek drills it also holds its angle instead of pre-aiming at bots hidden behind cover;
     /// elsewhere (deathmatch, map and agent drills) it has to turn to find them.</summary>
-    string DemoProfile => "good:tremor=0.4,jitter=2" + (DemoHoldDrills.Contains(Mode.Key) ? ",hold=1" : "")
+    string DemoProfile => "good:tremor=0.4,jitter=2" + ((DemoHoldDrills.Contains(Mode.Key) || Mode is PeekDuelMode) ? ",hold=1" : "")
+        + (Mode is FlickVariantMode { RegeneratingTargets: true } ? ",delay=0.035,kp=18,jitter=0.4" : "")
         // spray drills: hold each spray past the tier's minimum, so it counts and shows the hit banner
         + (Mode is SprayControlMode spray && weaponDef is { Rps: > 0 } wd
             ? string.Create(System.Globalization.CultureInfo.InvariantCulture, $",burst={(spray.Required + 2) / wd.Rps:0.00}") : "");
@@ -257,6 +278,7 @@ public partial class GameSession : Node3D, IGame
         viewmodel?.QueueFree();
         cam?.QueueFree();
 
+        if (ComparisonSeed is { } seed) Rng = new Random(seed);
         Mode = factory();
         if (!Demo) Main.I.LastModeKey = Mode.Key; // bug reports say which drill ran last
         playedTier = Math.Clamp(TierOverride ?? Mode.PreferredTier ?? Main.I.Tier, 0, 4); // lock the run's difficulty
@@ -294,6 +316,21 @@ public partial class GameSession : Node3D, IGame
         envRoot = built.Root;
         AddChild(envRoot);
         solid = built.Solid;
+        // Lotus' stone door: its boxes sit at the end of the list and are rewritten every frame. Register them
+        // over the whole sweep once (the broadphase grid is cached per list and never rebuilt), then shrink them.
+        door = built.Door;
+        doorStart = -1;
+        WorldPrompt = null;
+        if (door != null)
+        {
+            doorStart = solid.Count;
+            for (int i = 0; i < door.BoxCount; i++) solid.Add(door.SweptBounds);
+            Collision.Warm(solid);
+            door.BuildBoxes(doorBoxes, new Vector3(0f, -100f, 0f));
+            for (int i = 0; i < door.BoxCount; i++) solid[doorStart + i] = doorBoxes[i];
+            doorWasTurning = false;
+            doorNoise = 0f;
+        }
 
         World = new Node3D { Name = "ModeWorld" };
         AddChild(World);
@@ -316,11 +353,19 @@ public partial class GameSession : Node3D, IGame
             ZoomSensMult = ZoomSensMultFor(Weapons.Get(chosenWeapon)),
         };
         // The coach during the run (Analysis/LiveCoach): never in a preview; every drill with a gun or a reaction test.
-        Live = !Demo && Main.I.Settings.LiveCoach && Mode.Key is not ("sensfinder" or "xhairfinder") ? new Analysis.LiveCoach(Telemetry, Mode.Key, Mode.Movement) : null;
+        sensitivityChanged = false;
+        Live = !Demo && ComparisonSeed == null
+            && Mode.Key is not ("sensfinder" or "xhairfinder") ? new Analysis.LiveCoach(Telemetry, Mode.Key, Mode.Movement) : null;
         replay = Demo || FreePlay ? null : StartReplay(extras); // before Begin: it spawns the first bots / targets
         Mode.Begin(this);
         if (Main.I.Dev && !Demo) DevAdsArgs(); // --force-ads (AdsSession.cs)
         if (Demo && Mode.Key == "counterstrafe") Mover.KeyOverride = DemoStrafeKey;
+        if (Demo && Mode is PeekDuelMode duel)
+        {
+            Mover.KeyOverride = key => duel.DemoCanSwing
+                ? View.Eye.X < 4.4f && key == Main.I.Valorant.KeyRight
+                : View.Eye.X > 0.52f && key == Main.I.Valorant.KeyLeft;
+        }
         if (Demo && Mode.Key == "siteclear") { demoPath = null; demoPathTask = null; Mover.KeyOverride = DemoWalkKey; }
         Respawn(Mode.StartFeet, Mode.StartYaw);
         Blind.Reset();
@@ -526,6 +571,7 @@ public partial class GameSession : Node3D, IGame
                 RunFrame(dt);
                 break;
         }
+        if (State != St.Running) { WorldPrompt = null; nearDoor = false; }
         if (Main.I.Dev && !Demo) DevKeybindTick(); // --keybind-test (KeybindTest.cs)
 
         UpdateCamera();
@@ -615,6 +661,7 @@ public partial class GameSession : Node3D, IGame
             fireHeld = hold;
         }
         Mode.TickBanner(dt);
+        UpdateDoor(dt);
 
         if (Mode.Movement && !Player.Dead) MovePlayer(dt); // dead = waiting to respawn (no moving or shooting)
 
@@ -628,7 +675,9 @@ public partial class GameSession : Node3D, IGame
         {
             bool wasScoped = Gun.Scoped;
             bool gunInHand = !Player.Dead && !abilityInHand; // an ability in hand owns mouse 1 (AbilitySession.cs)
-            var shots = Gun.Tick(Now, dt, View, Mover, Rng, (fireHeld || fireTap) && gunInHand, firePressedEdge && gunInHand, Mode.EffectiveInfiniteAmmo, Mode.EffectiveInfiniteReserve, Mode.Movement);
+            bool trigger = Mode.SingleClick ? firePressedEdge || fireTap : fireHeld || fireTap;
+            var shots = Gun.Tick(Now, dt, View, Mover, Rng, trigger && gunInHand, (firePressedEdge || fireTap) && gunInHand,
+                Mode.EffectiveInfiniteAmmo, Mode.EffectiveInfiniteReserve, Mode.Movement);
             foreach (var (dir, accurate) in shots) Bullet(dir, accurate);
             if (shots.Count > 0)
             {
@@ -649,11 +698,16 @@ public partial class GameSession : Node3D, IGame
         {
             Mode.OnBullet(View.Eye, View.Forward, true);
         }
+        else if (Mode.SingleClick && (firePressedEdge || fireTap))
+        {
+            // Aim-trainer clicking scores the actual pointer ray without the range weapon's error cone.
+            Bullet(View.Forward, true);
+        }
         firePressedEdge = false;
         fireTap = false;
 
         RecordFrame();
-        Live?.Tick(Now);
+        Live?.Tick(Now, !sensitivityChanged);
         if (Main.I.Dev && Adaptive != null && Mode.SupportsAdaptive && (int)(Now / 10f) != (int)((Now - dt) / 10f))
             Log.Info($"[adapt] t={Now:0} {Adaptive}"); // dev: the staircase every 10 s
         // A keybind test owns its run (KeybindTest.cs): the drill's clock or kill target must not end it mid-check;
@@ -671,8 +725,15 @@ public partial class GameSession : Node3D, IGame
 
     float AngularRadius(Vector3 p, float r) => Mathf.RadToDeg(Mathf.Atan2(r, Mathf.Max(0.1f, View.Eye.DistanceTo(p))));
 
+    bool sensitivityChanged;
+
     void RecordFrame()
     {
+        if (!sensitivityChanged && Mode.Key is not ("sensfinder" or "xhairfinder") && CurrentSens != Telemetry.Sens)
+        {
+            sensitivityChanged = true;
+            Telemetry.Events.Add(new TelemetryEvent(Now, "sens_changed", Telemetry.Sens, CurrentSens));
+        }
         var f = new FrameSample { T = Now, Yaw = View.ViewYaw, Pitch = View.ViewPitch, Dx = frameDx, Dy = frameDy, Speed = Mover.Speed, MoveX = Mover.InputStrafe };
         frameDx = frameDy = 0;
         if (!Mode.Is2D && Mode.Focus is { } focus)
@@ -763,12 +824,71 @@ public partial class GameSession : Node3D, IGame
         replay?.PlayerShot(Now, Telemetry.Shots.Count - 1, eye + dir * end, wallNormal);
     }
 
+    /// <summary>Lotus' stone door: turn it, rewrite its collision boxes, play the grinding stone and show the
+    /// button prompt when the player stands by the frame.</summary>
+    void UpdateDoor(float dt)
+    {
+        WorldPrompt = null;
+        nearDoor = false;
+        if (door == null || doorStart < 0) { useWasHeld = false; return; }
+
+        door.Advance(dt);
+        var feet = new Vector3(View.Eye.X, feetY, View.Eye.Z);
+        // While it turns, the wing yields around the player so the real pass-through window is usable; once it
+        // stops, the door is solid again (only the box the body is inside is dropped, as a safety net).
+        door.BuildBoxes(doorBoxes, feet, door.Turning ? 0.55f : 0.04f);
+        for (int i = 0; i < door.BoxCount; i++) solid[doorStart + i] = doorBoxes[i];
+
+        if (door.Turning)
+        {
+            if ((doorNoise -= dt) <= 0f)
+            {
+                doorNoise = 1.35f;
+                SoundAt("stone_turn", door.Position + new Vector3(0f, 1f, 0f), 60f, 0.6f, 0.85f);
+            }
+        }
+        else if (doorWasTurning) SoundAt("stone_stop", door.Position + new Vector3(0f, 1f, 0f), 60f, 0.6f, 1f);
+        doorWasTurning = door.Turning;
+
+        // F (GameAction.Use) on either button: polled so dev movement scripts can press it too.
+        bool useHeld = Main.I.Valorant.Binds.IsDown(GameAction.Use);
+        bool usePressed = useHeld && !useWasHeld;
+        useWasHeld = useHeld;
+        if (Player.Dead) return;
+
+        var chest = feet + new Vector3(0f, 1.25f, 0f);
+        nearDoor = chest.DistanceTo(door.ButtonA) < 2.6f || chest.DistanceTo(door.ButtonB) < 2.6f;
+        if (DevDoorLog && (devDoorT -= dt) <= 0f)
+        {
+            devDoorT = 0.5f;
+            GD.Print($"[door] t={Now:0.0} angle={Mathf.RadToDeg(door.Angle):0} turning={door.Turning} near={nearDoor} feet=({feet.X:0.00},{feet.Y:0.00},{feet.Z:0.00})");
+        }
+        if (!nearDoor) return;
+        if (usePressed && door.Toggle())
+        {
+            SoundAt("stone_start", door.Position + new Vector3(0f, 1.25f, 0f), 50f, 0.6f, 0.9f);
+            Banner(Loc.Spanish ? "PUERTA GIRANDO" : "DOOR TURNING", UiTheme.Teal);
+        }
+        string key = Main.I.Valorant.Binds.Short(GameAction.Use);
+        WorldPrompt = door.Turning
+            ? (Loc.Spanish ? "La puerta gira 180° (10 s)…" : "The door is turning 180° (10 s)…")
+            : (Loc.Spanish ? $"{key} — Girar la puerta" : $"{key} — Turn the door");
+    }
+
     void MovePlayer(float dt)
     {
         // Keys → velocity (ground / air control), jump, crouch-jump, wall sliding, gravity, ceiling, landing (MovementBody.cs).
         var feet = new Vector3(View.Eye.X, feetY, View.Eye.Z);
-        Mover.Step(dt, View.Yaw, Main.I.Valorant, ref feet, solid);
+        bool wasOnRope = Mover.OnRope;
+        Mover.Step(dt, View.Yaw, Main.I.Valorant, ref feet, solid, Mode.Map?.Rope);
+        if (!wasOnRope && Mover.OnRope && Mode.Map?.Rope is { } line)
+            SoundAt("rope", line.Base + new Vector3(0f, 1f, 0f), 40f, 0.6f, 1f);
         feetY = feet.Y;
+        if (DevRopeLog && (devRopeT -= dt) <= 0f)
+        {
+            devRopeT = 0.5f;
+            GD.Print($"[rope] t={Now:0.0} on={Mover.OnRope} feet=({feet.X:0.00},{feet.Y:0.00},{feet.Z:0.00}) base={Mode.Map?.Rope?.Base}");
+        }
         // Stairs: the body is already on the step; the camera eases up/down over ~0.2 s (Mover.CamStepOffset).
         View.Eye = new Vector3(feet.X, feetY + Mover.EyeHeight + Mover.CamStepOffset, feet.Z);
         // Safety net for a hole in a real map's collision: never fall through the world. The body is put back on the
@@ -834,7 +954,7 @@ public partial class GameSession : Node3D, IGame
         var app = Main.I;
         PrevBest = app.Stats.Best(Mode.Key, Tier);
         Record = Mode.MakeRecord(SessionSens ?? app.Sens);
-        Record.Warmup = OnFinished != null;
+        Record.Warmup = WarmupSession;
         // Aim coach: metrics for this run + a review of what went wrong and how to fix it.
         Telemetry.Duration = Now;
         Telemetry.Replay = replay?.Finish(Now); // the 3D Rewind's data: in memory now, saved next to the .vtt below
@@ -842,7 +962,7 @@ public partial class GameSession : Node3D, IGame
         try
         {
             Record.Metrics = Coach.Summarize(Telemetry);
-            Review = Coach.ReviewRun(Telemetry, Record.Metrics, Tier);
+            if (ComparisonSeed == null) Review = Coach.ReviewRun(Telemetry, Record.Metrics, Tier);
         }
         catch (Exception ex) { GD.PushWarning($"Coach failed: {ex.Message}"); }
         foreach (var (key, value) in Mode.ExtraMetrics())
@@ -875,10 +995,10 @@ public partial class GameSession : Node3D, IGame
                 Record.CoachFile = CoachArchive.FileFor(file);
                 Task.Run(() =>
                 {
-                    try { tel.Save(dir); } catch (Exception e) { Log.Error($"Saving telemetry failed: {e.Message}"); }
+                    try { tel.Save(dir, keep: -1); } catch (Exception e) { Log.Error($"Saving telemetry failed: {e.Message}"); }
                     try
                     {
-                        if (review != null) CoachArchive.Save(tel, review, file);
+                        if (review != null) CoachArchive.Save(tel, review, file, keep: -1);
                     }
                     catch (Exception e) { Log.Error($"Saving the coach archive failed: {e.Message}"); }
                 });
@@ -905,7 +1025,7 @@ public partial class GameSession : Node3D, IGame
     void ApplyProgressive()
     {
         var st = Main.I.Settings;
-        if (!st.ProgressiveDifficulty || Record == null || !Mode.ShowScore || Record.Warmup) return;
+        if (!st.ProgressiveDifficulty || Record == null || !Mode.ShowScore || OnFinished != null) return;
         if (TierOverride != null || Adaptive != null || !KeepInStats || Now < 8f) return;
         int played = Tier;
         int score = Record.Score;

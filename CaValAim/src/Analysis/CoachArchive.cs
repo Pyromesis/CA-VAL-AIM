@@ -95,6 +95,7 @@ public sealed class CoachArchive
             string path = FileFor(telemetryFile, t, dir);
             string json = JsonSerializer.Serialize(From(t, review, telemetryFile), Json);
             if (!Paths.TryWriteAllText(path, json)) return null;
+            if (keep < 0) return path;
             try
             {
                 foreach (var old in Directory.GetFiles(dir, "*.json")

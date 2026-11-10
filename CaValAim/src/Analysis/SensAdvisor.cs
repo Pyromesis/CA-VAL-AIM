@@ -115,26 +115,19 @@ static class SensAdvisor
 
         var agg = Agg.Aggregate(mine.Select(r => (r.When, r.M)), DateTime.Now);
         var (delta, h, cbar, used) = Step(agg, refTier);
-        bool noData = float.IsNaN(delta);
-        if (noData && cm >= 20 && cm <= 80) return Keep("Need more data: " + Missing(agg) + ". " + where);
-        if (noData) { delta = 0; h = 0; cbar = 0; }
+        if (float.IsNaN(delta)) return Keep("Need more data: " + Missing(agg) + ". " + where);
 
         // Session consistency: the same sign of Δ in at least 2 of the last 3 sessions.
         var sessDeltas = Sessions(mine).Select(s => Step(Agg.Aggregate(s.Select(r => (r.When, r.M)), DateTime.Now), refTier).Delta)
             .Where(d => !float.IsNaN(d) && MathF.Abs(d) >= 0.01f).TakeLast(3).ToList();
 
         // Out-of-band nudge toward 20–80 cm/360 unless the data strongly disagrees.
-        float nudge = 0;
-        if (cm < 20 && !(cbar >= 0.75f && delta > 0)) nudge = -0.15f;
-        if (cm > 80 && !(cbar >= 0.75f && delta < 0)) nudge = 0.15f;
-        float total = delta + nudge;
-        // The consistency rule guards the data-driven part; a pure "back into the band" nudge doesn't need it.
-        bool dataDriven = MathF.Abs(delta) >= 0.05f;
+        // A population range is context, not evidence of this player's errors.
+        float total = delta;
 
         var top = used.OrderByDescending(x => MathF.Abs(x.W * x.H)).Take(2).Select(x => x.Words).ToList();
         string why = top.Count == 0 ? "" : " Signals: " + string.Join("; ", top) + ".";
-        string label = noData || cbar < 0.5f ? "Low" : cbar < 0.75f ? "Medium" : "High";
-        if (noData) cbar = 0.3f; // the nudge alone: a cautious, low-confidence suggestion
+        string label = cbar < 0.5f ? "Low" : cbar < 0.75f ? "Medium" : "High";
 
         if (MathF.Abs(total) < 0.05f) return Keep(F($"Keep your sens — your aim data doesn't point either way.{why} {where} Confidence: {label}."), cbar);
 
@@ -143,7 +136,8 @@ static class SensAdvisor
         bool strong = MathF.Abs(h) >= 0.6f && cbar >= 0.8f;
         if (!strong) cmNew = Math.Clamp(cmNew, Math.Min(20, cm), Math.Max(80, cm));
         cmNew = Math.Clamp(cmNew, 15, 100);
-        float sNew = MathF.Round(SensFor(cmNew, dpi), 3);
+        float sNew = MathF.Round(Math.Clamp(SensFor(cmNew, dpi),
+            currentSens * MathF.Exp(-0.18f), currentSens * MathF.Exp(0.18f)), 3);
         cmNew = Cm360(sNew, dpi);
         float pct = 100 * (sNew / currentSens - 1);
         // A change under 1% (e.g. cut short by the band edge, or by rounding to 3 decimals) isn't worth making.
@@ -151,7 +145,7 @@ static class SensAdvisor
         string dir = sNew < currentSens ? "lower" : "higher";
 
         int agree = sessDeltas.Count(d => MathF.Sign(d) == MathF.Sign(total));
-        if (dataDriven && agree < 2)
+        if (agree < 2)
         {
             string lean = F($"Leaning {dir}: {sNew:0.000} ({pct:+0;-0}%, {cmNew:0.0} cm/360).{why}");
             return new SensAdvice(currentSens, dpi, currentSens, cm, cm, "keep",
@@ -160,9 +154,8 @@ static class SensAdvisor
                     : $"{lean} Your recent sessions disagree, so keep it for now. {where} Confidence: Low.",
                 cbar * 0.5f);
         }
-        string nudgeTxt = nudge != 0 ? F($" Your sens is outside the 20–80 cm/360 band where aiming is most consistent, so this also nudges you toward it.") : "";
         return new SensAdvice(currentSens, dpi, sNew, cm, cmNew, dir,
-            F($"Set VALORANT sensitivity to {sNew:0.000} (was {currentSens:0.000}, {pct:+0;-0}%): eDPI {sNew * dpi:0}, {cmNew:0.0} cm/360, higher than {ProPercentile(sNew * dpi):0}% of pros' sens.{why}{nudgeTxt} Confidence: {label}."),
+            F($"Compare sensitivity {sNew:0.000} against {currentSens:0.000} ({pct:+0;-0}%, {cmNew:0.0} cm/360) in the A/B practice before applying it.{why} Confidence: {label}."),
             cbar);
     }
 

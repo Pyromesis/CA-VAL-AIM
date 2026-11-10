@@ -23,6 +23,7 @@ public abstract class TrainingMode
     public virtual bool Timed => true;
     public virtual bool Done => false;
     public virtual WeaponKind Weapon => WeaponKind.Vandal;
+    public virtual bool SingleClick => false;
 
     /// <summary>True for drills that use a rifle and therefore follow the Vandal / Phantom choice in Settings.</summary>
     public virtual bool RifleSelectable => Weapon is WeaponKind.Vandal or WeaponKind.Phantom;
@@ -36,6 +37,7 @@ public abstract class TrainingMode
     {
         get
         {
+            if (Weapon == WeaponKind.None || !WeaponSlots) return Weapon;
             if (Main.I is { } app)
             {
                 int pick = app.Settings.WeaponOverride;
@@ -51,9 +53,19 @@ public abstract class TrainingMode
     /// <summary>Reloads never run dry (bot drills keep real magazines + reloads but can't run out).</summary>
     public virtual bool InfiniteReserve => true;
 
-    /// <summary>0 = real magazines/reserve, 1 = infinite. Drill default unless the player overrode it.</summary>
-    public bool EffectiveInfiniteAmmo => AmmoOverride switch { 1 => true, 0 => false, _ => InfiniteAmmo };
-    public bool EffectiveInfiniteReserve => AmmoOverride switch { 1 => true, 0 => false, _ => InfiniteReserve };
+    /// <summary>
+    /// Drills that simulate a real match (spray control/transfer, deathmatch and every exercise on a VALORANT map).
+    /// They always use a real magazine and camera climb, whatever the global ammo/recoil settings say: those settings
+    /// would change the drill the player is meant to reproduce.
+    /// </summary>
+    public virtual bool SimulatesMatch => false;
+    public bool ForcedRealAmmo => SimulatesMatch;
+    public bool ForcedRecoil => SimulatesMatch;
+
+    /// <summary>0 = real magazines/reserve, 1 = infinite. Drill default unless the player overrode it; match
+    /// simulations ignore the override.</summary>
+    public bool EffectiveInfiniteAmmo => ForcedRealAmmo ? false : AmmoOverride switch { 1 => true, 0 => false, _ => InfiniteAmmo };
+    public bool EffectiveInfiniteReserve => ForcedRealAmmo ? true : AmmoOverride switch { 1 => true, 0 => false, _ => InfiniteReserve };
 
     static int AmmoOverride => Main.I is { } app ? app.Settings.AmmoMode : -1;
     /// <summary>A tier this drill always plays at, whatever the menu's tier (Deathmatch with a chosen bot difficulty).

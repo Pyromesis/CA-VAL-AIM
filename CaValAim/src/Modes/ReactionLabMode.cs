@@ -39,7 +39,7 @@ public sealed class ReactionLabMode : TrainingMode
     public override string Key => ReactionStats.KeyOf(cat);
     public override string Name => Loc.Spanish ? $"Laboratorio de reacción: {ReactionStats.Name(cat)}" : $"Reaction Lab: {ReactionStats.Name(cat)}";
     public override string Description => ReactionStats.Blurb(cat);
-    public override string Category => "Other";
+    public override string Category => "Reflex";
     public override bool Timed => false;
     public override bool Is2D => true;
     public override bool PreviewDemo => false;

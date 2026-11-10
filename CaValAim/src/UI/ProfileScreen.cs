@@ -363,10 +363,10 @@ public partial class ProfileScreen : ScreenBase
         create.TooltipText = es
             ? "Crea una serie con estos ejercicios, en este orden, y el recoil ya puesto en cada uno"
             : "Creates a playlist with these drills, in this order, with the recoil already set for each";
-        var play = Btn(es ? "JUGAR SERIE" : "PLAY PLAN", VButton.Look.Primary, () => CoachData.PlayPlan(plan), 200, 46, 16);
+        var play = Btn(es ? "PRÁCTICA GUIADA" : "GUIDED PRACTICE", VButton.Look.Primary, () => PracticeScreen.Start(plan, p), 200, 46, 16);
         play.TooltipText = es
-            ? "Crea la serie y empieza el primer ejercicio ahora"
-            : "Creates the playlist and starts the first drill now";
+            ? "Abre el plan con instrucciones y correcciones entre ejercicios"
+            : "Opens the plan with instructions and feedback between drills";
         foot.AddChild(create);
         foot.AddChild(play);
         foot.AddChild(status);

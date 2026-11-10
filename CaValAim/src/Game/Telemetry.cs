@@ -86,7 +86,7 @@ public sealed class RunTelemetry
     /// <summary>Mode keys can carry an argument ("flashpeek:skye"); ':' and other invalid file-name characters become '-'.</summary>
     static string SafeName(string mode) => string.Concat(mode.Select(c => Path.GetInvalidFileNameChars().Contains(c) ? '-' : c));
 
-    public string FileIn(string dir) => Path.Combine(dir, string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{When:yyyyMMdd_HHmmss}_{SafeName(Mode)}.vtt"));
+    public string FileIn(string dir) => Path.Combine(dir, string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{When:yyyyMMdd_HHmmss_fffffff}_{SafeName(Mode)}.vtt"));
 
     public string Save(string? dir = null, int keep = 80)
     {
@@ -120,6 +120,7 @@ public sealed class RunTelemetry
             try { CaValAim.Game.Replay.ReplayFile.Save(Replay, CaValAim.Game.Replay.ReplayFile.SidecarOf(file)); }
             catch (Exception e) { Log.Error($"Saving the Rewind sidecar failed: {e.Message}"); }
         }
+        if (keep < 0) return file; // Local archive: retain all completed runs.
         // Keep only the most recent files (and their sidecars); drop sidecars whose run is gone.
         foreach (var old in Directory.GetFiles(dir, "*.vtt").OrderByDescending(f => f).Skip(keep))
         {

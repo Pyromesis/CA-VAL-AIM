@@ -2,6 +2,65 @@
 
 ## [Sin publicar]
 
+## [2.7.0] - 2026-11-10
+
+### Añadido
+
+- Práctica guiada con correcciones entre rondas, siete ejercicios de sensibilidad, reacción y seguimiento, y duelos cercanos y lejanos.
+- Previsiones neuronales locales con sesiones comparables y validación en rondas reservadas, incluida la práctica guiada.
+- Menú reorganizado con fondo animado y campo de práctica de piedra cálida.
+
+### Mejorado
+
+- Revisión de pasos y repeticiones de las rutinas, contacto, regeneración y dificultad propia de los escenarios.
+- Bots con comprobación de línea de tiro, desplazamiento entre ráfagas y navegación de escaleras.
+- Caras de las armas, reflejo de manos, correderas de pistolas y hoja del cuchillo.
+- Colisiones, sonido espacial, recuperación del retroceso y terminología en español.
+- Archivo local de rondas terminadas y análisis conservado hasta que el jugador lo elimine.
+
+
+
+## [2.6.0] - 2026-11-02
+
+### Añadido
+
+- **La puerta de piedra y la cuerda de Lotus funcionan como en el mapa real.** La puerta de A es un disco de piedra
+  sólido con un botón en cada cara: pulsa tu tecla de uso (`F` por defecto) a su lado, gira 180° en 10 segundos,
+  bloquea balas y cuerpos mientras se mueve, deja la ventana breve para cruzar del mapa real y suena lo bastante fuerte
+  para oírse en todo el sitio. La cuerda del fondo de A Site te agarra al acercarte, te sube a A Top y suena al usarla.
+  Las dos las mueve la sesión, así que la pausa también las congela.
+- **Salta a cualquier tarea de una rutina mientras está en pausa.** El menú de pausa muestra ahora
+  `‹ TAREA 2/5 · PASADA 1/4 ›` con el nombre oficial de la tarea, y cualquiera de las flechas empieza la primera
+  pasada de la tarea anterior o siguiente. La partida abandonada se descarta en vez de guardarse, así que una tarea
+  mal jugada no ensucia tus estadísticas, y la tarea nueva aplica el retroceso que pide la rutina.
+- **Las cinco rutinas de Voltaic juegan sus 48 tareas oficiales.** Cada paso de Easy, Classic, bardOZ Advanced, el
+  calentamiento de cartoon y VALORANT Advanced Classic es ahora su propio ejercicio (`sc-voltaic-*`, 41
+  reproducciones) con el nombre exacto de la fuente en vez de un modo genérico. Cuando la fuente agrupa "A / B", el
+  paso conserva el texto completo y juega A en el motor de flick, micro, tracking o reflejos.
+- **Tres rutinas por categoría.** **RECOIL · Laboratorio de spray** (30 min: cargadores completos de Vandal y
+  Phantom, transfers y ráfagas cortas), **DEATHMATCH · Presión real** (36 min: entrada, duelos, recolocación tras
+  cada muerte, movimiento y un mapa final) y **MAPAS · Limpieza y retake** (35 min: limpieza de sitio, post-plant,
+  retake, anclaje, esquiva de flash y fijación de sonido).
+
+### Cambiado
+
+- **Las simulaciones de partida bloquean munición y retroceso reales.** El control y el transfer de spray, el
+  deathmatch y todos los ejercicios de mapa usan siempre cargador real y subida de cámara, digan lo que digan las
+  opciones globales de munición y retroceso; la pausa muestra el interruptor de retroceso bloqueado con "simula una
+  partida". Los ejercicios de puntería pura siguen respetando los ajustes del jugador.
+- **Las auditorías cubren las reglas nuevas.** La comprobación de rutinas verifica que cada paso de Voltaic juega su
+  tarea de origen y que las tres rutinas nuevas existen, resuelven y fuerzan los ajustes de partida; el smoke test
+  juega ahora cuatro ejercicios oficiales.
+
+### Corregido
+
+- **La ventana de Hookah de Bind se puede saltar.** La colisión extraída había convertido el alféizar en una losa
+  hasta 3,5 m y añadido un labio por fuera, así que un salto parado chocaba con una pared invisible; al cortar ambos
+  por encima del alféizar real de 3,05 m ya se sube a Hookah, se cruza la ventana y se cae dentro.
+- **La pared de A Back de Split detiene las balas.** El extractor había perdido la pared inclinada del fondo de A
+  Back, así que los disparos atravesaban el arte visible; cuatro escalones sólidos siguen ahora la pendiente y su cara
+  baja.
+
 ## [2.5.0] - 2026-11-01
 
 ### Añadido

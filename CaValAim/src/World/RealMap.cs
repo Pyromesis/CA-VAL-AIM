@@ -123,9 +123,12 @@ public static class RealMap
         }
     }
 
-    /// <summary>Adds the real geometry under <paramref name="root"/>. False = no GLB could be loaded.</summary>
-    public static bool TryBuild(Node3D root, string folder)
+    /// <summary>Adds the real geometry under <paramref name="root"/>. False = no GLB could be loaded.
+    /// <paramref name="hideArt"/> (map frame) drops the art triangles inside those boxes, for a prop the
+    /// trainer keeps open (Lotus' closed revolving door).</summary>
+    public static bool TryBuild(Node3D root, string folder, CaValAim.Game.Box[]? hideArt = null)
     {
+        if (!IsComplete(folder)) return false;
         if (!TryParts(folder, out string[] parts, out Manifest? manifest)) return false;
         var art = new Node3D
         {
@@ -153,12 +156,18 @@ public static class RealMap
             if (path == null)
             {
                 GD.PushWarning($"[maps] real-map part missing: {folder}/{part}.glb");
-                continue;
+                art.Free();
+                return false;
             }
 
             // The loading screen (UI/LoadingScreen) may already have built this level; otherwise load it now.
             Node? scene = TakePreloaded(folder, part) ?? LoadPart(path, part, GltfStrip.Prepare(path), stripTried: true);
-            if (scene == null) continue;
+            if (scene == null)
+            {
+                art.Free();
+                return false;
+            }
+            if (hideArt is { Length: > 0 }) HideTriangles(scene, ToLocal(hideArt, manifest?.Origin ?? RootPosition));
             art.AddChild(scene);
             loaded++;
             try { bytes += new FileInfo(path).Length; } catch { }
@@ -173,6 +182,53 @@ public static class RealMap
         root.AddChild(art);
         GD.Print($"[maps] real {folder} loaded: {loaded}/{parts.Length} GLBs, {bytes / (1024 * 1024)} MB, {clock.ElapsedMilliseconds} ms");
         return true;
+    }
+
+    /// <summary>Map-frame hide boxes to the art node's local frame (glTF: x→z, z→−x).</summary>
+    static CaValAim.Game.Box[] ToLocal(CaValAim.Game.Box[] boxes, Vector3 o) => boxes.Select(b => new CaValAim.Game.Box(
+        new Vector3(-(b.Max.Z - o.Z), b.Min.Y - o.Y, b.Min.X - o.X),
+        new Vector3(-(b.Min.Z - o.Z), b.Max.Y - o.Y, b.Max.X - o.X))).ToArray();
+
+    /// <summary>Drops the triangles of <paramref name="part"/> whose centre lies in a hide box (local frame).</summary>
+    static void HideTriangles(Node part, CaValAim.Game.Box[] boxes)
+    {
+        foreach (Node n in Walk(part))
+        {
+            if (n is not MeshInstance3D { Mesh: { } mesh } mi) continue;
+            Transform3D xf = Transform3D.Identity;
+            for (Node? p = mi; p != null && p != part; p = p.GetParent())
+                if (p is Node3D p3) xf = p3.Transform * xf;
+            var aabb = xf * mi.GetAabb();
+            if (!boxes.Any(b => aabb.Position.X <= b.Max.X && aabb.End.X >= b.Min.X &&
+                                aabb.Position.Y <= b.Max.Y && aabb.End.Y >= b.Min.Y &&
+                                aabb.Position.Z <= b.Max.Z && aabb.End.Z >= b.Min.Z)) continue;
+            var rebuilt = new ArrayMesh();
+            bool changed = false;
+            for (int s = 0; s < mesh.GetSurfaceCount(); s++)
+            {
+                var arrays = mesh.SurfaceGetArrays(s);
+                if (arrays.Count <= (int)Mesh.ArrayType.Vertex) continue;
+                var verts = arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+                var index = arrays[(int)Mesh.ArrayType.Index];
+                int[] idx = index.VariantType == Variant.Type.Nil
+                    ? Enumerable.Range(0, verts.Length).ToArray()
+                    : index.AsInt32Array();
+                var keep = new List<int>(idx.Length);
+                for (int t = 0; t + 2 < idx.Length; t += 3)
+                {
+                    Vector3 c = (xf * verts[idx[t]] + xf * verts[idx[t + 1]] + xf * verts[idx[t + 2]]) / 3f;
+                    bool hide = boxes.Any(b => c.X >= b.Min.X && c.X <= b.Max.X &&
+                                               c.Y >= b.Min.Y && c.Y <= b.Max.Y &&
+                                               c.Z >= b.Min.Z && c.Z <= b.Max.Z);
+                    if (hide) { changed = true; continue; }
+                    keep.Add(idx[t]); keep.Add(idx[t + 1]); keep.Add(idx[t + 2]);
+                }
+                arrays[(int)Mesh.ArrayType.Index] = keep.ToArray();
+                rebuilt.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arrays);
+                rebuilt.SurfaceSetMaterial(s, mesh.SurfaceGetMaterial(s));
+            }
+            if (changed) mi.Mesh = rebuilt;
+        }
     }
 
     /// <summary>

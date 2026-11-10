@@ -221,6 +221,52 @@ public static class CoachCli
     {
         P();
         P("##### SELF-TEST (synthetic events)");
+        var history = Enumerable.Range(0, 96).Select(i => new RunRecord
+        {
+            Mode = "flick", Sens = 0.35f, Tier = 1, Shots = 40,
+            Accuracy = i % 2 == 0 ? 0.35f : 0.85f,
+        }).Reverse().ToArray();
+        var forecast = CoachNetwork.Forecast(history, 0.35f, 1).SingleOrDefault();
+        bool learns = forecast is { Accuracy: < 0.5f, ValidationRuns: 24 }
+            && CoachNetwork.Forecast(history.Take(23), 0.35f, 1).Count == 0
+            && CoachNetwork.Forecast(history, 0.42f, 1).Count == 0;
+        P($"  {(learns ? "PASS" : "FAIL")} neural accuracy forecast (held-out prediction and sample gates)");
+        var botMetrics = new Dictionary<string, float> { ["sens.n"] = 18, ["sens.over"] = 10, ["sens.under"] = 1 };
+        var botFeedback = SensLab.Feedback(botMetrics, 1);
+        var followUp = CoachPlan.FromRun(new RunReview { Sens = botFeedback });
+        botMetrics["sens.changed"] = 1;
+        bool botSens = botFeedback.Verdict == SensVerdict.Overshoot && followUp.Steps[0].Drill == "flickx:settle-confirm"
+            && followUp.Steps[0].Source?.Fixes.Length > 0 && !SensLab.Feedback(botMetrics, 1).HasData;
+        P($"  {(botSens ? "PASS" : "FAIL")} sensitivity evidence from bot drills generates a task and excludes mixed settings");
+        var control = new RunTelemetry { Mode = "peek", Sens = 0.35f, Dpi = 800 };
+        for (int i = 0; i < 60; i++)
+            control.Frames.Add(new FrameSample { T = i / 60f, Yaw = i * 0.1f, FocusYaw = 5 - i * 0.1f,
+                FocusId = 7, FocusRadius = 0.5f, Flags = (byte)FrameFlags.Alive });
+        var motion = new RunAnalysis.TrialResult { TrialId = 7, HasPrimary = true, TsP = 0.4, TeP = 0.7, R = 0.5f };
+        bool clean = RunAnalysis.CleanAimSample(new Prep(control), motion);
+        var moved = control.Frames[36];
+        moved.FocusYaw += 1;
+        control.Frames[36] = moved;
+        bool rejectsMovement = !RunAnalysis.CleanAimSample(new Prep(control), motion);
+        moved.FocusYaw -= 1;
+        moved.Flags |= (byte)FrameFlags.Firing;
+        control.Frames[36] = moved;
+        bool rejectsShot = !RunAnalysis.CleanAimSample(new Prep(control), motion);
+        P($"  {(clean && rejectsMovement && rejectsShot ? "PASS" : "FAIL")} controlled aim sample rejects target movement and firing");
+
+        var gun = new CaValAim.Game.Weapon.WeaponController(Weapons.Get(WeaponKind.Vandal)!);
+        var view = new PlayerView();
+        var mover = new Mover();
+        var gunRng = new Random(29);
+        gun.Tick(0, 1f / 120, view, mover, gunRng, true, true, false, false, false);
+        gun.Ammo = gun.Reserve = 0;
+        for (int i = 1; i <= 72; i++)
+            gun.Tick(i / 120f, 1f / 120, view, mover, gunRng, true, false, false, false, false);
+        bool settles = gun.Heat == 0 && view.RecoilPitch == 0;
+        gun.ResetRecoil();
+        gun.Ammo = 2;
+        bool fires = gun.Tick(0, 1f / 120, view, mover, gunRng, true, true, false, false, false).Count == 1;
+        P($"  {(settles && fires ? "PASS" : "FAIL")} weapon recovery with an empty magazine and reset cadence");
         var rng = new Random(7);
         float G(float mean, float sd) => mean + sd * (float)(Math.Sqrt(-2 * Math.Log(1 - rng.NextDouble())) * Math.Cos(2 * Math.PI * rng.NextDouble()));
         RunTelemetry Mk(string mode)
@@ -315,8 +361,9 @@ public static class CoachCli
         SensCase("consistent overshoot + many corrections + jitter, 3 sessions @50 cm", S(0.327f, 3, Over, 10), 0.327f, "lower");
         SensCase("neutral data @50 cm", S(0.327f, 3, Neutral, 10), 0.327f, "keep");
         SensCase("same signal but only one session (→ keep, leaning lower)", S(0.327f, 1, Over, 2), 0.327f, "keep");
-        SensCase("neutral data @95 cm (outside 20–80)", S(0.172f, 3, Neutral, 10), 0.172f, "higher");
-        SensCase("no data @95 cm", new List<SensAdvisor.RunInfo>(), 0.172f, "higher");
+        SensCase("neutral data @95 cm keeps sensitivity", S(0.172f, 3, Neutral, 10), 0.172f, "keep");
+        SensCase("no evidence at high sensitivity keeps sensitivity", new List<SensAdvisor.RunInfo>(), 1f, "keep");
+        SensCase("no data @95 cm", new List<SensAdvisor.RunInfo>(), 0.172f, "keep");
         SensCase("no data @50 cm", new List<SensAdvisor.RunInfo>(), 0.327f, "keep");
         SensCase("changed sens 2 sessions ago", S(0.25f, 3, Over, 20).Concat(S(0.327f, 2, Over, 6)).ToList(), 0.327f, "keep");
 
@@ -353,6 +400,7 @@ public static class CoachCli
         }
         TimelineCases();
         RoutineCases();
+        GameplayChecks.Run(P);
         _ = CultureInfo.InvariantCulture;
     }
 
@@ -489,8 +537,29 @@ public static class CoachCli
         var routines = RoutineLibrary.Routines;
         var problems = new List<string>();
         void Bad(string id, string what) => problems.Add($"{id}: {what}");
+        var repeated = new Routine
+        {
+            Steps =
+            {
+                new RoutineStep { Drill = "flick", RecoilOn = true, Runs = { new RoutineRun(1) } },
+                new RoutineStep { Drill = "flick", Optional = true, Runs = { new RoutineRun(2, 1.2f) } },
+            },
+        };
+        var full = repeated.ToPlaylist(out var fullSteps);
+        var core = repeated.ToPlaylist(out var coreSteps, includeOptional: false);
+        if (!fullSteps.SequenceEqual(new[] { 0, 1 }) || !coreSteps.SequenceEqual(new[] { 0 })
+            || full.RecoilAt(0) != true || full.RecoilAt(1) != false || core.RecoilAt(0) != true
+            || full.MinutesAt(1) != 2 || full.SensAt(1) != 1.2f)
+            Bad("repeated drill", "per-run settings or optional step selection were lost");
         foreach (var r in routines)
         {
+            var playlist = r.ToPlaylist(out var owners);
+            int expectedRuns = r.Steps.Sum(s => s.Runs.Count);
+            if (r.Playable && (playlist.Modes.Count != expectedRuns || owners.Count != expectedRuns))
+                Bad(r.Id, "playlist drops a task or repetition");
+            for (int n = 0; n < owners.Count; n++)
+                if (!ReferenceEquals(r.StepOfRun(n), r.Steps[owners[n]]))
+                    Bad(r.Id, $"round {n} points at the wrong task");
             if (r.Steps.Count == 0) Bad(r.Id, "no steps");
             if (r.Playable && r.Steps.Count(s => s.Drill.Length > 0) == 0)
                 Bad(r.Id, "marked playable but no step has a drill");
@@ -505,9 +574,17 @@ public static class CoachCli
                 if (s.Drill.Length == 0) { Bad(r.Id, $"step “{s.Scenario}” has no drill"); continue; }
                 if (ModeRegistry.Find(s.Drill) == null) Bad(r.Id, $"drill “{s.Drill}” does not resolve");
                 if (s.Runs.Count == 0 || s.Minutes <= 0) Bad(r.Id, $"step “{s.Scenario}” has no runs");
+                if (s.Runs.Any(run => !float.IsFinite(run.Minutes) || run.Minutes <= 0
+                    || !float.IsFinite(run.Sens) || run.Sens <= 0))
+                    Bad(r.Id, $"step “{s.Scenario}” has invalid timing or sensitivity");
+                if (string.IsNullOrWhiteSpace(s.HowEs) || string.IsNullOrWhiteSpace(s.HowEn))
+                    Bad(r.Id, $"step “{s.Scenario}” lacks coaching instructions");
                 if (s.DrillName.Length == 0) Bad(r.Id, $"drill “{s.Drill}” has no display name");
             }
         }
+        foreach (var scenario in ScenarioDrills.All)
+            if (scenario.At(0) != scenario || scenario.At(4) != scenario)
+                Bad(scenario.Id, "global rank changes the authored scenario");
         Routine? ById(string id) => routines.FirstOrDefault(r => r.Id == id);
         var flicks = ById("cartoon-flicks");
         var micro = ById("cartoon-micro");
@@ -523,9 +600,71 @@ public static class CoachCli
         if (!microOk) Bad("cartoon-micro", "expected 12 steps, 36 min, name = drill name");
         if (!ingameOk) Bad("voltaic-ingame", "expected a playable routine with a drill on every step");
         if (!antiDrill) Bad("anti-mirror", "the drill does not resolve");
+
+        // Every step of the community routines must be the source task itself (a sc-* reproduction), not a generic
+        // drill. Grouped source steps keep the full "A / B" text and play A; the drill name has to be that first task.
+        string[] official = { "voltaic-easy", "bardoz-advanced", "voltaic-classic", "cartoon-warmup",
+            "voltaic-valorant-advanced" };
+        int officialSteps = 0;
+        foreach (string id in official)
+        {
+            if (ById(id) is not { } r) { Bad(id, "the routine is missing"); continue; }
+            foreach (var s in r.Steps)
+            {
+                if (!s.Drill.Contains(":sc-", StringComparison.OrdinalIgnoreCase))
+                    Bad(id, $"“{s.Scenario}” still plays the generic drill “{s.Drill}”");
+                else if (!s.Scenario.StartsWith(s.DrillName, StringComparison.Ordinal))
+                    Bad(id, $"“{s.Scenario}” plays “{s.DrillName}”, not its first source task");
+                else officialSteps++;
+            }
+        }
+        if (officialSteps != official.Sum(id => ById(id)?.Steps.Count ?? 0))
+            Bad("official tasks", $"{officialSteps} steps matched, expected {official.Sum(id => ById(id)?.Steps.Count ?? 0)}");
+        if (ScenarioDrills.Find("voltaic-pokeball-ww6t") is not { Count: 6, Walls: 1, Drift: 0, ContactSeconds: > 0 }
+            || ScenarioDrills.Find("voltaic-pokeball-ww6t")?.Create() is not { SingleClick: false, Weapon: WeaponKind.None }
+            || ScenarioDrills.Find("voltaic-6wall18") is not { Count: 18, Walls: 6, TapOnly: true }
+            || ScenarioDrills.Find("voltaic-6wall18")?.Create() is not { SingleClick: true, Weapon: WeaponKind.None }
+            || ScenarioDrills.Find("voltaic-5-sphere-extra-small") is not { Count: 5, Drift: 0 }
+            || ScenarioDrills.Find("voltaic-reactive-clicking-hard") is not { HitsToClear: 2 }
+            || ScenarioDrills.Find("voltaic-pistol-strafe-gallery")?.Create() is not { Movement: true, Weapon: WeaponKind.Classic })
+            Bad("official mechanics", "target count, movement or firing rules changed");
+        var classicFirst = ById("voltaic-classic")?.Steps.FirstOrDefault();
+        var easyPokeball = ById("voltaic-easy")?.Steps.FirstOrDefault(s => s.Drill == "flickx:sc-voltaic-pokeball-frenzy-te");
+        if (classicFirst is not { Runs.Count: 3 } || MathF.Abs(classicFirst.Minutes - 5) > 0.01f
+            || easyPokeball is not { Runs.Count: 10 } || easyPokeball.Runs.Any(r => r.Minutes != 1))
+            Bad("official timings", "the three-run tracking block or 60-second Pokeball rounds changed");
+
+        // The three new category routines exist, resolve and are playable.
+        string[] labs = { "recoil-lab", "deathmatch-lab", "map-lab" };
+        foreach (string id in labs)
+        {
+            if (ById(id) is not { Playable: true } r) { Bad(id, "the routine is missing or not playable"); continue; }
+            if (r.Steps.Count == 0) Bad(id, "no steps");
+            foreach (var s in r.Steps)
+                if (s.Drill.Length == 0 || ModeRegistry.Find(s.Drill) == null)
+                    Bad(id, $"drill “{s.Drill}” does not resolve");
+        }
+
+        // Match simulations always use a real magazine and camera climb, whatever the global options say.
+        string[] matchModes = { "spray_vandal", "spray_phantom", "spray_transfer", "deathmatch", "siteclear",
+            "postplant", "retake", "anchor", "flashmap", "sound" };
+        foreach (string key in matchModes)
+        {
+            var mode = ModeRegistry.Find(key)?.Invoke();
+            if (mode == null) { Bad(key, "the drill does not resolve"); continue; }
+            if (!mode.ForcedRealAmmo || !mode.ForcedRecoil || mode.EffectiveInfiniteAmmo)
+                Bad(key, "match simulation does not force real ammo + recoil");
+        }
+        var aimMode = ModeRegistry.Find("flick")?.Invoke();
+        if (aimMode is { ForcedRealAmmo: true } or { ForcedRecoil: true })
+            Bad("flick", "a pure aim drill must not force match settings");
+        int forcedSteps = labs.Where(id => ById(id) is { } r && r.Steps.All(s =>
+            ModeRegistry.Find(s.Drill)?.Invoke() is { ForcedRealAmmo: true, ForcedRecoil: true })).Count();
+
         P($"  {(problems.Count == 0 ? "PASS" : "FAIL")} routines: {routines.Count} routines, {routines.Sum(r => r.Steps.Count)} steps, " +
           $"{routines.Sum(r => r.PlayableSteps)} with a built-in drill, {problems.Count} problems; " +
-          $"cartoon {flicks?.Minutes:0.#}/{micro?.Minutes:0.#} min (32/36), in-game {ingame?.PlayableSteps ?? 0} playable steps");
+          $"cartoon {flicks?.Minutes:0.#}/{micro?.Minutes:0.#} min (32/36), in-game {ingame?.PlayableSteps ?? 0} playable steps, " +
+          $"official {officialSteps}/{official.Sum(id => ById(id)?.Steps.Count ?? 0)}, forced labs {forcedSteps}/{labs.Length}");
         foreach (var problem in problems.Take(12)) P("    " + problem);
 
         var terms = Glossary.All.Select(t => t.Term).ToList();
@@ -678,6 +817,10 @@ public static class CoachCli
             File.WriteAllText(Path.Combine(dir, "20200101_000000_orphan.vtr"), "");                                        // run gone
             File.WriteAllText(Path.Combine(dir, "recordings.json"), System.Text.Json.JsonSerializer.Serialize(new { Runs = codes }));
 
+            Game.RecordingStore.Maintain(new[] { "OVERFLICK" }, dir, retainAll: true);
+            Ok(codes.Keys.All(n => File.Exists(Path.Combine(dir, n)) &&
+                File.Exists(Path.Combine(dir, Path.ChangeExtension(n, ".vtr")))),
+                "local archive retains older telemetry and replay sidecars");
             Game.RecordingStore.Maintain(new[] { "OVERFLICK", "SLOW_MICRO" }, dir);
 
             bool Has(string n) => File.Exists(Path.Combine(dir, n));

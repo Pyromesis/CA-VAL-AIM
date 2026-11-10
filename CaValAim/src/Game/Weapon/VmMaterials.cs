@@ -59,10 +59,13 @@ public sealed class VmMaterials
             switch (k)
             {
                 case "main": case "mainlight": case "metal": case "lightmetal": case "grey":
+                case "gunbody": case "gunmetal": case "gunsteel": case "gunwhite": case "gunaccent":
                     return Make(gold.Lerp(src, 0.15f), 0.95f, 0.26f, 0.6f, 0.35f, 0.25f);
                 case "darkmetal": case "maindark":
+                case "gundark":
                     return Make(gold.Darkened(0.45f), 0.9f, 0.32f, 0.55f, 0.45f, 0.22f);
                 case "black": case "green":
+                case "gunpoly": case "gunmag": case "gunrubber":
                     return Make(bronze, 0.2f, 0.4f, 0.5f, 0.55f, 0.2f);
             }
         }
@@ -74,11 +77,15 @@ public sealed class VmMaterials
             switch (k)
             {
                 case "gunbody":
-                    return Make(src, 0.32f, 0.40f, 0.58f, 0.55f, 0.45f, 120f);
+                    return Make(src, 0.22f, 0.46f, 0.53f, 0.62f, 0.31f, 105f);
                 case "gunmetal":
-                    return Make(src, 0.58f, 0.28f, 0.62f, 0.45f, 0.40f, 170f);
+                {
+                    var metal = Make(src, 0.63f, 0.34f, 0.57f, 0.76f, 0.26f, 112f);
+                    metal.SetShaderParameter("brushed", 0.8f);
+                    return metal;
+                }
                 case "gunpoly":
-                    return Make(src, 0.0f, 0.52f, 0.48f, 0.55f, 0.45f, 150f);
+                    return Make(src, 0.0f, 0.71f, 0.36f, 0.70f, 0.24f, 126f);
                 case "gunmag":
                     return Make(src, 0.08f, 0.48f, 0.48f, 0.55f, 0.40f, 150f);
                 case "gundark":

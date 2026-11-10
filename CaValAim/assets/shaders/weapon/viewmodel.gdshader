@@ -8,11 +8,16 @@ shader_type spatial;
 render_mode blend_mix, depth_draw_opaque, cull_back, diffuse_burley, specular_schlick_ggx;
 
 uniform vec4 albedo : source_color = vec4(0.2, 0.2, 0.2, 1.0);
+uniform sampler2D albedo_texture : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform bool use_albedo_texture = false;
+uniform vec3 uv_scale = vec3(1.0);
+uniform vec3 uv_offset = vec3(0.0);
 uniform float metallic : hint_range(0.0, 1.0) = 0.0;
 uniform float roughness : hint_range(0.0, 1.0) = 0.6;
 uniform float specular : hint_range(0.0, 1.0) = 0.5;
 uniform float detail : hint_range(0.0, 1.0) = 0.0;      // procedural micro-variation (wear / grain)
 uniform float detail_scale = 90.0;
+uniform float brushed = 0.0;
 uniform float rim : hint_range(0.0, 1.0) = 0.0;         // subtle back-light rim for readability
 uniform vec4 emission_color : source_color = vec4(0.0, 0.0, 0.0, 1.0);
 uniform float emission_energy = 0.0;
@@ -60,12 +65,25 @@ void fragment() {
 		discard;
 	}
 	vec3 col = albedo.rgb;
+	if (use_albedo_texture) {
+		col *= texture(albedo_texture, UV * uv_scale.xy + uv_offset.xy).rgb;
+	}
 	float r = roughness;
 	float m = metallic;
 	if (detail > 0.0) {
-		float n1 = vnoise(obj_pos * detail_scale);
-		float n2 = vnoise(obj_pos * detail_scale * 4.3 + 7.1);
+		// Fade subpixel grain to its mean so movement does not shimmer on metal.
+		vec3 grain_pos = obj_pos * detail_scale;
+		float footprint = max(length(dFdx(grain_pos)), length(dFdy(grain_pos)));
+		float n1 = mix(vnoise(grain_pos), 0.5, smoothstep(0.35, 1.0, footprint));
+		float n2 = mix(vnoise(grain_pos * 4.3 + 7.1), 0.5, smoothstep(0.35, 1.0, footprint * 4.3));
 		float n = n1 * 0.65 + n2 * 0.35;
+		if (brushed > 0.0) {
+			vec3 brush_pos = grain_pos * vec3(2.4, 2.4, 0.14);
+			float brush_footprint = max(length(dFdx(brush_pos)), length(dFdy(brush_pos)));
+			float streaks = mix(vnoise(brush_pos), 0.5, smoothstep(0.35, 1.0, brush_footprint));
+			n = mix(n, streaks, brushed);
+			r += (streaks - 0.5) * 0.22 * brushed;
+		}
 		col *= 1.0 + (n - 0.5) * 0.35 * detail;
 		r = clamp(r + (n2 - 0.5) * 0.30 * detail, 0.05, 1.0);
 	}

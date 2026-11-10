@@ -39,6 +39,7 @@ static class RunAnalysis
             return m;
         }
         if (t.Mode == "xhairfinder") return m; // the crosshair changes mid-run: its trials are not comparable skill data
+        if (t.Events.Any(e => e.Kind == "sens_changed")) m["sens.changed"] = 1;
         if (t.Frames.Count < 10 || !FramesUsable(t)) { Reaction(t, m); Flash(t, m); return Clean(m); }
         var p = new Prep(t);
         m["run.secs"] = p.Ft[^1] - p.Ft[0];
@@ -200,6 +201,18 @@ static class RunAnalysis
         m["flick.amp_deg"] = Dsp.Mean(res.Select(r => r.A));
         m["flick.r_deg"] = Dsp.Mean(res.Select(r => r.R));
         var prim = res.Where(r => r.HasPrimary).ToList();
+        var controlled = prim.Where(r => r.Bot && CleanAimSample(p, r))
+            .DistinctBy(r => (r.TrialId, Math.Round(r.TeP, 1))).ToList();
+        if (controlled.Count > 0)
+        {
+            m["sens.n"] = controlled.Count;
+            m["sens.over"] = controlled.Count(r => r.Over);
+            m["sens.under"] = controlled.Count(r => r.Under);
+            var over = controlled.Where(r => r.Over).ToList();
+            var under = controlled.Where(r => r.Under).ToList();
+            if (over.Count > 0) m["sens.over_pct"] = 100 * Dsp.Mean(over.Select(r => r.S / r.A));
+            if (under.Count > 0) m["sens.under_deg"] = Dsp.Mean(under.Select(r => -r.S));
+        }
         m["flick.n_prim"] = prim.Count;
         if (prim.Count > 0)
         {
@@ -335,6 +348,33 @@ static class RunAnalysis
             m["head.tc_ms"] = Dsp.Median(headHits.Select(r => r.Tc));
             m["head.nc"] = Dsp.Mean(headHits.Select(r => (float)r.Nc));
         }
+    }
+
+    // A moving opponent, scoped shot, or recoil can look like a sensitivity error. Only measure
+    // the hand motion while the same target stays nearly still in world angle and the player holds still.
+    internal static bool CleanAimSample(Prep p, TrialResult r)
+    {
+        if (!r.HasPrimary || !double.IsFinite(r.TsP) || !double.IsFinite(r.TeP) ||
+            r.TeP - r.TsP < 0.08 || r.Perp > 2 * r.R) return false;
+        var frames = p.T.Frames;
+        int start = p.FrameAt(r.TsP), end = p.FrameAt(r.TeP);
+        var first = frames[start];
+        float targetYaw = first.Yaw + first.FocusYaw, targetPitch = first.Pitch + first.FocusPitch;
+        float limit = Math.Max(0.12f, first.FocusRadius * 0.5f);
+        if (end <= start || first.FocusId != r.TrialId) return false;
+        for (int i = p.FrameAt(r.TsP - 0.3); i <= end; i++)
+        {
+            var f = frames[i];
+            if (f.Has(FrameFlags.Firing) || f.Has(FrameFlags.Ads)) return false;
+            if (i < start) continue;
+            if (f.FocusId != r.TrialId || f.Speed > 0.25f || !f.Has(FrameFlags.Alive) ||
+                f.Has(FrameFlags.Blind | FrameFlags.Airborne)) return false;
+            float yaw = f.Yaw + f.FocusYaw - targetYaw;
+            yaw -= 360 * MathF.Round(yaw / 360);
+            float pitch = f.Pitch + f.FocusPitch - targetPitch;
+            if (yaw * yaw + pitch * pitch > limit * limit) return false;
+        }
+        return true;
     }
 
     static List<Trial> BuildTrials(Prep p)

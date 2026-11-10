@@ -18,6 +18,16 @@ public static partial class MapSpots
         StartFeet = V(36.50f, 2.00f, -1.00f), StartYaw = -76.0f, Choke = V(15.50f, 1.00f, 2.00f),
         Palette = new MapPalette(C(86, 87, 86), C(198, 190, 178), C(92, 118, 124), C(168, 128, 86), C(120, 112, 104), C(150, 182, 210)),
         RealMapFolder = "maps/split",
+        // The extractor dropped the sloped wall behind A Back (art at z≈-17.3, x -8.65..-3.0, rising from
+        // y≈0 to 1.9 over the sunken floor at -1.0): bullets went through the visible wall. Three steps follow
+        // the slope, plus the low face below it (the art steps back to z≈-17.9 under y≈0).
+        ExtraSolid = new[]
+        {
+            Box3(-8.72f, -1.05f, -17.98f, -2.95f, -0.02f, -17.84f),
+            Box3(-8.70f, -1.00f, -17.45f, -6.55f, 0.70f, -17.20f),
+            Box3(-6.55f, -1.00f, -17.45f, -4.75f, 1.31f, -17.20f),
+            Box3(-4.75f, -1.00f, -17.45f, -2.95f, 1.95f, -17.20f),
+        },
         // Only used when the external real-map files are absent.
         Boxes = new[] { B(-80f, -0.1f, -80f, 80f, 0f, 80f, Surf.Floor) },
         Enemies = new[]

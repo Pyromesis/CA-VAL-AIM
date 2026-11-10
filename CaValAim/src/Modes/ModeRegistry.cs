@@ -19,6 +19,8 @@ public static class ModeRegistry
         () => new SprayTransferMode(),
         () => new CounterStrafeMode(),
         () => new PeekDuelMode(),
+        () => new PeekDuelMode("close"),
+        () => new PeekDuelMode("long"),
         () => new SiteClearMode(),
         () => new FlashDodgeMode(),
         () => new ReactionMode(),

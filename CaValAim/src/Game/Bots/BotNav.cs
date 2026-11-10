@@ -297,7 +297,8 @@ public sealed class BotNav
         var outp = new List<Vector3>();
         var anchor = start;
         // The first node is just the one under / nearest the start: don't step back to its centre.
-        int i = nodes.Count > 1 && new Vector2(start.X - Pos[nodes[0]].X, start.Z - Pos[nodes[0]].Z).Length() < 0.75f ? 1 : 0;
+        int i = nodes.Count > 1 && Math.Abs(start.Y - Pos[nodes[0]].Y) <= MovementTuning.SnapDown
+            && H(start, Pos[nodes[0]]) < 0.75f ? 1 : 0;
         while (i < nodes.Count)
         {
             // furthest node j ≥ i reachable in a straight line from the anchor
@@ -316,8 +317,10 @@ public sealed class BotNav
     {
         var d = new Vector3(b.X - a.X, 0, b.Z - a.Z);
         float len = d.Length();
+        // Preserve ramp and stair waypoints. A ray at the high endpoint can pass
+        // above a barrier that blocks the bot at the lower endpoint.
+        if (Mathf.Abs(b.Y - a.Y) > MovementTuning.SnapDown) return false;
         if (len < 0.05f) return true;
-        if (Mathf.Abs(b.Y - a.Y) > 0.05f && len > 6f) return false; // ramps/stairs: follow the grid
         int steps = (int)Mathf.Ceil(len / (Cell * 0.5f));
         float y = a.Y;
         for (int k = 1; k <= steps; k++)
@@ -327,6 +330,7 @@ public sealed class BotNav
             int n = At(p, Collision.StepHeight);
             if (n < 0) return false;
             y = Pos[n].Y;
+            if (Mathf.Abs(y - a.Y) > MovementTuning.SnapDown) return false;
         }
         if (Mathf.Abs(y - b.Y) > 0.3f) return false;
         var dir = d / len;

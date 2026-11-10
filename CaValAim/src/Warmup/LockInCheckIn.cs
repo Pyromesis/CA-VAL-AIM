@@ -170,7 +170,7 @@ public partial class LockInCheckIn : ScreenBase
         var head = HBox(16 * k);
         bool es = Loc.Spanish;
         string who = run.Plan.Preset.Key.StartsWith(Agents.AgentRoutines.Prefix)
-            ? $"{(es ? "LOCK-IN COMO" : "LOCK IN AS")} {run.Plan.Preset.Name.ToUpperInvariant()}"
+            ? $"{(es ? "CALENTAMIENTO CON" : "LOCK IN AS")} {run.Plan.Preset.Name.ToUpperInvariant()}"
             : run.Plan.Preset.Name.ToUpperInvariant();
         var title = Heading("CHECK-IN", es
             ? $"{who} · 30 SEGUNDOS · CÓMO TE SIENTES AHORA MISMO · AQUÍ NADA PUNTÚA"

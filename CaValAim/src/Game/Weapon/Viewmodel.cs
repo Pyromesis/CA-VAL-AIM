@@ -169,9 +169,10 @@ public partial class Viewmodel : Node3D
         // The two rifles are CPU-authored here (detailed silhouette + separate magazine); the other guns keep
         // their imported scenes. No new pck assets are needed, so a DLL-only update ships the new models.
         // The rest of the arsenal: procedural, self-made models in the same gun space (ProceduralArsenal).
-        gun = actual is WeaponKind.Vandal or WeaponKind.Phantom
-            ? ProceduralRifle.Build(actual)
-            : ProceduralArsenal.Has(actual) ? ProceduralArsenal.Build(actual)
+        var model = Weapons.IsAbilityGun(actual) ? kind : actual;
+        gun = model is WeaponKind.Vandal or WeaponKind.Phantom
+            ? ProceduralRifle.Build(model)
+            : ProceduralArsenal.Has(model) ? ProceduralArsenal.Build(model)
             : GD.Load<PackedScene>(pose.Scene).Instantiate<Node3D>();
         gun.Name = "Gun";
         pivot.AddChild(gun);
@@ -190,10 +191,22 @@ public partial class Viewmodel : Node3D
                 .Expand(toMesh * new Vector3(clipMin.X, clipMin.Y, clipMax.Z)).Expand(toMesh * new Vector3(clipMax.X, clipMax.Y, clipMin.Z));
             for (int i = 0; i < mi.Mesh.GetSurfaceCount(); i++)
             {
-                var src = mi.Mesh.SurfaceGetMaterial(i);
+                var src = mi.GetActiveMaterial(i);
                 string name = src?.ResourceName ?? "";
                 var col = src is BaseMaterial3D bm ? bm.AlbedoColor : new Color(0.2f, 0.2f, 0.2f);
                 var m = mats.ForGunSurface(name, col);
+                if (src is BaseMaterial3D textured && textured.AlbedoTexture != null)
+                {
+                    // Keep imported UV art instead of replacing it with a flat colour.
+                    m.SetShaderParameter("albedo", textured.AlbedoColor);
+                    m.SetShaderParameter("albedo_texture", textured.AlbedoTexture);
+                    m.SetShaderParameter("use_albedo_texture", true);
+                    m.SetShaderParameter("uv_scale", textured.Uv1Scale);
+                    m.SetShaderParameter("uv_offset", textured.Uv1Offset);
+                    m.SetShaderParameter("roughness", textured.Roughness);
+                    m.SetShaderParameter("metallic", textured.Metallic);
+                    m.SetShaderParameter("detail", 0f);
+                }
                 m.SetShaderParameter("clip_min", bb.Position);
                 m.SetShaderParameter("clip_max", bb.End);
                 gunMats.Add(m);
@@ -214,7 +227,7 @@ public partial class Viewmodel : Node3D
         boltPose = pose.Bolt != null ? X(pose.Bolt.Xform) : gripRest;
         gripHand.Transform = gripRest;
         supportHand.Transform = supportRest;
-        foreach (var h in new[] { gripHand, supportHand }) { Configure(h); gun.AddChild(h); h.Visible = !VmTest.NoHands; }
+        foreach (var h in new[] { gripHand, supportHand }) { Configure(h); gun.AddChild(h); h.Visible = !VmTest.NoHands && (actual != WeaponKind.Knife || h == gripHand); }
 
         // Spare magazine for the reload.
         var magBody = mats.Make(new Color(0.07f, 0.072f, 0.078f), 0.2f, 0.5f, 0.5f, 0.5f, 0.15f);

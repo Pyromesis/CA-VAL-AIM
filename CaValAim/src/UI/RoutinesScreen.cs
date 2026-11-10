@@ -355,6 +355,13 @@ public partial class RoutinesScreen : ScreenBase
         var actions = HBox(8 * k);
         if (r.Playable)
         {
+            bool includeOptional = true;
+            if (r.Steps.Any(s => s.Optional && s.Drill.Length > 0))
+            {
+                var optional = new CheckButton { Text = L("Include optional exercises", "Incluir ejercicios opcionales"), ButtonPressed = true };
+                optional.Toggled += value => includeOptional = value;
+                right.AddChild(optional);
+            }
             var play = new MAction
             {
                 K = k, Primary = true, Label = L("PLAY ROUTINE", "JUGAR RUTINA"), Px = 12.5f,
@@ -364,7 +371,7 @@ public partial class RoutinesScreen : ScreenBase
             };
             play.Pressed += () =>
             {
-                if (!r.Play()) SetStatus(L("This routine cannot be played yet.", "Esta rutina todavía no se puede jugar."), UiTheme.Warn);
+                if (!r.Play(includeOptional)) SetStatus(L("This routine cannot be played yet.", "Esta rutina todavía no se puede jugar."), UiTheme.Warn);
             };
             actions.AddChild(play);
 

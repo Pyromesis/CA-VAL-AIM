@@ -2,6 +2,60 @@
 
 ## [Unreleased]
 
+## [2.7.0] - 2026-11-10
+
+### Added
+
+- Guided practice with coaching between rounds, seven sensitivity/reaction/tracking drills, and close/long corner duels.
+- Local neural accuracy forecasts trained on comparable sessions, including guided practice, with held-out validation.
+- A redesigned main menu with animated rangefinder background and a warm stone practice courtyard.
+
+### Improved
+
+- Reviewed all routine steps and repetitions, corrected contact/regeneration scenarios and preserved authored difficulty.
+- Bots verify firing sightlines, reposition between bursts and navigate stairs more reliably.
+- Corrected weapon face orientation, hand mirroring, pistol slides and the knife blade across the arsenal.
+- Improved collision handling, spatial audio, recoil recovery and Spanish interface terminology.
+- Completed rounds and their coaching data remain in the local archive until the player removes them.
+
+
+
+## [2.6.0] - 2026-11-02
+
+### Added
+
+- **Lotus' stone door and rope ascender work like the real map.** The A door is a solid stone disc with a toggle
+  button on each face: press your Use key (`F` by default) beside it, it turns 180° over 10 seconds, blocks bullets and
+  bodies while it moves, leaves the short pass-through window of the real door and grinds loudly enough to be heard
+  across the site. The rope at the back of A Site grabs you when you walk into it, lifts you to A Top and plays its
+  mechanical sound. Both are driven by the session, so pausing freezes them too.
+- **Jump to any task of a routine while paused.** The pause menu now shows `‹ TASK 2/5 · PASS 1/4 ›` with the official
+  task name, and either arrow starts the first pass of the previous or next task. The abandoned run is discarded
+  instead of saved, so a bad task never pollutes your stats, and the new task applies the recoil the routine asked for.
+- **The five Voltaic routines play their 48 official tasks.** Every step of Easy, Classic, bardOZ Advanced, the cartoon
+  warm-up and VALORANT Advanced Classic is now its own drill (`sc-voltaic-*`, 41 reproductions) with the exact source
+  name instead of a generic mode. When the source groups "A / B", the step keeps the full text and plays A on the
+  flick, micro, tracking or reflex engine.
+- **Three category routines.** **RECOIL · Laboratorio de spray** (30 min: full Vandal and Phantom magazines, transfers
+  and short bursts), **DEATHMATCH · Presión real** (36 min: entry, duels, kill-to-kill resets, movement and a final
+  map) and **MAPAS · Limpieza y retake** (35 min: site clear, post-plant, retake, anchor, flash dodge and sound lock).
+
+### Changed
+
+- **Match simulations lock real ammo and recoil.** Spray control, spray transfer, deathmatch and every map exercise
+  always use a real magazine and camera climb, whatever the global ammo and recoil options say; the pause menu shows
+  the recoil toggle locked with "simulates a match". Pure aim drills keep respecting the player's settings.
+- **The audits cover the new rules.** The routine check verifies that every Voltaic step plays its source task and that
+  the three labs exist, resolve and force match settings; the smoke test now plays four official drills.
+
+### Fixed
+
+- **Bind's Hookah window can be jumped.** The extracted collision had turned the window sill into a slab up to 3.5 m
+  and added a lip outside it, so a standing jump hit an invisible wall; cutting both above the real 3.05 m sill lets you
+  climb Hookah, swing the window and drop in.
+- **Split's A Back wall stops bullets.** The extractor had dropped the sloped wall behind A Back, so shots went through
+  the visible art; four solid steps now follow the slope and its low face.
+
 ## [2.5.0] - 2026-11-01
 
 ### Added

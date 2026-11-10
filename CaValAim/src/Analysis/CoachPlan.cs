@@ -45,6 +45,60 @@ public sealed class CoachPlan
 
     const int MaxSteps = 4;
 
+    /// <summary>A follow-up from the last round, usable immediately without opening the Sens Lab.</summary>
+    public static CoachPlan FromRun(RunReview review)
+    {
+        bool es = Loc.Spanish;
+        var plan = new CoachPlan();
+        if (review.Sens is { } f && SensLab.Enough(f))
+        {
+            string drill = f.Verdict switch
+            {
+                SensVerdict.Overshoot => "flickx:settle-confirm",
+                SensVerdict.Undershoot => "flickx:sens-braking",
+                SensVerdict.Mixed => "microx:sens-fine",
+                SensVerdict.Shaky or SensVerdict.Tracking => "trackv:sens-smooth",
+                _ => "",
+            };
+            if (drill.Length > 0)
+            {
+                string cue = f.Verdict switch
+                {
+                    SensVerdict.Overshoot => es
+                        ? "Mantén tu sensibilidad y disparo pulsado. Frena sobre el blanco y mantenlo centrado hasta eliminarlo. Evita cruzarlo y tener que volver."
+                        : "Keep your sensitivity and hold fire. Brake on the target and keep it centered until it clears. Avoid crossing it and having to return.",
+                    SensVerdict.Undershoot => es
+                        ? "Mantén tu sensibilidad. Completa el primer movimiento hasta el centro antes de pulsar. Intenta reducir la proporción de flicks cortos."
+                        : "Keep your sensitivity. Finish the first motion at the center before clicking. Try to reduce the share of flicks that stop short.",
+                    SensVerdict.Mixed => es
+                        ? "Mantén tu sensibilidad y practica a un ritmo constante. Haz una pausa breve al llegar y compara la proporción de errores a cada lado."
+                        : "Keep your sensitivity and practise at a steady pace. Pause briefly on arrival and compare the share of errors in each direction.",
+                    _ => es
+                        ? "Mantén pulsado disparo y sigue el centro del objetivo. Relaja el agarre al invertir el movimiento e intenta aumentar tu tiempo en blanco."
+                        : "Hold fire and follow the center of the target. Relax your grip during reversals and try to increase time on target.",
+                };
+                Add(drill, SkillOf(drill), new Diagnosis("SENS_TASK", SkillOf(drill), Severity.Tip, "",
+                    "", "", new[] { cue }, new[] { drill }, f.Flicks));
+            }
+        }
+        foreach (var issue in review.Issues)
+        {
+            string? drill = issue.Drills.FirstOrDefault(k => ModeRegistry.Find(k) != null && plan.Steps.All(s => s.Drill != k));
+            if (drill == null) continue;
+            Add(drill, issue.Skill, issue);
+            if (plan.Steps.Count >= 3) break;
+        }
+        if (plan.IsEmpty)
+            Add("flick", Skill.Flicking, null);
+        return plan;
+
+        void Add(string drill, Skill skill, Diagnosis? source)
+        {
+            var (recoil, why) = RecoilFor(drill);
+            plan.Steps.Add(new PlanStep(drill, skill, 1, recoil, why, source?.Title ?? "", source));
+        }
+    }
+
     /// <summary>
     /// Builds today's plan from a profile. Order: the worst problems first (one drill each, never repeated), then the
     /// rated skills with the most room for improvement; with no data at all it falls back to the onboarding drills so
@@ -172,11 +226,11 @@ public sealed class CoachPlan
     {
         Skill.Flicking => new[] { "flick", "spider", "gridshot", "flickx:horizontal", "flickx:mid" },
         Skill.Precision => new[] { "flick", "gridshot", "microx:tiny", "flickx:tiny" },
-        Skill.Tracking => new[] { "tracking", "strafebots", "trackv:slow", "trackv:fast" },
-        Skill.Reaction => new[] { "reaction", "reflex:centre", "reflex:near" },
+        Skill.Tracking => new[] { "tracking", "trackv:control-curves", "trackv:react-diagonal", "strafebots", "trackv:slow", "trackv:fast" },
+        Skill.Reaction => new[] { "reaction", "reflex:signal-near", "reflex:signal-angle", "reflex:centre", "reflex:near" },
         Skill.CrosshairPlacement => new[] { "peek", "siteclear", "anchor" },
         Skill.SprayControl => new[] { "spray_vandal", "spray_phantom" },
-        Skill.Movement => new[] { "anti-mirror", "counterstrafe", "peekduel" },
+        Skill.Movement => new[] { "anti-mirror", "counterstrafe", "peekduel", "peekduel:close", "peekduel:long" },
         Skill.Utility => new[] { "flashmap" },
         _ => Array.Empty<string>(),
     };

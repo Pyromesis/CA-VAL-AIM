@@ -174,7 +174,8 @@ public partial class Hud : Control
             GetViewport().SetInputAsHandled();
             if (mb.ButtonIndex != MouseButton.Left) return;
             // The sensitivity box: clicks are swallowed above (no fire edge on resume), so focus it by hand.
-            if (sensEdit != null && IsInstanceValid(sensEdit) && sensEdit.IsVisibleInTree() && sensEdit.GetGlobalRect().HasPoint(mb.Position))
+            if (sensEdit != null && IsInstanceValid(sensEdit) && sensEdit.Editable &&
+                sensEdit.IsVisibleInTree() && sensEdit.GetGlobalRect().HasPoint(mb.Position))
             {
                 if (!sensEdit.HasFocus()) { sensEdit.GrabFocus(); sensEdit.SelectAll(); sensEdit.CaretColumn = sensEdit.Text.Length; }
                 return;
@@ -244,9 +245,10 @@ public partial class Hud : Control
             if (m.Movement) DrawSpeed(size, k);
             DrawReload(size, k);
         }
-        if (m.Prompt is { } p) DrawPrompt(size, k, Main.I.Valorant.Binds.Hint(p));
+        if ((m.Prompt ?? s.WorldPrompt) is { } p) DrawPrompt(size, k, Main.I.Valorant.Binds.Hint(p));
         if (s.BannerTime > 0 && s.BannerText.Length > 0) DrawBanner(size, k);
-        if (s.State == GameSession.St.Running && s.Live?.Current is { } tip) DrawLiveTip(size, k, tip);
+        if (s.State == GameSession.St.Running && (s.GuidedPractice || Main.I.Settings.LiveCoach) &&
+            s.Live?.Current is { } tip) DrawLiveTip(size, k, tip);
         if (m.KillBanner.Time > 0 && m.KillBanner.Count > 0) DrawKillBanner(size, k, m.KillBanner.Count, m.KillBanner.Time);
         if (s.State == GameSession.St.Countdown) DrawCountdown(size, k, m);
         if (focus != null && (s.State == GameSession.St.Countdown || (s.State == GameSession.St.Running && s.Now < 2f))) DrawFocus(size, k, focus);
@@ -936,6 +938,40 @@ public partial class Hud : Control
             K = k, Text = $"{Loc.T(m.Category).ToUpperInvariant()}  ·  {tier.Name.ToUpperInvariant()}", Font = UiTheme.Body,
             Px = 13, Color = UiTheme.Dim, Delay = 0.09f,
         });
+        // Routine task navigation: jump to any other task without saving the abandoned run. Shown only while the
+        // session belongs to a multi-task routine/playlist.
+        if (PlaylistRunner.CanNavigate)
+        {
+            Gap(page, 8);
+            var nav = ArrowRow(6f);
+            nav.AddChild(new Control { SizeFlagsHorizontal = SizeFlags.ExpandFill, MouseFilter = MouseFilterEnum.Ignore });
+            var prev = Arrow("‹", () => PlaylistRunner.JumpTask(-1), 0.1f, 19f);
+            prev.Disabled = !PlaylistRunner.CanGoPrev;
+            prev.TooltipText = L("Previous task of the routine", "Tarea anterior de la rutina");
+            nav.AddChild(prev);
+            string pass = PlaylistRunner.RunsInStep > 1
+                ? $"  ·  {L("PASS", "PASADA")} {PlaylistRunner.RunOfStep}/{PlaylistRunner.RunsInStep}"
+                : "";
+            nav.AddChild(new MText
+            {
+                K = k, Text = $"{L("TASK", "TAREA")} {PlaylistRunner.TaskNumber}/{PlaylistRunner.TaskCount}{pass}",
+                Font = UiTheme.HudWide, Px = 11, Color = UiTheme.Accent, Delay = 0.1f,
+                Align = HorizontalAlignment.Center, SizeFlagsHorizontal = SizeFlags.ShrinkCenter,
+                SizeFlagsVertical = SizeFlags.ShrinkCenter, CustomMinimumSize = new Vector2(150 * k, 30 * k),
+            });
+            var next = Arrow("›", () => PlaylistRunner.JumpTask(1), 0.1f, 19f);
+            next.Disabled = !PlaylistRunner.CanGoNext;
+            next.TooltipText = L("Next task of the routine", "Tarea siguiente de la rutina");
+            nav.AddChild(next);
+            nav.AddChild(new Control { SizeFlagsHorizontal = SizeFlags.ExpandFill, MouseFilter = MouseFilterEnum.Ignore });
+            page.AddChild(nav);
+            page.AddChild(new MText
+            {
+                K = k, Text = PlaylistRunner.TaskLabel, Font = UiTheme.Body, Px = 11.5f, Color = UiTheme.Faint,
+                Align = HorizontalAlignment.Center, Delay = 0.11f, SizeFlagsHorizontal = SizeFlags.ExpandFill,
+                CustomMinimumSize = new Vector2(0, 18 * k),
+            });
+        }
         Gap(page, 20);
         page.AddChild(new MRule { Delay = 0.12f });
         Gap(page, 22);
@@ -1047,14 +1083,21 @@ public partial class Hud : Control
         Gap(left, 12);
         left.AddChild(Cap(L("RECOIL", "RETROCESO"), 0.34f));
         Gap(left, 2);
+        bool forcedRecoil = m.ForcedRecoil;
         var recoil = new MToggle
         {
-            K = k, On = st.RecoilEnabled, Delay = 0.35f, CustomMinimumSize = new Vector2(130 * k, 30 * k),
-            TooltipText = L("The camera climbs with the spray, as in VALORANT. Off: the shots still spread",
-                "La cámara sube con el spray, como en VALORANT. Apagado: los disparos siguen dispersando"),
+            K = k, On = forcedRecoil || (s.SessionRecoil ?? st.RecoilEnabled), Delay = 0.35f,
+            CustomMinimumSize = new Vector2(130 * k, 30 * k),
+            Disabled = forcedRecoil || s.SessionRecoil != null,
+            TooltipText = forcedRecoil
+                ? L("Always on: this drill simulates a match", "Siempre activo: este ejercicio simula una partida")
+                : s.SessionRecoil != null ? L("Fixed for this exercise", "Fijo para este ejercicio")
+                : L("The camera climbs with the spray, as in VALORANT. Off: the shots still spread",
+                    "La cámara sube con el spray, como en VALORANT. Apagado: los disparos siguen dispersando"),
         };
         recoil.Changed = on =>
         {
+            if (m.ForcedRecoil || s.SessionRecoil != null) return;
             st.RecoilEnabled = on;
             st.Save();
             if (s.Gun != null) s.Gun.RecoilOn = on;
@@ -1063,7 +1106,9 @@ public partial class Hud : Control
         left.AddChild(new MText
         {
             K = k, Font = UiTheme.Body, Px = 11.5f, Color = UiTheme.Faint, Delay = 0.36f,
-            Text = L("camera stays put · spread still applies", "la cámara no sube · la dispersión sigue"),
+            Text = forcedRecoil
+                ? L("locked on · real magazine · simulates a match", "bloqueado · cargador real · simula una partida")
+                : L("camera stays put · spread still applies", "la cámara no sube · la dispersión sigue"),
         });
 
         Gap(left, 12);
@@ -1083,13 +1128,17 @@ public partial class Hud : Control
         var sensRow = ArrowRow();
         MText sensNote = null!; // declared first: the arrow/use lambdas can run before the note is built
         MLink useVal = null!;
+        bool fixedSens = s.SessionSens.HasValue;
         var sPrev = Arrow("‹", () => AdjustSens(-1), 0.17f);
+        sPrev.Disabled = fixedSens;
         sensRow.AddChild(sPrev);
         sensEdit = new LineEdit
         {
             CustomMinimumSize = new Vector2(0, 42 * k), SizeFlagsHorizontal = SizeFlags.ExpandFill,
             MaxLength = 8, Alignment = HorizontalAlignment.Center, SelectAllOnFocus = true,
-            TooltipText = L("Click and type a sensitivity, then Enter. Shift-click the arrows for ±0.001",
+            Editable = !fixedSens,
+            TooltipText = fixedSens ? L("Sensitivity fixed for this round", "Sensibilidad fija para esta ronda")
+                : L("Click and type a sensitivity, then Enter. Shift-click the arrows for ±0.001",
                 "Haz clic y escribe una sensibilidad, luego Enter. Mayús + flechas para ±0.001"),
         };
         SettingsScreen.StyleEdit(sensEdit, k, 24, UiTheme.Light);
@@ -1102,6 +1151,7 @@ public partial class Hud : Control
         sensEdit.AddThemeStyleboxOverride("focus", HairBox(UiTheme.Accent));
         sensRow.AddChild(sensEdit);
         var sNext = Arrow("›", () => AdjustSens(1), 0.17f);
+        sNext.Disabled = fixedSens;
         sensRow.AddChild(sNext);
         right.AddChild(sensRow);
         sensNote = new MText
@@ -1130,8 +1180,17 @@ public partial class Hud : Control
         }
         void PaintSens()
         {
+            float effective = s.SessionSens ?? app.Sens;
             if (sensEdit != null && IsInstanceValid(sensEdit) && !sensEdit.HasFocus())
-                sensEdit.Text = app.Sens.ToString("0.000", Inv);
+                sensEdit.Text = effective.ToString("0.0000", Inv);
+            if (fixedSens)
+            {
+                sensNote.Text = L($"FIXED FOR THIS ROUND · {PlayerView.Cm360(effective, st.Dpi):0.0} CM/360",
+                    $"FIJA PARA ESTA RONDA · {PlayerView.Cm360(effective, st.Dpi):0.0} CM/360");
+                sensNote.QueueRedraw();
+                useVal.Hide();
+                return;
+            }
             string note = st.UseSensOverride
                 ? $"CUSTOM · {PlayerView.Cm360(app.Sens, st.Dpi):0.0} CM/360"
                 : $"FROM VALORANT · {PlayerView.Cm360(app.Sens, st.Dpi):0.0} CM/360";
@@ -1142,7 +1201,7 @@ public partial class Hud : Control
         // Enter or clicking away applies a valid value; anything else snaps back to the current sensitivity.
         void ApplySens()
         {
-            if (sensEdit == null || !IsInstanceValid(sensEdit)) return;
+            if (fixedSens || sensEdit == null || !IsInstanceValid(sensEdit)) return;
             if (SensInput.TryParse(sensEdit.Text, out var v) && (!st.UseSensOverride || v != st.SensOverride))
             {
                 st.UseSensOverride = true;
@@ -1155,6 +1214,11 @@ public partial class Hud : Control
         sensEdit.FocusExited += ApplySens;
         sensEdit.Text = app.Sens.ToString("0.000", Inv);
         PaintSens();
+
+        // Dev self-check "--pause-jump <-1|1>" (with --pause-at): jump to the previous/next routine task while paused.
+        if (Main.I.Dev && CmdLine.DevAfter("--pause-jump") is { } jump
+            && int.TryParse(jump, out int direction) && direction != 0)
+            GetTree().CreateTimer(1.0).Timeout += () => PlaylistRunner.JumpTask(Math.Sign(direction));
 
         // Dev self-check "--pause-type <value>" (with --pause-at): click the box, type, Enter, through the real input path.
         if (Main.I.Dev && CmdLine.DevAfter("--pause-type") is { } typed)
@@ -1353,7 +1417,7 @@ public partial class Hud : Control
         if (hasReview) nextFocus = FocusFor(review!, m.Key);
         var extra = ExtraButtons(m);
         var sens = review?.Sens;
-        bool showSens = showScore && sens is { HasData: true } && extra.Count == 0;
+        bool showSens = sens != null;
         if (hasReview) k = Mathf.Min(k, size.X / 1764f); // both panels side by side must fit (4:3 / 5:4 windows)
         float sensH = showSens ? 128 * k : 0;
         // Rewind: any run with a target in its frames; its insights build on a worker (the review's "Show me" links
@@ -1416,9 +1480,10 @@ public partial class Hud : Control
                 ex += ew + eg;
             }
         }
-        if (showSens)
-            OverlayButton("SENS LAB  ›", VButton.Look.Ghost,
-                new Rect2(panel.End.X - 44 * k - 150 * k, sensTop - 2 * k, 150 * k, 28 * k), k, Main.I.ShowSensLab, 12);
+        if (showSens && review != null)
+            OverlayButton(L("PRACTISE THIS  ›", "PRACTICAR ESTO  ›"), VButton.Look.Ghost,
+                new Rect2(panel.End.X - 44 * k - 160 * k, sensTop - 2 * k, 160 * k, 28 * k), k,
+                () => PracticeScreen.Start(CoachPlan.FromRun(review), CoachData.Ready ?? new SkillProfile()), 12);
         if (rl != null)
             foreach (var (r, label, sub, act, look) in rl.Buttons)
             {
@@ -1647,13 +1712,15 @@ public partial class Hud : Control
                 Gfx.Diamond(d, new Vector2(x0 - 10 * k, sdy), 3 * k, 3 * k, UiTheme.Teal);
                 int cap = UiTheme.Fs(12, k), body = UiTheme.Fs(14, k);
                 Gfx.Diamond(d, new Vector2(x0 + 3 * k, st + 8 * k), (2.6f + 1.2f * pulse) * k, (2.6f + 1.2f * pulse) * k, UiTheme.Accent);
-                Gfx.Text(d, UiTheme.HudWide, "SENSITIVITY LAB", x0 + 14 * k, Gfx.Mid(st + 8 * k, cap), cap, UiTheme.Dim);
+                Gfx.Text(d, UiTheme.HudWide, L("SENSITIVITY THIS RUN", "SENSIBILIDAD EN ESTA RONDA"), x0 + 14 * k, Gfx.Mid(st + 8 * k, cap), cap, UiTheme.Dim);
                 float cy = st + 32 * k;
                 var vc = SensLabText.VerdictColor(sf.Verdict);
                 float cw = CoachDraw.Chip(d, SensLabText.Verdict(sf), x0, cy, k, vc, filled: true);
                 Gfx.TextFit(d, UiTheme.Display, SensLabText.VerdictSentence(sf), x0 + cw + 10 * k,
                     Gfx.Mid(cy, UiTheme.Fs(17, k)), UiTheme.Fs(17, k), UiTheme.Text, x1 - x0 - cw - 10 * k);
-                string sm = SensLabText.Metrics(sf) + " · " + SensLabText.ConfidenceCaption(sf.Confidence);
+                string sm = review?.Metrics.GetValueOrDefault("sens.changed") > 0
+                    ? L("Sensitivity changed during the round", "La sensibilidad cambió durante la ronda")
+                    : $"{s.Record?.Sens:0.0000} · {SensLabText.Metrics(sf)} · {SensLabText.EvidenceCaption(sf.Confidence)}";
                 Gfx.TextFit(d, UiTheme.Body, sm, x0, Gfx.Mid(st + 56 * k, body), body, UiTheme.Dim, x1 - x0 - 160 * k);
                 CoachDraw.Para(d, UiTheme.Body, SensLabText.Advice(sf), x0, st + 75 * k, x1 - x0, UiTheme.Fs(13.5f, k), UiTheme.Faint, 2);
             }

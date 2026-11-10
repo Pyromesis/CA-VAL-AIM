@@ -116,9 +116,23 @@ public sealed class PeekDuelMode : MovementMode
 {
     public override AimFocus? Focus => st == St.Live && bot != null && !bot.Dead && GodotObject.IsInstanceValid(bot) ? new AimFocus(IdOf(bot), bot.Head, BotCharacter.HeadRadius) : null;
 
-    public override string Key => "peekduel";
-    public override string Name => "Peek Duels";
-    public override string Description => "Swing out from a corner vs a bot holding the angle. It shoots back — stop, hit first, get back.";
+    readonly string range;
+    public PeekDuelMode(string range = "") => this.range = range;
+
+    public override string Key => range.Length == 0 ? "peekduel" : $"peekduel:{range}";
+    public override string Name => range switch
+    {
+        "close" => "Close Corner Duels",
+        "long" => "Long Corner Duels",
+        _ => "Peek Duels",
+    };
+    public override string SimKind => "bot";
+    public override string Description => range switch
+    {
+        "close" => "At close range, clear the corner, stop quickly and land the first shot.",
+        "long" => "At long range, clear the corner and use deliberate taps between bursts.",
+        _ => "Swing out from a corner vs a bot holding the angle. It shoots back — stop, hit first, get back.",
+    };
     public override Vector3 StartFeet => new(0.4f, 0, 0);
     public override float StartYaw => 6f;
 
@@ -137,26 +151,37 @@ public sealed class PeekDuelMode : MovementMode
 
     enum St { ToCover, Delay, Live, After }
     St st = St.ToCover;
+    internal bool DemoCanSwing => st == St.Live;
     BotCharacter? bot;
     BotBrain? brain;
     float stateT, delay;
     int wins, losses;
 
-    bool WallBlocks(Vector3 a, Vector3 b) => Collision.Blocked(a, b, new[] { WallBox });
+    static readonly Box[] CornerWall = { WallBox };
+    static bool WallBlocks(Vector3 a, Vector3 b) => Collision.Blocked(a, b, CornerWall);
 
-    void PlaceBot()
+    bool PlaceBot()
     {
-        Vector3 pos = new(-4, 0, -16);
-        for (int i = 0; i < 30; i++)
+        var (near, far) = range switch { "close" => (8f, 13f), "long" => (25f, 36f), _ => (10f, 26f) };
+        var pos = new Vector3(-3, 0, -(near + far) * 0.5f);
+        bool Valid(Vector3 feet)
         {
-            pos = new Vector3(R(-9, -1.0f), 0, -R(10, 26));
-            var head = pos + new Vector3(0, PlayerView.EyeHeight, 0);
-            if (WallBlocks(G.View.Eye, head) && !WallBlocks(SwungOut, head)) break;
+            var head = feet + Vector3.Up * PlayerView.EyeHeight;
+            return WallBlocks(G.View.Eye, head) && !WallBlocks(SwungOut, head);
         }
+        for (int i = 0; i < 24; i++)
+        {
+            var candidate = new Vector3(R(-9, -1), 0, -R(near, far));
+            if (!Valid(candidate)) continue;
+            pos = candidate;
+            break;
+        }
+        if (!Valid(pos)) return false;
         bot = G.SpawnBot(pos);
         var toCorner = (new Vector3(1.0f, PlayerView.EyeHeight, -3.0f) - bot.Head).Normalized();
         bot.FacingYaw = Mathf.RadToDeg(Mathf.Atan2(toCorner.X, -toCorner.Z));
         brain = new BotBrain(bot, Difficulty.Get(Tier).Bot, Rng) { HeldDir = toCorner, ShoulderSight = Difficulty.ShoulderSight(Tier) };
+        return true;
     }
 
     public override void Update(float dt)
@@ -169,7 +194,7 @@ public sealed class PeekDuelMode : MovementMode
                 break;
             case St.Delay:
                 if (G.View.Eye.X > HiddenX) st = St.ToCover;
-                else if (stateT >= delay) { PlaceBot(); st = St.Live; stateT = 0; }
+                else if (stateT >= delay && PlaceBot()) { st = St.Live; stateT = 0; }
                 break;
             case St.Live:
                 brain?.Update(G, dt);

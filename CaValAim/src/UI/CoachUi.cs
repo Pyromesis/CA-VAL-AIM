@@ -200,7 +200,7 @@ public static class CoachData
     static string Key()
     {
         var app = Main.I;
-        return string.Create(CultureInfo.InvariantCulture, $"{app.Stats.Runs.Count}|{app.Sens:0.0000}|{app.Settings.Dpi}|{FakeVariant}");
+        return string.Create(CultureInfo.InvariantCulture, $"{app.Stats.Runs.Count}|{app.Sens:R}|{app.Settings.Dpi}|{app.Tier}|{FakeVariant}");
     }
 
     /// <summary>Starts the analysis (or keeps the cached / running one if nothing changed). Main thread only.</summary>
@@ -214,6 +214,7 @@ public static class CoachData
         var snapshot = new StatsStore { Runs = app.Stats.Runs.ToList() };
         float sens = app.Sens;
         int dpi = app.Settings.Dpi;
+        int tier = app.Tier;
         string? fake = FakeVariant;
         bool saves = app.SavesData; // dev runs never touch the player's recordings
         task = Task.Run(() =>
@@ -226,12 +227,12 @@ public static class CoachData
                     return CoachFake.Profile(fake, sens, dpi);
                 }
                 LastError = null;
-                var profile = Coach.BuildProfile(snapshot, sens, dpi) ?? new SkillProfile();
-                // Rewind recordings: keep recent runs + examples of problems the coach still sees; delete the rest.
+                var profile = Coach.BuildProfile(snapshot, sens, dpi, tier);
+                // Refresh examples from recent recordings without deleting the local archive.
                 if (saves)
                 {
                     var active = profile.Problems.Select(p => p.Id).ToList();
-                    Task.Run(() => Game.RecordingStore.Maintain(active));
+                    Task.Run(() => Game.RecordingStore.Maintain(active, retainAll: true));
                 }
                 return profile;
             }
@@ -293,9 +294,6 @@ public static class CoachData
         PlaylistsScreen.Select(p.Id);
         return p;
     }
-
-    /// <summary>Creates the plan's playlist and starts it immediately.</summary>
-    public static void PlayPlan(CoachPlan plan) => PlaylistRunner.Play(CreatePlaylist(plan));
 
     /// <summary>The drills the empty state asks for, how many coached runs each needs and what they rate.</summary>
     public static readonly (string Key, int Target, string Rates)[] Starter = CoachPlan.Starter;

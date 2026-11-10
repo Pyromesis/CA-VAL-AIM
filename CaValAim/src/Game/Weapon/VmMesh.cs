@@ -29,6 +29,7 @@ public sealed class VmMesh
         }
         // Godot front faces: (b-a)x(c-a) points INTO the surface. Fix the winding per triangle so
         // mirrored (det<0) transforms and our own generators always come out right.
+        bool reflected = t.Basis.Determinant() < 0;
         for (int i = 0; i + 2 < ind.Length; i += 3)
         {
             int a = ind[i] + b, c1 = ind[i + 1] + b, c2 = ind[i + 2] + b;
@@ -38,6 +39,7 @@ public sealed class VmMesh
                 var avg = n[a] + n[c1] + n[c2];
                 if (fn.Dot(avg) > 0) (c1, c2) = (c2, c1);
             }
+            else if (reflected) (c1, c2) = (c2, c1);
             idx.Add(a); idx.Add(c1); idx.Add(c2);
         }
     }
@@ -86,6 +88,7 @@ public sealed class VmMesh
     public void Tube(float z0, float r0, float z1, float r1, float sx, float sy, Transform3D t, bool caps = true, int seg = 14)
     {
         var verts = new List<Vector3>(); var norms = new List<Vector3>(); var ind = new List<int>();
+        if (z1 < z0) { (z0, z1) = (z1, z0); (r0, r1) = (r1, r0); }
         float slope = (r0 - r1) / Mathf.Max(0.0001f, z1 - z0);
         for (int i = 0; i <= seg; i++)
         {
@@ -126,8 +129,8 @@ public sealed class VmMesh
         var p010 = new Vector3(x0, y1, z0); var p011 = new Vector3(x0, y1, z1);
         var p100 = new Vector3(x1, y0, z0); var p101 = new Vector3(x1, y0, z1);
         var p110 = new Vector3(x1, y1, z0); var p111 = new Vector3(x1, y1, z1);
-        Quad(p000, p010, p110, p100, Vector3.Back, t);
-        Quad(p001, p101, p111, p011, Vector3.Forward, t);
+        Quad(p000, p010, p110, p100, Vector3.Forward, t);
+        Quad(p001, p101, p111, p011, Vector3.Back, t);
         Quad(p000, p001, p011, p010, Vector3.Left, t);
         Quad(p100, p110, p111, p101, Vector3.Right, t);
         Quad(p000, p100, p101, p001, Vector3.Down, t);
@@ -146,8 +149,8 @@ public sealed class VmMesh
         var a10 = new Vector3(ax0, ay1, z0); var a11 = new Vector3(ax1, ay1, z0);
         var b00 = new Vector3(bx0, by0, z1); var b01 = new Vector3(bx1, by0, z1);
         var b10 = new Vector3(bx0, by1, z1); var b11 = new Vector3(bx1, by1, z1);
-        Quad(a00, a01, a11, a10, Vector3.Back, t);
-        Quad(b00, b10, b11, b01, Vector3.Forward, t);
+        Quad(a00, a01, a11, a10, z0 <= z1 ? Vector3.Forward : Vector3.Back, t);
+        Quad(b00, b10, b11, b01, z0 <= z1 ? Vector3.Back : Vector3.Forward, t);
         Quad(a00, a10, b10, b00, Vector3.Left, t);
         Quad(a01, b01, b11, a11, Vector3.Right, t);
         Quad(a00, b00, b01, a01, Vector3.Down, t);
@@ -182,7 +185,7 @@ public sealed class VmMesh
         {
             int j = (i + 1) % n;
             var e = a[j] - a[i];
-            var nn = new Vector3(e.Y, -e.X, 0f).Normalized();
+            var nn = new Vector3(-e.Y, e.X, 0f).Normalized();
             verts.Add(new Vector3(a[i].X, a[i].Y, z0));
             verts.Add(new Vector3(a[j].X, a[j].Y, z0));
             verts.Add(new Vector3(b[j].X, b[j].Y, z1));
@@ -191,7 +194,7 @@ public sealed class VmMesh
             int k = verts.Count - 4;
             ind.Add(k); ind.Add(k + 1); ind.Add(k + 2); ind.Add(k); ind.Add(k + 2); ind.Add(k + 3);
         }
-        foreach (var (ring, z, dir) in new[] { (a, z0, -1f), (b, z1, 1f) })
+        foreach (var (ring, z, dir) in new[] { (a, z0, z0 <= z1 ? -1f : 1f), (b, z1, z0 <= z1 ? 1f : -1f) })
         {
             int c0 = verts.Count;
             foreach (var p in ring) { verts.Add(new Vector3(p.X, p.Y, z)); norms.Add(new Vector3(0, 0, dir)); }
@@ -239,7 +242,7 @@ public sealed class VmMesh
             {
                 int j = (i + 1) % n;
                 var e = a[j] - a[i];
-                var nn = new Vector3(e.Y, 0f, -e.X).Normalized();
+                var nn = new Vector3(-e.Y, 0f, e.X).Normalized();
                 int k = verts.Count;
                 verts.Add(new Vector3(a[i].X, y0, a[i].Y));
                 verts.Add(new Vector3(a[j].X, y0, a[j].Y));
@@ -249,7 +252,7 @@ public sealed class VmMesh
                 ind.Add(k); ind.Add(k + 1); ind.Add(k + 2); ind.Add(k); ind.Add(k + 2); ind.Add(k + 3);
             }
         }
-        foreach (var (ring, y, dir) in new[] { (rings[0], path[0].Y, -1f), (rings[^1], path[^1].Y, 1f) })
+        foreach (var (ring, y, dir) in new[] { (rings[0], path[0].Y, path[0].Y <= path[^1].Y ? -1f : 1f), (rings[^1], path[^1].Y, path[0].Y <= path[^1].Y ? 1f : -1f) })
         {
             int c0 = verts.Count;
             foreach (var p in ring) { verts.Add(new Vector3(p.X, y, p.Y)); norms.Add(new Vector3(0, dir, 0)); }
@@ -285,7 +288,7 @@ public sealed class VmMesh
         {
             int j = (i + 1) % n;
             var e = a[j] - a[i];
-            var nn = new Vector3(e.Y, 0f, -e.X).Normalized();
+            var nn = new Vector3(-e.Y, 0f, e.X).Normalized();
             verts.Add(new Vector3(a[i].X, y0, a[i].Y));
             verts.Add(new Vector3(a[j].X, y0, a[j].Y));
             verts.Add(new Vector3(b[j].X, y1, b[j].Y));
@@ -294,7 +297,7 @@ public sealed class VmMesh
             int k = verts.Count - 4;
             ind.Add(k); ind.Add(k + 1); ind.Add(k + 2); ind.Add(k); ind.Add(k + 2); ind.Add(k + 3);
         }
-        foreach (var (ring, y, dir) in new[] { (a, y0, -1f), (b, y1, 1f) })
+        foreach (var (ring, y, dir) in new[] { (a, y0, y0 <= y1 ? -1f : 1f), (b, y1, y0 <= y1 ? 1f : -1f) })
         {
             int c0 = verts.Count;
             foreach (var p in ring) { verts.Add(new Vector3(p.X, y, p.Y)); norms.Add(new Vector3(0, dir, 0)); }
@@ -315,12 +318,12 @@ public sealed class VmMesh
         var a10 = new Vector3(ax0, y0, az1); var a11 = new Vector3(ax1, y0, az1);
         var b00 = new Vector3(bx0, y1, bz0); var b01 = new Vector3(bx1, y1, bz0);
         var b10 = new Vector3(bx0, y1, bz1); var b11 = new Vector3(bx1, y1, bz1);
-        Quad(a00, a01, a11, a10, Vector3.Down, t);
-        Quad(b00, b10, b11, b01, Vector3.Up, t);
+        Quad(a00, a01, a11, a10, y0 <= y1 ? Vector3.Down : Vector3.Up, t);
+        Quad(b00, b10, b11, b01, y0 <= y1 ? Vector3.Up : Vector3.Down, t);
         Quad(a00, a10, b10, b00, Vector3.Left, t);
         Quad(a01, b01, b11, a11, Vector3.Right, t);
-        Quad(a00, b00, b01, a01, Vector3.Back, t);
-        Quad(a10, a11, b11, b10, Vector3.Forward, t);
+        Quad(a00, b00, b01, a01, Vector3.Forward, t);
+        Quad(a10, a11, b11, b10, Vector3.Back, t);
     }
 
     /// <summary>
@@ -376,6 +379,7 @@ public sealed class VmMesh
     public void FacetTubeZ(float z0, float z1, float r0, float r1, int seg, float sx, float sy, Transform3D t)
     {
         seg = Mathf.Max(3, seg);
+        if (z1 < z0) { (z0, z1) = (z1, z0); (r0, r1) = (r1, r0); }
         float slope = (r0 - r1) / Mathf.Max(0.0001f, z1 - z0);
         for (int i = 0; i < seg; i++)
         {

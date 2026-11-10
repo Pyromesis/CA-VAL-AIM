@@ -82,7 +82,7 @@ public static class ProceduralArsenal
     {
         float z0 = -slide + 0.045f, z1 = 0.045f, y = 0.055f;
         // slide (tapered toward the muzzle) with cocking serrations and sights
-        k.Body.LoftZ(z0, z1, new Vector2(0.0135f, h * 0.5f), new Vector2(0.0145f, h * 0.5f), y + 0.004f, y + 0.004f, I);
+        k.Body.ChamferZ(z0, z1, new Vector2(0.0135f, h * 0.5f), new Vector2(0.0145f, h * 0.5f), y + 0.004f, y + 0.004f, 0.0024f, I);
         for (int i = 0; i < 6; i++) k.Dark.Box(new Vector3(0.0008f, h * 0.36f, 0.0016f), T(0.0148f, y + 0.004f, z1 - 0.012f - i * 0.006f));
         for (int i = 0; i < 6; i++) k.Dark.Box(new Vector3(0.0008f, h * 0.36f, 0.0016f), T(-0.0148f, y + 0.004f, z1 - 0.012f - i * 0.006f));
         if (ported)
@@ -90,12 +90,12 @@ public static class ProceduralArsenal
         k.Metal.Box(new Vector3(0.0028f, 0.0045f, 0.004f), T(0f, y + h * 0.5f + 0.008f, z0 + 0.010f));                   // front post
         k.Metal.Box(new Vector3(0.0120f, 0.0045f, 0.005f), T(0f, y + h * 0.5f + 0.008f, z1 - 0.008f));                   // rear sight
         k.Dark.Box(new Vector3(0.0030f, 0.0040f, 0.0055f), T(0f, y + h * 0.5f + 0.009f, z1 - 0.008f));
-        k.Dark.Box(new Vector3(0.006f, 0.010f, 0.018f), T(0.0142f, y + 0.008f, -0.030f));                                  // ejection port
+        k.Dark.Box(new Vector3(0.0012f, 0.008f, 0.018f), T(0.0138f, y + 0.008f, -0.030f));                                  // ejection port
         k.Metal.FacetTubeZ(z0 - 0.006f, z0 + 0.002f, 0.0065f, 0.0065f, 10, 1f, 1f, T(0f, y + 0.002f, 0f));            // barrel crown
         k.Dark.FacetTubeZ(z0 - 0.0065f, z0 - 0.0055f, 0.0042f, 0.0042f, 10, 1f, 1f, T(0f, y + 0.002f, 0f));
         // frame + dust cover + accent stripe
         var frame = frameCol == 0 ? k.Poly : k.Body;
-        frame.LoftZ(z0 + 0.012f, z1 - 0.010f, new Vector2(0.0125f, 0.010f), new Vector2(0.0130f, 0.011f), 0.030f, 0.030f, I);
+        frame.ChamferZ(z0 + 0.012f, z1 - 0.010f, new Vector2(0.0125f, 0.010f), new Vector2(0.0130f, 0.011f), 0.030f, 0.030f, 0.0018f, I);
         k.Accent.Box(new Vector3(0.0009f, 0.0025f, (z1 - z0) * 0.32f), T(0.0137f, 0.030f, (z0 + z1) * 0.5f - 0.01f));
         k.Accent.Box(new Vector3(0.0009f, 0.0025f, (z1 - z0) * 0.32f), T(-0.0137f, 0.030f, (z0 + z1) * 0.5f - 0.01f));
         // grip (raked back) with texture panels, trigger guard and trigger
@@ -225,18 +225,18 @@ public static class ProceduralArsenal
 
     static void Knife(Kit k)
     {
-        // Tanto-style blade along -Z with a fuller, a guard and a wrapped handle (held in the pistol grip).
-        k.Metal.LoftZ(-0.205f, -0.020f, new Vector2(0.0018f, 0.004f), new Vector2(0.0030f, 0.017f), 0.056f, 0.048f, I);
-        k.Metal.LoftZ(-0.235f, -0.205f, new Vector2(0.0008f, 0.001f), new Vector2(0.0018f, 0.004f), 0.064f, 0.056f, I);
-        k.Dark.Box(new Vector3(0.0032f, 0.0018f, 0.075f), T(0f, 0.052f, -0.095f));                                    // fuller
-        k.Accent.Box(new Vector3(0.0035f, 0.0012f, 0.11f), T(0f, 0.0395f, -0.105f));                                   // edge glint
+        // Shared cross-section at the tip transition. The bevel is part of the blade mesh,
+        // so it stays attached at every viewing angle.
+        var shoulder = new Vector2(0.0032f, 0.0155f);
+        k.Metal.ChamferZ(-0.198f, -0.020f, shoulder, new Vector2(0.0040f, 0.0180f), 0.050f, 0.048f, 0.0023f);
+        k.Metal.ChamferZ(-0.244f, -0.198f, new Vector2(0.0007f, 0.0014f), shoulder, 0.061f, 0.050f, 0.0023f);
         k.Body.Box(new Vector3(0.012f, 0.026f, 0.007f), T(0f, 0.045f, -0.014f));                                       // guard
         k.Poly.LoftY(-0.080f, 0.032f, new Vector2(0.0110f, 0.0150f), new Vector2(0.0120f, 0.0165f), 0.030f, 0.004f, I);
         for (int i = 0; i < 6; i++) k.Dark.Box(new Vector3(0.0125f, 0.0012f, 0.017f), T(0f, 0.020f - i * 0.016f, 0.010f + i * 0.0045f) * RX(15f));
         k.Metal.Box(new Vector3(0.010f, 0.008f, 0.012f), T(0f, -0.085f, 0.032f));                                     // pommel
         k.AccentCol = new Color(0.62f, 0.86f, 0.95f);
         k.BodyCol = new Color(0.22f, 0.23f, 0.25f);
-        k.Muzzle = new Vector3(0f, 0.060f, -0.235f);
+        k.Muzzle = new Vector3(0f, 0.061f, -0.244f);
     }
 
     // ------------------------------------------------------------------ long guns (Vandal frame)
@@ -244,7 +244,7 @@ public static class ProceduralArsenal
     /// <summary>Upper receiver, rail and grip shared by the long guns (grip at the origin, bore ≈ 0.078 m).</summary>
     static void Receiver(Kit k, float front, float rear, float height = 0.062f)
     {
-        k.Body.LoftZ(front, rear, new Vector2(0.026f, 0.034f), new Vector2(0.027f, 0.040f), height, height - 0.002f, I);
+        k.Body.ChamferZ(front, rear, new Vector2(0.026f, 0.034f), new Vector2(0.027f, 0.040f), height, height - 0.002f, 0.0038f, I);
         k.Dark.LoftZ(front + 0.012f, rear - 0.012f, new Vector2(0.021f, 0.010f), new Vector2(0.023f, 0.012f), 0.022f, 0.024f, I);
         k.Dark.Box(new Vector3(0.0015f, 0.011f, 0.028f), T(0.0272f, 0.072f, -0.070f));                               // ejection port
         k.Metal.Box(new Vector3(0.012f, 0.0035f, (rear - front) * 0.42f), T(0f, height + 0.046f, (front + rear) * 0.5f));

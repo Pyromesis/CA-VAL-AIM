@@ -126,17 +126,18 @@ The **ROUTINES** screen adapts the VALORANT material published by **Voltaic** an
 
 | Tab | What it has |
 |---|---|
-| **Routines** | Eight VALORANT routines: five playable adaptations (Voltaic Easy, Advanced Classic, VALORANT Advanced, bardOZ Advanced and cartoon's warm-up), two external Kovaak's playlists with copyable share codes, and the in-game practice section. Every step has how-to-play and why-it-matters text, its source scenario name and the sensitivity/recoil it needs. |
+| **Routines** | Eleven routines: five playable adaptations (Voltaic Easy, Advanced Classic, VALORANT Advanced, bardOZ Advanced and cartoon's warm-up), two external Kovaak's playlists with copyable share codes, the in-game practice section and three category routines (Recoil, Deathmatch and Maps). Every step has how-to-play and why-it-matters text, its source scenario name and the sensitivity/recoil it needs. |
 | **Guide** | cartoon's aim-training guide, summarised in English and Spanish. |
 | **Glossary** | 126 Voltaic aim terms with short Spanish/English definitions and a search box. |
 | **Data** | An Excel-style table of every routine, step, term and your saved progress, with a four-file CSV export. |
 | **Credits** | Full attribution, source links and the legal notice. |
 
-Playable routines can be saved as normal playlists and edited like any other. The trainer applies a source's
-sensitivity boost only on the steps that ask for it, keeps it above 15 cm/360 (1.5× cap when your normal sens is
-already faster than 35 cm/360) and keeps boosted runs out of your personal bests. The external Kovaak's playlists and
-the in-game VALORANT practice are not simulated: the screen gives you the share code or the exact routine to run
-outside CA-VAL-AIM.
+Playable routines can be saved as normal playlists and edited like any other. While paused, **‹ ›** jumps to the
+previous or next task without saving the abandoned run. The trainer applies a source's sensitivity boost only on the
+steps that ask for it, keeps it above 15 cm/360 (1.5× cap when your normal sens is already faster than 35 cm/360) and
+keeps boosted runs out of your personal bests. Recoil, deathmatch and map drills always use a real magazine and camera
+climb, because they simulate a match. Only the external Kovaak's playlists stay outside CA-VAL-AIM: the screen gives
+you their share code.
 
 The routines are **adaptations, not the original scenarios**, and CA-VAL-AIM is not affiliated with or endorsed by
 Voltaic, cartoon, Aim Lab or Kovaak's. Original scenario names and share codes remain their authors' property; the
@@ -149,6 +150,8 @@ adapted text is GPL-3.0-or-later. Official links: [Voltaic](https://voltaic.gg/)
 **Ascent · Bind · Breeze · Fracture · Haven · Icebox · Lotus · Pearl · Split · Sunset · Summit · Abyss · Corrode**
 
 The release includes the real extracted geometry and collision of **all 13 maps, complete** (every site, mid and both spawns), in the game's orientation and colours, plus the official minimaps calibrated to the 3D maps and used in the picker, the countdown briefing and the in-game minimap. Without the optional `maps/` folder the app falls back to blockouts; Breeze, Haven, Icebox and Split keep true-scale ones.
+
+The map mechanics that matter are live too: **Lotus**' stone door turns 180° in 10 seconds from the button on either face (with its solid stone, pass-through window and grinding noise) and its A Site rope ascender lifts you to A Top; **Bind**'s Hookah window can be jumped and **Split**'s A Back wall stops bullets.
 
 ## Difficulty tiers (calibrated to ranks)
 

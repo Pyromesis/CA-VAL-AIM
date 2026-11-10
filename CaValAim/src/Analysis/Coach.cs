@@ -37,6 +37,9 @@ public sealed class SkillProfile
     public List<string> Strengths = new();
     public SensAdvice? Sens;
     public SensLabData? SensLab;
+    public List<AimForecast> Forecasts = new();
+    public int ForecastTier;
+    public float ForecastSens;
     /// <summary>Per-skill change of the rating (tiers; 0.5 ≈ one rank) between the older and the newer runs, only for skills
     /// rated in both (see <see cref="Coach.Trends"/>). Empty until there is enough history.</summary>
     public Dictionary<Skill, float> Trend = new();
@@ -79,9 +82,9 @@ public static class Coach
     {
         var review = new RunReview { Metrics = metrics };
         if (t.Mode is SensFinderKey or CrosshairFinderKey) return review; // these drills show their own result
+        review.Sens = SensLab.Feedback(metrics, tier);
         if (metrics.Count == 0) { review.Summary = RunSummary.NoData(t.Mode); return review; }
         var a = Assess.Run(metrics, runLevel: true, tierPlayed: tier);
-        review.Sens = SensLab.Feedback(metrics, tier);
         review.Issues = a.Issues.Take(3).Select(i => i.D).ToList();
         review.Strengths = a.Strengths.Take(2).Select(s => s.Text).ToList();
         review.Summary = RunSummary.Write(t.Mode, tier, metrics, a);
@@ -90,7 +93,7 @@ public static class Coach
     }
 
     /// <summary>Aggregate profile across recent runs (stats records + recent telemetry files).</summary>
-    public static SkillProfile BuildProfile(StatsStore stats, float currentSens, int dpi)
+    public static SkillProfile BuildProfile(StatsStore stats, float currentSens, int dpi, int? currentTier = null)
     {
         var runs = new List<SensAdvisor.RunInfo>();
         int analysed = 0;
@@ -119,6 +122,7 @@ public static class Coach
         var agg = Agg.Aggregate(runs.Select(r => (r.When, r.M)), DateTime.Now);
         int tierGuess = (int)MathF.Round((float)all.Take(20).Where(r => r.Tier >= 0).Select(r => r.Tier).DefaultIfEmpty(1).Average());
         var a = Assess.Run(agg, runLevel: false, tierPlayed: tierGuess);
+        int forecastTier = currentTier ?? tierGuess;
         var p = new SkillProfile
         {
             OverallTier = a.Overall,
@@ -127,9 +131,12 @@ public static class Coach
             Problems = a.Issues.Select(i => i.D).ToList(),
             Strengths = a.Strengths.Where(s => s.Score >= 0.5f || a.Overall < 0).Take(4).Select(s => s.Text).ToList(),
             RunsAnalyzed = runs.Count,
+            Forecasts = CoachNetwork.Forecast(all, currentSens, forecastTier),
+            ForecastTier = forecastTier,
+            ForecastSens = currentSens,
             Updated = DateTime.Now,
         };
-        p.Sens = SensAdvisor.Advise(runs, currentSens, dpi, a.RefTier, finder);
+        p.Sens = SensAdvisor.Advise(runs.Where(r => r.M.GetValueOrDefault("sens.changed") == 0).ToList(), currentSens, dpi, a.RefTier, finder);
         p.SensLab = SensLab.Build(runs, currentSens, dpi, a.RefTier);
         (p.Trend, p.TrendSpan) = Trends(runs.Select(r => (r.When, r.M)).ToList(), tierGuess);
         return p;

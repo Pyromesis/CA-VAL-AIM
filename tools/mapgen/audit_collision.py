@@ -138,6 +138,13 @@ def read_spot(path):
     enemies = [(m.group(1), float(m.group(2)), float(m.group(3)), float(m.group(4))) for m in E_RE.finditer(txt)]
     plants = [[float(v) for v in t] for t in VT.findall(block(txt, "PlantSpots"))]
     retakes = [[float(v) for v in t] for t in VT.findall(block(txt, "RetakeEntries"))]
+    # MapSpot.Mirrored applies to authored positions at runtime (not to collision,
+    # which is already in the final world frame). Auditing the old frame invents
+    # blocked spawns and tests entirely different rooms, notably on Bind.
+    if re.search(r"\}\s*\.Mirrored\(\)", txt):
+        for point in [start, choke, *plants, *retakes]:
+            point[0] = -point[0]
+        enemies = [(name, -x, y, z) for name, x, y, z in enemies]
     return folder.group(1), start, choke, enemies, plants, retakes
 
 

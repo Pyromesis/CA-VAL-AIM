@@ -8,12 +8,8 @@ using CaValAim.Modes;
 namespace CaValAim.UI;
 
 /// <summary>
-/// Main menu (minimalist since 1.18): a flat canvas with generous margins, light display type, hairlines instead of
-/// panels and one accent for the primary action and the current selection (the widgets in MinimalKit.cs).
-/// Left: the wordmark, the greeting, START LOCK-IN and the drill library (category tabs over a list of drills with
-/// the personal best at the current tier). Right: the difficulty tier, the map, the Deathmatch lobby (bot difficulty,
-/// lobby size, length) and the imported setup. Every element arrives with a short staggered rise; hover and focus
-/// ease in and out.
+/// Main menu with training actions and a drill library on the left, and separate
+/// setup and Deathmatch tabs on the right.
 /// </summary>
 public partial class MenuScreen : ScreenBase
 {
@@ -33,6 +29,7 @@ public partial class MenuScreen : ScreenBase
     MText? tierNote, dmNote, subLine;
     int gridColumns = 3;
     float libraryWidth;
+    static int setupTab;
 
     protected override bool AnimatedBackdrop => false;
 
@@ -60,9 +57,9 @@ public partial class MenuScreen : ScreenBase
         var vp = GetViewportRect().Size;
         float side = Mathf.Clamp(vp.X * 0.05f, 28 * k, 112 * k);
 
-        AddChild(new MinimalBackdrop());
+        AddChild(new MenuBackdrop());
 
-        var page = Margins(VBox(0), side, 44 * k, side, 26 * k);
+        var page = Margins(VBox(0), side, 28 * k, side, 16 * k);
         page.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         AddChild(page);
         var col = (VBoxContainer)page.GetChild(0);
@@ -82,9 +79,9 @@ public partial class MenuScreen : ScreenBase
         else if (UpdatesPrompt.Pending)
             AddChild(new UpdatesPromptPanel(k, AnswerUpdatesPrompt));
 
-        col.AddChild(Spacer(0, 40 * k));
+        col.AddChild(Spacer(0, 22 * k));
 
-        var body = HBox(Mathf.Clamp(vp.X * 0.055f, 40 * k, 120 * k));
+        var body = HBox(Mathf.Clamp(vp.X * 0.035f, 28 * k, 80 * k));
         body.SizeFlagsVertical = SizeFlags.ExpandFill;
         col.AddChild(body);
 
@@ -94,11 +91,24 @@ public partial class MenuScreen : ScreenBase
         float rightW = Mathf.Clamp(vp.X * 0.25f, 360 * k, 460 * k);
         var right = VBox(0);
         right.CustomMinimumSize = new Vector2(rightW, 0);
-        body.AddChild(right);
+        var console = new PanelContainer { CustomMinimumSize = new Vector2(rightW, 0) };
+        var shell = new StyleBoxFlat
+        {
+            BgColor = new Color("#141a22e8"), BorderColor = new Color("#364454"),
+            BorderWidthLeft = 1, BorderWidthRight = 1, BorderWidthTop = 1, BorderWidthBottom = 1,
+            CornerRadiusTopLeft = 12, CornerRadiusTopRight = 12, CornerRadiusBottomLeft = 12, CornerRadiusBottomRight = 12,
+        };
+        shell.ContentMarginLeft = shell.ContentMarginRight = 20 * k;
+        shell.ContentMarginTop = shell.ContentMarginBottom = 18 * k;
+        console.AddThemeStyleboxOverride("panel", shell);
+        console.SizeFlagsVertical = SizeFlags.ShrinkBegin;
+        right.CustomMinimumSize = Vector2.Zero;
+        console.AddChild(right);
+        body.AddChild(console);
 
         float leftW = vp.X - side * 2 - rightW - body.GetThemeConstant("separation");
         gridColumns = leftW >= 1050 * k ? 3 : leftW >= 640 * k ? 2 : 1;
-        libraryWidth = leftW - 110 * k;
+        libraryWidth = leftW;
         BuildLeft(left);
         BuildRight(right);
 
@@ -126,7 +136,9 @@ public partial class MenuScreen : ScreenBase
         "UTILITY" => L("UTIL", "ÚTIL"),
         "OTHER" => L("OTHER", "OTROS"),
         "COACH" => "COACH",
-        "TRACKING" => L("TRACK", "TRACK"),
+        "TRACKING" => L("TRACK", "SEGUIM."),
+        "SENSITIVITY" => L("SENS", "SENS."),
+        "REFLEX" => L("REFLEX", "REFLEJOS"),
         _ => category.ToUpperInvariant(),
     };
 
@@ -139,7 +151,7 @@ public partial class MenuScreen : ScreenBase
         h.CustomMinimumSize = new Vector2(0, 34 * k);
         h.AddChild(new Wordmark { K = k, CustomMinimumSize = new Vector2(220 * k, 34 * k) });
         h.AddChild(Expander());
-        var nav = HBox(34 * k);
+        var nav = HBox(22 * k);
         nav.SizeFlagsVertical = SizeFlags.ShrinkCenter;
         h.AddChild(nav);
         float d = 0.06f;
@@ -150,14 +162,8 @@ public partial class MenuScreen : ScreenBase
             nav.AddChild(l);
             d += Mn.Stagger;
         }
-        Link("AGENTS", Main.I.ShowAgents, "All 29 agents: signature drills, role drills and an agent Lock-In");
-        Link("COACH", Main.I.ShowProfile, "Your estimated rank, the problems holding you back and how to fix them");
-        Link("ROUTINES", Main.I.ShowRoutines, "Voltaic and cartoon routines, guide, glossary and credits for VALORANT");
-        Link("PLAYLISTS", Main.I.ShowPlaylists, "Your own sets of drills, played back to back");
-        Link("STATS", Main.I.ShowStats, "Personal bests and history");
-        Link("SETTINGS", Main.I.ShowSettings, "Sensitivity, crosshair, graphics, audio and updates");
-        nav.AddChild(Spacer(10 * k, 0));
-        Link("QUIT", Main.I.Quit, "Close CA-VAL-AIM");
+        Link(L("SETTINGS", "AJUSTES"), Main.I.ShowSettings, L("Sensitivity, crosshair, graphics and audio", "Sensibilidad, mira, gráficos y sonido"));
+        Link(L("QUIT", "SALIR"), Main.I.Quit, L("Close CA-VAL-AIM", "Cerrar CA-VAL-AIM"));
         return h;
     }
 
@@ -209,7 +215,7 @@ public partial class MenuScreen : ScreenBase
             : L("READY WHEN YOU ARE", "LISTO CUANDO QUIERAS");
         left.AddChild(new MText { K = k, Text = kicker, Font = UiTheme.HudWide, Px = 11.5f, Color = UiTheme.Faint, Delay = 0.08f });
         left.AddChild(Spacer(0, 6 * k));
-        left.AddChild(new MText { K = k, Text = L("Train with intent.", "Entrena con intención."), Font = UiTheme.Light, Px = 62, Color = UiTheme.Text, Delay = 0.12f });
+        left.AddChild(new MText { K = k, Text = L("Training", "Entrenamiento"), Font = UiTheme.Light, Px = 52, Color = UiTheme.Text, Delay = 0.12f });
         left.AddChild(Spacer(0, 6 * k));
         subLine = new MText { K = k, Text = SubText(), Font = UiTheme.Body, Px = 15.5f, Color = UiTheme.Dim, Delay = 0.18f };
         left.AddChild(subLine);
@@ -220,23 +226,25 @@ public partial class MenuScreen : ScreenBase
         left.AddChild(coachHint);
         UpdateCoachHint();
 
-        left.AddChild(Spacer(0, 30 * k));
-        var actions = HBox(22 * k);
-        var start = new MAction
+        left.AddChild(Spacer(0, 14 * k));
+        var actions = new HFlowContainer();
+        actions.AddThemeConstantOverride("h_separation", (int)(12 * k));
+        actions.AddThemeConstantOverride("v_separation", (int)(8 * k));
+        void ActionButton(string label, Action run, bool primary, string tip)
         {
-            K = k, Primary = true, Label = "START LOCK-IN", Px = 14.5f, Delay = 0.26f,
-            CustomMinimumSize = new Vector2(270 * k, 56 * k),
-            TooltipText = "Lock-In: about 12 minutes before ranked. A check-in, aim drills that adapt to you, a deathmatch, then your goal and cue",
-        };
-        start.Pressed += Main.I.ShowLockIn;
-        actions.AddChild(start);
-        var lockNote = new MText
-        {
-            K = k, Font = UiTheme.Body, Px = 13.5f, Color = UiTheme.Faint, Delay = 0.32f,
-            Text = L("12 min · check-in, adaptive aim, a deathmatch, your goal", "12 min · chequeo, puntería adaptativa, un combate a muerte, tu objetivo"),
-            SizeFlagsHorizontal = SizeFlags.ExpandFill, SizeFlagsVertical = SizeFlags.ShrinkCenter,
-        };
-        actions.AddChild(lockNote);
+            var button = new MAction
+            {
+                K = k, Label = label, Primary = primary, SweepHighlight = primary, Px = 13.5f, Delay = 0.24f,
+                CustomMinimumSize = new Vector2(Gfx.TextW(UiTheme.HudWide, label, UiTheme.Fs(13.5f, k)) + 72 * k, 44 * k),
+                TooltipText = tip,
+            };
+            button.Pressed += run;
+            actions.AddChild(button);
+        }
+        ActionButton(L("GUIDED PRACTICE", "PRÁCTICA GUIADA"), Main.I.ShowPractice, true,
+            L("Coach feedback between rounds", "Correcciones del coach entre rondas"));
+        ActionButton(L("START LOCK-IN", "CALENTAMIENTO"), Main.I.ShowLockIn, false,
+            L("A 12-minute warmup before ranked", "Calentamiento de 12 minutos antes de competitiva"));
         left.AddChild(actions);
 
         // One click back into the last drill played (same tier, map and settings), without the preview.
@@ -253,22 +261,34 @@ public partial class MenuScreen : ScreenBase
             left.AddChild(link);
         }
 
-        left.AddChild(Spacer(0, 46 * k));
-        var libHead = HBox(0);
-        libHead.AddChild(new MText { K = k, Text = L("LIBRARY", "BIBLIOTECA"), Font = UiTheme.HudWide, Px = 11.5f, Color = UiTheme.Faint, Delay = 0.32f, CustomMinimumSize = new Vector2(110 * k, 34 * k) });
-        libHead.AddChild(Spacer(16 * k, 0));
+        left.AddChild(Spacer(0, 12 * k));
+        var shortcuts = new HFlowContainer();
+        shortcuts.AddThemeConstantOverride("h_separation", (int)(18 * k));
+        void Shortcut(string label, Action go)
+        {
+            var link = new MLink { K = k, Label = label, Px = 12f, Delay = 0.29f };
+            link.Pressed += go;
+            shortcuts.AddChild(link);
+        }
+        Shortcut(L("ROUTINES", "RUTINAS"), Main.I.ShowRoutines);
+        Shortcut(L("PLAYLISTS", "LISTAS"), Main.I.ShowPlaylists);
+        Shortcut(L("AGENTS", "AGENTES"), Main.I.ShowAgents);
+        Shortcut("COACH", Main.I.ShowProfile);
+        Shortcut(L("STATS", "ESTADÍSTICAS"), Main.I.ShowStats);
+        left.AddChild(shortcuts);
+
+        left.AddChild(Spacer(0, 14 * k));
+        left.AddChild(Caption(L("DRILL LIBRARY", "BIBLIOTECA DE EJERCICIOS"), 0.32f));
         var cats = Categories().ToList();
         if (!cats.Contains(catFilter)) catFilter = "ALL";
         var tabs = new MSegment
         {
-            K = k, Delay = 0.34f, Px = 12f, Gap = 22, MaxWidth = libraryWidth, RawLabels = true,
+            K = k, Delay = 0.34f, Px = 12f, Gap = 16, MaxWidth = libraryWidth, RawLabels = true,
             Options = cats.Select(CatTab).ToArray(),
-            Counts = cats.Select(c => c == "ALL" ? modes.Count : modes.Count(m => m.Info.Category == c)).ToArray(),
             Selected = cats.IndexOf(catFilter),
         };
         tabs.Changed = i => { catFilter = cats[i]; FillGrid(); };
-        libHead.AddChild(tabs);
-        left.AddChild(libHead);
+        left.AddChild(tabs);
         left.AddChild(Spacer(0, 8 * k));
         left.AddChild(new MRule { Delay = 0.36f });
 
@@ -363,7 +383,39 @@ public partial class MenuScreen : ScreenBase
     MText Caption(string text, float delay) =>
         new() { K = K, Text = text, Font = UiTheme.HudWide, Px = 11f, Color = UiTheme.Faint, Delay = delay, CustomMinimumSize = new Vector2(0, 20 * K) };
 
-    void BuildRight(VBoxContainer right)
+    void BuildRight(VBoxContainer panel)
+    {
+        var setup = VBox(0);
+        var match = VBox(0);
+        var tabs = new MSegment
+        {
+            K = K, Px = 12f, Gap = 18, Delay = 0.18f, RawLabels = true,
+            Options = new[] { L("TRAINING SETUP", "CONFIGURACIÓN"), L("DEATHMATCH", "COMBATE A MUERTE") },
+            Selected = setupTab,
+        };
+        void Select(int tab)
+        {
+            if (setupTab == tab && setup.Visible != match.Visible) return;
+            setupTab = tab;
+            setup.Visible = tab == 0;
+            match.Visible = tab == 1;
+            var active = tab == 0 ? setup : match;
+            active.Modulate = new Color(1, 1, 1, 0.25f);
+            active.CreateTween().TweenProperty(active, "modulate:a", 1f, 0.28)
+                .SetTrans(Tween.TransitionType.Cubic).SetEase(Tween.EaseType.Out);
+        }
+        tabs.Changed = Select;
+        panel.AddChild(tabs);
+        panel.AddChild(new MRule { Delay = 0.19f });
+        panel.AddChild(Spacer(0, 14 * K));
+        panel.AddChild(setup);
+        panel.AddChild(match);
+        BuildTrainingSetup(setup);
+        BuildDeathmatch(match, 0.2f);
+        Select(setupTab);
+    }
+
+    void BuildTrainingSetup(VBoxContainer right)
     {
         float k = K;
         float d = 0.2f;
@@ -405,10 +457,6 @@ public partial class MenuScreen : ScreenBase
         right.AddChild(Spacer(0, 2 * k));
         weaponSel = new MWeaponSelector(this, k) { SizeFlagsHorizontal = SizeFlags.ShrinkBegin, Delay = d + 0.02f };
         right.AddChild(weaponSel);
-
-        right.AddChild(Spacer(0, 22 * k));
-        d += 0.06f;
-        BuildDeathmatch(right, d);
 
         // the Lock-In match-log card ("How did your first match go?") takes the setup's place when it is due
         matchSlot = VBox(0);
@@ -599,31 +647,11 @@ public partial class MenuScreen : ScreenBase
         var fan = new MText
         {
             K = k, Font = UiTheme.Body, Px = 12, Color = UiTheme.Faint, Delay = 0.5f,
-            Text = "Fan-made trainer · not endorsed by or affiliated with Riot Games",
+            Text = L("Community trainer · unaffiliated with Riot Games", "Entrenador comunitario · sin afiliación con Riot Games"),
             SizeFlagsHorizontal = SizeFlags.ExpandFill, SizeFlagsVertical = SizeFlags.ShrinkCenter,
         };
         f.AddChild(fan);
-        var st = Main.I.Settings;
-        void Quick(string label, string[] options, int selected, Action<int> set, string tip)
-        {
-            var g = HBox(10 * k);
-            g.SizeFlagsVertical = SizeFlags.ShrinkCenter;
-            g.AddChild(new MText { K = k, Text = label, Font = UiTheme.HudWide, Px = 10.5f, Color = UiTheme.Faint, Delay = 0.52f, CustomMinimumSize = new Vector2(Gfx.TextW(UiTheme.HudWide, label, UiTheme.Fs(10.5f, k)) + 2, 30 * k), TooltipText = tip, MouseFilter = MouseFilterEnum.Pass });
-            g.AddChild(new MSegment { K = k, Delay = 0.54f, Px = 10.5f, Gap = 12, Options = options, Selected = selected, Changed = set, CustomMinimumSize = new Vector2(0, 30 * k) });
-            f.AddChild(g);
-        }
-        Quick("RIFLE", new[] { "VANDAL", "PHANTOM" }, st.PrimaryRifle == 1 ? 1 : 0,
-            i => { st.PrimaryRifle = i; st.Save(); }, "Rifle for drills set to WEAPON · DRILL DEFAULT");
-        Quick("AMMO", new[] { "DEFAULT", "REAL", "INFINITE" }, st.AmmoMode switch { 0 => 1, 1 => 2, _ => 0 },
-            i => { st.AmmoMode = i switch { 0 => -1, 1 => 0, _ => 1 }; st.Save(); }, "Default: each drill's own; Real: magazines and reloads; Infinite: never reload");
-        Quick("LANGUAGE", new[] { "EN", "ES" }, Loc.Spanish ? 1 : 0, i => Main.I.SetLanguage(i == 1 ? "es" : "en"), "Interface language");
-        f.AddChild(new MUpdateLink { K = k, Px = 10.5f, Delay = 0.56f, CustomMinimumSize = new Vector2(190 * k, 30 * k), SizeFlagsVertical = SizeFlags.ShrinkCenter });
-        if (AppInfo.HasRepo)
-        {
-            var gh = new MLink { K = k, Label = "GITHUB", Px = 11, Delay = 0.58f, TooltipText = "Source code, releases and issue tracker", SizeFlagsVertical = SizeFlags.ShrinkCenter };
-            gh.Pressed += () => AppInfo.OpenGitHub(AppInfo.RepoUrl);
-            f.AddChild(gh);
-        }
+        f.AddChild(new MUpdateLink { K = k, Px = 10.5f, Delay = 0.56f, CustomMinimumSize = new Vector2(290 * k, 30 * k), SizeFlagsVertical = SizeFlags.ShrinkCenter });
         f.AddChild(new MText
         {
             K = k, Font = UiTheme.Hud, Px = 11.5f, Color = UiTheme.Faint, Delay = 0.6f, Align = HorizontalAlignment.Right,

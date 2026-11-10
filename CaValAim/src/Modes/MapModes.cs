@@ -13,6 +13,8 @@ public abstract class MapMode : MovementMode
 {
     public override string Category => "Map";
     public override float Duration => 120f;
+    /// <summary>Every exercise on a map simulates a match: real magazine and camera climb, not changeable.</summary>
+    public override bool SimulatesMatch => true;
 
     protected MapSpot MapSpot = MapSpots.Ascent;
     protected Vector3 SpawnFeet;
