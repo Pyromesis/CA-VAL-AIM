@@ -2,6 +2,26 @@
 
 ## [Unreleased]
 
+## [2.8.1] - 2026-11-10
+
+### Fixed
+
+- Keep reaction aim targets reachable when the view is near its vertical limit.
+
+### Added
+
+- 180 training progressions and 50 reaction exercises: 402 library exercises across 11 sections, plus agent drills.
+- 35 reaction minigames without aiming and 15 with aiming, covering visual/audio/peripheral cues, inhibition, parity, memory, rule switching, target search and interception; five levels per mechanic.
+- Independent, timestamped coach observations and reproducible personal drill prescriptions, with guided instructions and feedback.
+
+### Improved
+
+- Reaction games retain all 16 trials, response and aim-onset measurements, decision errors and a per-second timeline; interrupted trials restart after pausing.
+- Free play archives completed cycles; sensitivity comparisons also receive coaching reviews.
+- Moving click targets no longer masquerade as static sensitivity braking errors; neural forecasts compare matching maps and weapons.
+- Library section selector, Spanish/English exercise names, README and screenshots reflect the expanded catalog.
+
+
 ## [2.8.0] - 2026-11-10
 
 ### Added

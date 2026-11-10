@@ -52,6 +52,9 @@ static class GameplayChecks
             !Modes.ReactionGameMode.ShouldGo(Modes.ReactionGameKind.Rules, 2, 1, false, 1) &&
             !Modes.ReactionGameMode.ShouldGo(Modes.ReactionGameKind.Parity, 3, 1, true, 0),
             "memory, parity and rule-switch decisions follow their instructions");
+        Check(Math.Abs(85 + Modes.ReactionGameMode.ReachablePitchOffset(85, 20) - 65) < 0.001f &&
+            Math.Abs(-85 + Modes.ReactionGameMode.ReachablePitchOffset(-85, -20) + 65) < 0.001f,
+            "reaction aim targets stay reachable at both pitch limits");
         var gameRun = new RunTelemetry { Mode = "reactgame:rules-3", Duration = 4 };
         gameRun.Events.Add(new TelemetryEvent(1, "reaction_game", 450));
         gameRun.Events.Add(new TelemetryEvent(2, "reaction_game_false_alarm"));

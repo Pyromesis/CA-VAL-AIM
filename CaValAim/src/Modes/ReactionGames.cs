@@ -73,6 +73,7 @@ public sealed class ReactionGameMode : TrainingMode
     bool Auto => Main.I.Dev && CmdLine.Has("--reaction-games-autoplay");
     float Deadline => (Kind is ReactionGameKind.Memory or ReactionGameKind.Rules ? 2.4f : 1.8f) - Level * 0.18f;
     float Radius => 2.1f - Level * 0.28f;
+    public static float ReachablePitchOffset(float pitch, float offset) => Mathf.Clamp(pitch + offset, -65, 65) - pitch;
     public static bool ShouldGo(ReactionGameKind kind, int number, int previous, bool isDiamond, int trial) => kind switch
     {
         ReactionGameKind.Inhibition => isDiamond,
@@ -111,6 +112,7 @@ public sealed class ReactionGameMode : TrainingMode
             {
                 phase = Phase.Signal; elapsed = 0; stimulus = Time.GetTicksUsec();
                 yaw0 = G.View.ViewYaw; pitch0 = G.View.ViewPitch;
+                if (NeedsAim) offset.Y = ReachablePitchOffset(pitch0, offset.Y);
                 drawn = Kind == ReactionGameKind.Audio || Auto;
                 if (Kind == ReactionGameKind.Audio) G.Sound("tick", 1, 1 + Level * 0.08f);
                 Event("reaction_game_signal", go ? 1 : 0, (float)Kind);
