@@ -17,7 +17,7 @@ public static partial class MapSpots
     {
         Key = "bind", Map = "Bind", Name = "Hookah -> B Site",
         Drill = "Climb Hookah, swing the window and drop in: clear Under Window, Default, Elevator, Back Site, Hall, Elbow and Garden",
-        StartFeet = V(-6.08f, 0.6f, 30.81f), StartYaw = 11, Choke = V(-6.08f, 1.9f, 30.81f),
+        StartFeet = V(-6.08f, 0.6f, 30.81f), StartYaw = 11, Choke = V(-5.25f, 2.5f, 17.0f),
         RealMapFolder = "maps/bind",
         // The Hookah window: the art opens it from y=3.05 (a 0.55 m sill over the 2.5 m floor), but the extracted
         // collision included the sill as a slab up to y=3.5 and a 0.5 m lip outside it, so a standing jump hit an
@@ -28,7 +28,7 @@ public static partial class MapSpots
         Boxes = new[] { B(-80f, -0.1f, -80f, 80f, 0.6f, 80f, Surf.Floor) },
         Enemies = new[]
         {
-            E("Under Window", -5.0f, 0.60f, 27.5f, Stance.Crouch),
+            E("Under Window", -5.0f, 0.60f, 14.5f, Stance.Crouch),
             E("Default", 5.0f, 0.60f, 0.0f),
             E("Elevator", 4.5f, 1.40f, 3.0f),
             E("Back Site", -2.0f, 0.60f, -5.0f),
@@ -41,11 +41,11 @@ public static partial class MapSpots
         },
         Flashes = new[]
         {
-            F("Hookah window pop", V(0.5f, 3.6f, 3.0f), V(0, 3.4f, -3.5f)),
-            F("Window curve left", V(1.5f, 3.6f, 2.5f), V(-4.5f, 3.2f, -4.0f)),
-            F("Window curve right", V(-1.5f, 3.6f, 2.5f), V(3.0f, 3.4f, -5.0f)),
-            F("High pop out of the window", V(0.0f, 3.6f, 1.5f), V(-2.0f, 6.0f, -7.0f)),
-            F("Deep pop over Elevator", V(1.0f, 3.6f, 1.5f), V(-3.0f, 5.2f, -10.0f)),
+            F("B Short / Hookah window pop", V(-5.25f, 4.1f, 20.5f), V(-5.25f, 3.8f, 14.0f)),
+            F("Short window curve left", V(-5.25f, 4.1f, 20.5f), V(-1.5f, 3.6f, 13.0f)),
+            F("Short window curve right", V(-5.25f, 4.1f, 20.5f), V(-8.0f, 3.6f, 13.0f)),
+            F("High pop from short", V(-5.25f, 4.1f, 20.5f), V(-5.25f, 5.0f, 13.0f)),
+            F("Short entry pop", V(-5.25f, 4.1f, 20.5f), V(-3.5f, 3.8f, 11.0f)),
         },
         Smokes = new[]
         {

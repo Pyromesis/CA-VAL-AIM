@@ -21,6 +21,9 @@ public static class SmokeSfx
 
     static AudioStreamWav Make(string name)
     {
+        string[] parts = name.Split(':', 2);
+        string profile = parts.Length > 1 ? parts[0].ToLowerInvariant() : "";
+        name = parts[^1];
         var rng = new Random(name.Length * 7919 + name[0]);
         float dur = name switch { "launch" => 0.45f, "pop" => 1.15f, "warn" => 0.75f, _ => 0.3f };
         int n = (int)(dur * Rate);
@@ -57,6 +60,17 @@ public static class SmokeSfx
                     break;
                 }
             }
+            float envelope = Env(t, 0.012f, dur);
+            v = profile switch
+            {
+                "omen" => v * 0.65f + MathF.Sin(2 * MathF.PI * 130 * t + 2 * MathF.Sin(t * 38)) * envelope * 0.22f,
+                "astra" => v * 0.55f + (MathF.Sin(2 * MathF.PI * 640 * t) + 0.4f * MathF.Sin(2 * MathF.PI * 1027 * t)) * envelope * 0.18f,
+                "viper" => v * 0.6f + (noise - lp) * envelope * 0.22f,
+                "harbor" => v * 0.65f + MathF.Sin(2 * MathF.PI * (240 * t - 95 * t * t)) * envelope * 0.18f,
+                "brimstone" => v * 0.85f + MathF.Sin(2 * MathF.PI * 48 * t) * MathF.Exp(-t * 10) * 0.22f,
+                "clove" => v * 0.6f + MathF.Sin(2 * MathF.PI * 470 * t) * MathF.Sin(2 * MathF.PI * 8 * t) * envelope * 0.16f,
+                _ => v,
+            };
             short smp = (short)(Mathf.Clamp(v, -1f, 1f) * 30000f);
             data[i * 2] = (byte)(smp & 0xff);
             data[i * 2 + 1] = (byte)((smp >> 8) & 0xff);
@@ -67,7 +81,7 @@ public static class SmokeSfx
     static float Env(float t, float atk, float len) => t < atk ? t / atk : MathF.Max(0f, 1f - (t - atk) / MathF.Max(0.01f, len - atk));
 
     /// <summary>Plays a smoke sound at <paramref name="pos"/> (silent beyond <paramref name="maxRange"/>).</summary>
-    public static void PlayAt(Node parent, string name, Vector3 pos, Vector3 listener, float vol = 1f, float pitch = 1f, float maxRange = 55f)
+    public static void PlayAt(Node parent, string name, Vector3 pos, Vector3 listener, float vol = 1f, float pitch = 1f, float maxRange = 55f, string profile = "")
     {
         float d = pos.DistanceTo(listener);
         if (d > maxRange || parent == null || !GodotObject.IsInstanceValid(parent)) return;
@@ -75,7 +89,7 @@ public static class SmokeSfx
         float g = 0.45f + 0.55f * (1f - k) * (1f - k);
         var p = new AudioStreamPlayer3D
         {
-            Stream = Get(name), AttenuationModel = AudioStreamPlayer3D.AttenuationModelEnum.Disabled,
+            Stream = Get(profile.Length > 0 ? profile + ":" + name : name), AttenuationModel = AudioStreamPlayer3D.AttenuationModelEnum.Disabled,
             VolumeDb = Mathf.LinearToDb(Mathf.Max(1e-4f, Sfx.Volume * vol * g)), PitchScale = pitch, Autoplay = false,
         };
         parent.AddChild(p);

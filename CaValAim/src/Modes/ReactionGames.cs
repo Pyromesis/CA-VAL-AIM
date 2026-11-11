@@ -1,4 +1,4 @@
-﻿using Godot;
+using Godot;
 using CaValAim.Core;
 using CaValAim.Game;
 using CaValAim.UI;
@@ -191,13 +191,13 @@ public sealed class ReactionGameMode : TrainingMode
         }
         else if (NeedsAim)
         {
-            float scale = size.Y / 70f; Vector2 pos = center + AimError * scale;
+            float scale = size.Y / 70f; Vector2 pos = center + PlayerView.ScreenOffset(AimError, scale);
             if (Kind == ReactionGameKind.AimSearch)
                 for (int i = 0; i < 3 + Level * 2; i++)
                 {
                     float a = i * Mathf.Tau / (3 + Level * 2);
                     Vector2 decoy = new Vector2(Mathf.Cos(a) * 22, Mathf.Sin(a) * 12) - new Vector2(Mathf.Wrap(G.View.ViewYaw - yaw0, -180, 180), G.View.ViewPitch - pitch0);
-                    c.DrawArc(center + decoy * scale, Radius * scale, 0, Mathf.Tau, 32, UiTheme.Dim, 2 * k);
+                    c.DrawArc(center + PlayerView.ScreenOffset(decoy, scale), Radius * scale, 0, Mathf.Tau, 32, UiTheme.Dim, 2 * k);
                 }
             c.DrawCircle(pos, Radius * scale, UiTheme.Teal); c.DrawCircle(pos, Radius * scale * 0.22f, Colors.White);
         }
@@ -212,7 +212,8 @@ public sealed class ReactionGameMode : TrainingMode
             }
             if (Kind != ReactionGameKind.Inhibition) Text(value.ToString(), center.Y + 17 * k, 46, UiTheme.Text);
         }
-        if (NeedsAim || Kind == ReactionGameKind.Peripheral)
+        if (NeedsAim) CrosshairView.DrawPrimary(c, CaValAim.Valorant.CrosshairCode.Effective, size);
+        else if (Kind == ReactionGameKind.Peripheral)
         {
             c.DrawLine(center - Vector2.Right * 7 * k, center + Vector2.Right * 7 * k, Colors.White, 2 * k);
             c.DrawLine(center - Vector2.Down * 7 * k, center + Vector2.Down * 7 * k, Colors.White, 2 * k);

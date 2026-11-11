@@ -55,6 +55,13 @@ public static class AbilitySfx
             return (LP(N(), 0.05f) * 0.7f + Sin(95f * wob, t) * 0.35f + Sin(190f * wob, t) * 0.12f) * Env(t, 0.06f, 0.5f);
         });
         Add("dizzy", 0.25f, t => Sin(900f * MathF.Exp(-t * 9f) + 200f, t) * Env(t, 0.002f, 0.07f) * 0.5f);
+        Add("skye_confirm", 0.42f, t => (Sin(1750 + 600 * MathF.Sin(t * 18), t) * 0.32f + Sin(2700, t) * 0.12f) * Env(t, 0.008f, 0.13f));
+        Add("dash_air", 0.30f, t => LP(N(), 0.65f) * Env(t, 0.006f, 0.085f) * 0.9f);
+        Add("slide_electric", 0.4f, t => (LP(N(), 0.35f) * 0.45f + Sin(90 + 900 * MathF.Exp(-t * 12), t) * 0.3f) * Env(t, 0.003f, 0.12f));
+        Add("blast_pack", 0.65f, t => (Sin(100 * MathF.Exp(-t * 10) + 35, t) * 0.7f + N() * 0.45f) * Env(t, 0.001f, 0.13f));
+        Add("teleport", 0.65f, t => (Sin(220 + 1200 * t, t) * 0.3f + Sin(330 + 1700 * t, t) * 0.18f + LP(N(), 0.18f) * 0.4f) * Env(t, 0.035f, 0.2f));
+        Add("soul", 0.55f, t => (Sin(270, t) * Sin(11, t) * 0.35f + LP(N(), 0.12f) * 0.5f) * Env(t, 0.04f, 0.18f));
+        Add("shield", 0.6f, t => (Sin(820, t) * 0.35f + Sin(1307, t) * 0.2f + Sin(2130, t) * 0.1f) * Env(t, 0.002f, 0.18f));
         Add("empty", 0.16f, t => Sin(220, t) * Env(t, 0.002f, 0.05f) * 0.4f);
     }
 

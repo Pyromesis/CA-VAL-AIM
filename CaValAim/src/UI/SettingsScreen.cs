@@ -465,7 +465,7 @@ public partial class SettingsScreen : ScreenBase
                 : $"Bots react in ~{Difficulty.Get(St.Tier).Bot.ReactMs:0} ms"));
         v.AddChild(Segmented("Viewmodel (first-person gun)", new[] { "OFF", "ON" }, () => St.ViewModel ? 1 : 0, i => St.ViewModel = i == 1,
             note: () => "Applies on next drill"));
-        v.AddChild(Segmented("Guide line", new[] { "OFF", "LINE", "LINE + ROUTE" }, () => Math.Clamp(St.GuideLine, 0, 2), i => St.GuideLine = i,
+        v.AddChild(Segmented("Guide line", new[] { "OFF", "LINE", "LINE + ROUTE" }, () => St.GuideExplicitlyEnabled ? Math.Clamp(St.GuideLine, 0, 2) : 0, i => { St.GuideLine = i; St.GuideExplicitlyEnabled = i > 0; },
             note: () => St.GuideLine switch
             {
                 0 => "No guide",

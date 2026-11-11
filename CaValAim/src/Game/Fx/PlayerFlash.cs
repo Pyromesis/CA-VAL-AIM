@@ -10,6 +10,13 @@ namespace CaValAim.Game.Fx;
 public abstract class OrbFlash : PlayerUtility
 {
     protected FlashOrb? Orb;
+    bool windupPlayed;
+    protected void WindupCue(string key)
+    {
+        if (!Visual || windupPlayed) return;
+        windupPlayed = true;
+        G.SoundAt(key, Pos, maxRange: 50f, floor: 0.6f);
+    }
     protected OrbFlash(IGame g, bool visual, Color color, Vector3 from) : base(g, visual)
     {
         Pos = from;
@@ -62,6 +69,7 @@ public sealed class Curveball : OrbFlash
     public override void Update(float dt, UtilInput input)
     {
         Age += dt;
+        WindupCue("phoenix_windup");
         if (!stuck)
         {
             // Rotating about +Y by a positive angle turns left; right = negative.
@@ -99,6 +107,7 @@ public sealed class GuidingLight : OrbFlash
         if (activated || Done) return;
         activated = true;
         activatedAt = Age;
+        WindupCue("skye_windup");
     }
 
     public override void Update(float dt, UtilInput input)
@@ -170,6 +179,7 @@ public sealed class Blindside : OrbFlash
             if (Age >= MaxTravel || OffMap(Pos, G.Solid)) Fizzle();
             return;
         }
+        WindupCue("yoru_windup");
         if (OrbOk) Orb!.Windup(Age - armedAt);
         if (Age - armedAt >= Windup) Detonate(BlindMax);
     }
@@ -206,10 +216,15 @@ public sealed class FlashDrive : OrbFlash
         {
             vel = Bounce(vel, n, 0.42f, 0.72f); // estimate
             if (n.Y > 0.7f && Mathf.Abs(vel.Y) < 0.8f) vel.Y = 0f; // settles and rolls on the floor
-            if (!bounced && overhand) popAt = Mathf.Min(popAt, Age + BounceFuse);
+            if (!bounced && overhand)
+            {
+                popAt = Mathf.Min(popAt, Age + BounceFuse);
+                if (popAt - Age >= BounceFuse - 0.01f) WindupCue("kayo_windup_bounce");
+            }
             bounced = true;
         }
         PlaceOrb();
+        if (Age > popAt - Telegraph) WindupCue("kayo_windup");
         if (OrbOk && Age > popAt - Telegraph) Orb!.Windup(Age - (popAt - Telegraph));
         if (Age >= popAt) Detonate(BlindMax);
     }
@@ -280,6 +295,7 @@ public sealed class Flashpoint : OrbFlash
         }
         PlaceOrb();
         if (!emerged) return;
+        WindupCue("breach_windup");
         if (OrbOk) Orb!.Windup(Age - emergedAt);
         if (Age - emergedAt >= Windup) Detonate(BlindMax);
     }
@@ -296,7 +312,7 @@ public sealed class Dizzy : OrbFlash
     Vector3 vel;
     float lastFire = -9f;
     Vector3 hoverAt;
-    bool hovering;
+    bool hovering, activeCuePlayed;
 
     public Dizzy(IGame g, Vector3 from, Vector3 dir, bool visual)
         : base(g, visual, Color.Color8(29, 199, 254), from)
@@ -318,11 +334,16 @@ public sealed class Dizzy : OrbFlash
         }
         else
         {
-            if (!hovering) { hovering = true; hoverAt = Pos; }
+            if (!hovering) { hovering = true; hoverAt = Pos; WindupCue("dizzy_form"); }
             Pos = hoverAt + new Vector3(0, 0.08f * Mathf.Sin(Age * 9f), 0);
         }
         PlaceOrb();
         if (OrbOk && Age >= Flight) Orb!.Windup(Age - Flight);
+        if (Firing && Visual && !activeCuePlayed)
+        {
+            activeCuePlayed = true;
+            G.SoundAt("dizzy_active", Pos, maxRange: 50f, floor: 0.6f);
+        }
         if (Firing && Age - lastFire >= 0.25f)
         {
             lastFire = Age;

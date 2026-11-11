@@ -487,6 +487,7 @@ public partial class AgentsScreen : ScreenBase
             string kk = key;
             card.Pressed += () => StartDrill(kk);
             grid.AddChild(card);
+            FavoriteStar.Attach(card, FavoriteKind.Drill, key, K);
         }
         return grid;
     }

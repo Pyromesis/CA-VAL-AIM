@@ -87,7 +87,8 @@ public sealed class ReactionLabMode : TrainingMode
     float yaw0, pitch0;
 
     /// <summary>The flick target's offset from the crosshair right now (degrees, +x right, +y down).</summary>
-    Vector2 FlickOffset() => new(stimPos.X - Mathf.Wrap(G.View.ViewYaw - yaw0, -180f, 180f), stimPos.Y + (G.View.ViewPitch - pitch0));
+    Vector2 FlickError() => new(stimPos.X - Mathf.Wrap(G.View.ViewYaw - yaw0, -180f, 180f), -stimPos.Y - (G.View.ViewPitch - pitch0));
+    Vector2 FlickOffset() => PlayerView.ScreenOffset(FlickError(), 1);
 
     public override void Update(float dt)
     {
@@ -112,7 +113,11 @@ public sealed class ReactionLabMode : TrainingMode
                     stimUsec = Time.GetTicksUsec(); // replaced by the draw time of the first frame showing it (Draw2D)
                     stimDrawn = cat == ReactionCategory.Audio;
                     if (cat == ReactionCategory.Audio) G.Sound("tick", 1f, 1f);
-                    if (cat == ReactionCategory.Flick) { yaw0 = G.View.ViewYaw; pitch0 = G.View.ViewPitch; }
+                    if (cat == ReactionCategory.Flick)
+                    {
+                        yaw0 = G.View.ViewYaw; pitch0 = G.View.ViewPitch;
+                        stimPos.Y = -ReactionGameMode.ReachablePitchOffset(pitch0, -stimPos.Y);
+                    }
                     lastClickSeen = click;
                 }
                 break;
@@ -262,7 +267,8 @@ public sealed class ReactionLabMode : TrainingMode
             }
         }
         // fixation cross (peripheral / flick / choice): where the eyes rest
-        if (cat is ReactionCategory.Peripheral or ReactionCategory.Flick or ReactionCategory.Choice && !(stim && cat == ReactionCategory.Choice))
+        if (cat == ReactionCategory.Flick) CrosshairView.DrawPrimary(c, CaValAim.Valorant.CrosshairCode.Effective, size);
+        else if (cat is ReactionCategory.Peripheral or ReactionCategory.Choice && !(stim && cat == ReactionCategory.Choice))
         {
             var col = new Color(1, 1, 1, 0.85f);
             c.DrawLine(center - new Vector2(10 * k, 0), center + new Vector2(10 * k, 0), col, 2 * k);

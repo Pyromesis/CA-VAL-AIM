@@ -254,7 +254,7 @@ public abstract partial class InitiatorDrill : MapMode
                     if (d.Chest.DistanceTo(e.At) > e.Value || !G.LineOfSight(e.At, d.Chest)) continue;
                     set.Add(d);
                     utils.Add(new PlasmaShot(G, e.At, d.Chest, true));
-                    AbilitySfx.PlayAt(G, "dizzy", e.At, 0.8f);
+                    G.SoundAt("dizzy_spit", e.At, vol: 0.8f);
                 }
                 break;
             case UtilEventKind.Plasma:
@@ -334,11 +334,13 @@ public abstract partial class InitiatorDrill : MapMode
     void ApplyPop(Vector3 pop, float blindMax)
     {
         int full = 0, part = 0;
+        bool targetReached = false;
         foreach (var d in defenders)
         {
             if (!d.Alive) continue;
             var (sec, grade) = BlindModel.Evaluate(blindMax, ViewOf(d), pop, G.LineOfSight(d.Body.Head, pop), Aspect);
             if (grade == BlindGrade.NoLineOfSight || sec <= 0f) continue;
+            targetReached = true;
             float fade = Mathf.Min(BlindModel.FadeTime, 0.3f + sec * 0.5f);
             if (grade == BlindGrade.Flashed) { d.Brain.Flash(Now, sec, fade); full++; UtilHit(d, true, sec, "bot_blinded"); }
             else if (grade == BlindGrade.Partial) { d.Brain.Flash(Now, sec * 0.35f, sec * 0.65f + fade); part++; UtilHit(d, false, sec, "bot_blinded"); }
@@ -355,7 +357,7 @@ public abstract partial class InitiatorDrill : MapMode
             Score -= 40;
             Event("self_flash", ps);
         }
-        G.SoundAt(FlashSlug is { } slug ? slug + "_pop" : "flashpop", pop, maxRange: 50f, floor: 0.6f);
+        G.SoundAt(FlashSlug is { } slug ? CaValAim.Audio.Sfx.FlashPopCue(slug, targetReached) : "flashpop", pop, maxRange: 50f, floor: 0.6f);
         string who = full + part == 0
             ? (Loc.Spanish ? "Nadie cegado" : "Nobody flashed")
             : (Loc.Spanish ? $"{full + part} CEGADOS" : $"{full + part} FLASHED") + (part > 0 ? (Loc.Spanish ? $" ({part} parcial)" : $" ({part} partial)") : "");

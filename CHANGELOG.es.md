@@ -2,6 +2,23 @@
 
 ## [Sin publicar]
 
+## [2.9.0] - 2026-11-10
+
+### Añadido
+
+- Estrellas persistentes para marcar tareas, rutinas y listas, con una pantalla de Favoritos.
+- Buscador en la biblioteca, las rutinas, los favoritos y el selector de ejercicios de las listas; admite palabras parciales e ignora mayúsculas y tildes.
+- Audio original de flashes extraído de una instalación local de VALORANT: 54 clips de Phoenix, Breach, KAY/O, Skye, Yoru, Vyse y Gekko/Dizzy, con registro de procedencia y sustituciones WAV locales opcionales.
+
+### Corregido
+
+- Corregido el eje vertical invertido de los ejercicios de reacción y adquisición; los objetivos siguen siendo alcanzables cerca del límite de inclinación.
+- Eliminadas las capas antiguas que tapaban A Hall en Fracture. Los atacantes usan rutas que respetan las colisiones en Icebox y los demás mapas.
+- Corregidos el paso de la ventana de Hookah, los puntos seguros de defensores en el sitio y las flashes desde corta/Hookah hacia B en Bind.
+- La guía de apuntado queda desactivada por defecto; el punto de la mira se alinea con los píxeles y los minijuegos de puntería usan la mira configurada.
+- Los disparos no interrumpen los canales de las flashes. Añadidas señales propias para habilidades y avisos sincronizados con el armado de las flashes lanzadas por el jugador.
+- Skye usa su sonido original de acierto o fallo según el alcance y la línea de visión del enemigo, aunque este se dé la vuelta.
+
 ## [2.8.3] - 2026-11-10
 
 ### Corregido

@@ -212,8 +212,11 @@ public sealed class FlashDodgeMode : MapMode
     St st;
     float stateT, holdFor, swingDelay, flight, land, turnAt;
     FlashAgent agent = FlashAgent.All[0];
-    Vector3 from, ctrl, pop, swingTo, waypoint;
-    bool passedChoke, turnedAway, timingTurn, windupPlayed, bounceWindup;
+    Vector3 from, ctrl, pop;
+    bool turnedAway, timingTurn, windupPlayed, bounceWindup;
+    List<Vector3> swingPath = new();
+    int swingNode;
+    float swingVertical;
     FlashOrb? orb;
     BotCharacter? attacker;
     BotBrain? brain;
@@ -231,13 +234,15 @@ public sealed class FlashDodgeMode : MapMode
 
     void NewRound()
     {
-        var spots = MapSpot.Enemies
-            // Site-level spots only (no heaven): height is measured from the choke's floor, so raised sites
-            // (Ascent A is ~1 m above Main) still qualify.
-            .Where(e => e.Feet.Y - MapSpot.Choke.Y < 1.5f && MapSpot.LineOfSight(e.Feet + new Vector3(0, PlayerView.EyeHeight, 0), MapSpot.Choke + new Vector3(0, 1.5f, 0)))
-            .Where(e => e.Feet.DistanceTo(MapSpot.Choke) is > 6f and < 26f)
-            .ToArray();
-        var spot = spots.Length > 0 ? spots[Rng.Next(spots.Length)] : MapSpot.Enemies[0];
+        var site = MapSpot.PlantSpots.FirstOrDefault();
+        var siteDirection = site - MapSpot.Choke; siteDirection.Y = 0;
+        var spots = MapSpot.Enemies.Select(e => e with { Feet = SafeFeet(e.Feet, G.Solid, MapSpot) })
+            .Where(e => !Collision.Overlaps(e.Feet, G.Solid))
+            .Where(e => (e.Feet - MapSpot.Choke).Dot(siteDirection) > 0)
+            .Where(e => e.Feet.Y - MapSpot.Choke.Y < 1.5f && MapSpot.LineOfSight(EyeOf(e), MapSpot.Choke + Vector3.Up * 1.5f))
+            .Where(e => e.Feet.DistanceTo(MapSpot.Choke) is > 6f and < 26f).ToArray();
+        var spot = spots.Length > 0 ? spots[Rng.Next(spots.Length)]
+            : new EnemySpot("Site", SafeFeet(site, G.Solid, MapSpot), Stance.Stand);
         SpawnFeet = spot.Feet;
         var d = MapSpot.Choke - spot.Feet;
         SpawnYaw = Mathf.RadToDeg(Mathf.Atan2(d.X, -d.Z));
@@ -343,7 +348,7 @@ public sealed class FlashDodgeMode : MapMode
         G.Blind.Apply(sec, BlindOverlay.LookOf(agent), BlindModel.ScreenUv(G.View, pop, aspect));
         Event("flash", grade switch { BlindGrade.Flashed => 2, BlindGrade.Partial => 1, BlindGrade.NoLineOfSight => -1, _ => 0 }, turnedAway ? turnAt : -1);
         orb?.Pop(); orb = null;
-        G.SoundAt(agent.Slug + "_pop", pop, maxRange: 50f, floor: 0.6f);
+        G.SoundAt(CaValAim.Audio.Sfx.FlashPopCue(agent.Slug, sec > 0), pop, maxRange: 50f, floor: 0.6f);
         if (sec >= 0.5f) G.Sound("flash_ring", 0.6f * Mathf.Clamp(sec / 2.25f, 0.35f, 1f)); // the blinded whine, dying with the fade
         lastAgent = $"{agent.Agent} {agent.Ability}";
         if (Main.I.Dev) Log.Info($"[flash] pop {lastAgent} at {stateT:0.00} s (land {land:0.00}, bounce windup {bounceWindup}): {grade} {sec:0.00} s");
@@ -483,32 +488,49 @@ public sealed class FlashDodgeMode : MapMode
     {
         var toPlayer = new Vector3(SpawnFeet.X - MapSpot.Choke.X, 0, SpawnFeet.Z - MapSpot.Choke.Z).Normalized();
         var sideV = new Vector3(-toPlayer.Z, 0, toPlayer.X);
-        Vector3 start = MapSpot.Choke - toPlayer * 2.5f;
-        start.Y = Collision.Ground(new Vector3(start.X, MapSpot.Choke.Y + 0.7f, start.Z), G.Solid);
-        bool found = false;
-        foreach (var back in new[] { 1.5f, 2.5f, 3.5f })
+        var nav = BotNav.For($"flash-entry:{MapSpot.Key}:{G.Solid.Count}", G.Solid, MapSpot.StartFeet);
+        Vector3 start = default;
+        swingPath.Clear(); swingNode = 0; swingVertical = 0;
+        foreach (var back in new[] { 1.5f, 2.5f, 3.5f, 5f, 7f, 10f, 14f })
         {
-            foreach (var sd in new[] { 0f, 1.5f, -1.5f, 2.5f, -2.5f, 3.5f, -3.5f })
+            foreach (var sd in new[] { 0f, 1.5f, -1.5f, 2.5f, -2.5f, 3.5f, -3.5f, 5f, -5f, 7f, -7f, 10f, -10f })
             {
-                var p = MapSpot.Choke - toPlayer * back + sideV * sd;
-                p.Y = Collision.Ground(new Vector3(p.X, MapSpot.Choke.Y + 0.7f, p.Z), G.Solid);
-                if (Collision.Overlaps(p, G.Solid)) continue;
-                if (G.LineOfSight(p + new Vector3(0, PlayerView.EyeHeight, 0), G.View.Eye)) continue;
-                if (!G.LineOfSight(p + Vector3.Up, new Vector3(MapSpot.Choke.X, p.Y + 1, MapSpot.Choke.Z))) continue;
-                start = p; found = true; break;
+                var authored = MapSpot.Choke - toPlayer * back + sideV * sd;
+                authored.Y = MapSpot.Choke.Y;
+                var candidate = SpawnSafety.Resolve(authored, G.Solid, out bool safe, PlayableTest(MapSpot));
+                if (!safe || candidate.DistanceTo(authored) > 2 || Collision.Overlaps(candidate, G.Solid)) continue;
+                if (G.LineOfSight(candidate + Vector3.Up * PlayerView.EyeHeight, G.View.Eye)) continue;
+                var goal = SafeFeet(MapSpot.Choke + toPlayer * 2, G.Solid, MapSpot);
+                var path = nav.FindPath(candidate, goal);
+                if (path is not { Count: > 0 } || !nav.Straight(candidate, path[0])) continue;
+                if (!G.LineOfSight(path[^1] + Vector3.Up * PlayerView.EyeHeight, G.View.Eye)) continue;
+                start = candidate; swingPath = path; break;
             }
-            if (found) break;
+            if (swingPath.Count > 0) break;
         }
-        swingTo = MapSpot.Choke + toPlayer * 1.5f;
-        for (int i = 0; i < 8; i++)
+        if (swingPath.Count == 0 && MapSpot.Key == "bind")
         {
-            var c = MapSpot.Choke + toPlayer * R(1.5f, 3.0f) + sideV * R(-1.2f, 1.2f);
-            c.Y = Collision.Ground(new Vector3(c.X, MapSpot.Choke.Y + 0.7f, c.Z), G.Solid);
-            if (!Collision.Overlaps(c, G.Solid)) { swingTo = c; break; }
+            // Hookah's window is a one-way jump/drop, not a walkable stair link.
+            var entry = new Vector3(5.25f, 2.5f, 20f);
+            var sill = new Vector3(5.25f, 3.10f, 16.8f);
+            var landing = SafeFeet(new Vector3(5.25f, 0.6f, 14f), G.Solid, MapSpot);
+            entry = SpawnSafety.Resolve(entry, G.Solid, out bool clear, PlayableTest(MapSpot));
+            if (clear && !Collision.Overlaps(sill, G.Solid) && !Collision.Overlaps(landing, G.Solid) &&
+                !G.LineOfSight(entry + Vector3.Up * PlayerView.EyeHeight, G.View.Eye))
+            {
+                start = entry;
+                swingPath = new List<Vector3> { sill, landing };
+            }
         }
-        waypoint = new Vector3(MapSpot.Choke.X, start.Y, MapSpot.Choke.Z);
-        passedChoke = false;
+        if (swingPath.Count == 0)
+        {
+            // Never invent a spawn inside the wall when no valid hidden entry exists.
+            st = St.After; stateT = 0;
+            if (Main.I.Dev) Log.Info($"[flash-entry] {MapSpot.Key}: no safe connected entry; retrying next round");
+            return;
+        }
         attacker = G.SpawnBot(start);
+        if (Main.I.Dev) Log.Info($"[flash-entry] {MapSpot.Key}: safe {start}, {swingPath.Count} path nodes");
         attacker.FacingYaw = Mathf.RadToDeg(Mathf.Atan2(toPlayer.X, -toPlayer.Z));
         brain = new BotBrain(attacker, Difficulty.Get(Tier).Bot, Rng)
         {
@@ -560,13 +582,28 @@ public sealed class FlashDodgeMode : MapMode
                 var bdy = attacker!;
                 if (stateT > swingDelay && !bdy.Dead)
                 {
-                    var target = passedChoke ? swingTo : waypoint;
-                    var to = target - bdy.Feet; to.Y = 0;
-                    float speed = Difficulty.FlashEntrySpeed(Tier), step = speed * dt;
-                    // Rookie walks in, Regular jogs, higher tiers sprint and stop dead at the swing spot.
-                    if (to.Length() > step) { bdy.Velocity = to.Normalized() * speed; bdy.Feet += bdy.Velocity * dt; }
-                    else { bdy.Feet = new Vector3(target.X, bdy.Feet.Y, target.Z); if (passedChoke) bdy.Velocity = Vector3.Zero; passedChoke = true; }
-                    var p = bdy.Feet; p.Y = Collision.Ground(p + new Vector3(0, 0.3f, 0), G.Solid); bdy.Feet = p;
+                    if (swingNode < swingPath.Count)
+                    {
+                        var target = swingPath[swingNode];
+                        var to = target - bdy.Feet; to.Y = 0;
+                        float speed = Difficulty.FlashEntrySpeed(Tier);
+                        var velocity = to.LengthSquared() > 0.01f ? to.Normalized() * speed : Vector3.Zero;
+                        var feet = bdy.Feet;
+                        var delta = velocity * dt;
+                        if (delta.Length() > to.Length()) delta = to;
+                        float ground = Collision.Ground(feet + Vector3.Up * 0.1f, G.Solid);
+                        if (target.Y > feet.Y + 0.3f && feet.Y <= ground + 0.1f && swingVertical <= 0) swingVertical = 5.4f;
+                        swingVertical -= 9.8f * dt;
+                        feet.Y = Mathf.Max(ground, feet.Y + swingVertical * dt);
+                        Collision.MoveAndSlide(ref feet, ref velocity, delta, G.Solid);
+                        ground = Collision.Ground(feet + Vector3.Up * Collision.StepHeight, G.Solid);
+                        if (swingVertical <= 0 && ground >= feet.Y - 0.05f && ground <= feet.Y + Collision.StepHeight) { feet.Y = ground; swingVertical = 0; }
+                        bdy.Feet = feet; bdy.Velocity = velocity;
+                        if (new Vector2(feet.X - target.X, feet.Z - target.Z).Length() < 0.25f && Math.Abs(feet.Y - target.Y) < 0.6f) swingNode++;
+                        if (Main.I.Dev && CmdLine.Has("--flash-entry-audit") && Collision.Overlaps(feet, G.Solid))
+                            GD.PushError($"[flash-entry] {MapSpot.Key}: body overlaps at {feet}");
+                    }
+                    else bdy.Velocity = Vector3.Zero;
                     brain!.Enabled = true;
                 }
                 brain?.Update(G, dt);

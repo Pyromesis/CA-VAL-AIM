@@ -275,6 +275,8 @@ public partial class RoutinesScreen : ScreenBase
         var list = VBox(0);
         list.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         listScroll.AddChild(list);
+        var searchRows = new List<(Control Row, string Text)>();
+        TaskSearch.Bind(left, k, searchRows);
         left.AddChild(listScroll);
 
         int i = 0;
@@ -286,7 +288,7 @@ public partial class RoutinesScreen : ScreenBase
             var rr = r;
             var item = new MDrillRow
             {
-                K = k, Title = r.Name, Meta = meta, Value = value, Marked = r.Id == routineId,
+                K = k, Title = r.Name, FavoriteType = FavoriteKind.Routine, FavoriteKey = r.Id, Meta = meta, Value = value, Marked = r.Id == routineId,
                 Delay = 0.12f + Math.Min(0.2f, i++ * 0.02f),
                 CustomMinimumSize = new Vector2(0, 54 * k), SizeFlagsHorizontal = SizeFlags.ExpandFill,
                 TooltipText = $"{r.Name} · {r.Source} · {meta}",
@@ -298,6 +300,7 @@ public partial class RoutinesScreen : ScreenBase
                 Callable.From(Rebuild).CallDeferred();
             };
             list.AddChild(item);
+            searchRows.Add((item, $"{r.Name} {r.Source} {string.Join(" ", r.Steps.Select(step => step.Drill))}"));
         }
 
         left.AddChild(Spacer(0, 10 * k));
@@ -1119,6 +1122,11 @@ public partial class RoutineStepRow : BaseButton
         Pressed += UiTheme.ClickSound;
     }
 
+    public override void _Ready()
+    {
+        if (Step.Drill.Length > 0) FavoriteStar.Attach(this, FavoriteKind.Drill, Step.Drill, K);
+    }
+
     public void SetSelected(bool on)
     {
         if (Selected == on) return;
@@ -1156,7 +1164,7 @@ public partial class RoutineStepRow : BaseButton
             Step.RecoilOn ? UiTheme.Good : UiTheme.Faint, W(5));
         if (Step.Optional)
             Gfx.TextFit(this, UiTheme.HudWide, "OPT", X(6), Gfx.Mid(cy, fs), fs, UiTheme.Warn, W(6));
-        else
+        else if (Step.Drill.Length == 0)
             Gfx.Text(this, UiTheme.HudWide, "·", X(6), Gfx.Mid(cy, fs), fs, UiTheme.Faint);
     }
 }

@@ -20,7 +20,7 @@
 
 <p align="center"><sub><a href="#download">Download</a> Â· <a href="#screenshots">Screenshots</a> Â· <a href="#drills">Drills</a> Â· <a href="#routines-guide-and-glossary">Routines</a> Â· <a href="#aim-coach">Aim coach</a> Â· <a href="#how-it-works">How it works</a> Â· <a href="#building-from-source">Build</a></sub></p>
 
-<img src="docs/screenshots/01-menu-principal.jpg" alt="CA-VAL-AIM main menu: drills, tier, map and Deathmatch lobby in one place" width="100%">
+<img src="docs/screenshots/13-library-search.png" alt="CA-VAL-AIM v2.9.0: searchable drill library and favorite stars" width="100%">
 
 | **402 drills** | **13 maps** | **29 agents** | **8 skills** |
 |:---:|:---:|:---:|:---:|
@@ -82,10 +82,11 @@ The app is called **CA-VAL-AIM**: window, menu, installer, shortcuts, executable
 
 ## Screenshots
 
-The English interface at 2048Ã—1152. Select English or Spanish in Settings. Captures are in [`docs/screenshots`](docs/screenshots); the main menu and new reaction games show v2.8.0.
+The English interface at 2048Ã—1152. Select English or Spanish in Settings. Captures are in [`docs/screenshots`](docs/screenshots); the library search and favorites captures show v2.9.0; reaction captures show v2.8.0.
 
 | | |
 |---|---|
+| <img src="docs/screenshots/13-library-search.png" alt="Search drills by name and description" width="100%"> **Library search:** filter drills as you type and star the ones you want to keep. | <img src="docs/screenshots/14-favorites.png" alt="Favorite drills, routines and playlists together" width="100%"> **Favorites:** saved tasks, routines and playlists together, with search. |
 | <img src="docs/screenshots/03-menu-coach.jpg" alt="Aim coach" width="100%"> **Aim coach:** your estimated rank, the problems holding you back and the drill that fixes each one. | <img src="docs/screenshots/07-play-by-play.jpg" alt="Play-by-play review" width="100%"> **Play-by-play:** every engagement graded on its own, with WATCH and PRACTISE. |
 | <img src="docs/screenshots/08-rewind.jpg" alt="Rewind" width="100%"> **Rewind:** the exact moment in 3D, with the crosshair path and the shot that followed. | <img src="docs/screenshots/06-menu-lockin.jpg" alt="Lock-In warm-up" width="100%"> **Lock-In:** the guided warm-up that checks your setup before the first match. |
 | <img src="docs/screenshots/11-reaction-rules.jpg" alt="Reaction minigame with an alternating even-number or diamond rule" width="100%"> **Reaction without aiming:** read the current rule and respond or hold. | <img src="docs/screenshots/12-reaction-aim.jpg" alt="Aim reaction game: locate the dotted target among distractors" width="100%"> **Reaction with aiming:** find, acquire and confirm the target. |
@@ -151,6 +152,8 @@ The **ROUTINES** screen adapts the VALORANT material published by **Voltaic** an
 | **Glossary** | 126 Voltaic aim terms with short Spanish/English definitions and a search box. |
 | **Data** | An Excel-style table of every routine, step, term and your saved progress, with a four-file CSV export. |
 | **Credits** | Full attribution, source links and the legal notice. |
+
+Star tasks, routines and playlists to keep them together on the **Favorites** screen. Search the library, routines, favorites or playlist drill picker by name and description; search ignores case and accents and works with partial words. Favorites are stored locally in `favorites.json`.
 
 Playable routines can be saved as normal playlists and edited like any other. The HUD shows the current task and repetition; its clock follows the actual run duration. For example, Cartoon’s three-minute tasks contain three one-minute runs before advancing. While paused, **â€¹ â€º** jumps to the
 previous or next task without saving the abandoned run. The trainer applies a source's sensitivity boost only on the
@@ -279,3 +282,7 @@ CA-VAL-AIM (formerly ValTraining) is a modified version of **ValTrainer** ([idor
 All 3D models, textures, skies and recorded sounds are CC0 (public domain), except the official VALORANT map minimaps and the optional extracted map geometry in `maps/` (Â© Riot Games, not CC0; see [CaValAim/CREDITS.md](CaValAim/CREDITS.md)). The Godot Engine and the bundled .NET runtime are MIT-licensed. CC0 and MIT are compatible with the GPL; the installer includes all notices in `THIRD-PARTY-NOTICES.txt`.
 
 The community routines, guide summaries and glossary definitions are original paraphrases/adaptations of public documents by Voltaic and cartoon, distributed under GPL-3.0-or-later with attribution; see [CaValAim/CREDITS.md](CaValAim/CREDITS.md). They do not imply any endorsement by Voltaic, cartoon, Aim Lab or Kovaak's. CA-VAL-AIM is fan-made and is not endorsed by or affiliated with Riot Games, Voltaic, cartoon, Aim Lab or Kovaak's. VALORANT and its agent and map names are trademarks of Riot Games, Inc.; Aim Lab and Kovaak's are trademarks of their respective owners.
+
+### Local flash audio
+
+The `assets/audio/flash/originals` sound set uses original VALORANT Wwise events for Phoenix, Breach, KAY/O, Skye, Yoru, Vyse and Gekko/Dizzy, with source provenance and attribution in CREDITS.md. Original events take priority over synthesized fallbacks. To use separately obtained WAV clips, place them in `audio/flash/` inside the app data directory and restart the trainer. Names match cue identities, for example `phoenix_pop.wav`, `breach_pop.wav`, `kayo_pop.wav`, `skye_pop.wav`, `yoru_pop.wav` and `vyse_pop.wav`. Throw, flight and windup have separate `<agent>_throw.wav`, `<agent>_flight.wav` and `<agent>_windup.wav` slots. Gekko uses `dizzy_form.wav`, `dizzy_active.wav`, `dizzy_spit.wav`, `dizzy_incoming.wav` and `dizzy_splat.wav` (plus throw, down and bubble). `flash_ring.wav` is the shared ringing effect. Clips must be valid WAV files, up to 16 MiB and 15 seconds, with any silence before/after the cue trimmed. Each loaded clip retains its recorded duration and replaces only its matching cue; missing or rejected files keep the bundled sound. Local overrides are optional; the original sound set works without them.

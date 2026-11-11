@@ -215,6 +215,7 @@ public partial class Main : Node
             case "stats": Callable.From(ShowStats).CallDeferred(); break;
             case "reaction" or "reactions": Callable.From(ShowReactionStats).CallDeferred(); break;
             case "senslab" or "sens-lab": Callable.From(ShowSensLab).CallDeferred(); break;
+            case "favorites": Callable.From(() => ShowScreen(new FavoritesScreen())).CallDeferred(); break;
             case "practice": Callable.From(ShowPractice).CallDeferred(); break;
             case "warmup" or "lockin": Callable.From(ShowLockIn).CallDeferred(); break;
             case "agents": Callable.From(ShowAgents).CallDeferred(); break; // + --agent jett, --agent-go routine|<drill> (AgentsScreen)

@@ -424,6 +424,13 @@ public partial class MDrillRow : MButtonBase
 {
     public string Title = "", Meta = "", Value = "", ValueCaption = "";
     public bool IsNew;
+    public FavoriteKind? FavoriteType;
+    public string FavoriteKey = "";
+    public override void _Ready()
+    {
+        base._Ready();
+        if (FavoriteType is { } kind && FavoriteKey.Length > 0) FavoriteStar.Attach(this, kind, FavoriteKey, K);
+    }
     /// <summary>Draws the value / caption in the accent (playlist membership).</summary>
     public bool Marked;
 
@@ -438,16 +445,17 @@ public partial class MDrillRow : MButtonBase
         float x = 14 * k + 6 * k * Hover;
         float valueW = string.IsNullOrEmpty(Value) ? 0
             : Mathf.Max(Gfx.RawW(UiTheme.Hud, Value, vs), Gfx.TextW(UiTheme.HudWide, ValueCaption, UiTheme.Fs(9.5f, k))) + 24 * k;
+        float contentRight = Size.X - (FavoriteType != null ? 38 * k : 0);
         float nameW = Gfx.TextW(UiTheme.Body, Title, ns);
-        Gfx.TextFit(this, UiTheme.Body, Title, x, h * 0.44f, ns, UiTheme.TextSoft.Lerp(UiTheme.Text, Hover), Size.X - x - valueW - 8 * k);
-        if (IsNew && x + nameW + 50 * k < Size.X - valueW)
+        Gfx.TextFit(this, UiTheme.Body, Title, x, h * 0.44f, ns, UiTheme.TextSoft.Lerp(UiTheme.Text, Hover), contentRight - x - valueW - 8 * k);
+        if (IsNew && x + nameW + 50 * k < contentRight - valueW)
             Gfx.Text(this, UiTheme.HudWide, "NEW", x + nameW + 10 * k, h * 0.44f - ns * 0.05f, UiTheme.Fs(9.5f, k), UiTheme.Accent);
-        Gfx.TextFit(this, UiTheme.Body, Meta, x, h * 0.44f + ms * 1.45f, ms, UiTheme.Faint, Size.X - x - valueW - 8 * k);
+        Gfx.TextFit(this, UiTheme.Body, Meta, x, h * 0.44f + ms * 1.45f, ms, UiTheme.Faint, contentRight - x - valueW - 8 * k);
         if (valueW > 0)
         {
             var vc = Marked ? UiTheme.Accent : UiTheme.Text.Lerp(UiTheme.Text, Hover);
-            Gfx.TextR(this, UiTheme.Hud, Value, Size.X - 12 * k, h * 0.44f, vs, vc);
-            Gfx.TextR(this, UiTheme.HudWide, ValueCaption, Size.X - 12 * k, h * 0.44f + ms * 1.45f, UiTheme.Fs(9.5f, k),
+            Gfx.TextR(this, UiTheme.Hud, Value, contentRight - 12 * k, h * 0.44f, vs, vc);
+            Gfx.TextR(this, UiTheme.HudWide, ValueCaption, contentRight - 12 * k, h * 0.44f + ms * 1.45f, UiTheme.Fs(9.5f, k),
                 Marked ? Mn.A(UiTheme.Accent, 0.8f) : UiTheme.Faint);
         }
     }

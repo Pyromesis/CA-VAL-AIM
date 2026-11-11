@@ -1,4 +1,4 @@
-﻿using Godot;
+using Godot;
 using CaValAim.Game;
 using CaValAim.Game.Weapon;
 using CaValAim.Audio;
@@ -11,6 +11,10 @@ static class GameplayChecks
     public static void Run(Action<string> report)
     {
         void Check(bool ok, string label) => report($"  {(ok ? "PASS" : "FAIL")} gameplay: {label}");
+        Check(UI.TaskSearch.Matches("REACCION periferica", "Reacción periférica") &&
+            UI.TaskSearch.Matches("micro", "Microcorrecciones") &&
+            !UI.TaskSearch.Matches("tracking invisible", "Tracking continuo") && UI.TaskSearch.Matches("  ", "Cualquiera"),
+            "library search ignores accents/case, matches partial words and requires all terms");
         foreach (string section in Modes.TrainingCatalog.Sections)
         {
             var tasks = Modes.ModeRegistry.All.Select(make => make())
@@ -42,6 +46,16 @@ static class GameplayChecks
             System.Text.Json.JsonSerializer.Serialize(archive, jsonOptions), jsonOptions);
         Check(restored?.Review.Observations.Count == 2 && restored.Review.PrescribedDrills[0] == prescription,
             "coach observations and generated prescriptions survive JSON round trip");
+        var normalView = new PlayerView();
+        var targetAngle = new Vector2(8, 5);
+        var beforeScreen = PlayerView.ScreenOffset(targetAngle, 10);
+        normalView.Look(new Vector2(30, -20), 1, 1);
+        var afterScreen = PlayerView.ScreenOffset(targetAngle - new Vector2(normalView.ViewYaw, normalView.ViewPitch), 10);
+        Check(beforeScreen.X > 0 && beforeScreen.Y < 0 && afterScreen.Length() < beforeScreen.Length(),
+            "reaction aiming uses normal mouse directions: moving up/right approaches an upper-right target");
+        normalView.Look(new Vector2(-30, 20), 1, 1);
+        Check(normalView.ViewYaw == 0 && normalView.ViewPitch == 0,
+            "reaction projection does not alter raw mouse sensitivity or direction");
         var reactionGames = Modes.ReactionGameMode.Factories().Select(f => (Modes.ReactionGameMode)f()).ToArray();
         Check(reactionGames.Length == 50 && reactionGames.Select(g => g.Key).Distinct().Count() == 50 &&
             reactionGames.Count(g => !g.NeedsAim) == 35 && reactionGames.All(g => Modes.ModeRegistry.Find(g.Key)?.Invoke().Key == g.Key),

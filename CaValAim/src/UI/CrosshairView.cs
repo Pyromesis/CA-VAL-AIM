@@ -57,6 +57,9 @@ public partial class CrosshairView : Control
             restErrorPx: sec.OverrideFiringOffset ? 0f : MinErrorPx, fade: Profile.Extras.Primary.Fade);
     }
 
+    public static void DrawPrimary(CanvasItem canvas, CrosshairSettings profile, Vector2 size) =>
+        DrawStyle(canvas, profile.Primary, (size / 2).Floor(), profile.ScaleToResolution ? size.Y / 1080f : 1f);
+
     /// <summary>Draws one crosshair style centred on <paramref name="centre"/> of any canvas (HUD overlays, previews).
     /// <paramref name="k"/> scales every size (1 = real screen pixels; larger = magnified preview).
     /// <para>Like VALORANT at 1080p: each line is a rectangle <c>thickness</c> px across, centred on the screen centre
@@ -90,7 +93,7 @@ public partial class CrosshairView : Control
         if (s.CenterDot && s.CenterDotOpacity > 0)
         {
             float d = Mathf.Max(1, Mathf.Round(s.CenterDotSize * k));
-            parts.Add((new List<Rect2> { new(cx - d / 2, cy - d / 2, d, d) }, s.CenterDotOpacity));
+            parts.Add((new List<Rect2> { new(cx - Mathf.Floor(d / 2), cy - Mathf.Floor(d / 2), d, d) }, s.CenterDotOpacity));
         }
         foreach (var l in new[] { s.Inner, s.Outer })
         {

@@ -221,6 +221,8 @@ public sealed partial class MobilityEntryMode : MapMode
         if (firstDuel == 0) abilityBeforeDuel = true;
         if (defenders.Any(d => d.Alive && d.Brain.SeesPlayer)) seenBeforeAbility++;
         Event("ability_" + tag, RoundT * 1000f);
+        string? cue = tag switch { "dash" or "updraft" => "dash_air", "slide" or "sprint" => "slide_electric", "launch" => "blast_pack", "teleport" or "fake" or "tether_place" => "teleport", "dismiss" or "devour" => "soul", "doubletap" => "shield", _ => null };
+        if (cue != null) AbilitySfx.PlayAt(G, cue, G.View.Eye, 0.7f);
     }
 
     /// <summary>A loud ability cue at <paramref name="at"/>: defenders in earshot that aren't fighting may turn toward it

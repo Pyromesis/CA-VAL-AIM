@@ -166,7 +166,7 @@ public partial class PlaylistsScreen : ScreenBase
         {
             var row = new MDrillRow
             {
-                K = k, Title = p.Name, Meta = $"{p.Modes.Count} {L("drills", "ejercicios")} · {TotalLabel(p)}",
+                K = k, Title = p.Name, FavoriteType = FavoriteKind.Playlist, FavoriteKey = p.Id, Meta = $"{p.Modes.Count} {L("drills", "ejercicios")} · {TotalLabel(p)}",
                 Value = p == selected ? L("OPEN", "ABIERTA") : "", Marked = p == selected,
                 Delay = 0.26f + Math.Min(0.25f, i++ * 0.03f),
                 CustomMinimumSize = new Vector2(0, 58 * k), SizeFlagsHorizontal = SizeFlags.ExpandFill,
@@ -258,6 +258,8 @@ public partial class PlaylistsScreen : ScreenBase
         });
         right.AddChild(Spacer(0, 6 * k));
 
+        var searchRows = new List<(Control Row, string Text)>();
+        TaskSearch.Bind(right, k, searchRows);
         var scroll = new ScrollContainer
         {
             SizeFlagsVertical = SizeFlags.ExpandFill, HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
@@ -277,7 +279,7 @@ public partial class PlaylistsScreen : ScreenBase
             bool inSet = p.Modes.Contains(info.Key);
             var row = new MDrillRow
             {
-                K = k, Title = info.Name, Meta = $"{Loc.T(info.Category)}  ·  {Loc.T(info.Description)}",
+                K = k, Title = info.Name, FavoriteType = FavoriteKind.Drill, FavoriteKey = info.Key, Meta = $"{Loc.T(info.Category)}  ·  {Loc.T(info.Description)}",
                 Value = inSet ? L("IN PLAYLIST", "EN LA SERIE") : L("+ ADD", "+ AÑADIR"), Marked = inSet,
                 Delay = 0.36f + Math.Min(0.3f, i++ * 0.008f),
                 CustomMinimumSize = new Vector2(0, 58 * k), SizeFlagsHorizontal = SizeFlags.ExpandFill,
@@ -300,6 +302,7 @@ public partial class PlaylistsScreen : ScreenBase
                 foreach (var (lr, lp) in listRows)
                     if (lp == p) { lr.Meta = $"{p.Modes.Count} {L("drills", "ejercicios")} · {TotalLabel(p)}"; lr.QueueRedraw(); }
             };
+            searchRows.Add((row, $"{Loc.T(info.Name)} {Loc.T(info.Description)} {Loc.T(info.Category)} {key}"));
             drillRows.Add((row, key));
             grid.AddChild(row);
         }

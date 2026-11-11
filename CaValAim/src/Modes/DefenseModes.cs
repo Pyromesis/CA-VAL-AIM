@@ -414,7 +414,7 @@ public sealed partial class AnchorMode : MapMode
         orb.Pop();
         orb = null;
         Log($"flash popped: {grade} {sec:0.0}s");
-        G.SoundAt(flashAgent.Slug + "_pop", flashPop, maxRange: 50f, floor: 0.6f);
+        G.SoundAt(CaValAim.Audio.Sfx.FlashPopCue(flashAgent.Slug, sec > 0), flashPop, maxRange: 50f, floor: 0.6f);
     }
 
     float ScreenAspect()

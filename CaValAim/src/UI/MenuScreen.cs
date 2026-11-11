@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+using System.Globalization;
 using Godot;
 using CaValAim.Core;
 using CaValAim.Game;
@@ -24,6 +24,7 @@ public partial class MenuScreen : ScreenBase
     /// <summary>"ALL" or one of the drill categories: only that category's drills are listed. Static, so returning from a
     /// drill (the menu screen is rebuilt) lands on the same library tab.</summary>
     static string catFilter = "ALL";
+    static string taskQuery = "";
     SessionSummary summary;
     GridContainer? grid;
     MText? tierNote, dmNote, subLine;
@@ -45,6 +46,7 @@ public partial class MenuScreen : ScreenBase
     protected override void Build()
     {
         rows.Clear();
+        if (Main.I.Dev && CmdLine.DevAfter("--menu-search") is { } devQuery) taskQuery = devQuery;
         mapSel = null;
         weaponSel = null;
         coachHint = null; coachHintDone = false;
@@ -250,6 +252,7 @@ public partial class MenuScreen : ScreenBase
         }
         Shortcut(L("ROUTINES", "RUTINAS"), Main.I.ShowRoutines);
         Shortcut(L("PLAYLISTS", "LISTAS"), Main.I.ShowPlaylists);
+        Shortcut(L("FAVORITES", "FAVORITOS"), () => Main.I.ShowScreen(new FavoritesScreen()));
         Shortcut(L("AGENTS", "AGENTES"), Main.I.ShowAgents);
         Shortcut("COACH", Main.I.ShowProfile);
         Shortcut(L("STATS", "ESTADÍSTICAS"), Main.I.ShowStats);
@@ -269,6 +272,7 @@ public partial class MenuScreen : ScreenBase
         tabs.Selected = cats.IndexOf(catFilter);
         tabs.ItemSelected += i => { catFilter = cats[(int)i]; FillGrid(); };
         left.AddChild(tabs);
+        left.AddChild(TaskSearch.Create(k, taskQuery, value => { taskQuery = value; FillGrid(); }));
         left.AddChild(Spacer(0, 8 * k));
         left.AddChild(new MRule { Delay = 0.36f });
 
@@ -313,11 +317,11 @@ public partial class MenuScreen : ScreenBase
         foreach (var c in grid.GetChildren()) { grid.RemoveChild(c); c.QueueFree(); }
         rows.Clear();
         int i = 0;
-        foreach (var (make, info) in modes.Where(m => catFilter == "ALL" || TrainingCatalog.SectionOf(m.Info) == catFilter))
+        foreach (var (make, info) in modes.Where(m => (catFilter == "ALL" || TrainingCatalog.SectionOf(m.Info) == catFilter) && TaskSearch.Matches(taskQuery, Loc.T(m.Info.Name), Loc.T(m.Info.Description), TrainingCatalog.SectionName(TrainingCatalog.SectionOf(m.Info)), m.Info.Key)))
         {
             var row = new MDrillRow
             {
-                K = k, Title = info.Name, Meta = catFilter == "ALL" ? $"{TrainingCatalog.SectionName(TrainingCatalog.SectionOf(info))}  ·  {Loc.T(info.Description)}" : Loc.T(info.Description),
+                K = k, Title = info.Name, FavoriteType = FavoriteKind.Drill, FavoriteKey = info.Key, Meta = catFilter == "ALL" ? $"{TrainingCatalog.SectionName(TrainingCatalog.SectionOf(info))}  ·  {Loc.T(info.Description)}" : Loc.T(info.Description),
                 IsNew = IsNew(info.Key), Delay = delay + Math.Min(0.42f, i++ * 0.018f),
                 CustomMinimumSize = new Vector2(0, 62 * k), SizeFlagsHorizontal = SizeFlags.ExpandFill,
                 TooltipText = $"{Loc.T(info.Name)} — {Loc.T(info.Description)}" + (info.MadeBy is { } by ? $"\nMade by the community: @{by}" : ""),
@@ -327,6 +331,7 @@ public partial class MenuScreen : ScreenBase
             rows.Add((row, info));
             grid.AddChild(row);
         }
+        if (i == 0) grid.AddChild(new Label { Text = L("No results. Try another search or category.", "Sin resultados. Prueba otra búsqueda o categoría.") });
         RefreshBests();
     }
 

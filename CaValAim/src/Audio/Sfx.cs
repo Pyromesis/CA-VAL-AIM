@@ -3,7 +3,7 @@ using Godot;
 namespace CaValAim.Audio;
 
 /// <summary>
-/// All audio is synthesized at startup (Riot's audio isn't legally usable). Recipes approximate VALORANT's
+/// Bundled audio uses original synthesis and CC0 recordings. Recipes approximate VALORANT's
 /// sound design (punchy Vandal crack, "metal bat" headshot, rising multi-kill sounds, footsteps, a distinct
 /// cue per agent flash). 2D sounds use a pool of AudioStreamPlayers; world sounds use AudioStreamPlayer3D
 /// (engine panning from the camera) with a VALORANT-like flat distance curve.
@@ -19,7 +19,11 @@ public partial class Sfx : Node
     readonly Dictionary<string, AudioStream[]> recorded = new();
     readonly List<AudioStreamPlayer> players2D = new();
     readonly List<AudioStreamPlayer3D> players3D = new();
+    readonly List<AudioStreamPlayer> cues2D = new();
+    readonly List<AudioStreamPlayer3D> cues3D = new();
     int next2D, next3D;
+    internal static bool IsAbilityCue(string name) => name.StartsWith("phoenix_") || name.StartsWith("breach_") ||
+        name.StartsWith("kayo_") || name.StartsWith("skye_") || name.StartsWith("yoru_") || name.StartsWith("vyse_") || name.StartsWith("dizzy_") || name == "flash_ring";
     readonly Dictionary<AudioStreamPlayer3D, (float Range, float Floor, float Gain)> spatial = new();
 
     public override void _Process(double delta)
@@ -52,11 +56,17 @@ public partial class Sfx : Node
             AddChild(p);
             players3D.Add(p);
         }
+        for (int i = 0; i < 8; i++) { var p = new AudioStreamPlayer(); AddChild(p); cues2D.Add(p); }
+        for (int i = 0; i < 12; i++)
+        {
+            var p = new AudioStreamPlayer3D { AttenuationModel = AudioStreamPlayer3D.AttenuationModelEnum.Disabled, MaxDistance = 0, PanningStrength = 1f };
+            AddChild(p); cues3D.Add(p);
+        }
         LoadRecorded();
         Build();
     }
 
-    /// <summary>CC0 recordings from assets/audio (Free Firearm Sound Library, OpenGameArt, Kenney). See CREDITS.md.</summary>
+    /// <summary>CC0 recordings and separately attributed original flash events. See CREDITS.md.</summary>
     void LoadRecorded()
     {
         void Rec(string name, params string[] files)
@@ -83,7 +93,7 @@ public partial class Sfx : Node
         Rec("stone_stop", Enumerable.Range(0, 5).Select(i => $"{IM}impactBell_heavy_00{i}.ogg").ToArray());
         Rec("rope", IM + "impactMetal_light_002.ogg");
 
-        // Agent flash cues, rendered offline by our own tools/sfx/flash_sfx.py (pure synthesis, no samples).
+        // Original Wwise flash events take priority over the synthesized fallback cues.
         // <agent>_windup lasts exactly the windup and peaks at its end, so start it at (pop - windup).
         // The old synthesized "<agent>_wind", "flashpop" and "shatter" keys below in Build() stay as they were.
         const string FL = "res://assets/audio/flash/";
@@ -96,10 +106,38 @@ public partial class Sfx : Node
             "yoru_throw", "yoru_flight", "yoru_windup", "yoru_pop",
             "vyse_throw", "vyse_flight", "vyse_windup", "vyse_pop",
             "dizzy_throw", "dizzy_form", "dizzy_active", "dizzy_spit", "dizzy_incoming", "dizzy_splat", "dizzy_down", "dizzy_bubble",
-            "flash_ring",
+            "flash_ring", "skye_pop_nohit",
         })
+        {
             Rec(key, FL + key + ".wav");
+            var originals = Enumerable.Range(0, 3).Select(i => FL + "originals/" + key + (i == 0 ? "" : "_" + (i + 1)) + ".wav")
+                .Where(f => ResourceLoader.Exists(f)).ToArray();
+            if (originals.Length > 0)
+            {
+                Rec(key, originals);
+                if (Core.CmdLine.Has("--dev")) Core.Log.Info($"[audio] Original flash cue: {key} ({originals.Length} variants)");
+            }
+            // Optional local files take priority without changing cue timing or world positioning.
+            var local = Path.Combine(Core.Paths.DataDir, "audio", "flash", key + ".wav");
+            if (!File.Exists(local)) continue;
+            try
+            {
+                if (new FileInfo(local).Length is <= 44 or > 16 * 1024 * 1024)
+                { Core.Log.Error($"Flash audio rejected (invalid size): {key}"); continue; }
+                var clip = AudioStreamWav.LoadFromFile(local);
+                if (clip == null || clip.GetLength() <= 0 || clip.GetLength() > 15)
+                { Core.Log.Error($"Flash audio rejected (invalid or longer than 15 seconds): {key}"); continue; }
+                clip.LoopMode = AudioStreamWav.LoopModeEnum.Disabled;
+                recorded[key] = new AudioStream[] { clip };
+                Core.Log.Info($"[audio] Local flash cue loaded: {key}");
+            }
+            catch (Exception e) { Core.Log.Error($"Flash audio could not load {key}: {e.Message}"); }
+        }
     }
+
+    /// <summary>Skye's success cue also applies to a target that turns away but remains in range and line of sight.</summary>
+    public static string FlashPopCue(string slug, bool targetReached) =>
+        slug == "skye" && !targetReached && I.recorded.ContainsKey("skye_pop_nohit") ? "skye_pop_nohit" : slug + "_pop";
 
     AudioStream? Pick(string name) =>
         recorded.TryGetValue(name, out var r) ? r[Random.Shared.Next(r.Length)] : streams.TryGetValue(name, out var s) ? s : null;
@@ -283,8 +321,8 @@ public partial class Sfx : Node
     public void Play(string name, float vol = 1f, float pitch = 1f)
     {
         if (Volume <= 0 || vol <= 0 || Pick(name) is not { } s) return;
-        var p = players2D.FirstOrDefault(p => !p.Playing)
-            ?? players2D[next2D = (next2D + 1) % players2D.Count];
+        var pool = IsAbilityCue(name) ? cues2D : players2D;
+        var p = pool.FirstOrDefault(p => !p.Playing) ?? pool[next2D = (next2D + 1) % pool.Count];
         p.Stream = s;
         p.VolumeDb = Mathf.LinearToDb(Mathf.Max(1e-4f, Volume * vol));
         p.PitchScale = Mathf.Clamp(pitch, 0.1f, 4f);
@@ -297,8 +335,8 @@ public partial class Sfx : Node
         if (Volume <= 0 || vol <= 0 || maxRange <= 0 || pos.DistanceSquaredTo(listener) >= maxRange * maxRange
             || Pick(name) is not { } s) return;
         float g = DistanceGain(pos.DistanceTo(listener), maxRange, floor);
-        var p = players3D.FirstOrDefault(p => !p.Playing)
-            ?? players3D[next3D = (next3D + 1) % players3D.Count];
+        var pool = IsAbilityCue(name) ? cues3D : players3D;
+        var p = pool.FirstOrDefault(p => !p.Playing) ?? pool[next3D = (next3D + 1) % pool.Count];
         spatial[p] = (maxRange, floor, vol);
         p.Stream = s;
         p.GlobalPosition = pos;

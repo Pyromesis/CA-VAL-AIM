@@ -2,6 +2,23 @@
 
 ## [Unreleased]
 
+## [2.9.0] - 2026-11-10
+
+### Added
+
+- Persistent favorite stars for tasks, routines and playlists, with a dedicated Favorites screen.
+- Live search in the drill library, routines, favorites and playlist drill picker; matches names/descriptions, partial words, case and accents.
+- Original VALORANT flash audio extracted from a local installation: 54 clips for Phoenix, Breach, KAY/O, Skye, Yoru, Vyse and Gekko/Dizzy, with event provenance and local WAV overrides.
+
+### Fixed
+
+- Correct the inverted vertical aiming projection in reaction/acquisition exercises and keep reaction targets reachable near the pitch limit.
+- Remove obsolete prototype shells obstructing Fracture A Hall; use collision-aware attacker entry routes on Icebox and the other maps.
+- Correct Bind's Hookah window choke, safe site-side defender spawns and flash lineups from B Short/Hookah toward B site.
+- Remove aim-guide clutter by default, align the crosshair dot to pixels and use the configured crosshair consistently in reaction aim games.
+- Protect flash cues from gunfire channel reuse, add distinct ability cues, and synchronize player-thrown flash warnings with their arming stages.
+- Use Skye's original success/failure pop according to enemy range and line of sight, including targets that turn away.
+
 ## [2.8.3] - 2026-11-10
 
 ### Fixed

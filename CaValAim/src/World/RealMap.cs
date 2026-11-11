@@ -92,7 +92,11 @@ public static class RealMap
     static bool IsBackdrop(string level) =>
         level.Contains("vista", StringComparison.OrdinalIgnoreCase) ||
         level.Contains("skybox", StringComparison.OrdinalIgnoreCase) ||
-        level.Contains("backdrop", StringComparison.OrdinalIgnoreCase);
+        level.Contains("backdrop", StringComparison.OrdinalIgnoreCase) ||
+        // These two Fracture sublevels contain only the obsolete SuperGrid prototype shell.
+        // Rendering them over Canyon_Asite/AtkPathToASite inserts solid-looking blocks in A Hall.
+        level.Equals("Canyon_APathNoMid", StringComparison.OrdinalIgnoreCase) ||
+        level.Equals("Canyon_ASidePath", StringComparison.OrdinalIgnoreCase);
 
     static Manifest? ReadManifest(string folder)
     {
@@ -148,7 +152,7 @@ public static class RealMap
             // sky already provides the horizon. The collision generator skips these levels too.
             if (IsBackdrop(part))
             {
-                GD.Print($"[maps] skip backdrop level: {part}");
+                GD.Print($"[maps] skip nonvisual level: {part}");
                 continue;
             }
 

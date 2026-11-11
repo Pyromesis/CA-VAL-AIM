@@ -67,6 +67,9 @@ jobs:
           key: nuget-${{ runner.os }}-${{ hashFiles('CaValAim/*.csproj') }}
           restore-keys: nuget-${{ runner.os }}-
 
+      - name: Verify original flash audio
+        run: python tools/sfx/verify_originals.py
+
       - name: Build C#
         run: dotnet build CaValAim/CaValAim.csproj -nologo
 

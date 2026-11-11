@@ -36,6 +36,10 @@ public sealed class PlayerView
     public float ViewPitch => Mathf.Clamp(Pitch + RecoilPitch, -89f, 89f);
     public Vector3 Forward => Dir(ViewYaw, ViewPitch);
 
+    /// <summary>World angular errors use +pitch up; screen coordinates use +Y down.</summary>
+    public static Vector2 ScreenOffset(Vector2 angularError, float pixelsPerDegree) =>
+        new Vector2(angularError.X, -angularError.Y) * pixelsPerDegree;
+
     public static Vector3 Dir(float yawDeg, float pitchDeg)
     {
         float y = Mathf.DegToRad(yawDeg), p = Mathf.DegToRad(pitchDeg);

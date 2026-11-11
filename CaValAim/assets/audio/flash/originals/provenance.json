@@ -1,0 +1,874 @@
+{
+  "source": "Local VALORANT installation, original Wwise media and event banks",
+  "copyright": "Riot Games; not CC0 or GPL",
+  "tools": {
+    "wwiser": "v20260808",
+    "vgmstream": "r2168"
+  },
+  "cues": {
+    "phoenix_throw": {
+      "event": "Play_Phoenix_AbilE_BuildFlash",
+      "perspective": "",
+      "durationLimit": null,
+      "files": [
+        {
+          "file": "phoenix_throw.wav",
+          "seconds": 0.5736041666666667,
+          "sha256": "4a123e58468c23844756d636fba141ac46d8e5f33585174a5e09a0fc66aa10d1",
+          "sourceBankSha256": "33cba8c68cceb94e986973051ea1eea85189d4245966d6909a113555f9b3f329",
+          "sourceMediaIds": [
+            "298165884"
+          ],
+          "peakGain": 1
+        }
+      ]
+    },
+    "phoenix_windup": {
+      "event": "Play_Phoenix_AbilE_Projectile",
+      "perspective": "",
+      "durationLimit": 0.6,
+      "files": [
+        {
+          "file": "phoenix_windup.wav",
+          "seconds": 0.6,
+          "sha256": "8485166e29c604ffe557b2c111eadbb50a635dd01467bcacc30b3f5e7403c613",
+          "sourceBankSha256": "8f0d5a28dfccce429b6bdf09ac8a6475141ca115b22a52f230cfc1f71105b03d",
+          "sourceMediaIds": [
+            "850229954"
+          ],
+          "peakGain": 1
+        }
+      ]
+    },
+    "phoenix_pop": {
+      "event": "Play_Phoenix_AbilE_FlashWorld",
+      "perspective": "",
+      "durationLimit": null,
+      "files": [
+        {
+          "file": "phoenix_pop.wav",
+          "seconds": 1.3734583333333332,
+          "sha256": "f6168bc5a1c564f400fbe2467f07b26587d87ebcee48ddba494b60de2b301a44",
+          "sourceBankSha256": "9604a6778e73891fce2e393e833f44df93a5b4ba6a52fc265eea043d5e1252db",
+          "sourceMediaIds": [
+            "1006188418",
+            "824832223",
+            "120085228",
+            "561842584"
+          ],
+          "peakGain": 1
+        },
+        {
+          "file": "phoenix_pop_2.wav",
+          "seconds": 2.062291666666667,
+          "sha256": "e57ceb7ba54a44477880a7209bd0060f1b5b203c0b8f66a5a1a376281850958d",
+          "sourceBankSha256": "9604a6778e73891fce2e393e833f44df93a5b4ba6a52fc265eea043d5e1252db",
+          "sourceMediaIds": [
+            "1006188418",
+            "824832223",
+            "120085228",
+            "561842584"
+          ],
+          "peakGain": 1
+        },
+        {
+          "file": "phoenix_pop_3.wav",
+          "seconds": 2.242958333333333,
+          "sha256": "9465be24a22be9443ef38cd49594dc34c7050cd16b024469cfcf88c8ab4f8338",
+          "sourceBankSha256": "9604a6778e73891fce2e393e833f44df93a5b4ba6a52fc265eea043d5e1252db",
+          "sourceMediaIds": [
+            "1006188418",
+            "824832223",
+            "120085228",
+            "561842584"
+          ],
+          "peakGain": 1
+        }
+      ]
+    },
+    "breach_throw": {
+      "event": "Play_Breach_Flash_Cast",
+      "perspective": "1878706709",
+      "durationLimit": null,
+      "files": [
+        {
+          "file": "breach_throw.wav",
+          "seconds": 1.0567083333333334,
+          "sha256": "8e73a82003a1b337c3a9539cbc3c065316643d5b2ccfa99e43be434cbff1ebc4",
+          "sourceBankSha256": "dbc39b5bcdcb624f8fbad13f6dbba8722f801ae403bc979d672165438be08092",
+          "sourceMediaIds": [
+            "6087391",
+            "403393305",
+            "855545992"
+          ],
+          "peakGain": 0.9793843451156282
+        },
+        {
+          "file": "breach_throw_2.wav",
+          "seconds": 1.0567083333333334,
+          "sha256": "bdffdc358b0225a2f04fa57852d58eaefca21ea48bdd23c6cb77747459984351",
+          "sourceBankSha256": "dbc39b5bcdcb624f8fbad13f6dbba8722f801ae403bc979d672165438be08092",
+          "sourceMediaIds": [
+            "6087391",
+            "403393305",
+            "855545992"
+          ],
+          "peakGain": 0.9366844123128186
+        },
+        {
+          "file": "breach_throw_3.wav",
+          "seconds": 1.0567083333333334,
+          "sha256": "9d5df05d3876047aa59b50ae03b5d051aa17d11aaac7ff28352b51ab28cfc97a",
+          "sourceBankSha256": "dbc39b5bcdcb624f8fbad13f6dbba8722f801ae403bc979d672165438be08092",
+          "sourceMediaIds": [
+            "6087391",
+            "403393305",
+            "855545992"
+          ],
+          "peakGain": 0.9075123101443027
+        }
+      ]
+    },
+    "breach_flight": {
+      "event": "Play_Breach_Flash_Projectile",
+      "perspective": "",
+      "durationLimit": 0.5,
+      "files": [
+        {
+          "file": "breach_flight.wav",
+          "seconds": 0.46708333333333335,
+          "sha256": "d824d6e8154810d07fd46195353937bc6ad4cc7191f0335c544706be0929078a",
+          "sourceBankSha256": "65da17a35904c482ddac53988e57caddf7610ec5a88e1dfaf5afdd4681a211b7",
+          "sourceMediaIds": [
+            "752295568"
+          ],
+          "peakGain": 1
+        }
+      ]
+    },
+    "breach_windup": {
+      "event": "Play_Breach_Flash_Zone_Charge",
+      "perspective": "",
+      "durationLimit": 0.5,
+      "files": [
+        {
+          "file": "breach_windup.wav",
+          "seconds": 0.5,
+          "sha256": "7839e249a3f771e8a13339907152cce615f45a8592ed3065683daf7d0b132f7e",
+          "sourceBankSha256": "f87b21e2c22915913b3c175071d630dc5f6b3171fbaf533eeb577ea0f07f2731",
+          "sourceMediaIds": [
+            "795414061"
+          ],
+          "peakGain": 1
+        }
+      ]
+    },
+    "breach_pop": {
+      "event": "Play_Breach_Flash_Explode",
+      "perspective": "",
+      "durationLimit": null,
+      "files": [
+        {
+          "file": "breach_pop.wav",
+          "seconds": 2.415020833333333,
+          "sha256": "0f53d209bcc240c6704822b33a73e70f7c7cac1629c121191304a50681156958",
+          "sourceBankSha256": "097052a7d634fc76194451193d04cae09da5efee2bcbd4f4919f7bfe69427bb6",
+          "sourceMediaIds": [
+            "967621158"
+          ],
+          "peakGain": 1
+        }
+      ]
+    },
+    "kayo_throw": {
+      "event": "Play_Grenadier_Flash_Cast",
+      "perspective": "1878706709",
+      "durationLimit": null,
+      "files": [
+        {
+          "file": "kayo_throw.wav",
+          "seconds": 0.6934375,
+          "sha256": "e800a3868e12231558cee813fd82eddb4757ab866167dfd5c0778a054fa7bb97",
+          "sourceBankSha256": "a5f906df2d9db003c2d311e88b63b20896227cc79e85b7893bcc1bc1390e276f",
+          "sourceMediaIds": [
+            "571048901",
+            "11891651",
+            "842501537"
+          ],
+          "peakGain": 1
+        },
+        {
+          "file": "kayo_throw_2.wav",
+          "seconds": 0.5887708333333334,
+          "sha256": "650f6c78ce389b9b9c5b71e2c97b2b714ab69da80bce33aaacaeed2594ecef9a",
+          "sourceBankSha256": "a5f906df2d9db003c2d311e88b63b20896227cc79e85b7893bcc1bc1390e276f",
+          "sourceMediaIds": [
+            "571048901",
+            "11891651",
+            "842501537"
+          ],
+          "peakGain": 0.9737883568216249
+        },
+        {
+          "file": "kayo_throw_3.wav",
+          "seconds": 0.8479375,
+          "sha256": "b67a00c0ad1f397d8d6da6ce02e4655e6387fe052ff93f45a758864872dd25ff",
+          "sourceBankSha256": "a5f906df2d9db003c2d311e88b63b20896227cc79e85b7893bcc1bc1390e276f",
+          "sourceMediaIds": [
+            "571048901",
+            "11891651",
+            "842501537"
+          ],
+          "peakGain": 1
+        }
+      ]
+    },
+    "kayo_windup": {
+      "event": "Play_Grenadier_AbilQ_WindUp",
+      "perspective": "",
+      "durationLimit": 0.3,
+      "files": [
+        {
+          "file": "kayo_windup.wav",
+          "seconds": 0.3,
+          "sha256": "247e2e034d110925d200233baf09a2fc51ba3c8a3a11b30380fe83a53a7abf03",
+          "sourceBankSha256": "6faaa81701dbcf5c7dbbbbb6452b865e10930f2909cb31982d20a17b47e2faca",
+          "sourceMediaIds": [
+            "800148547"
+          ],
+          "peakGain": 1
+        }
+      ]
+    },
+    "kayo_windup_bounce": {
+      "event": "Play_Grenadier_AbilQ_WindUp_Lob",
+      "perspective": "",
+      "durationLimit": 0.8,
+      "files": [
+        {
+          "file": "kayo_windup_bounce.wav",
+          "seconds": 0.8,
+          "sha256": "2d6258c9712f1ea60310d87e88157788f756f17e97738ba7fa37a24336815ecf",
+          "sourceBankSha256": "77389df40f92730303adbb6230e1bfabcf5474b94a468b3d71677dddbd12bf88",
+          "sourceMediaIds": [
+            "257589605"
+          ],
+          "peakGain": 1
+        }
+      ]
+    },
+    "kayo_pop": {
+      "event": "Play_Grenadier_AbilQ_Flash_Explo",
+      "perspective": "",
+      "durationLimit": null,
+      "files": [
+        {
+          "file": "kayo_pop.wav",
+          "seconds": 0.9080416666666666,
+          "sha256": "c37bc727f763effc4920537212f6ca1b0641fb80dc46bf8df6451cd1cde12fbf",
+          "sourceBankSha256": "de4a00c9299eaa806fd0063ec370e5d2ace213faea76ab953448ea90d7bfd57d",
+          "sourceMediaIds": [
+            "736116484",
+            "869803325",
+            "433600437"
+          ],
+          "peakGain": 0.942841842517095
+        },
+        {
+          "file": "kayo_pop_2.wav",
+          "seconds": 0.9081875,
+          "sha256": "f41f1a9e9b0dbcd73c54adaabff02d3a3b8ff02d3a8aa0e20a03e95aa655f5f5",
+          "sourceBankSha256": "de4a00c9299eaa806fd0063ec370e5d2ace213faea76ab953448ea90d7bfd57d",
+          "sourceMediaIds": [
+            "736116484",
+            "869803325",
+            "433600437"
+          ],
+          "peakGain": 0.8967682056815657
+        },
+        {
+          "file": "kayo_pop_3.wav",
+          "seconds": 1.0133333333333334,
+          "sha256": "b180c9ea0e4cfb645ef9e352fec668601ab8a3b7c4e0ae4fbec4e872ad1a7096",
+          "sourceBankSha256": "de4a00c9299eaa806fd0063ec370e5d2ace213faea76ab953448ea90d7bfd57d",
+          "sourceMediaIds": [
+            "736116484",
+            "869803325",
+            "433600437"
+          ],
+          "peakGain": 0.949163316147441
+        }
+      ]
+    },
+    "skye_throw": {
+      "event": "Play_Guide_HawkFlash_Fly",
+      "perspective": "",
+      "durationLimit": 0.6,
+      "files": [
+        {
+          "file": "skye_throw.wav",
+          "seconds": 0.6,
+          "sha256": "b13cc4100c2f9c6f17aa693b2efd6010f6fea87f53d144983e20c9271ee59a8a",
+          "sourceBankSha256": "78b4eb9b9a44e3546ea31cdc90498edbadab06bfc94c2b67b7ec7b72ac0ea0dc",
+          "sourceMediaIds": [
+            "788253730",
+            "1008759955",
+            "610842633",
+            "908776366",
+            "396920074",
+            "138616853",
+            "1064606035",
+            "321404047",
+            "84440090"
+          ],
+          "peakGain": 1
+        },
+        {
+          "file": "skye_throw_2.wav",
+          "seconds": 0.6,
+          "sha256": "f2ec05db3fa8cc27365d30b5ccc3c633c155b7236b15e448b0522df364f02c3a",
+          "sourceBankSha256": "78b4eb9b9a44e3546ea31cdc90498edbadab06bfc94c2b67b7ec7b72ac0ea0dc",
+          "sourceMediaIds": [
+            "788253730",
+            "1008759955",
+            "610842633",
+            "908776366",
+            "396920074",
+            "138616853",
+            "1064606035",
+            "321404047",
+            "84440090"
+          ],
+          "peakGain": 1
+        },
+        {
+          "file": "skye_throw_3.wav",
+          "seconds": 0.6,
+          "sha256": "e3e09ee16a768936dda0c038b3ee90f1bd10a537d1fbf36d3f501bdee5a60f03",
+          "sourceBankSha256": "78b4eb9b9a44e3546ea31cdc90498edbadab06bfc94c2b67b7ec7b72ac0ea0dc",
+          "sourceMediaIds": [
+            "788253730",
+            "1008759955",
+            "610842633",
+            "908776366",
+            "396920074",
+            "138616853",
+            "1064606035",
+            "321404047",
+            "84440090"
+          ],
+          "peakGain": 1
+        }
+      ]
+    },
+    "skye_windup": {
+      "event": "Play_Guide_HawkFlash_FlashCharging",
+      "perspective": "",
+      "durationLimit": 0.3,
+      "files": [
+        {
+          "file": "skye_windup.wav",
+          "seconds": 0.3,
+          "sha256": "f313834ee32ebce43b3257593f529e35dff9f731d8b385f09dd59c278ee13130",
+          "sourceBankSha256": "297c37dff99bab325dac1d847761274f77704124687dadb1a894e22219c53109",
+          "sourceMediaIds": [
+            "869016799"
+          ],
+          "peakGain": 1
+        }
+      ]
+    },
+    "skye_pop": {
+      "event": "Play_Guide_HawkFlash_FlashTriggered",
+      "perspective": "",
+      "durationLimit": null,
+      "files": [
+        {
+          "file": "skye_pop.wav",
+          "seconds": 1.664,
+          "sha256": "d5ace5e013a62df05c99f3b05ae7211435e9e06b43abb6a81cc9c3ed328e7840",
+          "sourceBankSha256": "98d6c1cd7d7e7a96248c5d58f436be747ed8e7b2fe024ceec93f3cf872264f45",
+          "sourceMediaIds": [
+            "606001915",
+            "592907888",
+            "925110910",
+            "400398643",
+            "902810946",
+            "825382011"
+          ],
+          "peakGain": 1
+        },
+        {
+          "file": "skye_pop_2.wav",
+          "seconds": 1.6213333333333333,
+          "sha256": "22c3dba8004c97c857da1173d083c73ba3a78fc8d4f701cdea490eebce0a794c",
+          "sourceBankSha256": "98d6c1cd7d7e7a96248c5d58f436be747ed8e7b2fe024ceec93f3cf872264f45",
+          "sourceMediaIds": [
+            "606001915",
+            "592907888",
+            "925110910",
+            "400398643",
+            "902810946",
+            "825382011"
+          ],
+          "peakGain": 1
+        },
+        {
+          "file": "skye_pop_3.wav",
+          "seconds": 1.5786666666666667,
+          "sha256": "2a45152d7dc63ff44d535b63c17858c79070c481534a9e4643e19935ae4dcec0",
+          "sourceBankSha256": "98d6c1cd7d7e7a96248c5d58f436be747ed8e7b2fe024ceec93f3cf872264f45",
+          "sourceMediaIds": [
+            "606001915",
+            "592907888",
+            "925110910",
+            "400398643",
+            "902810946",
+            "825382011"
+          ],
+          "peakGain": 1
+        }
+      ]
+    },
+    "skye_pop_nohit": {
+      "event": "Play_Guide_HawkFlash_FlashTrigger_Fail",
+      "perspective": "",
+      "durationLimit": null,
+      "files": [
+        {
+          "file": "skye_pop_nohit.wav",
+          "seconds": 1.1841875,
+          "sha256": "845825ae5d942db97ae49f91b9ab8fe6145e690cc02f4bce1beb973717f1d32b",
+          "sourceBankSha256": "3ddff64ceeefefaae90225b7e7a3fbb9a54901272bea2a15e032d7a43dd837f7",
+          "sourceMediaIds": [
+            "453857723"
+          ],
+          "peakGain": 0.9110606481252074
+        }
+      ]
+    },
+    "yoru_throw": {
+      "event": "Play_Stealth_AbilQ_Cast",
+      "perspective": "1878706709",
+      "durationLimit": null,
+      "files": [
+        {
+          "file": "yoru_throw.wav",
+          "seconds": 1.35275,
+          "sha256": "7cfe818e81ccf808e37809691ad97e3e7f489b0f766f82f721a95c3b7beca3f3",
+          "sourceBankSha256": "bc33347cdd158d742be2f138b581fe15a7a0ac3e069c1d3c93edee7e32455dfd",
+          "sourceMediaIds": [
+            "817661058",
+            "889298286",
+            "931233186"
+          ],
+          "peakGain": 0.9970690734474916
+        },
+        {
+          "file": "yoru_throw_2.wav",
+          "seconds": 1.85275,
+          "sha256": "15550625840e80fa160b4f0147b33ee338aaa14504a8aeca3ee168b54f485774",
+          "sourceBankSha256": "bc33347cdd158d742be2f138b581fe15a7a0ac3e069c1d3c93edee7e32455dfd",
+          "sourceMediaIds": [
+            "817661058",
+            "889298286",
+            "931233186"
+          ],
+          "peakGain": 1
+        },
+        {
+          "file": "yoru_throw_3.wav",
+          "seconds": 1.85275,
+          "sha256": "6481870b201e1fca8dc3ad1d7b53280a9473e786454cacc66b49bae2e8b43b35",
+          "sourceBankSha256": "bc33347cdd158d742be2f138b581fe15a7a0ac3e069c1d3c93edee7e32455dfd",
+          "sourceMediaIds": [
+            "817661058",
+            "889298286",
+            "931233186"
+          ],
+          "peakGain": 1
+        }
+      ]
+    },
+    "yoru_flight": {
+      "event": "Play_Stealth_AbilQ_ProjectileLoop",
+      "perspective": "",
+      "durationLimit": 0.65,
+      "files": [
+        {
+          "file": "yoru_flight.wav",
+          "seconds": 0.65,
+          "sha256": "3dbec9a081809d1599936eccf923c129a8631d222bdde660a38d4418714e564e",
+          "sourceBankSha256": "29f3989afe25f8faa682bb551291cad14452c841a541c60682b8f91881718e8b",
+          "sourceMediaIds": [
+            "620946264"
+          ],
+          "peakGain": 1
+        }
+      ]
+    },
+    "yoru_windup": {
+      "event": "Play_Stealth_AbilQ_ThemedWindup",
+      "perspective": "",
+      "durationLimit": 0.6,
+      "files": [
+        {
+          "file": "yoru_windup.wav",
+          "seconds": 0.6,
+          "sha256": "d29e898d9759ede6530ffd22f4874f68958712e387f278e6542c85ff3b21dfb8",
+          "sourceBankSha256": "4ec69429ddb57e6bfa5900e83e6219bf66b597c45b597d2f017dd67156934378",
+          "sourceMediaIds": [
+            "285838084"
+          ],
+          "peakGain": 0.9735005972964629
+        }
+      ]
+    },
+    "yoru_pop": {
+      "event": "Play_Stealth_AbilQ_ThemedFlash",
+      "perspective": "",
+      "durationLimit": 2.5,
+      "files": [
+        {
+          "file": "yoru_pop.wav",
+          "seconds": 1.4226875,
+          "sha256": "51038d5802538ccf5c322fa567c049076036ddcdcb202ab6d38874a91afb50bf",
+          "sourceBankSha256": "b4e1b31491c3145ac75010af5f084151b7cafe9ef2bc906e4b79807b8591bd33",
+          "sourceMediaIds": [
+            "647578131",
+            "789334009",
+            "873133833",
+            "627641209"
+          ],
+          "peakGain": 0.8505563035725828
+        },
+        {
+          "file": "yoru_pop_2.wav",
+          "seconds": 1.5510208333333333,
+          "sha256": "7642610a3188b0f95d05f914391253be50f6501dcd99e0b42a4682522a85659f",
+          "sourceBankSha256": "b4e1b31491c3145ac75010af5f084151b7cafe9ef2bc906e4b79807b8591bd33",
+          "sourceMediaIds": [
+            "647578131",
+            "789334009",
+            "873133833",
+            "627641209"
+          ],
+          "peakGain": 0.845178952870075
+        },
+        {
+          "file": "yoru_pop_3.wav",
+          "seconds": 1.4263125,
+          "sha256": "bda01557374b2688841a1ccbf16acd82b6072fc18d8b234ebb4d03a3bf9c097d",
+          "sourceBankSha256": "b4e1b31491c3145ac75010af5f084151b7cafe9ef2bc906e4b79807b8591bd33",
+          "sourceMediaIds": [
+            "647578131",
+            "789334009",
+            "873133833",
+            "627641209"
+          ],
+          "peakGain": 0.9383745676052134
+        }
+      ]
+    },
+    "vyse_windup": {
+      "event": "Play_Nox_AbilE_Flash_Windup_Loop",
+      "perspective": "1878706709",
+      "durationLimit": 0.5,
+      "files": [
+        {
+          "file": "vyse_windup.wav",
+          "seconds": 0.5,
+          "sha256": "46ed0f5a9c0b7099f70a5b171003dcbc7600f9e718d295cd643d639178f116e8",
+          "sourceBankSha256": "ff7b23713ae50d5b1c636df8dc58dd49498b767916c3109754ffd16638570391",
+          "sourceMediaIds": [
+            "927558868"
+          ],
+          "peakGain": 1
+        }
+      ]
+    },
+    "vyse_pop": {
+      "event": "Play_Nox_AbilE_FlashExplode",
+      "perspective": "",
+      "durationLimit": null,
+      "files": [
+        {
+          "file": "vyse_pop.wav",
+          "seconds": 0.7698541666666666,
+          "sha256": "1269942203996823b7864c08678df463c5d537bb7c9481faabca8c9bdf2a7a68",
+          "sourceBankSha256": "cf6a118d4e91b0b7d9ae122eb54bbef1c61a142e3d26d2aae1e630a675fc5983",
+          "sourceMediaIds": [
+            "437497659",
+            "686026462"
+          ],
+          "peakGain": 0.951583582140301
+        },
+        {
+          "file": "vyse_pop_2.wav",
+          "seconds": 0.7556666666666667,
+          "sha256": "029e43e6311715383fc609466c7cd41e8834afd4b5e339a5ab717ae9e6ac02e4",
+          "sourceBankSha256": "cf6a118d4e91b0b7d9ae122eb54bbef1c61a142e3d26d2aae1e630a675fc5983",
+          "sourceMediaIds": [
+            "437497659",
+            "686026462"
+          ],
+          "peakGain": 0.9764000150587263
+        },
+        {
+          "file": "vyse_pop_3.wav",
+          "seconds": 0.7698541666666666,
+          "sha256": "1269942203996823b7864c08678df463c5d537bb7c9481faabca8c9bdf2a7a68",
+          "sourceBankSha256": "cf6a118d4e91b0b7d9ae122eb54bbef1c61a142e3d26d2aae1e630a675fc5983",
+          "sourceMediaIds": [
+            "437497659",
+            "686026462"
+          ],
+          "peakGain": 0.951583582140301
+        }
+      ]
+    },
+    "dizzy_throw": {
+      "event": "Play_Aggrobot_AbilE_Deploy",
+      "perspective": "2106886385",
+      "durationLimit": null,
+      "files": [
+        {
+          "file": "dizzy_throw.wav",
+          "seconds": 0.7396458333333333,
+          "sha256": "0dd8009668b7cd1e7e4f45db192c14f8a21d9caabf3444e420a5fcac6356ccf8",
+          "sourceBankSha256": "6d31a1fa803cc4e2addc5dea095bdbbc8784957df562a54f0d689d18a65aa330",
+          "sourceMediaIds": [
+            "261232703"
+          ],
+          "peakGain": 1
+        }
+      ]
+    },
+    "dizzy_form": {
+      "event": "Play_Aggrobot_E_Zamboni_Windup_Delay_Loop",
+      "perspective": "",
+      "durationLimit": 0.65,
+      "files": [
+        {
+          "file": "dizzy_form.wav",
+          "seconds": 0.65,
+          "sha256": "c16ea2e6702eda2f21bd4a0356c1a403f508d36e752ae13b91c6c78995369d52",
+          "sourceBankSha256": "dfb67e515081a9b8571daff1c6de91f92ca8cad49816de263c662d12772457ba",
+          "sourceMediaIds": [
+            "575543131",
+            "1032933067",
+            "1054483330"
+          ],
+          "peakGain": 0.9351703946415729
+        }
+      ]
+    },
+    "dizzy_active": {
+      "event": "Play_Aggrobot_AbilE_Zamboni_Seeking_Loop",
+      "perspective": "2106886385",
+      "durationLimit": 1,
+      "files": [
+        {
+          "file": "dizzy_active.wav",
+          "seconds": 1.0,
+          "sha256": "f0471188847af32dfd05c19bf1b473d1a2e1fda4994773de12b72e9038ce7243",
+          "sourceBankSha256": "9eb7059c3fa73da0981078f93271ace4bbf044ca2880c59cade3c71d2c2adc66",
+          "sourceMediaIds": [
+            "439908480"
+          ],
+          "peakGain": 1
+        }
+      ]
+    },
+    "dizzy_spit": {
+      "event": "Play_Aggrobot_E_Zamboni_Fire",
+      "perspective": "1878706709",
+      "durationLimit": null,
+      "files": [
+        {
+          "file": "dizzy_spit.wav",
+          "seconds": 0.8393333333333334,
+          "sha256": "68b15396b4211fdd793c751e38a0a3e648ad1435fe88d459aa15db14b439b176",
+          "sourceBankSha256": "fc21957292ce5c7870aab90c91c99d6a8d1a017092186f07f9212f539f291021",
+          "sourceMediaIds": [
+            "848089739",
+            "935494649",
+            "838981339"
+          ],
+          "peakGain": 0.8004809885529042
+        },
+        {
+          "file": "dizzy_spit_2.wav",
+          "seconds": 0.8794583333333333,
+          "sha256": "e0fb33241c77fd8eb08ca697a1d8c2d1ef9b2b4597baf1a2e3ced434128b88b7",
+          "sourceBankSha256": "fc21957292ce5c7870aab90c91c99d6a8d1a017092186f07f9212f539f291021",
+          "sourceMediaIds": [
+            "848089739",
+            "935494649",
+            "838981339"
+          ],
+          "peakGain": 0.9614789059547822
+        },
+        {
+          "file": "dizzy_spit_3.wav",
+          "seconds": 0.7997083333333334,
+          "sha256": "be853c6161070c9bc44079e083a518ccb47414e6bbd5de837da6142571450bbc",
+          "sourceBankSha256": "fc21957292ce5c7870aab90c91c99d6a8d1a017092186f07f9212f539f291021",
+          "sourceMediaIds": [
+            "848089739",
+            "935494649",
+            "838981339"
+          ],
+          "peakGain": 0.8055195890352176
+        }
+      ]
+    },
+    "dizzy_incoming": {
+      "event": "Play_Aggrobot_AbilE_Zamboni_1P_Enemy_Target_Locked",
+      "perspective": "",
+      "durationLimit": null,
+      "files": [
+        {
+          "file": "dizzy_incoming.wav",
+          "seconds": 0.32,
+          "sha256": "98a04f9b6bf2821fc119f3a0dfd1c0869f7b78eed6c7c8c67ce69e151cbf571b",
+          "sourceBankSha256": "c211913dfd3b4d7a089170c89cc74928d03b218f435370ab75cecf3320ce611c",
+          "sourceMediaIds": [
+            "213335595"
+          ],
+          "peakGain": 1
+        }
+      ]
+    },
+    "dizzy_splat": {
+      "event": "Play_Aggrobot_AbilE_Zamboni_1P_Enemy_Rocket_Splat",
+      "perspective": "",
+      "durationLimit": null,
+      "files": [
+        {
+          "file": "dizzy_splat.wav",
+          "seconds": 0.9701666666666666,
+          "sha256": "a82bdce88ab29939e4bfb7260e07f1c91bb7eb5bd9b88ee18f878090e552b7c7",
+          "sourceBankSha256": "3237b6eae16015d8cb902e57acc7468874f1791dfcc684ea9ba6e976bd2334e9",
+          "sourceMediaIds": [
+            "639981949",
+            "46849119",
+            "769834744",
+            "451666472"
+          ],
+          "peakGain": 0.9162352959648136
+        },
+        {
+          "file": "dizzy_splat_2.wav",
+          "seconds": 0.9701666666666666,
+          "sha256": "4010eb6ee0f3c3292962e5a585280f3c8093aac7a29e7e15620f073eb0afb1a9",
+          "sourceBankSha256": "3237b6eae16015d8cb902e57acc7468874f1791dfcc684ea9ba6e976bd2334e9",
+          "sourceMediaIds": [
+            "639981949",
+            "46849119",
+            "769834744",
+            "451666472"
+          ],
+          "peakGain": 0.8133600148591307
+        },
+        {
+          "file": "dizzy_splat_3.wav",
+          "seconds": 0.9701666666666666,
+          "sha256": "8ff563708f6271fafdd8fcd34410dcc00d63793b7e5ec2237569efdde2c057b7",
+          "sourceBankSha256": "3237b6eae16015d8cb902e57acc7468874f1791dfcc684ea9ba6e976bd2334e9",
+          "sourceMediaIds": [
+            "639981949",
+            "46849119",
+            "769834744",
+            "451666472"
+          ],
+          "peakGain": 0.8145886051557497
+        }
+      ]
+    },
+    "dizzy_down": {
+      "event": "Play_Aggrobot_AbilE_Zamboni_Destroyed",
+      "perspective": "1204257842",
+      "durationLimit": null,
+      "files": [
+        {
+          "file": "dizzy_down.wav",
+          "seconds": 1.0078958333333334,
+          "sha256": "b82e5b07f62c3f9bbff4edb5bdf3c92c88a65795adf09eb7ec925c7774232d04",
+          "sourceBankSha256": "7f709bf48278e74049e7411e17a533bff3b8d901092e853abfe15276a94f6426",
+          "sourceMediaIds": [
+            "679225464"
+          ],
+          "peakGain": 0.9664835423063933
+        }
+      ]
+    },
+    "dizzy_bubble": {
+      "event": "Play_Aggrobot_AbilE_Zamboni_Fall_Splat",
+      "perspective": "",
+      "durationLimit": null,
+      "files": [
+        {
+          "file": "dizzy_bubble.wav",
+          "seconds": 0.32566666666666666,
+          "sha256": "47451f0b227d0d83fd4a115d8c5f988ce42cc7c5b1a69f268765c393c3cefffe",
+          "sourceBankSha256": "857a08b05fd8fc974d1bc48d6412ce5969fd4184d93f2ac6645ef6c5f2ddcfe0",
+          "sourceMediaIds": [
+            "365725977"
+          ],
+          "peakGain": 0.9729225908048367
+        }
+      ]
+    },
+    "flash_ring": {
+      "event": "Play_Phoenix_AbilE_FlashPlayer",
+      "perspective": "",
+      "durationLimit": 2.5,
+      "files": [
+        {
+          "file": "flash_ring.wav",
+          "seconds": 1.9413333333333334,
+          "sha256": "a62359999a316a2d1ad4be6a40cae02afdcd2a2895f409c466784895dd5c4e81",
+          "sourceBankSha256": "42d1fa0c0f623b3342a2339337074aa09af1a91ded4e428170da68bb31edfa86",
+          "sourceMediaIds": [
+            "777183187",
+            "736822635",
+            "751949940"
+          ],
+          "peakGain": 0.9616246013462877
+        },
+        {
+          "file": "flash_ring_2.wav",
+          "seconds": 1.9413333333333334,
+          "sha256": "1ded4217d00010695a8e33d18868f8d72a32e24e62d00f5662ee44eaf1759ff8",
+          "sourceBankSha256": "42d1fa0c0f623b3342a2339337074aa09af1a91ded4e428170da68bb31edfa86",
+          "sourceMediaIds": [
+            "777183187",
+            "736822635",
+            "751949940"
+          ],
+          "peakGain": 0.9362174150989295
+        },
+        {
+          "file": "flash_ring_3.wav",
+          "seconds": 1.9413333333333334,
+          "sha256": "e73d680b028c8cb89a336d56ec7f4c5a357d31fef016980393fc4f37c74923fd",
+          "sourceBankSha256": "42d1fa0c0f623b3342a2339337074aa09af1a91ded4e428170da68bb31edfa86",
+          "sourceMediaIds": [
+            "777183187",
+            "736822635",
+            "751949940"
+          ],
+          "peakGain": 0.9629534228326073
+        }
+      ]
+    }
+  },
+  "silent": {
+    "phoenix_flight": "projectile already plays in windup",
+    "kayo_flight": "no separate audible projectile cue",
+    "skye_flight": "wing event already plays on release",
+    "vyse_throw": "placed rose activation is the windup",
+    "vyse_flight": "rose does not fly"
+  }
+}

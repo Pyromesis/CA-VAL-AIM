@@ -475,8 +475,8 @@ public sealed class SmokeExecuteMode : MapMode
         fog.Tints[v] = Kit.Look.Dark.Lerp(Kit.Look.Light, 0.45f);
         if (scored) { roundSmokes.Add(v); cur.Smokes.Add((v, Kit.Look.Light)); }
         var tree = G.World.GetTree();
-        if (tree != null && delay > 0.05f) tree.CreateTimer(delay).Timeout += () => SmokeSfx.PlayAt(G.World, "pop", center, G.View.Eye, 0.8f);
-        else SmokeSfx.PlayAt(G.World, "pop", center, G.View.Eye, 0.8f);
+        if (tree != null && delay > 0.05f) tree.CreateTimer(delay).Timeout += () => SmokeSfx.PlayAt(G.World, "pop", center, G.View.Eye, 0.8f, profile: Kit.Agent);
+        else SmokeSfx.PlayAt(G.World, "pop", center, G.View.Eye, 0.8f, profile: Kit.Agent);
         return v;
     }
 
@@ -490,11 +490,11 @@ public sealed class SmokeExecuteMode : MapMode
         roundNodes.Add(fx);
         fog.Tints[v] = look.Dark.Lerp(look.Light, 0.45f);
         if (scored) { roundSmokes.Add(v); cur.Smokes.Add((v, look.Light)); }
-        if (pts.Count > 0) SmokeSfx.PlayAt(G.World, "pop", pts[0], G.View.Eye, 0.6f, 1.2f);
+        if (pts.Count > 0) SmokeSfx.PlayAt(G.World, "pop", pts[0], G.View.Eye, 0.6f, 1.2f, profile: Kit.Agent);
         return v;
     }
 
-    internal void Whoosh(float vol, float pitch) => SmokeSfx.PlayAt(G.World, "launch", G.View.Eye + G.View.Forward, G.View.Eye, vol, pitch);
+    internal void Whoosh(float vol, float pitch) => SmokeSfx.PlayAt(G.World, "launch", G.View.Eye + G.View.Forward, G.View.Eye, vol, pitch, profile: Kit.Agent);
 
     Node3D Glow(Vector3 at, float size, Color c, bool xray = false)
     {

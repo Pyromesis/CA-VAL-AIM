@@ -18,7 +18,7 @@ namespace CaValAim.Game;
 public partial class GameSession
 {
     /// <summary>0 = off, 1 = aim line, 2 = aim line + route (map drills).</summary>
-    public int GuideMode => Demo ? 0 : Math.Clamp(Main.I.Settings.GuideLine, 0, 2);
+    public int GuideMode => Demo || !Main.I.Settings.GuideExplicitlyEnabled ? 0 : Math.Clamp(Main.I.Settings.GuideLine, 0, 2);
 
     const float RouteEvery = 0.35f;     // s between path refreshes
     const float RouteLift = 0.07f;      // ribbon height over the floor (m)
