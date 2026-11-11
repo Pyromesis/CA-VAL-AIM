@@ -2,7 +2,7 @@
 
 ## [Sin publicar]
 
-## [2.9.0] - 2026-11-10
+## [2.9.1] - 2026-11-10
 
 ### Añadido
 
@@ -11,6 +11,8 @@
 - Audio original de flashes extraído de una instalación local de VALORANT: 54 clips de Phoenix, Breach, KAY/O, Skye, Yoru, Vyse y Gekko/Dizzy, con registro de procedencia y sustituciones WAV locales opcionales.
 
 ### Corregido
+
+- La prueba simulada del coach al asomarse usa una semilla inicial fija y 40 segundos de muestra; mantiene el mínimo de encuentros y las exigencias sobre la detección de errores.
 
 - Corregido el eje vertical invertido de los ejercicios de reacción y adquisición; los objetivos siguen siendo alcanzables cerca del límite de inclinación.
 - Eliminadas las capas antiguas que tapaban A Hall en Fracture. Los atacantes usan rutas que respetan las colisiones en Icebox y los demás mapas.

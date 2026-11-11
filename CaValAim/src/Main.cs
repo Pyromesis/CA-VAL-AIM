@@ -203,7 +203,12 @@ public partial class Main : Node
         // installer / portable swap starts the new version and this one quits.
         bool updating = make == null && Updater.ShouldApplyAtStartup();
         noTransitions = Dev && args.Contains("--no-transitions");
-        if (make != null) SetScreen(new GameSession(make)); // dev "--mode": straight in, as the automated checks expect
+        if (make != null)
+        {
+            // Dev fixtures can share an initial random seed across simulated players.
+            int? fixtureSeed = Dev && int.TryParse(CmdLine.DevAfter("--seed"), out int seed) ? seed : null;
+            SetScreen(new GameSession(make) { ComparisonSeed = fixtureSeed });
+        } // dev "--mode": straight in, as the automated checks expect
         else if (updating) SetScreen(new UpdatingScreen());
         else ShowMenu();
         if (updating) return;

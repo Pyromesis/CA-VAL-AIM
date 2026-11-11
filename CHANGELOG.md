@@ -2,7 +2,7 @@
 
 ## [Unreleased]
 
-## [2.9.0] - 2026-11-10
+## [2.9.1] - 2026-11-10
 
 ### Added
 
@@ -11,6 +11,8 @@
 - Original VALORANT flash audio extracted from a local installation: 54 clips for Phoenix, Breach, KAY/O, Skye, Yoru, Vyse and Gekko/Dizzy, with event provenance and local WAV overrides.
 
 ### Fixed
+
+- Make simulated peek-coach checks reproducible with an initial random seed and a 40-second evidence window; keep the minimum encounter count and error-rate assertions unchanged.
 
 - Correct the inverted vertical aiming projection in reaction/acquisition exercises and keep reaction targets reachable near the pitch limit.
 - Remove obsolete prototype shells obstructing Fracture A Hall; use collision-aware attacker entry routes on Icebox and the other maps.

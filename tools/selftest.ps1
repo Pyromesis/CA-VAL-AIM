@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
   Headless self-tests for CA-VAL-AIM: the coach self-test (with the .vtr replay round trip), the locale (culture) tests, the bug report
   checks, a short smoke test of the drills with the simulated player, the 3D Rewind sidecar check of those runs and the Rewind insights
@@ -220,9 +220,13 @@ if (-not $SkipSmoke) {
     $key = "$($x.Mode)-$($x.Sim)"
     $dir = Join-Path $work "insights\$key"
     New-Item -ItemType Directory -Force $dir | Out-Null
-    # 3 s countdown + 16 s run = 2280 fixed frames; quit after 2900.
-    $r = Invoke-Godot "insights-run-$key" (@("--headless", "--fixed-fps", "120", "--quit-after", "2900", "--path", $Project, "--") + $sandbox +
-                                           @("--mode", $x.Mode, "--simaim", $x.Sim, "--duration", "16", "--telemetry-out", $dir))
+    # Peek targets spend part of each round behind cover: 16 s can produce fewer than three valid encounters.
+    # Keep the same minimum evidence/rate assertions, use a longer sample and compare the same initial random seed.
+    $seconds = if ($x.Mode -eq "peek") { "40" } else { "16" }
+    $frames = if ($x.Mode -eq "peek") { "6000" } else { "2900" }
+    $fixture = if ($x.Mode -eq "peek") { @("--seed", "20261110") } else { @() }
+    $r = Invoke-Godot "insights-run-$key" (@("--headless", "--fixed-fps", "120", "--quit-after", $frames, "--path", $Project, "--") + $sandbox +
+                                           @("--mode", $x.Mode, "--simaim", $x.Sim, "--duration", $seconds, "--telemetry-out", $dir) + $fixture)
     $a = Invoke-Godot "insights-analyze-$key" (@("--headless", "--path", $Project, "--") + $sandbox + @("--coach-analyze", $dir, "--brief", "--insights"))
     $c = @{}
     $line = ($a.Text -split "`r?`n" | Where-Object { $_ -match '^\s+moment-counts:' } | Select-Object -First 1)
