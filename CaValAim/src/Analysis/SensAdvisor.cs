@@ -4,8 +4,7 @@ namespace CaValAim.Analysis;
 
 /// <summary>
 /// Spec D: sensitivity recommendation from aim signals (H &gt; 0 = sens too high), with guardrails: per-signal
-/// confidence, ±18% max step, session consistency, 20–80 cm/360 preferred band (15–100 hard), and a cool-down
-/// of 5 sessions after a sens change.
+/// confidence, ±18% max step, session consistency, 20–80 cm/360 preferred band (15–100 hard), and observations available immediately after a change.
 /// </summary>
 static class SensAdvisor
 {
@@ -32,9 +31,14 @@ static class SensAdvisor
         var s = new List<Signal>();
         float bandNc = Bench.ValueAt(refTier, Bench.Nc), bandJ = Bench.ValueAt(refTier, Bench.Jitter), bandTau = Bench.ValueAt(refTier, Bench.TauMs);
 
-        float O = V(m, "flick.overshoot_share"), cO = Conf(N(m, "flick.n_off"), 30);
-        if (!float.IsNaN(O) && cO >= 0.5f)
-            s.Add(new Signal("H1", Clip((O - 0.40f) / 0.25f), 0.30f, cO,
+        float off = N(m, "flick.n_off") + N(m, "sens.over") + N(m, "sens.under");
+        float O = off > 0 ? (N(m, "flick.n_over") + N(m, "sens.over")) / off : float.NaN;
+        // Legacy summaries may contain the share without the individual count.
+        if (!m.ContainsKey("flick.n_over") && off > 0) O = (N(m, "flick.overshoot_share") * N(m, "flick.n_off") + N(m, "sens.over")) / off;
+        float cO = Conf(off, 30);
+        float attempts = N(m, "flick.n_still") + N(m, "sens.n");
+        if (!float.IsNaN(O) && cO >= 0.5f && (attempts == 0 || off >= .15f * attempts))
+            s.Add(new Signal("H1", Clip((O - Math.Clamp(O, .40f, .60f)) / .25f), 0.30f, cO,
                 O >= 0.4f ? F($"{O * 100:0}% of your off-target flicks overshoot")
                 : O < 0.005f ? "none of your off-target flicks overshoot (they all stop short)"
                 : F($"only {O * 100:0}% of your off-target flicks overshoot (most stop short)")));
@@ -43,12 +47,12 @@ static class SensAdvisor
         float nc = head ? V(m, "head.nc") : V(m, "flick.nc"), cNc = Conf(head ? N(m, "head.n_hit") : N(m, "flick.n_hit"), 30);
         float amp = V(m, "flick.corr_amp_r");
         if (!float.IsNaN(nc) && cNc >= 0.5f && amp < 2f)
-            s.Add(new Signal("H2", Clip((nc - bandNc) / 0.8f), 0.20f, cNc,
+            s.Add(new Signal("H2", Math.Clamp((nc - bandNc) / .8f, 0, 1), 0.20f, cNc,
                 nc >= bandNc ? F($"you make {nc:0.0} small corrections per flick (typical {bandNc:0.0})") : F($"you need few corrections per flick ({nc:0.0})")));
 
         float J = V(m, "track.jitter"), cT = Math.Min(Conf(N(m, "track.secs"), 60), Conf(N(m, "track.reversals"), 10));
         if (!float.IsNaN(J) && cT >= 0.5f)
-            s.Add(new Signal("H3", Clip((J - bandJ) / bandJ), 0.20f, cT,
+            s.Add(new Signal("H3", Math.Clamp((J - bandJ) / bandJ, 0, 1), 0.20f, cT,
                 J > bandJ ? F($"your tracking is shaky (jitter {J:0.00} vs {bandJ:0.00})") : F($"your tracking is smooth (jitter {J:0.00})")));
 
         float gs = V(m, "flick.gain_small"), gl = V(m, "flick.gain_large");
@@ -59,7 +63,7 @@ static class SensAdvisor
 
         float tau = V(m, "track.tau_ms");
         if (!float.IsNaN(tau) && !float.IsNaN(J) && J <= bandJ && cT >= 0.5f)
-            s.Add(new Signal("H5", Clip(-(tau - bandTau) / 80f), 0.10f, cT,
+            s.Add(new Signal("H5", Math.Clamp(-(tau - bandTau) / 80f, -1, 0), 0.10f, cT,
                 tau > bandTau ? F($"your tracking lags the target ({tau:0} ms vs {bandTau:0} ms)") : F($"your tracking reacts quickly ({tau:0} ms)")));
         return s;
     }
@@ -70,10 +74,12 @@ static class SensAdvisor
         var sig = Signals(m, refTier);
         if (sig.Count == 0) return (float.NaN, 0, 0, sig);
         float h = sig.Sum(x => x.W * x.H), c = sig.Average(x => x.C);
+        if (!sig.Any(x => (x.Key is "H1" or "H4" or "H5") && MathF.Abs(x.H) >= .2f)) h = 0;
+        else h = Clip(h / Math.Max(.55f, sig.Sum(x => x.W)));
         return (-0.18f * h * c, h, c, sig);
     }
 
-    public sealed record RunInfo(DateTime When, float Sens, Dictionary<string, float> M);
+    public sealed record RunInfo(DateTime When, float Sens, Dictionary<string, float> M, string Context = "");
     /// <summary>Latest Sens Finder recommendation (confidence 0 low, 1 medium, 2 high).</summary>
     public sealed record FinderResult(DateTime When, float Sens, int Confidence);
 
@@ -97,21 +103,12 @@ static class SensAdvisor
         string where = Where(currentSens, dpi);
 
         // Only runs played at the current sens say anything about it.
-        bool Same(float s) => s > 0 && MathF.Abs(s - currentSens) / currentSens < 0.02f;
+        bool Same(float s) => SensLab.SameSens(s, currentSens);
         var ordered = runs.OrderBy(r => r.When).ToList();
         var mine = ordered.Where(r => Same(r.Sens)).ToList();
-        // Cool-down: after a change, wait ≥ 5 sessions before re-evaluating.
+        // Observe immediately after a change; two agreeing sessions still gate a new recommendation.
         int lastOther = ordered.FindLastIndex(r => r.Sens > 0 && !Same(r.Sens));
-        if (lastOther >= 0)
-        {
-            var since = ordered.Skip(lastOther + 1).Where(r => Same(r.Sens)).ToList();
-            int sessions = Sessions(since).Count;
-            if (sessions < 5)
-                return Keep(sessions == 0
-                    ? F($"You've just switched to {currentSens:0.###} — play at least 5 sessions with it before re-evaluating. {where}")
-                    : F($"You switched to {currentSens:0.###} {sessions} session{(sessions == 1 ? "" : "s")} ago — give it at least 5 sessions before re-evaluating. {where}"), 0);
-            mine = since;
-        }
+        if (lastOther >= 0) mine = ordered.Skip(lastOther + 1).Where(r => Same(r.Sens)).ToList();
 
         var agg = Agg.Aggregate(mine.Select(r => (r.When, r.M)), DateTime.Now);
         var (delta, h, cbar, used) = Step(agg, refTier);
@@ -162,7 +159,7 @@ static class SensAdvisor
     static string Where(float sens, int dpi)
     {
         float edpi = sens * dpi;
-        return F($"Now: eDPI {edpi:0}, {Cm360(sens, dpi):0.0} cm/360 (pro median 240 eDPI ≈ 54 cm; your sens is higher than {ProPercentile(edpi):0}% of pros').");
+        return F($"Now: eDPI {edpi:0}, {Cm360(sens, dpi):0.0} cm/360.");
     }
 
     static string Missing(Dictionary<string, float> m)

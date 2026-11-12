@@ -205,7 +205,10 @@ public partial class VPanel : MarginContainer
         if (Caption != null)
         {
             int cs = UiTheme.Fs(10.5f, k);
-            Gfx.TextR(this, UiTheme.HudWide, Caption, r.Size.X - Pad * k, Gfx.Mid(cy, cs), cs, UiTheme.Faint);
+            float left = tx + 10 * k + tw + 32 * k;
+            float available = Mathf.Max(0, r.Size.X - Pad * k - left);
+            if (available > 20 * k)
+                Gfx.TextFit(this, UiTheme.HudWide, Caption, left, Gfx.Mid(cy, cs), cs, UiTheme.Faint, available, HorizontalAlignment.Right);
         }
         DrawRect(new Rect2(Pad * k, TitleH - 1, Mathf.Max(0, r.Size.X - Pad * k * 2), 1), UiTheme.Line);
     }
@@ -233,7 +236,10 @@ public partial class SectionLabel : Control
         if (Note != null)
         {
             int ns = UiTheme.Fs(10.5f, k);
-            float nw = Gfx.TextR(this, UiTheme.HudWide, Note, Size.X, Gfx.Mid(cy, ns), ns, UiTheme.Faint);
+            float available = Mathf.Max(0, Size.X - lineX - 8 * k);
+            float nw = Mathf.Min(available, Gfx.TextW(UiTheme.HudWide, Note, ns));
+            if (available > 20 * k)
+                Gfx.TextFit(this, UiTheme.HudWide, Note, lineX + 8 * k, Gfx.Mid(cy, ns), ns, UiTheme.Faint, available, HorizontalAlignment.Right);
             if (Size.X - nw - 14 * k > lineX)
                 Gfx.HGradient(this, new Rect2(lineX, cy, Size.X - nw - 14 * k - lineX, 1), new Color(1, 1, 1, 0.10f), new Color(1, 1, 1, 0.015f));
         }

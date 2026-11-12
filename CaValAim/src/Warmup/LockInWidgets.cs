@@ -1,5 +1,6 @@
 using Godot;
 using CaValAim.UI;
+using CaValAim.Core;
 
 namespace CaValAim.Warmup;
 
@@ -21,6 +22,9 @@ public static class LockInText
     public const string FlatTip = "Feeling flat? Put on your own up-tempo music for the first drills. Turn it off before the deathmatch.";
     public const string TiltLine = "Tilted? Maybe take a 10-minute break before ranked. Your call.";
     public const string BreathLine = "Breathe in through your nose… long slow breath out.";
+
+    public static string DisplayGoal(string value) => Goals.Contains(value) ? Loc.T(value) : value;
+    public static string DisplayCue(string value) => Cues.Contains(value) ? Loc.T(value) : value;
 
     public const int MaxGoal = 40, MaxCue = 18;
     public static readonly int[] BreathOptions = { 60, 90, 120 };

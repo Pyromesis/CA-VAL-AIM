@@ -146,7 +146,7 @@ public partial class WarmupCard : ScreenBase
         // header + a thin progress strip (no labels: focus mode)
         int hs = UiTheme.Fs(15, k);
         string who = plan.Preset.Key.StartsWith(Agents.AgentRoutines.Prefix)
-            ? $"{(es ? "LOCK-IN COMO" : "LOCK-IN AS")} {plan.Preset.Name.ToUpperInvariant()}"
+            ? $"{(es ? "LOCK-IN COMO" : "LOCK-IN AS")} {WarmupPresets.NameOf(plan.Preset).ToUpperInvariant()}"
             : "LOCK-IN";
         Gfx.TextC(d, UiTheme.HudWide, es
             ? $"{who} · {Phases.Name(st.Phase)} · EJERCICIO {st.Index + 1} DE {plan.Steps.Count}"
@@ -207,8 +207,8 @@ public partial class WarmupCard : ScreenBase
         if (st.Phase == Phase.Deathmatch && (run.Check.Goal.Length > 0 || run.Check.Cue.Length > 0))
         {
             string carry = es
-                ? $"TU OBJETIVO: {run.Check.Goal.ToUpperInvariant()}   ·   TU CLAVE: {run.Check.Cue.ToUpperInvariant()}"
-                : $"YOUR GOAL: {run.Check.Goal.ToUpperInvariant()}   ·   YOUR CUE: {run.Check.Cue.ToUpperInvariant()}";
+                ? $"TU OBJETIVO: {LockInText.DisplayGoal(run.Check.Goal).ToUpperInvariant()}   ·   TU CLAVE: {LockInText.DisplayCue(run.Check.Cue).ToUpperInvariant()}"
+                : $"YOUR GOAL: {LockInText.DisplayGoal(run.Check.Goal).ToUpperInvariant()}   ·   YOUR CUE: {LockInText.DisplayCue(run.Check.Cue).ToUpperInvariant()}";
             Gfx.TextFit(d, UiTheme.HudWide, carry, cx - cw / 2, cueY + 50 * k, UiTheme.Fs(17, k), UiTheme.Dim, cw, HorizontalAlignment.Center);
         }
 

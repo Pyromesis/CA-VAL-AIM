@@ -167,6 +167,9 @@ public abstract class TrainingMode
     /// <summary>Live state rather than tutorial copy (for example the respawn countdown).</summary>
     public virtual string? StatusPrompt => null;
     /// <summary>Custom 2D drawing on the HUD canvas (reaction test, etc.).</summary>
+    /// <summary>Visible aim target in screen pixels; non-aim games never expose an answer through the guide.</summary>
+    public virtual (Vector2 Point, float Radius)? AimGuide2D(Vector2 size) => null;
+
     public virtual void Draw2D(CanvasItem canvas, Vector2 size) { }
 
     public virtual float Accuracy => Shots == 0 ? 0 : (float)Hits / Shots;

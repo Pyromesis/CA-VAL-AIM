@@ -38,6 +38,7 @@ import numpy as np
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import gen_collision as gc  # noqa: E402  (GLB reader + map frame)
+from trim_collision import drawn_triangles, level_drawn  # noqa: E402
 
 BUCKET = 2.0
 fresh_exclude = False  # --fresh-exclude: overwrite spawn_exclude.json instead of merging
@@ -52,14 +53,13 @@ def load_triangles(folder):
     ox, oy, oz = origin
     chunks = []
     for level in levels:
-        if re.search(r"(Vista|Skybox|Backdrop)", level, re.I):
+        if not level_drawn(level):
             continue
         path = os.path.join(folder, level + ".glb")
         if not os.path.exists(path) or os.path.getsize(path) < 1024:
             continue
         js = gc.read_glb(path)
-        for pos, tri in gc.world_triangles(js):
-            w = pos[tri]
+        for w in drawn_triangles(js):
             f = np.empty_like(w, dtype=np.float32)
             f[:, :, 0] = w[:, :, 2] + ox
             f[:, :, 1] = w[:, :, 1] + oy
@@ -209,6 +209,8 @@ def inside_mask(mask, cal, p):
 
 
 def leak_pairs(nav, rng, n_pairs):
+    if n_pairs <= 0:
+        return []
     cell = 0.5
     cols = defaultdict(list)
     for i, (x, y, z) in enumerate(nav):
@@ -247,6 +249,9 @@ def audit_map(maps_dir, key, data, cal, n_pairs, rng):
     s = data["start"]["resolved"]
     f = judge("start", "start", s)
     rep["start"] = f
+    if f:
+        rep["bad"].append({"group": "start", "name": "start", "p": s,
+                           "a": data["start"]["authored"], "flags": f})
     for group in ("enemies", "plants", "retakes"):
         for e in data.get(group, []):
             fl = judge(group, e["name"], e["resolved"])
@@ -266,7 +271,10 @@ def audit_map(maps_dir, key, data, cal, n_pairs, rng):
                 continue
             p = np.array(b["p"], np.float64)
             d = np.hypot(pp[:, 0] - p[0], pp[:, 2] - p[2]) if len(pp) else np.zeros(0)
-            ok_dy = np.abs(pp[:, 1] - p[1]) <= 1.2 if len(pp) else np.zeros(0, bool)
+            # A player start can resolve below a raised floor (Bind/Hookah). Match SpawnSafety's
+            # second search window there; ordinary drill spots keep the tighter same-floor limit.
+            height_window = 2.9 if b["group"] == "start" else 1.2
+            ok_dy = np.abs(pp[:, 1] - p[1]) <= height_window if len(pp) else np.zeros(0, bool)
             for j in np.argsort(d):
                 if d[j] > 3.0:
                     break

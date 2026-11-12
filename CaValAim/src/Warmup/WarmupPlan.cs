@@ -16,12 +16,12 @@ public static class Phases
     public static string Name(Phase p) => Loc.Spanish
         ? p switch
         {
-            Phase.CheckIn => "CHEQUEO",
+            Phase.CheckIn => "ESTADO INICIAL",
             Phase.Activation => "ACTIVACIÓN",
             Phase.Calibration => "CALIBRACIÓN",
             Phase.Mechanics => "MECÁNICA",
-            Phase.Deathmatch => "DEATHMATCH",
-            _ => "LOCK-IN",
+            Phase.Deathmatch => "COMBATE A MUERTE",
+            _ => "PREPARACIÓN",
         }
         : p switch
         {
@@ -76,7 +76,7 @@ public sealed record WarmupPreset(string Key, string Name, string Blurb, int Shi
 public static class WarmupPresets
 {
     // Cues point at the target or the crosshair (external focus), never at the hand or wrist.
-    static string Cue(string en, string es) => Loc.Spanish ? es : en;
+    static string Cue(string en, string es) => en; // Store canonical English; localize when rendered.
     public static string CueTrack => Cue("Keep the crosshair on the target's head. Smooth, no rushing.",
         "Mantén la mira en la cabeza del objetivo. Fluido, sin prisas.");
     static string CueGrid => Cue("Find a rhythm. Land on each target, then click.",
@@ -110,20 +110,21 @@ public static class WarmupPresets
     /// <summary>Preset name in the current language (the record keeps the English original).</summary>
     public static string NameOf(WarmupPreset p) => !Loc.Spanish ? p.Name : p.Key switch
     {
-        "short" => "Corta",
-        "standard" => "Lock-In",
-        _ => "Día de entreno",
+        "short" => "Breve",
+        "standard" => "Calentamiento",
+        "training" => "Día de práctica",
+        _ => p.Name,
     };
 
     public static string BlurbOf(WarmupPreset p) => !Loc.Spanish ? p.Blurb : p.Key switch
     {
-        "short" => "Un Lock-In rápido cuando no hay tiempo",
-        "standard" => "El Lock-In completo antes de ranked",
-        _ => "Todas las habilidades y un deathmatch largo",
+        "short" => "Calentamiento breve para cuando tienes poco tiempo",
+        "standard" => "Calentamiento completo antes de una partida competitiva",
+        _ => "Todas las habilidades y un combate a muerte largo",
     };
 
     public static string NoteOf(WarmupPreset p) => Loc.Spanish && p.Note.Length > 0
-        ? "para días de práctica, no justo antes de ranked" : p.Note;
+        ? "para días de práctica, no justo antes de una partida competitiva" : p.Note;
 
     public static readonly WarmupPreset[] All =
     {
@@ -202,7 +203,13 @@ public static class WarmupDrills
     public static string Category(string key) => Proto(key)?.Category ?? "Aim";
     public static bool CanAdapt(string key) => Proto(key)?.SupportsAdaptive ?? false;
 
-    public static string Short(string key) => key switch
+    public static string Short(string key) => Loc.Spanish ? key switch
+    {
+        "tracking" => "SEGUIM.", "gridshot" => "CUADRÍC.", "spider" => "ARAÑA", "flick" => "PUNTERÍA",
+        "strafebots" => "BOTS", "counterstrafe" => "FRENADO", "peek" => "ASOMARSE", "peekduel" => "DUELOS",
+        "spray_vandal" => "RETROCESO", "deathmatch" => "COMBATE", "reaction" => "REACCIÓN",
+        _ => Loc.T(Agents.AgentRoutines.ShortLabel(key) ?? Name(key)).ToUpperInvariant(),
+    } : key switch
     {
         "tracking" => "TRACK",
         "gridshot" => "GRID",

@@ -2,6 +2,27 @@
 
 ## [Sin publicar]
 
+## [2.10.0] - 2026-11-12
+
+### Añadido
+
+- Lecciones de Academia con explicaciones paso a paso, ejercicios de práctica y referencias en vídeo con sus autores.
+- Ejercicios personalizados del coach ajustados a los errores de puntería medidos y comparación de sensibilidad entre sesiones registradas.
+- El rango de puntería estimado muestra ahora el percentil de la población ("mejor que el 78% de la población ranked") junto al nombre del rango, y la banda de incertidumbre se calcula a partir de las pruebas en lugar de un margen fijo: se ensancha cuando las habilidades discrepan, cuando falta parte del perfil y cuando las muestras son escasas.
+- Los nombres de rango se traducen en los textos del coach, así que la interfaz en español ya no mezcla "Gold" o "Diamond".
+
+### Corregido
+
+- Completados los textos en español del calentamiento, la evaluación inicial, los objetivos, las consignas, la respiración y los rangos. Al volver al inglés se recuperan sus textos originales.
+- La línea guía respeta la opción seleccionada sin depender de una marca interna adicional. También aparece en los ejercicios de puntería 2D compatibles.
+- Los bots ya no planifican líneas rectas a través de huecos por los que su cuerpo no cabe (la rejilla de navegación comprobaba el corredor a la altura de la rodilla, de modo que cualquier cornisa o dintel a la altura de la cabeza le era invisible y el bot se empujaba contra él para siempre); un bot que aun así se atasca se coloca en el nodo libre más cercano en vez de limitarse a replanificar.
+- La rejilla de navegación conserva la mayor zona transitable cuando el inicio del mapa queda en un bolsillo aislado, en lugar de dejar fuera toda el área jugable.
+- Colisión ajustada al arte que el juego dibuja de verdad, para que los cuerpos, las balas y la línea de visión dejen de chocar contra muros que nunca se vieron (el área alcanzable de Fracture pasó de 33k a 58k celdas).
+- Las rejillas de navegación vacías ya no provocan un fallo cuando no hay espacio para estar de pie. La auditoría de spawns puede regenerar las exclusiones desde todos los candidatos y comprueba solo la geometría que el juego dibuja.
+- Bind empieza sobre el suelo visible de Hookah y Fracture sobre el de A Hall, en lugar de una plataforma de prototipo invisible.
+- Corregidos puntos inaccesibles de Ascent, Bind y Pearl; excluidos 2.971 candidatos inseguros de spawn de Deathmatch en los 13 mapas.
+- Normalizados los porcentajes redondeados de población y ponderada la incertidumbre del rango por su número de jugadores, sin superar el percentil 100.
+
 ## [2.9.1] - 2026-11-10
 
 ### Añadido

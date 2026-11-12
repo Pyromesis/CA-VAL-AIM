@@ -22,6 +22,7 @@ static class RunSummary
     /// <summary>Modes whose telemetry the coach analyses (everything else gets the "doesn't feed the coach" note).</summary>
     static readonly HashSet<string> CoachModes = new()
     {
+        "flickx", "microx", "reflex", "trackv", "airtrack", "reacttrack", "reactlab",
         "flick", "spider", "gridshot", "tracking", "strafebots", "peek", "counterstrafe", "peekduel", "siteclear", "flashmap", "deathmatch",
         "reaction", "spray_vandal", "spray_phantom", "microshot", "popup", "longtaps", "jumppeek", "jigglepeek", "peek_mix",
         "flashpeek", "recon", "smokeexec", "mobility", "chamber", "postplant", "retake", "anchor", "sound",
@@ -37,17 +38,18 @@ static class RunSummary
                 "Este drill todavía no alimenta al entrenador de puntería: tu puntuación y precisión de arriba son la medida. Flicks a la Cabeza, Spidershot, Gridshot, Strafe Tracking, los drills con bots y los de spray sí reciben una revisión detallada.");
         string need = mode switch
         {
-            "flick" or "microshot" or "popup" => S("hit at least 5 targets", "impacta al menos 5 objetivos"),
+            "flick" or "microshot" or "popup" or "microx" or "flickx" or "reflex" => S("hit at least 5 targets", "impacta al menos 5 objetivos"),
             "longtaps" or "jumppeek" or "jigglepeek" or "peek_mix" or "chamber" or "sound" => S("let a few enemies show up and shoot them", "deja que aparezcan varios enemigos y dispárales"),
             "flashpeek" or "recon" or "smokeexec" or "mobility" or "postplant" or "retake" or "anchor" => S("play a few rounds and take some duels", "juega varias rondas y toma algunos duelos"),
             "spider" or "gridshot" => S("play at least 15 seconds and hit a few targets", "juega al menos 15 segundos e impacta varios objetivos"),
-            "tracking" => S("hold fire on the target for at least a few seconds", "mantén el fuego sobre el objetivo durante varios segundos"),
+            "tracking" or "trackv" or "airtrack" or "reacttrack" => S("hold fire on the target for at least a few seconds", "mantén el fuego sobre el objetivo durante varios segundos"),
             "strafebots" or "switch" => S("take on a few bots", "enfréntate a varios bots"),
             "operator" => S("let a few agents cross the gap while you hold it", "deja que varios agentes crucen el hueco mientras lo cubres"),
             "peek" => S("let a few bots peek you", "deja que varios bots se asomen"),
             "counterstrafe" => S("stop and shoot a few times", "detente y dispara varias veces"),
             "peekduel" or "siteclear" or "deathmatch" => S("get a few duels in", "completa algunos duelos"),
             "flashmap" => S("face a few flashes", "enfréntate a varios flashes"),
+            "reactlab" => S("complete a few stimulus trials", "completa varios intentos con estímulo"),
             "reaction" => S("finish the trials", "completa las pruebas"),
             _ => S("fire at least 10 bullets per spray a few times", "dispara al menos 10 balas por spray varias veces"), // spray_vandal / spray_phantom
         };

@@ -199,7 +199,10 @@ public partial class ProfileScreen : ScreenBase
         int fs = UiTheme.Fs(15, k);
         if (ranked)
         {
-            var (lo, hi) = CoachRank.Range(t, p.OverallConfidence);
+            // The band comes from the evidence itself (sample size, coverage, how much the skills disagree), not from
+            // a fixed spread around the point estimate.
+            var est = p.Estimate;
+            var (lo, hi) = est is { } e ? CoachRank.Band(e.Low, e.High) : CoachRank.Range(t, p.OverallConfidence);
             RangeTitle(d, lo, hi, x0, 114 * k, tw, k);
             float y = 148 * k;
             float bw = CoachDraw.ConfBars(d, new Vector2(x0, y), k, p.OverallConfidence);
@@ -221,9 +224,19 @@ public partial class ProfileScreen : ScreenBase
                     : $"{rated} of 8 skills rated - 4 with medium confidence unlock your overall rank.");
             Gfx.TextFit(d, UiTheme.Body, msg, x0, Gfx.Mid(148 * k, fs), fs, UiTheme.Dim, tw);
         }
+        // Where the estimate sits in the ranked population: more honest than the rank name alone, and it explains
+        // why the band is narrow around Gold and wide near Radiant.
+        if (ranked && !float.IsNaN(p.OverallPercentile))
+        {
+            string pct = Loc.Spanish
+                ? $"MEJOR QUE EL {p.OverallPercentile:0}% DE LA POBLACIÓN RANKED"
+                : $"BETTER THAN {p.OverallPercentile:0}% OF THE RANKED POPULATION";
+            Gfx.TextFit(d, UiTheme.HudWide, pct, x0, 170 * k, UiTheme.Fs(11.5f, k), UiTheme.Faint, tw);
+        }
         // Fonts hit their size floor in small windows, so all five tier names would collide: keep the coloured
         // ladder and the confidence marker, but omit the labels when the UI is scaled down.
-        CoachDraw.Ladder(d, new Rect2(x0, 182 * k, tw, 12 * k), k, ranked ? t : -1, p.OverallConfidence, labels: k >= 0.8f);
+        CoachDraw.Ladder(d, new Rect2(x0, 186 * k, tw, 12 * k), k, ranked ? t : -1, p.OverallConfidence, labels: k >= 0.8f,
+            band: p.Estimate is { } b ? (b.Low, b.High) : null);
     }
 
     static void RangeTitle(CanvasItem d, string lo, string? hi, float x, float baseline, float maxW, float k)
@@ -746,6 +759,16 @@ public partial class ProfileScreen : ScreenBase
         sm.TitleFont = UiTheme.HudWide;
         sm.TooltipText = "Replay a moment from your recent runs where this happened";
         flow.AddChild(sm);
+        if (Academy.For(d) is { } lesson)
+        {
+            // The technique behind the fix: the lesson with its steps, drills and credited videos.
+            string label = (Loc.Spanish ? "TÉCNICA: " : "TECHNIQUE: ") + lesson.Name.ToUpperInvariant();
+            float lw = Gfx.RawW(UiTheme.HudWide, label, UiTheme.Fs(15, k)) / k + 56;
+            var tb = Btn(label, VButton.Look.Ghost, () => Main.I.ShowAcademy(lesson.Id, Main.I.ShowProfile), lw, 42, 15);
+            tb.TitleFont = UiTheme.HudWide;
+            tb.TooltipText = "« " + lesson.Cue + " »";
+            flow.AddChild(tb);
+        }
         v.AddChild(flow);
         v.AddChild(status);
         if (Main.I.Dev && !devShowMeDone && Core.CmdLine.After("--showme") == d.Id)
@@ -840,7 +863,7 @@ public partial class ProfileScreen : ScreenBase
         panel.AddChild(v);
         v.AddChild(new DrawBox { CustomMinimumSize = new Vector2(0, 112 * k), OnDraw = d => DrawSens(d, p) });
         string reason = has
-            ? (Loc.Spanish ? SensLabText.Recommendation(p) : a!.Reason)
+            ? SensLabText.Recommendation(p)
             : (Loc.Spanish
                 ? "Aún no hay suficientes datos de flicks y tracking para recomendar una sensibilidad. Juega Head Flicks y Strafe Tracking varias veces o abre el Sens Finder para una prueba A/B a ciegas."
                 : "Not enough flick and tracking data for a recommendation yet. Play Head Flicks and Strafe Tracking a few times — or run the Sens Finder for a direct blind A/B test.");

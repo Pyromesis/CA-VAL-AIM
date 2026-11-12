@@ -11,6 +11,8 @@ sealed class Assessment
     public float OverallConf;
     public float RefTier;                 // tier whose benchmark values are the "band" in the rules
     public float RawMean = float.NaN;     // robust weighted mean of the skill tiers, before shrinking toward the population median
+    /// <summary>The overall estimate with its plausible band (see <see cref="RankEstimate"/>).</summary>
+    public RankEstimate.Result? Estimate;
     /// <summary>Dev trace (CoachCli --explain): every benchmark component and how the overall was formed.</summary>
     public readonly List<string> Trace = new();
     public readonly List<Issue> Issues = new();
@@ -61,6 +63,9 @@ static class Assess
         [Skill.SprayControl] = 0.10f, [Skill.Tracking] = 0.10f, [Skill.Utility] = 0.10f, [Skill.Reaction] = 0.05f,
     };
 
+    /// <summary>Total weight of all the skills the coach rates (1.0): the denominator of the evidence share.</summary>
+    public static float TotalSkillWeight => SkillWeight.Values.Sum();
+
     static float V(Dictionary<string, float> m, string k) => m.TryGetValue(k, out var v) ? v : float.NaN;
     static float N(Dictionary<string, float> m, string k) => m.TryGetValue(k, out var v) && !float.IsNaN(v) ? v : 0;
     static string F(FormattableString s) => FormattableString.Invariant(s);
@@ -81,6 +86,9 @@ static class Assess
         foreach (var (t, w) in xs) { cum += w; if (cum >= half) return t; }
         return xs[^1].T;
     }
+
+    /// <summary>Weighted median of a set of (value, weight) pairs; exposed for <see cref="RankEstimate"/>.</summary>
+    public static float Median(List<(float T, float W)> xs) => WeightedMedian(xs);
 
     static float Comp(params (float T, float W)[] parts)
     {
@@ -108,10 +116,14 @@ static class Assess
         // median player by how much evidence there is and how well aim mechanics predict rank at all. Needs ≥ 4 skills
         // with c ≥ 0.5.
         var rated = a.Ratings.Values.Where(r => r.Tier > -0.9f && r.Confidence > 0).ToList();
-        float wAll = SkillWeight.Values.Sum();
+        float wAll = TotalSkillWeight;
         float wc = rated.Sum(r => SkillWeight[r.Skill] * r.Confidence);
         int confident = rated.Count(r => r.Confidence >= 0.5f);
         a.OverallConf = wc / wAll;
+        // The band around the estimate (how wide the plausible range is, and how much the skills disagree): computed
+        // from the same ratings, so the number the player sees and the number the coach reasons about agree.
+        var est = RankEstimate.Estimate(a.Ratings);
+        a.Estimate = est;
         if (wc > 0)
         {
             float med = WeightedMedian(rated.Select(r => (r.Tier, SkillWeight[r.Skill] * r.Confidence)).ToList());
@@ -120,6 +132,7 @@ static class Assess
             a.RawMean = s / wc;
             a.Provisional = Bench.Shrink(a.RawMean, a.OverallConf);
             a.Trace.Add(F($"overall: weighted median {med:0.00}, robust mean {a.RawMean:0.00}, evidence {a.OverallConf:0.00} → λ {Bench.ShrinkFactor(a.OverallConf):0.00} → {a.Provisional:0.00} ({Bench.Rank(a.Provisional)}), prior {Bench.PriorTier:0.00}"));
+            a.Trace.Add(F($"band: {est.Low:0.00}–{est.High:0.00} (±{est.Spread:0.00} tier, {est.Rated}/{est.Total} skills rated, disagreement {est.Disagreement:0.00}, confidence {est.Confidence:0.00})"));
         }
         if (confident >= 4) a.Overall = a.Provisional;
         a.RefTier = runLevel ? Math.Clamp(tierPlayed, 0, 4)
@@ -313,6 +326,18 @@ static class Assess
             a.Issues.Add(new Assessment.Issue(d, imp, shortText, possible));
         }
 
+        if (N(m, "micro.n") >= 10 && V(m, "micro.centered_share") < .65f)
+            Add("MICRO_CONFIRM", Skill.Precision, 1, N(m, "micro.n"), 30,
+                S("Confirm the micro-adjustment before firing", "Confirma el microajuste antes de disparar"),
+                S($"{V(m, "micro.centered_share"):P0} of first shots were inside the target radius",
+                    $"El {V(m, "micro.centered_share"):P0} de los primeros disparos estaba dentro del radio del objetivo"),
+                S("This measures where the shot went, including very short movements. It does not prove that sensitivity is wrong.",
+                    "Esto mide dónde fue el disparo, incluidos movimientos muy cortos. No demuestra que la sensibilidad sea incorrecta."),
+                new[] { S("Use one small correction and confirm the center before firing. Keep sensitivity unchanged for this block.",
+                    "Haz una corrección pequeña y confirma el centro antes de disparar. Mantén la sensibilidad durante este bloque.") },
+                new[] { "microx:coach-micro-confirm", "microx:line", "flickx:coach-brake-near" },
+                S("first shots land outside the target", "los primeros disparos caen fuera del objetivo"));
+
         // ---- shared flick quantities ----
         float r = V(m, "flick.r_deg");
         float nOff = N(m, "flick.n_off"), nFl = N(m, "flick.n"), nPrim = N(m, "flick.n_prim"), misses = N(m, "flick.misses");
@@ -321,8 +346,38 @@ static class Assess
         float J = V(m, "track.jitter"), bandJ = Bench.ValueAt(refT, Bench.Jitter);
         float bandNc = Bench.ValueAt(refT, Bench.Nc), bandTc = Bench.ValueAt(refT, Bench.TcMs);
 
+        float nearN = N(m, "flick.range_near_n"), wideN = N(m, "flick.range_wide_n");
+        if (nearN >= 12 && wideN >= 12)
+        {
+            float nearRate = N(m, "flick.range_near_over") / nearN, wideRate = N(m, "flick.range_wide_over") / wideN;
+            bool wide = wideRate > nearRate;
+            if (Math.Max(nearRate, wideRate) >= .30f && Math.Abs(wideRate - nearRate) >= .20f)
+                Add(wide ? "OVER_WIDE" : "OVER_NEAR", Skill.Flicking, 2, Math.Min(nearN, wideN), 25,
+                    wide ? S("Overshoots on wide turns", "Sobrepasos en giros amplios") : S("Overshoots on short turns", "Sobrepasos en giros cortos"),
+                    S($"Below 25°: {nearRate:P0} of {nearN:0} movements long. At 25° and above: {wideRate:P0} of {wideN:0}.",
+                        $"Por debajo de 25°, te pasaste en el {nearRate:P0} de {nearN:0} movimientos. Desde 25°, en el {wideRate:P0} de {wideN:0}."),
+                    S("The braking error depends on movement distance. Train the affected range at your current sensitivity.",
+                        "El frenado cambia con la distancia que recorre la mira. Entrena el tramo afectado con tu sensibilidad actual."),
+                    new[] { S("Repeat the affected angle first, then compare both distances again in the original drill.",
+                        "Practica primero el ángulo afectado y después vuelve al ejercicio original para comparar las dos distancias.") },
+                    new[] { wide ? "flickx:coach-brake-wide" : "flickx:coach-brake-near" },
+                    S("overshoots cluster at one movement distance", "los sobrepasos se concentran en un rango de distancia"));
+        }
+        float recovered = N(m, "flick.recovered_over_n");
+        if (recovered >= 5 && recovered >= N(m, "flick.n_still") * .20f)
+            Add("RECOVERED_OVER", Skill.Precision, 1, recovered, 20,
+                S("Hits after an overshoot", "Aciertos que esconden un sobrepaso"),
+                S($"{recovered:0} landings went long and needed a correction before the hit ({V(m, "flick.recovered_over_ms"):0} ms after landing).",
+                    $"En {recovered:0} aciertos te pasaste y corregiste antes de acertar. Desde el final del primer gesto hasta el impacto pasaron {V(m, "flick.recovered_over_ms"):0} ms."),
+                S("Your final accuracy includes these hits. The first landing shows where time was spent correcting.",
+                    "La precisión final incluye esos aciertos. El primer movimiento muestra dónde tuviste que volver al blanco."),
+                new[] { S("Brake before the far edge. Repeat the block and compare return corrections at the same pace.",
+                    "Frena antes del borde lejano. Repite el bloque al mismo ritmo y compara cuántas veces necesitas volver.") },
+                new[] { "flickx:coach-brake-near", "microx:coach-micro-confirm" },
+                S("hits require a return correction", "varios aciertos requieren corregir de vuelta"));
+
         // OVERFLICK
-        if (O >= .55f && dOver >= 1.5f * r && pOver >= 4f)
+        if (O >= .60f && dOver > r && nOff >= 6 && nOff * O >= Math.Max(4, N(m, "flick.n_still") * .20f))
         {
             bool highNcJ = nc > bandNc + 0.3f || (!float.IsNaN(J) && J > 1.3f * bandJ);
             Add("OVERFLICK", Skill.Flicking, O >= .70f ? 2 : 1, nOff, 30,
@@ -337,7 +392,7 @@ static class Assess
                     "Relax your grip and forearm — a tense arm overshoots and can't stop cleanly.",
                     "Play Head Flicks one tier lower until most flicks land on or just short of the head.",
                 },
-                new[] { "flickx:horizontal", "microx:small", "flick" },
+                new[] { "flickx:coach-brake-near", "flickx:coach-brake-wide", "microx:coach-micro-confirm" },
                 F2($"{O * 100:0}% of your off-target flicks overshot the target by {dOver:0.0}°",
                     $"El {O * 100:0}% de tus flicks fallados se pasaron {dOver:0.0}° del objetivo"),
                 highNcJ ? S("you also need many corrections / track shakily — try 5–10% lower sens.", "además necesitas muchas correcciones o haces tracking inestable: prueba una sensibilidad un 5–10% más baja.") : null, unit: "off-target flicks");
@@ -345,7 +400,7 @@ static class Assess
 
         // UNDERFLICK
         float G = V(m, "flick.gain"), U = V(m, "flick.under_share"), dUnder = V(m, "flick.mean_undershoot_deg");
-        if (G < .85f && U >= .85f || G < .75f && U >= .7f)
+        if (G < .95f && U >= .65f && nOff * U >= Math.Max(4, N(m, "flick.n_still") * .25f))
         {
             float gs = V(m, "flick.gain_small"), gl = V(m, "flick.gain_large");
             bool wideOnly = gl < .85f && gs >= .9f && N(m, "flick.n_large") >= 5;
@@ -366,6 +421,22 @@ static class Assess
                 wideOnly ? F2($"only your wide flicks (≥ 25°) fall short ({gl * 100:0}% vs {gs * 100:0}%) — try 5–10% higher sens.",
                     $"solo tus flicks amplios (≥ 25°) se quedan cortos ({gl * 100:0}% vs {gs * 100:0}%): prueba una sensibilidad un 5–10% más alta.") : null, unit: "flicks");
         }
+
+        // Mixed errors are actionable even when neither sign dominates. Do not interpret cancellation as balance.
+        float measured = N(m, "flick.n_still");
+        if (measured >= 12 && nOff >= measured * .4f && O >= .32f && U >= .32f)
+            Add("MIXED_FLICK", Skill.Flicking, 1, measured, 30,
+                S("Inconsistent stopping: both long and short flicks", "Frenado irregular: te pasas y te quedas corto"),
+                S($"{nOff * O:0}/{measured:0} overshoots and {nOff * U:0}/{measured:0} short movements",
+                    $"{nOff * O:0}/{measured:0} sobrepasos y {nOff * U:0}/{measured:0} movimientos cortos"),
+                S("Opposite errors can cancel in an average. These observations alone do not identify sensitivity as the cause.",
+                    "Los errores opuestos se pueden anular en una media. Estos datos por sí solos no identifican la sensibilidad como causa."),
+                new[] { S("Keep sensitivity fixed for a block. Practise landing on the target before increasing speed.",
+                    "Mantén la sensibilidad durante un bloque. Practica aterrizar sobre el objetivo antes de aumentar la velocidad."),
+                    S("Compare horizontal and vertical drills separately; finish with a timed block at the same difficulty.",
+                    "Compara por separado ejercicios horizontales y verticales; termina con un bloque cronometrado de la misma dificultad.") },
+                new[] { "flickx:settle-confirm", "microx:line", "flickx:horizontal" },
+                S("mixed overshoots and short flicks", "sobrepasos y movimientos cortos mezclados"));
 
         // LEFT / RIGHT / UP / DOWN WEAKNESS — one side consistently stops further from the target than its opposite.
         // Each side is compared with its own opposite, so at most one of left/right and one of up/down can fire.

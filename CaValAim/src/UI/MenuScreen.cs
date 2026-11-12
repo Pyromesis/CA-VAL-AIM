@@ -225,6 +225,8 @@ public partial class MenuScreen : ScreenBase
             L("Coach feedback between rounds", "Correcciones del coach entre rondas"));
         ActionButton(L("START LOCK-IN", "CALENTAMIENTO"), Main.I.ShowLockIn, false,
             L("A 12-minute warmup before ranked", "Calentamiento de 12 minutos antes de competitiva"));
+        ActionButton(L("ACADEMY", "ACADEMIA"), Main.I.ShowAcademy, false,
+            L("Aim techniques step by step, a drill for each and credited video guides", "Técnicas de aim paso a paso, un ejercicio para cada una y guías en vídeo con sus autores"));
         left.AddChild(actions);
 
         // One click back into the last drill played (same tier, map and settings), without the preview.
@@ -608,10 +610,8 @@ public partial class MenuScreen : ScreenBase
         return Loc.Spanish ? $"{RanksEs(t.Ranks)} · los bots reaccionan en ~{t.Bot.ReactMs:0} ms" : $"{t.Ranks} · bots react in ~{t.Bot.ReactMs:0} ms";
     }
 
-    /// <summary>Spanish rank names as the Spanish VALORANT client writes them.</summary>
-    static string RanksEs(string ranks) => ranks.Replace("Iron", "Hierro").Replace("Bronze", "Bronce").Replace("Silver", "Plata")
-        .Replace("Gold", "Oro").Replace("Platinum", "Platino").Replace("Diamond", "Diamante").Replace("Ascendant", "Ascendente")
-        .Replace("Immortal", "Inmortal").Replace("Radiant", "Radiante");
+    /// <summary>Spanish rank names as the Spanish VALORANT client writes them (the same table Loc uses).</summary>
+    static string RanksEs(string ranks) => Loc.T(ranks);
 
     void SelectTier(int id)
     {

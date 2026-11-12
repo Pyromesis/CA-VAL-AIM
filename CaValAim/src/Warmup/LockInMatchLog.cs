@@ -142,7 +142,11 @@ public static class LockInMatchLog
 
         if (rated.Count < ReadoutMin)
         {
-            Gfx.TextR(c, UiTheme.HudWide, Loc.Spanish ? $"{rated.Count} DE {ReadoutMin} PARTIDAS VALORADAS" : $"{rated.Count} OF {ReadoutMin} MATCHES RATED", x0 + w, hy, ls, UiTheme.Dim);
+            float titleWidth = Gfx.TextW(UiTheme.HudWide, "WHAT WORKS FOR YOU", hs);
+            float captionX = x0 + titleWidth + 16 * k;
+            float captionWidth = Mathf.Max(0, x0 + w - captionX);
+            if (captionWidth > 20 * k)
+                Gfx.TextFit(c, UiTheme.HudWide, Loc.Spanish ? $"{rated.Count}/{ReadoutMin} VALORADAS" : $"{rated.Count} OF {ReadoutMin} MATCHES RATED", captionX, hy, ls, UiTheme.Dim, captionWidth, HorizontalAlignment.Right);
             float cg = 3 * k, cw = (w - cg * (ReadoutMin - 1)) / ReadoutMin;
             for (int i = 0; i < ReadoutMin; i++)
                 c.DrawRect(new Rect2(x0 + i * (cw + cg), y + 26 * k, cw, 7 * k), i < rated.Count ? UiTheme.Teal : new Color(UiTheme.Text, 0.08f));
@@ -299,7 +303,7 @@ public partial class MatchLogPrompt : Control
     {
         foreach (var (key, tip) in new[] { ("W", "Won"), ("L", "Lost"), ("D", "Draw") })
         {
-            var b = new VButton { Kind = VButton.Look.Select, K = k, Label = key, FontPx = 20, Selected = rec.Match == key, TooltipText = tip };
+            var b = new VButton { Kind = VButton.Look.Select, K = k, Label = Loc.Spanish ? key switch { "W" => "V", "L" => "D", _ => "E" } : key, FontPx = 20, Selected = rec.Match == key, TooltipText = tip };
             b.Pressed += () => Pick(key, 0);
             AddChild(b);
             results.Add((b, key));

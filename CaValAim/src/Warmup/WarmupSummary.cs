@@ -53,7 +53,7 @@ public partial class WarmupSummary : ScreenBase
         var title = Heading("LOCK-IN DETAILS",
             (es
                 ? $"{WarmupPresets.NameOf(preset).ToUpperInvariant()} · NIVEL {Loc.T(Difficulty.Get(rec.Tier).Name).ToUpperInvariant()} · {WarmupPlan.Clock(rec.PlaySeconds)} JUGADOS · {shift.ToUpperInvariant()}"
-                : $"{preset.Name.ToUpperInvariant()} · {Difficulty.Get(rec.Tier).Name.ToUpperInvariant()} TIER · {WarmupPlan.Clock(rec.PlaySeconds)} PLAYED · {shift.ToUpperInvariant()}") +
+                : $"{WarmupPresets.NameOf(preset).ToUpperInvariant()} · {Difficulty.Get(rec.Tier).Name.ToUpperInvariant()} TIER · {WarmupPlan.Clock(rec.PlaySeconds)} PLAYED · {shift.ToUpperInvariant()}") +
             (Demo && !Core.CmdLine.Showcase ? (es ? " · DATOS DE DEMO" : " · DEMO DATA") : ""));
         title.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         head.AddChild(title);
@@ -171,7 +171,7 @@ public partial class WarmupSummary : ScreenBase
         float pw = rec.Readiness >= 0 ? Gfx.TextR(d, UiTheme.Display, $"{rec.Readiness:0}%", w, 34 * k, hs, col) + 16 * k : 0;
         float hx = WarmupCharts.VerdictMark(d, rec.Readiness, new Vector2(0, 34 * k - hs * 0.36f), k, col);
         Gfx.TextFit(d, UiTheme.Display, headText, hx, 34 * k, hs, col, w - pw - hx);
-        d.DrawMultilineString(UiTheme.Body, new Vector2(0, 54 * k + UiTheme.Body.GetAscent(ss)), sub, HorizontalAlignment.Left, w, ss, 2, UiTheme.Dim);
+        d.DrawMultilineString(UiTheme.Body, new Vector2(0, 54 * k + UiTheme.Body.GetAscent(ss)), Loc.T(sub), HorizontalAlignment.Left, w, ss, 2, UiTheme.Dim);
 
         float y = 116 * k;
         var lines = Levels().Concat(StartEnd().Select(s => (s.Text, s.Dir))).Take(3).ToList();

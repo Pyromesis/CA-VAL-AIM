@@ -139,7 +139,7 @@ public partial class DrillPreview : Control
         {
             K = k, Px = 12f, Gap = 18, MaxWidth = rightW,
             Options = Difficulty.Tiers.Select(t => Loc.T(t.Name).ToUpperInvariant()).ToArray(),
-            Tips = Difficulty.Tiers.Select(t => Loc.Spanish ? $"{Loc.T(t.Name)} · {t.Ranks}" : $"{t.Name} · {t.Ranks}").ToArray(),
+            Tips = Difficulty.Tiers.Select(t => Loc.Spanish ? $"{Loc.T(t.Name)} · {Loc.T(t.Ranks)}" : $"{t.Name} · {t.Ranks}").ToArray(),
             Selected = Main.I.Tier, Changed = SelectTier,
         });
         tierInfo = new DrawBox
@@ -149,7 +149,7 @@ public partial class DrillPreview : Control
             {
                 var t = Difficulty.Get(Main.I.Tier);
                 int fs = UiTheme.Fs(14, k);
-                Gfx.Text(d, UiTheme.Body, Loc.Spanish ? $"{Loc.T(t.Name)} · {t.Ranks}" : $"{t.Name} · {t.Ranks}", 2 * k, Gfx.Mid(d.Size.Y / 2, fs), fs, UiTheme.TierColor(t.Id));
+                Gfx.Text(d, UiTheme.Body, Loc.Spanish ? $"{Loc.T(t.Name)} · {Loc.T(t.Ranks)}" : $"{t.Name} · {t.Ranks}", 2 * k, Gfx.Mid(d.Size.Y / 2, fs), fs, UiTheme.TierColor(t.Id));
             },
         };
         right.AddChild(tierInfo);

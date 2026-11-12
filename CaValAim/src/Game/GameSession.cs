@@ -353,7 +353,7 @@ public partial class GameSession : Node3D, IGame
             ZoomSensMult = ZoomSensMultFor(Weapons.Get(chosenWeapon)),
         };
         // The coach during the run (Analysis/LiveCoach): never in a preview; every drill with a gun or a reaction test.
-        sensitivityChanged = false;
+        lastRecordedSens = Telemetry.Sens;
         Live = !Demo && (GuidedPractice || Main.I.Settings.LiveCoach)
             && Mode.Key is not ("sensfinder" or "xhairfinder") ? new Analysis.LiveCoach(Telemetry, Mode.Key, Mode.Movement) : null;
         replay = Demo ? null : StartReplay(extras); // before Begin: it spawns the first bots / targets
@@ -525,6 +525,7 @@ public partial class GameSession : Node3D, IGame
         SetWorldRunning(false);
         resumeTo = State;
         State = St.Paused;
+        Main.I.ApplyFps(); // a paused drill renders at the menu rate
         Input.MouseMode = Input.MouseModeEnum.Visible;
     }
 
@@ -545,6 +546,7 @@ public partial class GameSession : Node3D, IGame
     public void Resume()
     {
         State = resumeTo;
+        Main.I.ApplyFps(); // back to the in-game rate
         if (State == St.Running && Mode is ReactionGameMode game) game.ResumeTrial();
         ResetTransientInput(); // a stale click must never fire on resume
         SetWorldRunning(true);
@@ -708,7 +710,7 @@ public partial class GameSession : Node3D, IGame
         fireTap = false;
 
         RecordFrame();
-        Live?.Tick(Now, !sensitivityChanged);
+        Live?.Tick(Now);
         if (Main.I.Dev && Adaptive != null && Mode.SupportsAdaptive && (int)(Now / 10f) != (int)((Now - dt) / 10f))
             Log.Info($"[adapt] t={Now:0} {Adaptive}"); // dev: the staircase every 10 s
         // A keybind test owns its run (KeybindTest.cs): the drill's clock or kill target must not end it mid-check;
@@ -726,14 +728,14 @@ public partial class GameSession : Node3D, IGame
 
     float AngularRadius(Vector3 p, float r) => Mathf.RadToDeg(Mathf.Atan2(r, Mathf.Max(0.1f, View.Eye.DistanceTo(p))));
 
-    bool sensitivityChanged;
+    float lastRecordedSens;
 
     void RecordFrame()
     {
-        if (!sensitivityChanged && Mode.Key is not ("sensfinder" or "xhairfinder") && CurrentSens != Telemetry.Sens)
+        if (Mode.Key is not ("sensfinder" or "xhairfinder") && CurrentSens != lastRecordedSens)
         {
-            sensitivityChanged = true;
-            Telemetry.Events.Add(new TelemetryEvent(Now, "sens_changed", Telemetry.Sens, CurrentSens));
+            Telemetry.Events.Add(new TelemetryEvent(Now, "sens_changed", lastRecordedSens, CurrentSens));
+            lastRecordedSens = CurrentSens;
         }
         var f = new FrameSample { T = Now, Yaw = View.ViewYaw, Pitch = View.ViewPitch, Dx = frameDx, Dy = frameDy, Speed = Mover.Speed, MoveX = Mover.InputStrafe };
         frameDx = frameDy = 0;
@@ -952,6 +954,7 @@ public partial class GameSession : Node3D, IGame
     {
         if (Demo) { Restart(); return; } // the preview loops: no results, no stats, no telemetry
         State = St.Results;
+        Main.I.ApplyFps();
         ResetTransientInput();
         SetWorldRunning(false);
         Input.MouseMode = Input.MouseModeEnum.Visible;

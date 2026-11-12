@@ -62,7 +62,10 @@ internal static class SensLabText
 
     /// <summary>Only claims the signals that actually exist in this run (e.g. no "flicks are balanced" without flicks).</summary>
     public static string VerdictSentence(SensFeedback f) =>
-        f.Verdict == SensVerdict.Balanced
+        !f.HasFlickData && f.MicroShots > 0
+            ? (Es ? $"{f.MicroShots} primeros disparos medidos; {f.CenteredShare:P0} centrados. Falta un movimiento claro para evaluar el frenado."
+                : $"{f.MicroShots} initial shots measured; {f.CenteredShare:P0} centered. A clear movement is needed to assess braking.")
+            : f.Verdict == SensVerdict.Balanced
             ? BalancedSentence(f.HasFlickData, f.HasTrackData)
             : VerdictSentence(f.Verdict);
 
@@ -119,7 +122,10 @@ internal static class SensLabText
         Metrics(b.Flicks > 0 || b.OffTarget > 0, b.TrackSeconds > 0, b.OvershootShare, b.UndershootShare, b.Jitter);
 
     public static string Metrics(SensFeedback f) =>
-        Metrics(f.HasFlickData, f.HasTrackData, f.OvershootShare, f.UndershootShare, f.Jitter);
+        f.HasFlickData ? (Es ? $"{MathF.Round(f.OffTarget * f.OvershootShare):0}/{f.Flicks} sobrepasos · {MathF.Round(f.OffTarget * f.UndershootShare):0}/{f.Flicks} cortos"
+            : $"{MathF.Round(f.OffTarget * f.OvershootShare):0}/{f.Flicks} overshoots · {MathF.Round(f.OffTarget * f.UndershootShare):0}/{f.Flicks} short")
+            + (f.HasTrackData ? $" · {(Es ? "seguimiento" : "tracking")} {f.TrackSeconds:0} s" : "")
+            : Metrics(false, f.HasTrackData, 0, 0, f.Jitter);
 
     /// <summary>Only prints the factors measured in this run. A missing tracking sample must not look like zero tremor.</summary>
     static string Metrics(bool hasFlick, bool hasTrack, float over, float under, float jitter)
@@ -142,10 +148,15 @@ internal static class SensLabText
 
     public static string Recommendation(SkillProfile p)
     {
+        if (p.SensLab?.Comparison is { } comparison) return comparison.Describe(Es);
         var a = p.Sens;
         if (a == null || a.RecommendedSens <= 0) return Es
             ? "Aún no hay una recomendación: sigue jugando flicks y tracking."
             : "No recommendation yet: keep playing flicks and tracking.";
+        if (a.Direction == "keep" && p.SensLab?.Current is { HasData: true } observed)
+            return VerdictSentence(observed) + (Es
+                ? $" Mantén {a.CurrentSens:0.000} mientras confirmas el patrón: {observed.Flicks} movimientos y {observed.TrackSeconds:0} s de seguimiento medidos. Una observación no demuestra que la sensibilidad sea la causa; compara bloques A/B equivalentes."
+                : $" Keep {a.CurrentSens:0.000} while confirming the pattern: {observed.Flicks} movements and {observed.TrackSeconds:0} s of tracking measured. An observation does not establish sensitivity as the cause; compare matched A/B blocks.");
         if (a.Direction == "keep")
             return Es
                 ? $"Mantén {a.CurrentSens:0.000}. El algoritmo no ve una dirección clara con {Confidence(a.Confidence)} confianza."
@@ -254,6 +265,14 @@ public partial class SensLabScreen : ScreenBase
             string compareLabel = Loc.Spanish ? $"COMPARAR CON {candidate:0.0000}" : $"COMPARE WITH {candidate:0.0000}";
             compare.AddChild(Btn(compareLabel, VButton.Look.Secondary, () => PracticeScreen.Compare(candidate), 200, 40, 14));
         }
+        var custom = new SpinBox { MinValue = .0001, MaxValue = Math.Max(10, sens * 2), Step = .0001,
+            Value = sens, CustomMinimumSize = new Vector2(115 * k, 40 * k) };
+        compare.AddChild(custom);
+        var tryCustom = Btn(Loc.Spanish ? "PROBAR ESTE VALOR" : "TEST THIS VALUE", VButton.Look.Secondary,
+            () => PracticeScreen.Compare((float)custom.Value), 185, 40, 14);
+        tryCustom.Disabled = SensLab.SameSens((float)custom.Value, sens);
+        custom.ValueChanged += value => tryCustom.Disabled = SensLab.SameSens((float)value, sens);
+        compare.AddChild(tryCustom);
         if (lab == null || !lab.HasData)
         {
             col.AddChild(EmptyState(profile));

@@ -86,6 +86,8 @@ public sealed record AimVariant(string Id, AimFamily Family, string Name, string
         // Named community scenarios have their own difficulty (Easy/Small/Hard).
         // A global rank must not silently alter their size, timing and speed.
         if (Id.StartsWith("sc-", StringComparison.Ordinal)) return this;
+        // A coach-built drill is already sized to the player's own measurements.
+        if (CaValAim.Analysis.CoachForge.IsForged(Id)) return this;
         tier = Math.Clamp(tier, 0, 4);
         float radiusMul = new[] { 1.42f, 1.18f, 1f, 0.84f, 0.70f }[tier];
         float distMul = new[] { 0.82f, 0.91f, 1f, 1.07f, 1.14f }[tier];
@@ -235,6 +237,15 @@ public static class AimVariants
         X("double", "Double Reflex", "Two heads pop together: hit both before they vanish.") with { Count = 2, Yaw = 18, MinAngle = 4, Window = 1.1f },
         X("close", "Close Reflex", "Big heads at 4–6 m, wide angles: a close-range surprise.") with { Radius = 0.2f, DistMin = 4, DistMax = 6, Yaw = 35, MinAngle = 10, Window = 0.7f },
         X("mixed", "Mixed Reflex", "Every pop-up has a new distance, size and window.") with { Radius = 0.14f, DistMin = 6, DistMax = 35, Yaw = 25, MinAngle = 3, Window = 0.75f },
+        F("coach-brake-near", "Coach: controlled braking", "Single stationary targets. Land, correct once if needed, and click. Keep the same sensitivity for the whole block.")
+            with { NameEs = "Coach: frenado controlado", DescriptionEs = "Blancos inmóviles de uno en uno. Aterriza, corrige una vez si hace falta y pulsa. Mantén la sensibilidad durante todo el bloque.",
+                CategoryOverride = "Sensitivity", Count = 1, TapOnly = true, Yaw = 16, MinAngle = 5, DistMin = 14, DistMax = 14.5f, Radius = .14f },
+        F("coach-brake-wide", "Coach: wide-angle braking", "Separate wide-angle control from micro precision. Stop on the target before clicking; compare speed and long/short errors.")
+            with { NameEs = "Coach: frenado en ángulos amplios", DescriptionEs = "Separa el control de ángulos amplios de la micropuntería. Frena sobre el objetivo antes del clic; compara velocidad y errores largos y cortos.",
+                CategoryOverride = "Sensitivity", Count = 1, TapOnly = true, Yaw = 55, MinAngle = 25, DistMin = 14, DistMax = 14.5f, Radius = .14f },
+        M("coach-micro-confirm", "Coach: deliberate micro correction", "Tiny stationary offsets. Make one precise correction and confirm before firing. Prioritize clean first shots, then repeat faster.")
+            with { NameEs = "Coach: microcorrección deliberada", DescriptionEs = "Desplazamientos pequeños e inmóviles. Haz una corrección precisa y confirma antes del disparo. Prioriza primeros tiros limpios y después repite más rápido.",
+                CategoryOverride = "Sensitivity", TapOnly = true, OffMin = .45f, OffMax = 1.7f, Radius = .10f },
         F("settle-confirm", "Brake and confirm", "Hold fire and keep your aim steady on each target for 120 ms before switching.")
             with { Walls = 1, Count = 3, ContactSeconds = 0.12f, Radius = 0.14f, Yaw = 28f },
         F("moving-confirm", "Acquire and follow", "Acquire a moving target, follow it for 160 ms and switch after the kill.")
@@ -247,7 +258,7 @@ public static class AimVariants
 
     /// <summary>Everything playable through "flickx:" / "trackv:" / "microx:" / "reflex:": the core set first, then the
     /// scenario reproductions used by the routines.</summary>
-    public static readonly AimVariant[] All = Base.Concat(ScenarioDrills.All).Concat(TrainingCatalog.All).ToArray();
+    public static readonly AimVariant[] All = Base.Concat(ScenarioDrills.All).Concat(TrainingCatalog.All).Concat(TechniqueDrills.All).ToArray();
 
     public static AimVariant? Find(string keyBase, string id) =>
         All.FirstOrDefault(v => v.KeyBase.Equals(keyBase, StringComparison.OrdinalIgnoreCase) && v.Id.Equals(id, StringComparison.OrdinalIgnoreCase));

@@ -88,6 +88,8 @@ public sealed class ReactionLabMode : TrainingMode
 
     /// <summary>The flick target's offset from the crosshair right now (degrees, +x right, +y down).</summary>
     Vector2 FlickError() => new(stimPos.X - Mathf.Wrap(G.View.ViewYaw - yaw0, -180f, 180f), -stimPos.Y - (G.View.ViewPitch - pitch0));
+    public override (Vector2 Point, float Radius)? AimGuide2D(Vector2 size) => cat == ReactionCategory.Flick && st == St.Stim
+        ? (size / 2 + FlickOffset() * size.Y / 70f, targetRadiusDeg * size.Y / 70f) : null;
     Vector2 FlickOffset() => PlayerView.ScreenOffset(FlickError(), 1);
 
     public override void Update(float dt)

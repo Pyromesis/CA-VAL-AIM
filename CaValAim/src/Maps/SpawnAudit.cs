@@ -17,6 +17,10 @@ namespace CaValAim.Maps;
 /// </summary>
 public static class SpawnAudit
 {
+    // Rebuild exclusions from every candidate after collision changes, without moving the existing files aside.
+    internal static bool Unfiltered => Core.CmdLine.Dev && Core.CmdLine.Has("--spawn-dump") &&
+        Core.CmdLine.Has("--spawn-unfiltered");
+
     static string F(float v) => float.IsFinite(v) ? v.ToString("0.###", CultureInfo.InvariantCulture) : "null";
     static string V(Vector3 v) => $"[{F(v.X)},{F(v.Y)},{F(v.Z)}]";
 

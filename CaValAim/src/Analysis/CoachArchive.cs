@@ -29,7 +29,7 @@ public sealed class CoachRunInfo
 /// </summary>
 public sealed class CoachArchive
 {
-    public const int CurrentSchema = 1;
+    public const int CurrentSchema = 2;
 
     public int Schema = CurrentSchema;
     public string App = "CA-VAL-AIM";

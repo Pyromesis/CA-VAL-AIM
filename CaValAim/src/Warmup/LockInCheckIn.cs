@@ -170,8 +170,8 @@ public partial class LockInCheckIn : ScreenBase
         var head = HBox(16 * k);
         bool es = Loc.Spanish;
         string who = run.Plan.Preset.Key.StartsWith(Agents.AgentRoutines.Prefix)
-            ? $"{(es ? "CALENTAMIENTO CON" : "LOCK IN AS")} {run.Plan.Preset.Name.ToUpperInvariant()}"
-            : run.Plan.Preset.Name.ToUpperInvariant();
+            ? $"{(es ? "CALENTAMIENTO CON" : "LOCK IN AS")} {WarmupPresets.NameOf(run.Plan.Preset).ToUpperInvariant()}"
+            : WarmupPresets.NameOf(run.Plan.Preset).ToUpperInvariant();
         var title = Heading("CHECK-IN", es
             ? $"{who} · 30 SEGUNDOS · CÓMO TE SIENTES AHORA MISMO · AQUÍ NADA PUNTÚA"
             : $"{who} · 30 SECONDS · HOW YOU FEEL RIGHT NOW · NOTHING HERE IS SCORED");
@@ -319,7 +319,7 @@ public partial class LockInCheckIn : ScreenBase
         float k = K;
         var e = new LineEdit
         {
-            PlaceholderText = placeholder, MaxLength = max, Text = text, CustomMinimumSize = new Vector2(0, 46 * k),
+            PlaceholderText = Loc.T(placeholder), MaxLength = max, Text = text, CustomMinimumSize = new Vector2(0, 46 * k),
             SizeFlagsHorizontal = SizeFlags.ExpandFill, ContextMenuEnabled = false,
         };
         LockInText.StyleField(e, k);
@@ -335,6 +335,7 @@ public partial class LockInCheckIn : ScreenBase
         int fs = UiTheme.Fs(19, k), ss = UiTheme.Fs(16, k);
         void Line(string text, Color col, int size, Color mark)
         {
+            text = Loc.T(text);
             d.DrawRect(new Rect2(0, y - 15 * k, 3 * k, 28 * k), mark);
             d.DrawMultilineString(UiTheme.Body, new Vector2(16 * k, y + 2 * k), text, HorizontalAlignment.Left, w - 16 * k, size, 2, col);
             y += (Gfx.TextW(UiTheme.Body, text, size) > w - 16 * k ? 2 : 1) * size * 1.3f + 16 * k;

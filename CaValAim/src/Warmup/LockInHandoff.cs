@@ -69,11 +69,11 @@ public partial class LockInHandoff : ScreenBase
         var preset = WarmupPresets.Get(rec.Preset);
         bool es = Loc.Spanish;
         string who = rec.Preset.StartsWith(Agents.AgentRoutines.Prefix)
-            ? $"{(es ? "COMO" : "AS")} {preset.Name.ToUpperInvariant()}"
-            : preset.Name.ToUpperInvariant();
+            ? $"{(es ? "COMO" : "AS")} {WarmupPresets.NameOf(preset).ToUpperInvariant()}"
+            : WarmupPresets.NameOf(preset).ToUpperInvariant();
         string demoTag = Demo && !CmdLine.Showcase ? (es ? " · DATOS DEMO" : " · DEMO DATA") : "";
         var title = Heading("YOU'RE LOCKED IN", es
-            ? $"{who} · NIVEL {Difficulty.Get(rec.Tier).Name.ToUpperInvariant()} · {Clock(rec)} EN TOTAL · {rec.Steps.Count(s => !s.Skipped)} EJERCICIOS{demoTag}"
+            ? $"{who} · NIVEL {Loc.T(Difficulty.Get(rec.Tier).Name).ToUpperInvariant()} · {Clock(rec)} EN TOTAL · {rec.Steps.Count(s => !s.Skipped)} EJERCICIOS{demoTag}"
             : $"{who} · {Difficulty.Get(rec.Tier).Name.ToUpperInvariant()} TIER · {Clock(rec)} IN TOTAL · {rec.Steps.Count(s => !s.Skipped)} DRILLS{demoTag}");
         title.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         head.AddChild(title);
@@ -123,8 +123,8 @@ public partial class LockInHandoff : ScreenBase
     {
         float k = K, w = d.Size.X, h = d.Size.Y;
         int ls = UiTheme.Fs(15, k);
-        string goal = rec.Goal.Length > 0 ? rec.Goal : "Play your game";
-        string cue = rec.Cue.Length > 0 ? rec.Cue : "Calm";
+        string goal = rec.Goal.Length > 0 ? LockInText.DisplayGoal(rec.Goal) : "Play your game";
+        string cue = rec.Cue.Length > 0 ? LockInText.DisplayCue(rec.Cue) : "Calm";
 
         // goal and cue, centred in the space above the buy-phase card
         int gs = UiTheme.Fs(54, k), cs = UiTheme.Fs(140, k);
@@ -158,7 +158,7 @@ public partial class LockInHandoff : ScreenBase
         float k = K, w = d.Size.X, y = 22 * k;
         int fs = UiTheme.Fs(20, k);
         foreach (var line in Loc.Spanish
-            ? new[] { "Entra a cola ya.", "Dispara a los bots en el Campo de tiro mientras esperas.", "Haz 3–5 flicks deliberados en la primera fase de compra." }
+            ? new[] { "Busca partida al terminar.", "Dispara a los bots en el Campo de tiro mientras esperas.", "Haz 3–5 cambios de objetivo precisos en la primera compra." }
             : new[] { "Queue now.", "Shoot bots in the Range while you wait.", "Take 3–5 deliberate flicks in the first buy phase." })
         {
             Gfx.Diamond(d, new Vector2(6 * k, y - 7 * k), 4.5f * k, 4.5f * k, UiTheme.Accent);
@@ -202,7 +202,7 @@ public partial class LockInHandoff : ScreenBase
         int hs = UiTheme.Fs(32, k), ss = UiTheme.Fs(15, k), ls = UiTheme.Fs(16, k), cs = UiTheme.Fs(12, k);
         float hx = WarmupCharts.VerdictMark(d, rec.Readiness, new Vector2(0, 30 * k - hs * 0.36f), k, col); // a shape, not just the colour
         Gfx.TextFit(d, UiTheme.Display, headText, hx, 30 * k, hs, col, w - hx);
-        d.DrawMultilineString(UiTheme.Body, new Vector2(0, 48 * k + UiTheme.Body.GetAscent(ss)), sub, HorizontalAlignment.Left, w, ss, 2, UiTheme.Dim);
+        d.DrawMultilineString(UiTheme.Body, new Vector2(0, 48 * k + UiTheme.Body.GetAscent(ss)), Loc.T(sub), HorizontalAlignment.Left, w, ss, 2, UiTheme.Dim);
 
         float y = 116 * k;
         var good = WentWell().Take(3).ToList();

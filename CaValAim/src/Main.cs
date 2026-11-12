@@ -403,6 +403,9 @@ public partial class Main : Node
     public void ShowProfile() => SetScreen(new ProfileScreen());
     public void ShowPractice() => SetScreen(new PracticeScreen());
     public void ShowSensLab() => SetScreen(new SensLabScreen());
+    /// <summary>The technique library (menu ACADEMY); <paramref name="technique"/> opens that lesson.</summary>
+    public void ShowAcademy() => SetScreen(new AcademyScreen());
+    public void ShowAcademy(string? technique, Action? back = null) => SetScreen(new AcademyScreen(technique, back));
     /// <summary>The Lock-In setup screen (menu LOCK IN).</summary>
     public void ShowLockIn() => SetScreen(new Warmup.WarmupScreen());
     /// <summary>Shows any screen node (Lock-In check-in and step cards, sessions prepared with routine hooks, the hand-off).</summary>
@@ -420,6 +423,10 @@ public partial class Main : Node
 
     // ---------------- display ----------------
 
+    /// <summary>Frame cap while the window is not focused.</summary>
+    const int BackgroundFps = 12;
+    bool appFocused = true;
+
     public void ApplyFps()
     {
         if (Dev) { Engine.MaxFps = 0; DisplayServer.WindowSetVsyncMode(DisplayServer.VSyncMode.Disabled); return; } // benchmarkable
@@ -427,8 +434,13 @@ public partial class Main : Node
         // Valorant's "unlimited" (FrameRateLimit=0) means "as fast as the monitor": following the refresh
         // rate instead of an uncapped loop is what stops the app from pinning CPU/GPU on menus.
         if (cap <= 0) cap = ScreenRefresh();
-        // The menu has no gameplay to smooth: 60 is plenty and leaves the GPU idle between drills.
-        if (!inGame) cap = Math.Min(cap, 60);
+        // The menu has no gameplay to smooth: 60 is plenty and leaves the GPU idle between drills. The same goes for a
+        // paused drill and its results screen, which used to keep rendering at the full in-game rate.
+        bool idleGame = screen is GameSession { State: GameSession.St.Paused or GameSession.St.Results };
+        if (!inGame || idleGame) cap = Math.Min(cap, 60);
+        // In the background (alt-tabbed to VALORANT, minimised) nobody is looking: a few frames per second keep the
+        // window alive and give the CPU and GPU back to the game.
+        if (!appFocused) cap = Math.Min(cap, BackgroundFps);
         Engine.MaxFps = Math.Max(1, cap);
         DisplayServer.WindowSetVsyncMode(VSync ? DisplayServer.VSyncMode.Enabled : DisplayServer.VSyncMode.Disabled);
     }
@@ -525,5 +537,11 @@ public partial class Main : Node
     public override void _Notification(int what)
     {
         if (what == NotificationWMCloseRequest && !singleInstanceExit) Settings.Save();
+        if ((what == NotificationApplicationFocusOut || what == NotificationApplicationFocusIn) && !singleInstanceExit)
+        {
+            appFocused = what == NotificationApplicationFocusIn;
+            // Deferred: a running drill pauses itself on the same notification, and the cap depends on its state.
+            Callable.From(ApplyFps).CallDeferred();
+        }
     }
 }

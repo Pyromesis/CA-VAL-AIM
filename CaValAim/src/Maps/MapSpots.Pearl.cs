@@ -24,8 +24,8 @@ public static partial class MapSpots
         {
             E("Site", 0.00f, 0.00f, 1.00f),
             E("Dugout", 0.00f, 0.00f, -6.50f),
-            E("A Link", -18.50f, -1.10f, 1.00f, Stance.Crouch),
-            E("Default", -7.00f, -0.25f, 7.50f),
+            E("A Link", -18.25f, 0.00f, -4.25f, Stance.Crouch),
+            E("Default", -9.75f, 1.60f, 6.75f),
             E("Back Site", -9.00f, 0.25f, 3.00f),
             E("Site Corner", -5.00f, 0.00f, 1.50f),
             E("Site Box", -4.00f, 0.00f, -8.50f),

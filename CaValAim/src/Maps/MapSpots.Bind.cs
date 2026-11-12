@@ -17,7 +17,8 @@ public static partial class MapSpots
     {
         Key = "bind", Map = "Bind", Name = "Hookah -> B Site",
         Drill = "Climb Hookah, swing the window and drop in: clear Under Window, Default, Elevator, Back Site, Hall, Elbow and Garden",
-        StartFeet = V(-6.08f, 0.6f, 30.81f), StartYaw = 11, Choke = V(-5.25f, 2.5f, 17.0f),
+        // Hookah's visible upper floor; the old start resolved onto hidden ground underneath it.
+        StartFeet = V(-7.25f, 2.5f, 32.25f), StartYaw = 7.5f, Choke = V(-5.25f, 2.5f, 17.0f),
         RealMapFolder = "maps/bind",
         // The Hookah window: the art opens it from y=3.05 (a 0.55 m sill over the 2.5 m floor), but the extracted
         // collision included the sill as a slab up to y=3.5 and a 0.5 m lip outside it, so a standing jump hit an
@@ -32,8 +33,8 @@ public static partial class MapSpots
             E("Default", 5.0f, 0.60f, 0.0f),
             E("Elevator", 4.5f, 1.40f, 3.0f),
             E("Back Site", -2.0f, 0.60f, -5.0f),
-            E("Hall Door", 0.3f, -1.60f, -9.5f),
-            E("Hall", 0.3f, -1.60f, -12.5f),
+            E("Hall Door", 0.25f, 0.40f, -9.25f),
+            E("Hall", 0.25f, 0.40f, -11.25f),
             E("Elbow", 21.8f, 0.60f, 7.0f),
             E("Back Elbow", 18.0f, 0.60f, 12.0f),
             E("Garden", 6.8f, 0.60f, 27.6f),
@@ -54,6 +55,6 @@ public static partial class MapSpots
             new SmokeSpot("Garden", V(7.0f, 0.60f, 27.0f)),
         },
         PlantSpots = new[] { V(5.0f, 0.60f, 0.0f), V(2.0f, 0.05f, -3.0f), V(-2.0f, 0.60f, -5.0f) },
-        RetakeEntries = new[] { V(-36.2f, -1.65f, -31.9f), V(0.3f, -1.60f, -12.0f), V(6.8f, 0.60f, 27.6f) },
+        RetakeEntries = new[] { V(-36.2f, -1.65f, -31.9f), V(0.75f, 0.40f, -11.25f), V(6.8f, 0.60f, 27.6f) },
     }.Mirrored();
 }

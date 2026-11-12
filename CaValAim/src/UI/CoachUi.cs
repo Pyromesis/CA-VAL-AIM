@@ -11,10 +11,12 @@ namespace CaValAim.UI;
 /// Rank names for the coach's continuous tier (spec B): Iron &lt; 0 ≤ Bronze &lt; 0.5 ≤ Silver &lt; 1 ≤ Gold &lt; 1.5 ≤
 /// Platinum &lt; 2 ≤ Diamond &lt; 2.5 ≤ Ascendant &lt; 3 ≤ Immortal &lt; 3.5 ≤ Radiant. Each rank band (0.5 wide) is split
 /// into three divisions. Tiers below -0.5 (the engine's -1) mean "not rated".
+/// <para>The band maths lives in <see cref="RankModel"/> (the population model) and <see cref="RankEstimate"/> (how
+/// wide the plausible range is); this class only turns a tier into something to draw.</para>
 /// </summary>
 public static class CoachRank
 {
-    public static readonly string[] Names = { "Iron", "Bronze", "Silver", "Gold", "Platinum", "Diamond", "Ascendant", "Immortal", "Radiant" };
+    public static readonly string[] Names = RankModel.Names;
     public static readonly string[] Short = { "IRON", "BRONZE", "SILVER", "GOLD", "PLAT", "DIAMOND", "ASCENDANT", "IMMORTAL", "RADIANT" };
     /// <summary>Ladder labels for narrow ladders (small windows), where the short names would run together.</summary>
     public static readonly string[] Tiny = { "IRON", "BRNZ", "SILV", "GOLD", "PLAT", "DIA", "ASC", "IMM", "RAD" };
@@ -33,25 +35,21 @@ public static class CoachRank
         Color.Color8(255, 232, 150), // Radiant
     };
 
-    /// <summary>Axis of the rank ladder: Iron starts at -0.5, Radiant drawn as one more 0.5 band.</summary>
-    public const float Min = -0.5f, Max = 4.0f;
+    /// <summary>Axis of the rank ladder: Iron starts at -0.5 and the nine bands end at Radiant's 4.0, so the drawn
+    /// segments line up with the tier boundaries <see cref="RankModel.Band"/> uses.</summary>
+    public const float Min = RankModel.Min, Max = RankModel.LadderMax;
 
-    public static bool Rated(float tier) => !float.IsNaN(tier) && tier >= -0.5f - 1e-3f;
+    public static bool Rated(float tier) => !float.IsNaN(tier) && tier >= Min - 1e-3f;
     public static bool Rated(SkillRating? r) => r != null && Rated(r.Tier) && r.Confidence > 0;
 
-    public static int Index(float t) => t < 0 ? 0 : t >= 3.5f ? 8 : Math.Clamp(1 + (int)(t / 0.5f), 1, 7);
+    public static int Index(float t) => RankModel.Band(t);
 
-    public static int Division(float t)
-    {
-        int i = Index(t);
-        if (i == 8) return 0;
-        float lo = i == 0 ? -0.5f : (i - 1) * 0.5f;
-        return Math.Clamp(1 + (int)((t - lo) / (0.5f / 3f)), 1, 3);
-    }
+    public static int Division(float t) => RankModel.Division(t);
 
     public static string Name(float t)
     {
         int i = Index(t);
+        if (i < 0) return "NOT RATED";
         return i == 8 ? "RADIANT" : $"{Names[i].ToUpperInvariant()} {Division(t)}";
     }
 
@@ -63,11 +61,25 @@ public static class CoachRank
     /// </summary>
     public static float Spread(float conf) => 0.15f + 0.30f * (1f - Mathf.Clamp(conf, 0, 1));
 
-    /// <summary>"GOLD 2 – PLATINUM 1" (or one name when the band is narrow).</summary>
-    public static (string Lo, string? Hi) Range(float t, float conf)
+    /// <summary>
+    /// The plausible band around an estimate, in rank names. With a real estimate the band comes from the evidence
+    /// (how wide it is depends on the sample size, on how much of the profile is covered and on how much the skills
+    /// disagree); without one it falls back to the confidence-based spread.
+    /// </summary>
+    public static (string Lo, string? Hi) Range(float t, float conf) => Range(t, t, Spread(conf));
+
+    /// <summary>The plausible band around an estimate whose limits are already known.</summary>
+    public static (string Lo, string? Hi) Range(float low, float high, float spread)
     {
-        float u = Spread(conf);
-        string lo = Name(Mathf.Max(t - u, -0.5f)), hi = Name(Mathf.Min(t + u, 4.5f));
+        float u = spread;
+        string lo = Name(Mathf.Max(low - u, Min)), hi = Name(Mathf.Min(high + u, Max));
+        return lo == hi ? (lo, null) : (lo, hi);
+    }
+
+    /// <summary>The band of a full estimate (its own limits, no extra spread added).</summary>
+    public static (string Lo, string? Hi) Band(float low, float high)
+    {
+        string lo = Name(Mathf.Max(low, Min)), hi = Name(Mathf.Min(high, Max));
         return lo == hi ? (lo, null) : (lo, hi);
     }
 
@@ -77,7 +89,14 @@ public static class CoachRank
         return hi == null ? lo : $"{lo} – {hi}";
     }
 
-    public static Color Col(float t) => Rated(t) ? Colors[Index(t)] : UiTheme.NoTier;
+    /// <summary>The band of a full estimate as text.</summary>
+    public static string BandText(float low, float high)
+    {
+        var (lo, hi) = Band(low, high);
+        return hi == null ? lo : $"{lo} – {hi}";
+    }
+
+    public static Color Col(float t) => Rated(t) ? Colors[Math.Clamp(Index(t), 0, Colors.Length - 1)] : UiTheme.NoTier;
     public static Color Col(string name)
     {
         for (int i = 0; i < Names.Length; i++) if (name.StartsWith(Names[i], StringComparison.OrdinalIgnoreCase)) return Colors[i];
@@ -90,9 +109,8 @@ public static class CoachRank
     {
         if (!Rated(t)) return Loc.Spanish ? "SIN VALORAR" : "NOT RATED";
         if (!Loc.Spanish) return Name(t);
-        string[] es = { "HIERRO", "BRONCE", "PLATA", "ORO", "PLATINO", "DIAMANTE", "ASCENDENTE", "INMORTAL", "RADIANTE" };
         int i = Index(t);
-        return i == 8 ? es[8] : $"{es[i]} {Division(t)}";
+        return i == 8 ? RankModel.NamesEs[8].ToUpperInvariant() : $"{RankModel.NamesEs[i].ToUpperInvariant()} {Division(t)}";
     }
 
     /// <summary>The trainer's own emblem for the matching tier band (Rookie = Iron–Bronze … Pro = Radiant).</summary>
@@ -380,8 +398,11 @@ public static class CoachDraw
     /// <summary>
     /// Iron → Radiant ladder with the tier marker, its uncertainty band and (optionally) labels under each rank.
     /// <paramref name="tier"/> &lt; -0.5 draws the empty ladder.
+    /// <paramref name="band"/> is the estimate's own plausible range (bottom, top): when given, the drawn band is the
+    /// real one instead of a fixed spread around the estimate.
     /// </summary>
-    public static void Ladder(CanvasItem ci, Rect2 r, float k, float tier, float conf, bool labels, float? reference = null)
+    public static void Ladder(CanvasItem ci, Rect2 r, float k, float tier, float conf, bool labels, float? reference = null,
+        (float Low, float High)? band = null)
     {
         int n = CoachRank.Names.Length;
         float gap = 2 * k, segW = (r.Size.X - gap * (n - 1)) / n;
@@ -413,8 +434,17 @@ public static class CoachDraw
             ci.DrawRect(new Rect2(rx - 1 * k, r.Position.Y - 5 * k, 2 * k, r.Size.Y + 10 * k), new Color(UiTheme.Text, 0.45f));
         }
         if (!rated) return;
-        float u = CoachRank.Spread(conf);
-        float x0 = X(tier - u), x1 = X(tier + u), x = X(tier);
+        float x0, x1;
+        if (band is { } b)
+        {
+            x0 = X(b.Low); x1 = X(b.High);
+        }
+        else
+        {
+            float u = CoachRank.Spread(conf);
+            x0 = X(tier - u); x1 = X(tier + u);
+        }
+        float x = X(tier);
         ci.DrawRect(new Rect2(x0, r.Position.Y - 3 * k, Mathf.Max(2, x1 - x0), r.Size.Y + 6 * k), new Color(1, 1, 1, 0.13f));
         ci.DrawRect(new Rect2(x0, r.Position.Y - 3 * k, Mathf.Max(2, x1 - x0), r.Size.Y + 6 * k), new Color(1, 1, 1, 0.35f), false, 1f);
         ci.DrawRect(new Rect2(x - 1.5f * k, r.Position.Y - 7 * k, 3 * k, r.Size.Y + 14 * k), UiTheme.Text);

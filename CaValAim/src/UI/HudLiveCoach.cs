@@ -11,6 +11,20 @@ public partial class Hud
     /// an ease-out, holds, and fades. Accent bar red for a problem, green for a good streak; headline, the fix, and the
     /// evidence in small caps. It never covers the crosshair.
     /// </summary>
+    void DrawMeasuredCoach(Vector2 size, float k, LiveTip tip)
+    {
+        float w = Math.Min(580 * k, size.X - 48 * k), x = 24 * k, y = size.Y - 205 * k;
+        DrawRect(new Rect2(x, y, w, 68 * k), new Color(.025f, .035f, .045f, .78f));
+        var col = tip.Positive ? UiTheme.Good : UiTheme.Accent;
+        DrawRect(new Rect2(x, y, 3 * k, 68 * k), col);
+        Gfx.TextFit(this, UiTheme.Display, "COACH · " + tip.Headline, x + 12 * k, y + 20 * k,
+            UiTheme.Fs(15, k), col, w - 24 * k);
+        Gfx.TextFit(this, UiTheme.Body, tip.Evidence, x + 12 * k, y + 39 * k,
+            UiTheme.Fs(13, k), UiTheme.TextSoft, w - 24 * k);
+        Gfx.TextFit(this, UiTheme.Body, tip.Action, x + 12 * k, y + 58 * k,
+            UiTheme.Fs(13, k), UiTheme.Text, w - 24 * k);
+    }
+
     void DrawLiveTip(Vector2 size, float k, LiveTip tip)
     {
         float age = s.Now - tip.At;

@@ -63,7 +63,7 @@ public partial class WarmupScreen : ScreenBase
         var head = HBox(16 * k);
         var tier = Difficulty.Get(Main.I.Tier);
         var title = Heading("LOCK IN", Loc.Spanish
-            ? $"UNA RUTINA CORTA ANTES DE RANKED · NIVEL {Loc.T(tier.Name).ToUpperInvariant()} · TODO A TU SENSIBILIDAD REAL · TERMINA CON TU OBJETIVO Y TU CONSIGNA"
+            ? $"UNA RUTINA CORTA ANTES DE COMPETITIVA · NIVEL {Loc.T(tier.Name).ToUpperInvariant()} · TODO A TU SENSIBILIDAD REAL · TERMINA CON TU OBJETIVO Y TU CONSIGNA"
             : $"A SHORT ROUTINE BEFORE RANKED · {tier.Name.ToUpperInvariant()} TIER · EVERYTHING AT YOUR REAL SENS · ENDS WITH YOUR GOAL AND CUE");
         title.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         head.AddChild(title);
@@ -179,7 +179,7 @@ public partial class WarmupScreen : ScreenBase
         left.AddChild(new Control { SizeFlagsVertical = SizeFlags.ExpandFill }); // the start button stays at the bottom
         left.AddChild(Spacer(0, 4 * k));
         var startRow = HBox(16 * k);
-        var start = Btn("START LOCK-IN", VButton.Look.Primary, StartRoutine, 340, 62, 26);
+        var start = Btn(Loc.Spanish ? "EMPEZAR" : "START LOCK-IN", VButton.Look.Primary, StartRoutine, 340, 62, 26);
         startRow.AddChild(start);
         var note = Lbl(Loc.Spanish
             ? "Espacio empieza · primero un chequeo de 30 segundos · Esc pausa el ejercicio"
@@ -247,7 +247,7 @@ public partial class WarmupScreen : ScreenBase
         string lastPreset = WarmupPresets.NameOf(WarmupPresets.Get(lastW.Preset));
         string lastText = (Loc.Spanish ? $"{lastW.When:dd/MM, HH:mm}" : $"{lastW.When:MMM d, HH:mm}") + $" · {lastPreset}" +
                           (lastW.Readiness >= 0 ? (Loc.Spanish ? $" · {lastW.Readiness:0}% de lo habitual" : $" · {lastW.Readiness:0}% of usual") : "") +
-                          (lastW.Cue.Length > 0 ? (Loc.Spanish ? $" · consigna \"{lastW.Cue}\"" : $" · cue \"{lastW.Cue}\"") : "");
+                          (lastW.Cue.Length > 0 ? (Loc.Spanish ? $" · consigna \"{LockInText.DisplayCue(lastW.Cue)}\"" : $" · cue \"{LockInText.DisplayCue(lastW.Cue)}\"") : "");
         Gfx.TextFit(d, UiTheme.Body, lastText, 54 * k, Gfx.Mid(14 * k, fs), fs, UiTheme.Text, d.Size.X - 54 * k);
         if (list.Count >= 2)
         {

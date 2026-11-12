@@ -32,6 +32,10 @@ public sealed class SkillProfile
 {
     public float OverallTier = -1;
     public float OverallConfidence;
+    /// <summary>The estimate with its plausible band: bottom, top and how much the skills disagree.</summary>
+    public RankEstimate.Result? Estimate;
+    /// <summary>Population percentile of the estimate (the share of ranked players it beats).</summary>
+    public float OverallPercentile = float.NaN;
     public List<SkillRating> Skills = new();
     public List<Diagnosis> Problems = new();
     public List<string> Strengths = new();
@@ -46,6 +50,9 @@ public sealed class SkillProfile
     /// <summary>What the trend compares: "week" (the last 7 days vs before) or "runs" (newer half vs older half).</summary>
     public string TrendSpan = "";
     public int RunsAnalyzed;
+    /// <summary>The aggregated measurements behind the ratings; the coach builds its drills from them (<see cref="CoachForge"/>).</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public Dictionary<string, float> Metrics = new();
     public DateTime Updated = DateTime.Now;
 }
 
@@ -56,6 +63,7 @@ public sealed class RunReview
     public string[] PrescribedDrills = Array.Empty<string>();
     public string Summary = "";
     public List<Diagnosis> Issues = new();
+    public List<Diagnosis> Findings = new();
     public List<string> Strengths = new();
     public Dictionary<string, float> Metrics = new();
     /// <summary>Aim Lab-style overshoot / undershoot / tremor evidence from this run.</summary>
@@ -77,7 +85,21 @@ public sealed class RunReview
 public static class Coach
 {
     /// <summary>Per-run metrics (stored in the run's stats record and aggregated into the profile).</summary>
-    public static Dictionary<string, float> Summarize(RunTelemetry t) => RunAnalysis.Run(t);
+    public static Dictionary<string, float> Summarize(RunTelemetry t)
+    {
+        var m = RunAnalysis.Run(t);
+        var change = t.Events.LastOrDefault(e => e.Kind == "sens_changed");
+        if (change == null || change.B <= 0 || t.Mode is SensFinderKey or CrosshairFinderKey) return m;
+        // A fresh segment cannot borrow a target onset, recoil history or movement from the old setting.
+        var segment = new RunTelemetry { Mode = t.Mode, Tier = t.Tier, Sens = change.B, Dpi = t.Dpi,
+            Weapon = t.Weapon, Map = t.Map, When = t.When, HFov = t.HFov, ZoomSensMult = t.ZoomSensMult };
+        segment.Frames.AddRange(t.Frames.Where(f => f.T > change.T + .15f));
+        segment.Shots.AddRange(t.Shots.Where(f => f.T > change.T + .15f));
+        segment.Events.AddRange(t.Events.Where(e => e.T > change.T + .15f && e.Kind != "sens_changed"));
+        foreach (var (key, value) in RunAnalysis.Run(segment)) m["current." + key] = value;
+        m["current.sens"] = change.B;
+        return m;
+    }
 
     /// <summary>What went wrong / right in this run and how to fix it.</summary>
     public static RunReview ReviewRun(RunTelemetry t, Dictionary<string, float> metrics, int tier)
@@ -90,7 +112,8 @@ public static class Coach
         review.Sens = SensLab.Feedback(metrics, tier);
         if (metrics.Count == 0) { review.Summary = RunSummary.NoData(t.Mode); return review; }
         var a = Assess.Run(metrics, runLevel: true, tierPlayed: tier);
-        review.Issues = a.Issues.Take(3).Select(i => i.D).ToList();
+        review.Findings = a.Issues.Select(i => i.D).ToList();
+        review.Issues = review.Findings.Take(3).ToList();
         review.Strengths = a.Strengths.Take(2).Select(s => s.Text).ToList();
         review.Summary = RunSummary.Write(t.Mode, tier, metrics, a);
         review.PrescribedDrills = CoachPlan.FromRun(review).Drills.ToArray();
@@ -117,12 +140,12 @@ public static class Coach
             }
             if (r.Mode == CrosshairFinderKey) continue; // crosshair changes mid-run: no skill data
             var m = r.Metrics;
-            if ((m == null || m.Count == 0) && !string.IsNullOrEmpty(r.TelemetryFile) && analysed < 10 && File.Exists(r.TelemetryFile))
+            if ((m == null || m.GetValueOrDefault("analysis.version") < 3) && !string.IsNullOrEmpty(r.TelemetryFile) && analysed < 10 && File.Exists(r.TelemetryFile))
             {
-                m = FromFile(r.TelemetryFile!); // bounded: ≈10–40 ms per file, cached
+                m = FromFile(r.TelemetryFile!) ?? m; // bounded: ≈10–40 ms per file, cached
                 analysed++;
             }
-            if (m != null && m.Count > 0) runs.Add(new SensAdvisor.RunInfo(r.When, r.Sens, RunAnalysis.Normalize(r.Mode, r.Tier, m)));
+            if (m != null && m.Count > 0) runs.Add(new SensAdvisor.RunInfo(r.When, r.Sens, RunAnalysis.Normalize(r.Mode, r.Tier, m), $"{r.Mode}|{r.Tier}|{r.Map}"));
         }
         var agg = Agg.Aggregate(runs.Select(r => (r.When, r.M)), DateTime.Now);
         int tierGuess = (int)MathF.Round((float)all.Take(20).Where(r => r.Tier >= 0).Select(r => r.Tier).DefaultIfEmpty(1).Average());
@@ -132,17 +155,25 @@ public static class Coach
         {
             OverallTier = a.Overall,
             OverallConfidence = a.OverallConf,
+            Estimate = a.Estimate,
+            OverallPercentile = a.Estimate is { } est && !float.IsNaN(est.Tier) ? RankModel.Percentile(est.Tier) : float.NaN,
             Skills = a.Ratings.Values.OrderBy(s => s.Skill).ToList(),
             Problems = a.Issues.Select(i => i.D).ToList(),
             Strengths = a.Strengths.Where(s => s.Score >= 0.5f || a.Overall < 0).Take(4).Select(s => s.Text).ToList(),
             RunsAnalyzed = runs.Count,
+            Metrics = agg,
             Forecasts = CoachNetwork.Forecast(all, currentSens, forecastTier),
             ForecastTier = forecastTier,
             ForecastSens = currentSens,
             Updated = DateTime.Now,
         };
-        p.Sens = SensAdvisor.Advise(runs.Where(r => r.M.GetValueOrDefault("sens.changed") == 0).ToList(), currentSens, dpi, a.RefTier, finder);
-        p.SensLab = SensLab.Build(runs, currentSens, dpi, a.RefTier);
+        var sensRuns = runs.Select(r => {
+            if (r.M.GetValueOrDefault("sens.changed") == 0) return r;
+            var segment = r.M.Where(kv => kv.Key.StartsWith("current.")).ToDictionary(kv => kv.Key[8..], kv => kv.Value);
+            return new SensAdvisor.RunInfo(r.When, segment.GetValueOrDefault("sens"), segment, r.Context);
+        }).Where(r => r.Sens > 0).ToList();
+        p.Sens = SensAdvisor.Advise(sensRuns, currentSens, dpi, a.RefTier, finder);
+        p.SensLab = SensLab.Build(sensRuns, currentSens, dpi, a.RefTier);
         (p.Trend, p.TrendSpan) = Trends(runs.Select(r => (r.When, r.M)).ToList(), tierGuess);
         return p;
     }

@@ -126,7 +126,7 @@ public static class WarmupCharts
             float lw = s.EaseLast > 0 ? X(t0 + s.Seconds - s.EaseLast) - br.Position.X - 4 * k : br.Size.X - 4 * k;
             Gfx.TextFit(c, UiTheme.HudWide, s.Short, br.Position.X + 2 * k, br.Position.Y + 24 * k, ls, UiTheme.Text, lw, HorizontalAlignment.Center);
             Gfx.TextFit(c, UiTheme.Body, WarmupPlan.Clock(s.Seconds), br.Position.X + 2 * k, br.Position.Y + 42 * k, ls, UiTheme.Dim, lw, HorizontalAlignment.Center);
-            string tag = s.Shifted ? $"{s.OffsetPct:+0;-0}%" : s.Adaptive ? "ADAPT" : s.Easier ? "EASY" : "";
+            string tag = s.Shifted ? $"{s.OffsetPct:+0;-0}%" : s.Adaptive ? (Loc.Spanish ? "ADAPTA" : "ADAPT") : s.Easier ? "EASY" : "";
             if (tag.Length > 0 && drillH > 58 * k)
                 Gfx.TextFit(c, UiTheme.HudWide, tag, br.Position.X + 2 * k, br.Position.Y + 60 * k, ls, s.Shifted ? ShiftCol : pc, lw, HorizontalAlignment.Center);
             t0 += s.Seconds;
@@ -159,7 +159,7 @@ public static class WarmupCharts
         {
             (Loc.Spanish ? "FÁCIL" : "EASY", Loc.Spanish ? "un nivel por debajo del tuyo" : "one tier below yours", PhaseColor(Phase.Activation)),
             (Loc.Spanish ? "ADAPTA" : "ADAPT", Loc.Spanish ? "sube o baja para mantenerte cerca del 80% de aciertos" : "gets harder or easier to keep you near 80% hits", PhaseColor(Phase.Calibration)),
-            (Loc.Spanish ? "MÁS FÁCIL" : "EASIER", Loc.Spanish ? "el último minuto del deathmatch tiene bots más fáciles" : "the deathmatch's last minute has easier bots", UiTheme.Good),
+            (Loc.Spanish ? "MÁS FÁCIL" : "EASIER", Loc.Spanish ? "el último minuto del combate a muerte tiene bots más fáciles" : "the deathmatch's last minute has easier bots", UiTheme.Good),
         })
         {
             if (tag == (Loc.Spanish ? "ADAPTA" : "ADAPT") && !plan.Steps.Any(s => s.Adaptive)) continue;

@@ -42,7 +42,7 @@ public static partial class MapSpots
             E("Tree", -18.65f, 0.6f, 21.2f),
             E("A Link", -8.0f, 0.2f, 22.0f),
             E("A Switch", -6.0f, 0.2f, 8.5f, Stance.Crouch),
-            E("Boxes", -4.0f, 0.2f, 2.4f),
+            E("Boxes", -3.75f, 0.2f, 0.75f),
             E("Wine", -9.2f, 0.2f, 9.2f, Stance.Crouch),
         },
         Flashes = new[]
@@ -63,6 +63,6 @@ public static partial class MapSpots
         // Spike: open site between Tetris and Generator, safe behind Generator, back site by Pillar.
         PlantSpots = new[] { V(-15f, 1.4f, -9.5f), V(-21f, 1.2f, -8f), V(-25f, 1.2f, -9.2f) },
         // Retakes enter from the defender side via A Link / Tree / behind Heaven.
-        RetakeEntries = new[] { V(-8f, 0.2f, 22f), V(-37f, 0.2f, 25.25f), V(-34.25f, 1.2f, 0f) },
+        RetakeEntries = new[] { V(-8f, 0.2f, 22f), V(-37.25f, 0.2f, 27.75f), V(-32.75f, 4.2f, -0.25f) },
     };
 }

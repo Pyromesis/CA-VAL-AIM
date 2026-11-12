@@ -2,6 +2,27 @@
 
 ## [Unreleased]
 
+## [2.10.0] - 2026-11-12
+
+### Added
+
+- Academy lessons with step-by-step technique guidance, practice drills and credited video references.
+- Personalized coach drills sized from measured aiming errors, plus sensitivity comparisons across recorded sessions.
+- Estimated aim rank now shows the population percentile ("better than 78% of the ranked population") next to the rank name, and the plausible band around it is computed from the evidence instead of a fixed spread: it widens when the skills disagree, when part of the profile is still unmeasured and when the samples are thin.
+- Rank names are translated in the coach's sentences, so the Spanish interface no longer mixes in "Gold" or "Diamond".
+
+### Fixed
+
+- Complete Spanish warm-up/check-in wording, goal/cue suggestions, breathing guidance and rank bands; preserve English when switching back and keep stored suggestions language-independent.
+- Respect the selected guide-line setting without a hidden opt-in flag; show the guide for supported 2D aim exercises as well as 3D tasks.
+- Bots no longer plan a straight line through gaps their body does not fit through (the nav grid tested the corridor at knee height, so every ledge and door frame at head height was invisible to it and the bot pushed into it forever); a bot that still gets wedged steps onto the nearest open node instead of only replanning.
+- The nav grid keeps the largest walkable component when the map's start sits in an isolated pocket, instead of leaving the whole playable area out of the grid.
+- Collision trimmed to the art the game actually draws, so bodies, bullets and line of sight stop hitting walls that were never visible (Fracture's reachable area grew from 33k to 58k cells).
+- Empty navigation grids no longer crash when no standing room is available. Spawn audits can rebuild exclusions from all candidates and check only geometry the game draws.
+- Bind starts on Hookah's visible upper floor; Fracture starts on visible A Hall floor instead of an invisible prototype slab.
+- Correct unreachable authored spots in Ascent, Bind and Pearl; exclude 2,971 unsafe Deathmatch spawn candidates across all 13 maps.
+- Normalize rounded population shares and weight rank uncertainty by the player population, keeping the top percentile band within 100%.
+
 ## [2.9.1] - 2026-11-10
 
 ### Added

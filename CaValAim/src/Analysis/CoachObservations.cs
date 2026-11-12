@@ -20,8 +20,17 @@ public static class CoachObservations
                 bool controlled = RunAnalysis.CleanAimSample(prep, motion);
                 if (motion.HasPrimary)
                 {
+                    Add("endpoint_error_r", at, motion.EndErrR, "radius");
+                    Add("signed_endpoint_deg", at, motion.S, "deg");
+                    Add("movement_ms", at, motion.Mt, "ms");
+                    Add("target_distance_deg", at, motion.A, "deg");
+                    Add("target_radius_deg", at, motion.R, "deg");
+                    Add("path_efficiency", at, motion.EtaP, "ratio");
+                    Add("perpendicular_error_deg", at, motion.Perp, "deg");
+                    if (motion.Hit) Add("confirmation_ms", at, motion.Dwell, "ms");
+                    Add("correction_ms", at, motion.Tc, "ms");
                     if (motion.Over && (motion.Bot || RunAnalysis.StaticTargetMode(telemetry.Mode))) Add("over", at, motion.S, "deg");
-                    if (motion.Under && (motion.Bot || RunAnalysis.StaticTargetMode(telemetry.Mode))) Add("under", at, motion.EndErr, "deg");
+                    if (motion.Under && (motion.Bot || RunAnalysis.StaticTargetMode(telemetry.Mode))) Add("under", at, -motion.S, "deg");
                     if (float.IsFinite(motion.Onset)) Add("reaction_ms", trial.T0, motion.Onset, "ms");
                     if (motion.Nc > 0) Add("corrections", at, motion.Nc, "count");
                     if (motion.Premature > 0) Add("premature", at, motion.Premature, "count");

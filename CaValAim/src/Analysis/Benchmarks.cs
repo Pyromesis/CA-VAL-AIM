@@ -143,16 +143,10 @@ static class Bench
         return b[i] + (b[i + 1] - b[i]) * (tier - i);
     }
 
-    public static readonly string[] RankNames = { "Iron", "Bronze", "Silver", "Gold", "Platinum", "Diamond", "Ascendant", "Immortal", "Radiant" };
+    public static readonly string[] RankNames = RankModel.Names;
 
     /// <summary>Iron &lt; 0 ≤ Bronze &lt; 0.5 ≤ Silver &lt; 1 ≤ Gold &lt; 1.5 ≤ Platinum &lt; 2 ≤ Diamond &lt; 2.5 ≤ Ascendant &lt; 3 ≤ Immortal &lt; 3.5 ≤ Radiant.</summary>
-    public static string Rank(float t)
-    {
-        if (float.IsNaN(t) || t < -0.75f) return "Unrated";
-        if (t < 0) return "Iron";
-        int i = Math.Min(8, 1 + (int)(t / 0.5f));
-        return RankNames[i];
-    }
+    public static string Rank(float t) => RankModel.Name(t);
 
     public static string TierName(int tier) => Difficulty.Get(tier).Name;
 }

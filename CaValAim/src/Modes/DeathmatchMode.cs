@@ -93,6 +93,8 @@ public sealed partial class DeathmatchMode : MapMode
     // ---------------- state ----------------
 
     BotNav nav = null!;
+    /// <summary>The walkable grid the bots navigate (see <see cref="BotNav"/>); the bots use it to un-wedge themselves.</summary>
+    internal BotNav Nav => nav;
     readonly List<Bot> bots = new();
     int[] spawnPool = Array.Empty<int>();
     string? winner;
@@ -137,7 +139,7 @@ public sealed partial class DeathmatchMode : MapMode
         var playable = PlayableTest(spot);
         // Nodes the offline art check rejected (inside art geometry, under a floor, on an invisible slab):
         // maps/<key>/spawn_exclude.json from tools/mapgen/audit_spawns.py --write-exclude.
-        var exclude = string.IsNullOrWhiteSpace(spot.RealMapFolder) ? Array.Empty<Vector3>()
+        var exclude = Maps.SpawnAudit.Unfiltered || string.IsNullOrWhiteSpace(spot.RealMapFolder) ? Array.Empty<Vector3>()
             : World.MapAssets.LoadPoints(spot.RealMapFolder + "/spawn_exclude.json");
         var excludeCells = new HashSet<(int, int, int)>();
         foreach (var e in exclude) excludeCells.Add(((int)MathF.Floor(e.X / 0.5f), (int)MathF.Floor(e.Y / 0.5f), (int)MathF.Floor(e.Z / 0.5f)));

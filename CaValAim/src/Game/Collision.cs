@@ -27,7 +27,8 @@ public readonly record struct Box(Vector3 Min, Vector3 Max)
             tmax = Mathf.Min(tmax, t2);
             if (tmin > tmax) return float.PositiveInfinity;
         }
-        return tmin;
+        // A ray starting on a wall and leaving it has no forward intersection.
+        return tmax <= 0 ? float.PositiveInfinity : tmin;
     }
 
     /// <summary>Outward normal of the face a point on the surface lies on.</summary>

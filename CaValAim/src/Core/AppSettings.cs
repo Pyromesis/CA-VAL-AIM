@@ -30,7 +30,6 @@ public sealed class AppSettings
     public int DmPlayers = 12;         // Deathmatch lobby size including you (4..12)
     public float DmMinutes = 9f;       // Deathmatch length in minutes (VALORANT: 9; first to 40 kills)
     public bool LiveCoach = true;      // the coach's cues during a run (Analysis/LiveCoach)
-    public bool GuideExplicitlyEnabled; // aiming guides are opt-in; never superimpose them on the imported crosshair by default
     public int GuideLine = 0;          // guide to the nearest target: 0 = off, 1 = aim line, 2 = aim line + route on map drills (GuideSession)
     public float Volume = 0.5f;
     public bool UiSounds = true;       // interface sounds (menu clicks, confirmations); hover is always silent (1.18)

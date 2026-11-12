@@ -59,7 +59,7 @@ public static class CoachCli
             sens = t.Sens; dpi = t.Dpi;
             // contiguous blocks of files → sessions, oldest block first
             var when = fakeSessions > 0 ? t.When.AddHours(-(fakeSessions - 1 - files.IndexOf(f) * fakeSessions / files.Count) * 1.0) : t.When;
-            store.Runs.Add(new RunRecord { Mode = t.Mode, When = when, Tier = t.Tier, Sens = t.Sens, Metrics = m, TelemetryFile = f });
+            store.Runs.Add(new RunRecord { Mode = t.Mode, When = when, Tier = t.Tier, Sens = t.Sens, Map = t.Map, Metrics = m, TelemetryFile = f });
             var all = Assess.Run(m, true, t.Tier).Issues; // every triggered rule, not just the top 3
             P(F($"=== {Path.GetFileName(f)}  mode={t.Mode} tier={t.Tier} sens={t.Sens:0.###} dpi={t.Dpi} ({SensAdvisor.Cm360(t.Sens, t.Dpi):0.0} cm/360) frames={t.Frames.Count} shots={t.Shots.Count} events={t.Events.Count} dur={t.Duration:0.0}s analysed in {sw.ElapsedMilliseconds} ms"));
             P("  triggered: " + (all.Count == 0 ? "(none)" : string.Join(", ", all.Select(x => x.D.Id + (x.Possible ? "?" : "") + "/" + x.D.Severity))));
@@ -106,6 +106,7 @@ public static class CoachCli
             sw.Stop();
             P();
             P(F($"##### PROFILE from {prof.RunsAnalyzed} runs (built in {sw.ElapsedMilliseconds} ms): overall {(prof.OverallTier < 0 ? "unrated" : $"{prof.OverallTier:0.00} {Coach.RankName(prof.OverallTier)}")}, evidence {prof.OverallConfidence:0.00}"));
+            if (prof.SensLab?.Comparison is { } compared) P("  matched sens: " + compared.Describe(Loc.Spanish));
             foreach (var s in prof.Skills)
                 P(F($"  {Coach.SkillName(s.Skill),-30} tier {s.Tier,5:0.00} conf {s.Confidence:0.00} n={s.Samples,-5} {s.Headline}"));
             if (args.Contains("--explain"))
@@ -365,7 +366,19 @@ public static class CoachCli
         SensCase("no evidence at high sensitivity keeps sensitivity", new List<SensAdvisor.RunInfo>(), 1f, "keep");
         SensCase("no data @95 cm", new List<SensAdvisor.RunInfo>(), 0.172f, "keep");
         SensCase("no data @50 cm", new List<SensAdvisor.RunInfo>(), 0.327f, "keep");
-        SensCase("changed sens 2 sessions ago", S(0.25f, 3, Over, 20).Concat(S(0.327f, 2, Over, 6)).ToList(), 0.327f, "keep");
+        SensCase("changed sens 2 sessions ago evaluates new evidence", S(0.25f, 3, Over, 20).Concat(S(0.327f, 2, Over, 6)).ToList(), 0.327f, "lower");
+        SensComparisonCases();
+        foreach (string drill in new[] { "tracking", "flickx:coach-brake-wide", "microx:coach-micro-confirm" }) {
+            var test = new UI.PracticeScreen.SensComparison(.3f, .28f, 800, 2) { Drill = drill };
+            for (int i = 0; i < 4; i++) {
+                float quality = test.IsCandidate(i) ? .9f : .7f;
+                test.Record(i, new() { ["track.secs"] = 26, ["track.ontarget"] = quality * 100, ["micro.n"] = 20,
+                    ["micro.centered_share"] = quality, ["flick.n_hit"] = 16, ["flick.ttk_ms"] = 400 }, 800);
+            }
+            bool ok = test.Winner && Modes.ModeRegistry.Find(drill)?.Invoke().Key == drill;
+            test.Record(0, new() { ["sens.changed"] = 1 }, 800);
+            P($"  {(ok && !test.Winner ? "PASS" : "FAIL")} matched practice protocol {drill}");
+        }
 
         // Rank calibration: rank-typical mechanics (docs/coach_spec.md "Calibration notes") must map to ordered,
         // realistic overall estimates — the median player near Gold 2, nobody pushed up by one standout skill.
@@ -398,6 +411,7 @@ public static class CoachCli
             prev = t;
             P(F($"  {(ok ? "PASS" : "FAIL")} calibration: typical {name} mechanics → overall {t:0.00} {Coach.RankName(t)} (raw mean {a.RawMean:0.00}, evidence {a.OverallConf:0.00}), expected {lo:0.00}–{hi:0.00}"));
         }
+        RankModelCases();
         TimelineCases();
         RoutineCases();
         GameplayChecks.Run(P);
@@ -405,9 +419,158 @@ public static class CoachCli
     }
 
     /// <summary>
+    /// The rank model (population percentiles, band maths) and the estimate (band width, disagreement, coverage).
+    /// These are the rules the player sees on the profile screen, so they are checked here.
+    /// </summary>
+    static void RankModelCases()
+    {
+        void Check(string name, bool ok) => P($"  {(ok ? "PASS" : "FAIL")} rank {name}");
+
+        Check("every population band has positive width below 100 percent",
+            RankModel.Start[0] == 0 && RankModel.Start[^1] < 100 &&
+            RankModel.Start.Zip(RankModel.Start.Skip(1), (lo, hi) => hi > lo).All(ok => ok));
+        var population = Enumerable.Range(0, 2000).Select(i =>
+            (double)RankModel.TierOfPercentile((i + 0.5f) / 20f)).ToArray();
+        double populationMean = population.Average();
+        double populationSd = Math.Sqrt(population.Average(t => (t - populationMean) * (t - populationMean)));
+        Check("uncertainty follows players' population weights rather than equal rank weights",
+            Math.Abs(RankModel.PopulationSd - populationSd) < 0.04);
+
+        // The percentile anchors must be reproduced exactly: b0…b4 sit at the 5th / 41st / 81st / 98.6th / 99.9th
+        // percentile of ranked players.
+        float[] anchors = { 5f, 41f, 81f, 98.6f, 99.9f };
+        for (int i = 0; i < anchors.Length; i++)
+        {
+            float got = RankModel.Percentile(i);
+            Check($"tier {i} is the {anchors[i]:0.#} percentile (got {got:0.0})", MathF.Abs(got - anchors[i]) < 0.15f);
+        }
+        // And the inverse must bring every percentile back.
+        bool inverse = true;
+        foreach (float pct in new[] { 1f, 10f, 30f, 50f, 70f, 90f, 99f })
+            inverse &= MathF.Abs(RankModel.Percentile(RankModel.TierOfPercentile(pct)) - pct) < 0.5f;
+        Check("percentile → tier → percentile round-trips", inverse);
+        // The scale must be monotonic: a better player is never a worse percentile.
+        bool monotonic = true;
+        for (float t = -0.5f; t < 4.5f; t += 0.05f)
+            monotonic &= RankModel.Percentile(t + 0.05f) >= RankModel.Percentile(t);
+        Check("the percentile never goes down as the tier goes up", monotonic);
+        // The population is not uniform: the same tier step covers a very different slice of the population
+        // depending on where it is. Near the bottom of the scale a tier spans a third of the population; near
+        // Radiant it spans a fraction of a percent.
+        float spanBottom = RankModel.TierOfPercentile(40f) - RankModel.TierOfPercentile(30f);
+        float spanTop = RankModel.TierOfPercentile(90f) - RankModel.TierOfPercentile(80f);
+        Check($"the population density is not uniform across the scale (bottom {spanBottom:0.00} tier vs top {spanTop:0.00})",
+            spanTop > spanBottom * 1.3f);
+        // The median player is Gold 2, which is what the prior and the calibration expect.
+        Check("the 50th percentile is Gold 2", RankModel.Name(RankModel.TierOfPercentile(50f)) == "Gold");
+
+        // The band must widen when the skills disagree, and when less of the profile is covered.
+        static RankEstimate.Result Estimate(params (Skill Sk, float Tier, float Conf)[] skills)
+        {
+            var map = new Dictionary<Skill, SkillRating>();
+            foreach (Skill s in Enum.GetValues<Skill>())
+                map[s] = new SkillRating(s, -1, 0, 0, "");
+            foreach (var (sk, tier, conf) in skills)
+                map[sk] = new SkillRating(sk, tier, conf, 100, "");
+            return RankEstimate.Estimate(map);
+        }
+        var consistent = Estimate((Skill.Flicking, 2.0f, 0.9f), (Skill.Precision, 2.0f, 0.9f), (Skill.Tracking, 2.0f, 0.9f),
+            (Skill.CrosshairPlacement, 2.0f, 0.9f), (Skill.Movement, 2.0f, 0.9f), (Skill.SprayControl, 2.0f, 0.9f));
+        var mixed = Estimate((Skill.Flicking, 3.5f, 0.9f), (Skill.Precision, 0.4f, 0.9f), (Skill.Tracking, 2.0f, 0.9f),
+            (Skill.CrosshairPlacement, 2.0f, 0.9f), (Skill.Movement, 2.0f, 0.9f));
+        var partial = Estimate((Skill.Flicking, 2.0f, 0.9f), (Skill.Precision, 2.0f, 0.9f));
+        Check("the band is ordered: the point estimate sits inside it",
+            consistent.Low <= consistent.Tier && consistent.Tier <= consistent.High);
+        Check("disagreeing skills widen the band", mixed.Spread > consistent.Spread);
+        Check("an uncovered profile widens the band", partial.Spread > consistent.Spread);
+        Check("the disagreement is reported", mixed.Disagreement > consistent.Disagreement);
+        Check("the coverage is counted", consistent.Rated >= 4 && partial.Rated < consistent.Rated && partial.Total == consistent.Total);
+        // A band that never collapses to a point: aim mechanics only partly predict rank.
+        Check("the band never collapses to a point", consistent.Spread > 0.15f);
+        // More samples must mean a narrower band for the same skill.
+        var few = Estimate((Skill.Flicking, 2.0f, 0.2f), (Skill.Precision, 2.0f, 0.2f), (Skill.Tracking, 2.0f, 0.2f),
+            (Skill.CrosshairPlacement, 2.0f, 0.2f), (Skill.Movement, 2.0f, 0.2f));
+        Check("a low-confidence profile widens the band", few.Spread > consistent.Spread);
+        // More evidence must pull the estimate toward the measured value (2.0) and never past it: the shrinkage
+        // toward the population median weakens as the evidence grows, but the median still holds it back.
+        float one = Estimate((Skill.Flicking, 2.0f, 0.9f)).Tier;
+        float two = Estimate((Skill.Flicking, 2.0f, 0.9f), (Skill.Precision, 2.0f, 0.9f)).Tier;
+        float five = Estimate((Skill.Flicking, 2.0f, 0.9f), (Skill.Precision, 2.0f, 0.9f), (Skill.Tracking, 2.0f, 0.9f),
+            (Skill.CrosshairPlacement, 2.0f, 0.9f), (Skill.Movement, 2.0f, 0.9f)).Tier;
+        Check($"more evidence moves the estimate toward the measured value ({one:0.00} → {two:0.00} → {five:0.00})",
+            one < two && two < five && five < 2.0f);
+        Check("the estimate never passes the measured value", five < 2.0f && one > Bench.PriorTier);
+        // With no data at all there is no estimate.
+        Check("no data means no estimate", float.IsNaN(Estimate().Tier));
+
+        // The band names must be the real rank names.
+        var (lo, hi) = UI.CoachRank.Band(consistent.Low, consistent.High);
+        Check("the band is drawn with real rank names", lo.Contains(" ") || lo == "RADIANT");
+    }
+
+    /// <summary>
     /// Second-by-second checks: fixed 1-second buckets over a long run, every play kept (no 48-card cap), the versioned
     /// archive round trip, and corrupt input never throwing.
     /// </summary>
+    static void SensComparisonCases()
+    {
+        var now = DateTime.Now;
+        SensAdvisor.RunInfo Make(float sens, int minutes, int over, int under = 5, float ms = 200, string context = "flick|2|range") =>
+            new(now.AddMinutes(minutes), sens, new Dictionary<string, float> {
+                ["analysis.version"] = 2, ["context.dpi"] = 800, ["context.weapon"] = 1,
+                ["flick.n_still"] = 40, ["flick.n_prim"] = 40, ["flick.n"] = 40,
+                ["flick.n_over"] = over, ["flick.n_under"] = under, ["flick.n_off"] = over + under,
+                ["flick.mt_ms"] = ms, ["flick.end_err_pct"] = over,
+                ["flick.amp_deg"] = 15, ["flick.r_deg"] = .3f,
+            }, context);
+        void Check(string name, bool ok) => P($"  {(ok ? "PASS" : "FAIL")} sens comparison {name}");
+        Check("small sensitivity adjustment stays distinct", !SensLab.SameSens(.24f, .239f));
+        var baseline = Make(.3f, -10, 25);
+        var better = Make(.27f, -1, 10);
+        Check("detects fewer overshoots immediately", SensComparison.Build(new[] { baseline, better }, .27f) is { Improved: true });
+        Check("rejects accuracy bought with large slowdown", SensComparison.Build(new[] { baseline, Make(.27f, -1, 10, ms: 350) }, .27f) is { Improved: false });
+        Check("rejects changed difficulty", SensComparison.Build(new[] { baseline, Make(.27f, -1, 10, context: "flick|3|range") }, .27f) == null);
+        var changedDpi = Make(.27f, -1, 10); changedDpi.M["context.dpi"] = 1600;
+        Check("rejects changed DPI", SensComparison.Build(new[] { baseline, changedDpi }, .27f) == null);
+        var mixed = Make(.27f, -1, 10); mixed.M["sens.changed"] = 1;
+        Check("rejects mixed sensitivity run", SensComparison.Build(new[] { baseline, mixed }, .27f) == null);
+        var tiny = Make(.27f, -1, 10); tiny.M["flick.n_still"] = 4;
+        Check("rejects thin sample", SensComparison.Build(new[] { baseline, tiny }, .27f) == null);
+        var shifted = Make(.27f, -1, 10); shifted.M["flick.amp_deg"] = 40;
+        Check("rejects easier target distribution", SensComparison.Build(new[] { baseline, shifted }, .27f) == null);
+        var balanced = Make(.3f, -1, 1, 0).M;
+        Check("rare overrun is not systematic bias", SensLab.Feedback(balanced, 2).Verdict == SensVerdict.Balanced);
+        var mixedM = Make(.3f, -1, 15, 15).M; Agg.Derive(mixedM);
+        Check("opposite errors produce actionable diagnosis", Assess.Run(mixedM, true, 2).Issues.Any(i => i.D.Id == "MIXED_FLICK"));
+        foreach (string code in new[] { "OVERFLICK", "UNDERFLICK", "MICRO_CONFIRM", "NO_MICRO", "MIXED_FLICK" }) {
+            var diagnosis = new Diagnosis(code, Skill.Precision, Severity.Major, "test", "evidence", "why", new[] { "fix" }, Array.Empty<string>(), 30);
+            var key = PersonalDrills.For(diagnosis);
+            Check("generated task resolves for " + code, key != null && Modes.ModeRegistry.Find(key)?.Invoke().Key == key);
+            Check("generated task is reproducible for " + code, key == PersonalDrills.For(diagnosis));
+        }
+        var range = new Dictionary<string, float> { ["flick.range_near_n"] = 30, ["flick.range_wide_n"] = 30,
+            ["flick.range_near_over"] = 2, ["flick.range_wide_over"] = 15 };
+        var rangeIssue = Assess.Run(range, true, 2).Issues.FirstOrDefault(i => i.D.Id == "OVER_WIDE");
+        Check("angle-specific overshoots prescribe wide practice", rangeIssue != null && PersonalDrills.For(rangeIssue.D) is { } wideKey && Modes.ModeRegistry.Find(wideKey)?.Invoke().Key == wideKey);
+        var subtle = Make(.3f, -1, 22, 5).M; subtle["flick.mean_overshoot_deg"] = .35f;
+        subtle["flick.mean_overshoot_pct"] = 2.3f; Agg.Derive(subtle);
+        Check("detects repeated small overruns below old 4 percent gate", Assess.Run(subtle, true, 2).Issues.Any(i => i.D.Id == "OVERFLICK"));
+        var mid = new Dictionary<string, float>(better.M) { ["sens.changed"] = 1 };
+        foreach (var (key, value) in baseline.M) mid["current." + key] = value;
+        Check("mixed run uses only latest isolated segment", SensLab.Feedback(mid, 2).Flicks == 40);
+        var neural = Enumerable.Range(0, 96).Select(i => {
+            var sample = Make(.3f, i - 100, i % 2 == 0 ? 8 : 32).M;
+            return new RunRecord { Mode = "flick", Tier = 2, Sens = .3f, When = now.AddMinutes(i-100),
+                Shots = 40, Accuracy = .7f, Metrics = sample };
+        }).Reverse().ToArray();
+        var prediction = CoachNetwork.Forecast(neural, .3f, 2).FirstOrDefault(f => f.Metric == "overshoot");
+        Check("neural overshoot learns and beats held-out baselines", prediction != null && prediction.ValidationRuns == 24
+            && prediction.ValidationError < prediction.BaselineError);
+        Check("neural mechanics abstains below 32 comparable runs", !CoachNetwork.Forecast(neural.Take(31), .3f, 2).Any(f => f.Metric != "accuracy"));
+        foreach (var r in neural.Take(70)) r.Metrics!["context.dpi"] = 1600;
+        Check("neural mechanics never pools DPI groups", !CoachNetwork.Forecast(neural, .3f, 2).Any(f => f.Metric != "accuracy" && f.ValidationRuns > 18));
+    }
+
     static void TimelineCases()
     {
         var t = new RunTelemetry

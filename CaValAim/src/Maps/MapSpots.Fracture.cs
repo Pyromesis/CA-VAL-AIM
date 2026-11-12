@@ -15,7 +15,8 @@ public static partial class MapSpots
     {
         Key = "fracture", Map = "Fracture", Name = "A Hall → A Site",
         Drill = "Push A Hall onto A Site: clear Site, Drop, A Link, Default, Back Site, Site Corner, Site Box",
-        StartFeet = V(-10.00f, 2.05f, 31.00f), StartYaw = 69.4f, Choke = V(3.50f, 0.25f, 15.50f),
+        // Visible A Hall floor, checked against the drawn art. The old attacker start stood on a hidden prototype slab.
+        StartFeet = V(4.25f, 2.45f, 20.25f), StartYaw = -9.0f, Choke = V(3.50f, 0.25f, 15.50f),
         Palette = new MapPalette(C(120,116,108), C(197,181,153), C(186,91,55), C(171,126,80), C(170,170,162), C(170,198,216)),
         RealMapFolder = "maps/fracture",
         // Only used when the external real-map files are absent.
@@ -27,7 +28,7 @@ public static partial class MapSpots
             E("A Link", -21.50f, 1.05f, -1.00f),
             E("Default", 8.50f, 0.45f, 8.50f, Stance.Crouch),
             E("Back Site", -9.00f, 0.25f, 7.50f),
-            E("Site Corner", -8.50f, 0.00f, -9.00f),
+            E("Site Corner", -6.25f, 3.05f, -8.75f),
             E("Site Box", -1.50f, 0.00f, 6.50f, Stance.Crouch),
         },
         Flashes = new[]

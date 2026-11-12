@@ -1,4 +1,5 @@
 using Godot;
+using CaValAim.Core;
 using CaValAim.Game;
 using CaValAim.Game.Weapon;
 using CaValAim.Audio;
@@ -33,6 +34,48 @@ static class GameplayChecks
         Check(!RunAnalysis.StaticTargetMode("flickx:course-dynamic-0-0") &&
             RunAnalysis.StaticTargetMode("flickx:course-precision-0-0"),
             "moving click targets cannot masquerade as sensitivity braking errors");
+        CollisionChecks();
+        // ---- coach-built drills (CoachForge) ----
+        Diagnosis Finding(string id, Skill skill) => new(id, skill, Severity.Major, "", "", "", Array.Empty<string>(), Array.Empty<string>(), 30);
+        var small = new Dictionary<string, float> { ["flick.n_still"] = 40, ["flick.mean_overshoot_deg"] = 0.6f, ["flick.amp_deg"] = 18, ["flick.r_deg"] = 0.57f };
+        var large = new Dictionary<string, float>(small) { ["flick.mean_overshoot_deg"] = 1.4f };
+        string? builtSmall = PersonalDrills.For(Finding("OVERFLICK", Skill.Flicking), small);
+        string? builtLarge = PersonalDrills.For(Finding("OVERFLICK", Skill.Flicking), large);
+        var variantSmall = builtSmall == null ? null : PersonalDrills.Resolve(builtSmall[(builtSmall.IndexOf(':') + 1)..]);
+        var variantLarge = builtLarge == null ? null : PersonalDrills.Resolve(builtLarge[(builtLarge.IndexOf(':') + 1)..]);
+        Check(builtSmall != null && builtSmall.Contains(CoachForge.Prefix) && builtSmall == PersonalDrills.For(Finding("OVERFLICK", Skill.Flicking), small)
+            && Modes.ModeRegistry.Find(builtSmall)?.Invoke().Key == builtSmall,
+            "coach builds a reproducible, playable drill from measured overshoot");
+        Check(variantSmall != null && variantLarge != null && variantLarge.Radius > variantSmall.Radius && variantSmall.At(0) == variantSmall,
+            "a larger measured error builds a larger target, and the built size ignores the difficulty tier");
+        Check(PersonalDrills.For(Finding("OVERFLICK", Skill.Flicking), new Dictionary<string, float> { ["flick.n_still"] = 3 })
+            == PersonalDrills.For(Finding("OVERFLICK", Skill.Flicking)),
+            "too few measurements fall back to the authored prescription");
+        var trackM = new Dictionary<string, float> { ["track.secs"] = 40, ["track.jitter"] = 1.1f, ["track.r_deg"] = 1.2f, ["track.lag_deg"] = 1.5f, ["track.overrun_deg"] = 1.3f };
+        foreach (string code in new[] { "JITTER", "TRACK_BEHIND", "TRACK_OVERRUN" })
+        {
+            string? key = PersonalDrills.For(Finding(code, Skill.Tracking), trackM);
+            Check(key != null && key.StartsWith("trackv:" + CoachForge.Prefix, StringComparison.Ordinal) && Modes.ModeRegistry.Find(key)?.Invoke().Key == key,
+                "coach builds a tracking drill for " + code);
+        }
+        Check(CoachForge.Resolve("forge-over-x-30") == null && CoachForge.Resolve("forge-nothing-10") == null && CoachForge.Resolve("forge-over") == null
+            && CoachForge.Resolve("forge-over-9999-9999") is { Radius: <= 0.48f, Yaw: <= 60 },
+            "malformed built ids are rejected and out-of-range values are clamped");
+
+        // ---- Academy ----
+        Check(Academy.All.Select(t => t.Id).Distinct().Count() == Academy.All.Length && Academy.All.All(t =>
+                t.StepsEn.Length == t.StepsEs.Length && t.StepsEn.Length >= 4 && t.MistakesEn.Length == t.MistakesEs.Length
+                && t.NameEs.Length > 0 && t.SummaryEs.Length > 0 && t.CueEs.Length > 0),
+            $"academy: {Academy.All.Length} lessons, each complete in English and Spanish");
+        foreach (var lesson in Academy.All)
+            Check(lesson.Drills.Length >= 3 && lesson.Drills.All(k => Modes.ModeRegistry.Find(k)?.Invoke().Key == k),
+                $"academy lesson {lesson.Id}: every drill resolves");
+        Check(Academy.All.SelectMany(t => t.Videos).All(v => v.Url.StartsWith("https://www.youtube.com/watch?v=", StringComparison.Ordinal)
+                && v.Url.Length == 43 && v.Author.Length > 0 && v.Title.Length > 0 && v.Language is "en" or "es"),
+            "academy: every video is a credited YouTube link");
+        foreach (string code in new[] { "OVERFLICK", "UNDERFLICK", "AIM_TREMOR", "JITTER", "TRACK_BEHIND", "MICRO_CONFIRM", "XHAIR_LOW", "RUN_GUN", "SPRAY_VERT", "SLOW_REACT", "TARGET_ORDER" })
+            Check(Academy.For(Finding(code, Skill.Flicking))?.Diagnoses.Contains(code) == true, "academy answers the finding " + code);
+
         var reactionRun = new RunTelemetry { Mode = "reaction", Duration = 1 };
         reactionRun.Events.Add(new TelemetryEvent(0.8f, "reaction", 420));
         reactionRun.Shots.Add(new ShotSample { T = 0.8f, Accurate = false, Speed = 2 });
@@ -183,5 +226,54 @@ static class GameplayChecks
         }
         Check(monotonic && Sfx.DistanceGain(40, 40, 0.45f) == 0,
             "spatial audio fades monotonically to silence");
+    }
+
+    /// <summary>
+    /// The collision rules the bots and the player share: what blocks a body, what only blocks a bullet, and what the
+    /// nav grid may plan through. These are the cases behind "the bots get stuck" and "there are invisible walls".
+    /// </summary>
+    static void CollisionChecks()
+    {
+        void Check(bool ok, string label) => Console.WriteLine($"  {(ok ? "PASS" : "FAIL")} collision: {label}");
+
+        // A ray that starts on a wall and points away from it does not cross the wall: it must not report a hit.
+        var wall = new List<Box> { new(new Vector3(-1, 0, -1), new Vector3(1, 3, 1)) };
+        Check(!Collision.Blocked(new Vector3(1, 1.5f, 0), new Vector3(3, 1.5f, 0), wall),
+            "a ray leaving a wall through its face is not blocked");
+        Check(Collision.Blocked(new Vector3(-3, 1.5f, 0), new Vector3(3, 1.5f, 0), wall),
+            "a ray crossing a wall is blocked");
+        Check(!Collision.Blocked(new Vector3(-3, 1.5f, 0), new Vector3(3, 1.5f, 0), new List<Box>()),
+            "an empty world blocks nothing");
+
+        // The nav grid must not plan a straight line through a gap the body does not fit through. The old test cast a
+        // ray at knee height, so a ledge at head height was invisible to it and the bot pushed into it forever.
+        var floor = new Box(new Vector3(-20, -0.5f, -20), new Vector3(20, 0, 20));
+        var ledge = new Box(new Vector3(-20, 1.2f, -20), new Vector3(20, 1.4f, 20)); // 1.2 m up: the body does not fit
+        var navWorld = new List<Box> { floor, ledge };
+        var nav = CaValAim.Game.Bots.BotNav.For("collision-check:overhang", navWorld, Vector3.Zero);
+        bool straightUnderLedge = nav.Straight(new Vector3(-4, 0, 0), new Vector3(4, 0, 0));
+        Check(!straightUnderLedge,
+            "the nav does not plan through a gap the body does not fit through");
+        // A low obstacle is stepped over, so the line stays walkable.
+        var step = new Box(new Vector3(-20, 0, -20), new Vector3(20, 0.3f, 20));
+        var stepNav = CaValAim.Game.Bots.BotNav.For("collision-check:step", new List<Box> { floor, step }, Vector3.Zero);
+        Check(stepNav.Straight(new Vector3(-4, 0, 0), new Vector3(4, 0, 0)),
+            "the nav walks over an obstacle it can step onto");
+        // An open corridor is walkable.
+        var openNav = CaValAim.Game.Bots.BotNav.For("collision-check:open", new List<Box> { floor }, Vector3.Zero);
+        Check(openNav.Straight(new Vector3(-4, 0, 0), new Vector3(4, 0, 0)),
+            "the nav walks through open ground");
+
+        var sealedNav = CaValAim.Game.Bots.BotNav.For("collision-check:sealed",
+            new List<Box> { new(new Vector3(-2, -1, -2), new Vector3(2, 31, 2)) }, Vector3.Zero);
+        Check(sealedNav.Count == 0,
+            "a world without standing room produces an empty nav grid without crashing");
+
+        // A spawn in the middle of a wall must be moved to a standable spot, never left inside the geometry.
+        var solid = new List<Box> { floor, new Box(new Vector3(-1, 0, -1), new Vector3(1, 3, 1)) };
+        bool inside = Collision.Overlaps(Vector3.Zero, solid, Collision.PlayerRadius);
+        var resolved = SpawnSafety.Resolve(Vector3.Zero, solid, out bool ok);
+        Check(inside && ok && !Collision.Overlaps(resolved, solid, Collision.PlayerRadius),
+            "a spawn inside a wall is moved to a standable spot");
     }
 }

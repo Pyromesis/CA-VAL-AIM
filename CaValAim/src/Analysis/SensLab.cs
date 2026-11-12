@@ -11,9 +11,11 @@ public sealed record SensFeedback(
     float Corrections, float Jitter, float TrackOnPct,
     float Delta, float Confidence, SensVerdict Verdict)
 {
+    public int MicroShots { get; init; }
+    public float CenteredShare { get; init; }
     public bool HasFlickData => Flicks > 0 || OffTarget > 0;
     public bool HasTrackData => TrackSeconds > 0;
-    public bool HasData => HasFlickData || HasTrackData;
+    public bool HasData => HasFlickData || HasTrackData || MicroShots > 0;
 }
 
 /// <summary>All runs played at one sensitivity, aggregated for the Sens Lab history.</summary>
@@ -37,6 +39,7 @@ public sealed class SensLabData
     public List<SensBlock> History = new();
     public int Runs;
     public int Sessions;
+    public SensComparison? Comparison;
 
     public bool HasData => Current is { HasData: true } || History.Any(h => h.HasData);
 }
@@ -50,7 +53,8 @@ public sealed class SensLabData
 public static class SensLab
 {
     const float SessionGapHours = 0.75f;
-    const float SameSensPct = 0.02f;
+    // Ignore float round-off while preserving deliberate small changes in game sensitivity.
+    const float SameSensPct = 0.00001f;
 
     static float Get(Dictionary<string, float> m, string k) => m.TryGetValue(k, out var v) && !float.IsNaN(v) ? v : 0;
     static int I(Dictionary<string, float> m, string k) => (int)MathF.Round(Get(m, k));
@@ -61,7 +65,8 @@ public static class SensLab
     /// <summary>Signals from one run's metric dictionary.</summary>
     public static SensFeedback Feedback(Dictionary<string, float> m, float refTier)
     {
-        if (Get(m, "sens.changed") > 0) return new(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, SensVerdict.NoData);
+        if (Get(m, "sens.changed") > 0)
+            return Feedback(m.Where(kv => kv.Key.StartsWith("current.")).ToDictionary(kv => kv.Key[8..], kv => kv.Value), refTier);
         int staticFlicks = I(m, "flick.n_still");
         int controlled = I(m, "sens.n");
         int flicks = staticFlicks + controlled;
@@ -80,7 +85,8 @@ public static class SensLab
         return new SensFeedback(flicks, totalOff, secs, over, under,
             Mean(m, "flick.mean_overshoot_pct", "flick.n_over", "sens.over_pct", controlledOver),
             Mean(m, "flick.mean_undershoot_deg", "flick.n_under", "sens.under_deg", controlledUnder),
-            corr, jitter, on, float.IsNaN(delta) ? 0 : delta, conf, verdict);
+            corr, jitter, on, float.IsNaN(delta) ? 0 : delta, conf, verdict)
+            { MicroShots = I(m, "micro.n"), CenteredShare = Get(m, "micro.centered_share") };
     }
 
     static float Mean(Dictionary<string, float> m, string first, string weight, string second, int count)
@@ -111,6 +117,7 @@ public static class SensLab
             Sessions = Sessions(all),
             History = blocks.TakeLast(10).ToList(),
         };
+        data.Comparison = SensComparison.Build(all, currentSens);
         if (currentRuns.Count > 0) data.Current = Block(currentSens, currentRuns, refTier);
         return data;
     }
@@ -138,7 +145,7 @@ public static class SensLab
         if (hasTrack && jitter > bandJ * 1.35f) return SensVerdict.Shaky;
         if (hasTrack && on < Bench.ValueAt(refTier, Bench.TrackOnPct) * 0.8f) return SensVerdict.Tracking;
 
-        if (hasFlick && off >= 8)
+        if (hasFlick && off >= 6 && off >= flicks * 0.20f)
         {
             if (over >= 0.55f && under <= 0.35f) return SensVerdict.Overshoot;
             if (under >= 0.55f && over <= 0.35f) return SensVerdict.Undershoot;

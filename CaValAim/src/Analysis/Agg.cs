@@ -12,8 +12,8 @@ static class Agg
 
     static readonly HashSet<string> Sums = new()
     {
-        "run.secs",
-        "flick.n", "flick.n5", "flick.n_prim", "flick.n_still", "flick.n_low", "flick.n_over", "flick.n_under", "flick.n_off", "flick.n_small",
+        "run.secs", "micro.n", "micro.centered",
+        "flick.n", "flick.n5", "flick.n_prim", "flick.n_still", "flick.recovered_over_n", "flick.range_near_n", "flick.range_wide_n", "flick.range_near_over", "flick.range_wide_over", "flick.n_low", "flick.n_over", "flick.n_under", "flick.n_off", "flick.n_small",
         "flick.n_large", "flick.anticip", "flick.onset_n", "flick.n_hit", "flick.n_corr", "flick.misses", "flick.premature",
         "flick.snap", "flick.n_first", "flick.first_hits",
         "flick.dir_left_n", "flick.dir_left_hit", "flick.dir_left_off",
@@ -37,6 +37,8 @@ static class Agg
     /// <summary>Weight (sample-count) key of each averaged metric. Unlisted averages use the family's count key.</summary>
     static readonly Dictionary<string, string> Weight = new()
     {
+        ["micro.centered_share"] = "micro.n", ["micro.error_r"] = "micro.n",
+        ["flick.recovered_over_ms"] = "flick.recovered_over_n",
         ["flick.mt_ms"] = "flick.n_prim", ["flick.peak_dps"] = "flick.n_prim", ["flick.peak_cms"] = "flick.n_prim",
         ["flick.end_err_pct"] = "flick.n_prim", ["flick.gain"] = "flick.n_still", ["flick.perp_deg"] = "flick.n_prim",
         ["flick.curv"] = "flick.n_prim", ["flick.eta_p"] = "flick.n_prim", ["flick.end_y_deg"] = "flick.n_prim", ["flick.low_share"] = "flick.n_prim",

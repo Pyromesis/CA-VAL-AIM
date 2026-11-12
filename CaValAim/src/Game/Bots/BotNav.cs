@@ -135,6 +135,11 @@ public sealed class BotNav
         }
 
         // 4. keep the component reachable from the seed
+        // The seed is the map's start, so its component is the one the player and the bots share. But a start authored
+        // in an isolated pocket (a ledge the collision does not connect to the floor below) would leave the whole
+        // playable area out of the grid: no bot would ever path anywhere and the spawn pool would be empty. When the
+        // seed's component is a tiny island, the largest component wins instead — a bot that can roam beats a bot that
+        // cannot move.
         int seedNode = -1; float best = float.MaxValue;
         for (int n = 0; n < allPos.Length; n++)
         {
@@ -142,14 +147,28 @@ public sealed class BotNav
             if (d < best) { best = d; seedNode = n; }
         }
         var keep = new bool[allPos.Length];
-        if (seedNode >= 0)
+        var comp = new int[allPos.Length];
+        for (int n = 0; n < comp.Length; n++) comp[n] = -1;
+        int comps = 0, seedCompSize = 0, biggestComp = -1, biggestSize = 0;
+        for (int start = 0; start < allPos.Length; start++)
         {
+            if (comp[start] >= 0) continue;
+            int id = comps++;
+            int size = 0;
             var q = new Queue<int>();
-            q.Enqueue(seedNode); keep[seedNode] = true;
+            q.Enqueue(start); comp[start] = id;
             while (q.Count > 0)
-                foreach (var m in links[q.Dequeue()])
-                    if (!keep[m]) { keep[m] = true; q.Enqueue(m); }
+            {
+                int cur = q.Dequeue();
+                size++;
+                foreach (int m in links[cur])
+                    if (comp[m] < 0) { comp[m] = id; q.Enqueue(m); }
+            }
+            if (seedNode >= 0 && id == comp[seedNode]) seedCompSize = size;
+            if (size > biggestSize) { biggestSize = size; biggestComp = id; }
         }
+        int chosen = seedNode >= 0 && seedCompSize >= biggestSize * 0.5f ? comp[seedNode] : biggestComp;
+        for (int n = 0; n < allPos.Length; n++) keep[n] = comp[n] == chosen;
         var remap = new int[allPos.Length];
         var finalPos = new List<Vector3>();
         var finalCol = new List<int>();
@@ -311,8 +330,15 @@ public sealed class BotNav
         return outp;
     }
 
-    /// <summary>Can a body walk the straight segment a→b? Ground must be continuous (every column on the way has a node
-    /// within a step of the previous one) and knee-height rays (centre + both shoulders) must be clear.</summary>
+    /// <summary>
+    /// Can a body walk the straight segment a→b? The ground must be continuous (every column on the way has a node
+    /// within a step of the previous one) and the body's corridor must be clear.
+    /// <para>The corridor test is the body's, not a knee-height ray's: the body is an upright box of
+    /// <see cref="Collision.PlayerRadius"/> × <see cref="Collision.PlayerHeight"/> that steps over anything up to
+    /// <see cref="Collision.StepHeight"/>, so only the band above that height blocks it. A ray at knee height misses
+    /// every overhang (a ledge at 1.2 m, a door frame), so the bot planned a straight line its body could not walk and
+    /// pushed against the ledge forever.</para>
+    /// </summary>
     public bool Straight(Vector3 a, Vector3 b)
     {
         var d = new Vector3(b.X - a.X, 0, b.Z - a.Z);
@@ -333,11 +359,64 @@ public sealed class BotNav
             if (Mathf.Abs(y - a.Y) > MovementTuning.SnapDown) return false;
         }
         if (Mathf.Abs(y - b.Y) > 0.3f) return false;
-        var dir = d / len;
-        var side = new Vector3(-dir.Z, 0, dir.X) * (Collision.PlayerRadius + 0.06f);
-        float ky = Mathf.Max(a.Y, b.Y) + Collision.StepHeight + 0.05f;
-        var c = new Vector3(a.X, ky, a.Z);
-        return !HRayBlocked(c, dir, len) && !HRayBlocked(c + side, dir, len) && !HRayBlocked(c - side, dir, len);
+        return CorridorClear(a, b, y);
+    }
+
+    /// <summary>
+    /// Is the body's corridor along a→b clear? The body sweeps a horizontal corridor of
+    /// <see cref="Collision.PlayerRadius"/> around the segment, from the ground up to
+    /// <see cref="Collision.PlayerHeight"/>; boxes whose top is within <see cref="Collision.StepHeight"/> of the feet
+    /// are stepped over and do not block it.
+    /// </summary>
+    bool CorridorClear(Vector3 a, Vector3 b, float feetY)
+    {
+        float r = Collision.PlayerRadius;
+        float lo = feetY + Collision.StepHeight + 0.02f;   // above this the body is not lifted
+        float hi = feetY + Collision.PlayerHeight - 0.02f; // below this the body passes under
+        var d = new Vector3(b.X - a.X, 0, b.Z - a.Z);
+        float len = d.Length();
+        if (len < 0.05f) return true;
+
+        // The segment's bounding rectangle, expanded by the body radius.
+        float minX = Mathf.Min(a.X, b.X) - r, maxX = Mathf.Max(a.X, b.X) + r;
+        float minZ = Mathf.Min(a.Z, b.Z) - r, maxZ = Mathf.Max(a.Z, b.Z) + r;
+        int ax = RbX(minX), bx = RbX(maxX), az = RbZ(minZ), bz = RbZ(maxZ);
+        for (int z = az; z <= bz; z++)
+            for (int x = ax; x <= bx; x++)
+                foreach (int i in rayBuckets[x + z * rbNx])
+                {
+                    ref readonly var bx2 = ref solid[i];
+                    if (bx2.Max.Y <= lo || bx2.Min.Y >= hi) continue;      // below the step or above the head
+                    if (bx2.Max.X < minX || bx2.Min.X > maxX || bx2.Max.Z < minZ || bx2.Min.Z > maxZ) continue;
+                    // The corridor is a capsule around the segment, not its bounding rectangle: a box beside the line
+                    // (the corner of a wall the bot walks around) must not block it.
+                    if (!SegmentNearBox(a, d, len, bx2, r)) continue;
+                    return false;
+                }
+        return true;
+    }
+
+    /// <summary>
+    /// Does the segment a→d·len come within <paramref name="r"/> of the box's XZ extent? The segment is clipped to the
+    /// box's rectangle grown by r: if the clipped range is empty the segment never comes that close.
+    /// </summary>
+    static bool SegmentNearBox(Vector3 a, Vector3 d, float len, Box box, float r)
+    {
+        float t0 = 0f, t1 = 1f;
+        if (!Clip(a.X, d.X, box.Min.X - r, box.Max.X + r, ref t0, ref t1)) return false;
+        if (!Clip(a.Z, d.Z, box.Min.Z - r, box.Max.Z + r, ref t0, ref t1)) return false;
+        return t0 <= t1;
+    }
+
+    /// <summary>Clips the parameter range of a segment against a slab; false when the segment misses it.</summary>
+    static bool Clip(float o, float dd, float lo, float hi, ref float t0, ref float t1)
+    {
+        if (Mathf.Abs(dd) < 1e-8f) return o >= lo && o <= hi;
+        float a = (lo - o) / dd, b = (hi - o) / dd;
+        if (a > b) (a, b) = (b, a);
+        if (a > t0) t0 = a;
+        if (b < t1) t1 = b;
+        return t0 <= t1;
     }
 
     // Immutable XZ buckets over the boxes (thread-safe, unlike the collision grid's query stamps): paths are smoothed on
@@ -370,32 +449,6 @@ public sealed class BotNav
 
     int RbX(float x) => Math.Clamp((int)Mathf.Floor((x - rbX0) / RayBucket), 0, Math.Max(0, rbNx - 1));
     int RbZ(float z) => Math.Clamp((int)Mathf.Floor((z - rbZ0) / RayBucket), 0, Math.Max(0, rbNz - 1));
-
-    /// <summary>Horizontal ray vs the world with a cheap AABB reject (only boxes spanning the ray's height and its XZ extent).</summary>
-    bool HRayBlocked(Vector3 o, Vector3 dir, float len)
-    {
-        float ex = o.X + dir.X * len, ez = o.Z + dir.Z * len;
-        float minX = Mathf.Min(o.X, ex), maxX = Mathf.Max(o.X, ex), minZ = Mathf.Min(o.Z, ez), maxZ = Mathf.Max(o.Z, ez);
-        if (rbNx == 0)
-        {
-            foreach (ref readonly var b in solid.AsSpan())
-            {
-                if (b.Max.Y < o.Y || b.Min.Y > o.Y || b.Max.X < minX || b.Min.X > maxX || b.Max.Z < minZ || b.Min.Z > maxZ) continue;
-                if (b.Ray(o, dir) < len) return true;
-            }
-            return false;
-        }
-        int ax = RbX(minX), bx = RbX(maxX), az = RbZ(minZ), bz = RbZ(maxZ);
-        for (int z = az; z <= bz; z++)
-            for (int x = ax; x <= bx; x++)
-                foreach (int i in rayBuckets[x + z * rbNx])
-                {
-                    ref readonly var b = ref solid[i];
-                    if (b.Max.Y < o.Y || b.Min.Y > o.Y || b.Max.X < minX || b.Min.X > maxX || b.Max.Z < minZ || b.Min.Z > maxZ) continue;
-                    if (b.Ray(o, dir) < len) return true; // a box seen twice (in two buckets) just answers twice
-                }
-        return false;
-    }
 
     /// <summary>Random reachable node position.</summary>
     public Vector3 Random(Random rng) => Pos[rng.Next(Pos.Length)];

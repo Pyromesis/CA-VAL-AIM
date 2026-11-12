@@ -272,7 +272,20 @@ public sealed partial class DeathmatchMode
                     Stuck++; stuckRun++;
                     if (DevLog && Stuck <= 3) GD.Print($"[dm] {Name} stuck at {feet} ({State}, wp {wp}/{path!.Count} next {(wp < path.Count ? path[wp] : Vector3.Zero)}, vel {vel.Length():0.0}, want {want}, speed {speed}, sees {brain.SeesPlayer})");
                     Replan(); repathAt = Now;
-                    if (stuckRun >= 3) { State = St.Roam; lkp = null; noise = null; stuckRun = 0; }
+                    if (stuckRun >= 3)
+                    {
+                        // Un-wedge: replanning alone does not help when the body is jammed against geometry the path
+                        // thinks it can pass (the grid's clearance test and the body's do not always agree). Step onto
+                        // the nearest open node and try again, like the tactical bots do.
+                        int n = m.Nav.Nearest(feet);
+                        if (n >= 0)
+                        {
+                            b.Feet = m.Nav.Pos[n];
+                            vel = Vector3.Zero;
+                            Stuck = 0;
+                        }
+                        State = St.Roam; lkp = null; noise = null; stuckRun = 0;
+                    }
                 }
                 else stuckRun = 0;
                 stuckAt = Now; stuckPos = feet;

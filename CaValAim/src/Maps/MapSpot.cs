@@ -98,7 +98,8 @@ public sealed class MapSpot
                 if (ExtraSolid.Length > 0) real = real.Concat(ExtraSolid).ToArray();
                 var repairs = MapCollisionRepairs.For(Key);
                 if (repairs.Length > 0) real = real.Concat(repairs).ToArray();
-                Game.SpawnSafety.SetMoves(real, MapAssets.LoadMoves(RealMapFolder + "/spawn_exclude.json"));
+                if (!SpawnAudit.Unfiltered)
+                    Game.SpawnSafety.SetMoves(real, MapAssets.LoadMoves(RealMapFolder + "/spawn_exclude.json"));
                 return real;
             }
         }

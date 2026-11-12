@@ -94,22 +94,32 @@ public partial class PracticeScreen : ScreenBase
 
         if (comparison is { } test)
         {
-            body.AddChild(Heading(L("PRUEBA DE SENSIBILIDAD", "SENSITIVITY TEST"), L("COMPARACIÓN A/B · SEGUIMIENTO", "A/B COMPARISON · TRACKING")));
+            body.AddChild(Heading(L("PRUEBA DE SENSIBILIDAD", "SENSITIVITY TEST"), Loc.T(CoachData.DrillName(test.Drill))));
+            if (round == 0)
+                foreach (var key in new[] { "tracking", "flickx:coach-brake-wide", "microx:coach-micro-confirm" })
+                    if (key != test.Drill)
+                        ActionButton(Loc.T(CoachData.DrillName(key)), () => {
+                            test.Drill = key;
+                            Rebuild();
+                        }, VButton.Look.Secondary);
             Line($"A  {test.Baseline:0.0000}     B  {test.Candidate:0.0000}     ·     {test.Dpi} DPI", UiTheme.Text);
             if (round < 4)
             {
                 Line(L($"Ronda {round + 1}/4 · {test.Label(round)} · 30 segundos", $"Round {round + 1}/4 · {test.Label(round)} · 30 seconds"), UiTheme.Teal);
-                Line(L("Mantén pulsado disparo mientras sigues el blanco. Acompaña sus cambios de dirección con un movimiento continuo y relaja la mano.",
+                if (test.Tracking) Line(L("Mantén pulsado disparo mientras sigues el blanco. Acompaña sus cambios de dirección con un movimiento continuo y relaja la mano.",
                     "Hold fire while following the target. Follow its direction changes in one continuous motion and keep your hand relaxed."), UiTheme.Text);
-                if (round > 0) Line(L($"Tiempo en blanco en la ronda anterior: {test.Scores[round - 1]:P0}.",
-                    $"Time on target in the previous round: {test.Scores[round - 1]:P0}."), UiTheme.Dim);
+                else Line(L("Apunta al centro y dispara una vez por intento. Mantén tu ritmo habitual en las cuatro rondas.",
+                    "Aim at the center and tap once per attempt. Keep your usual pace across all four rounds."), UiTheme.Text);
+                if (round > 0) Line($"{test.Measure} · {test.Scores[round - 1]:P0}", UiTheme.Dim);
                 ActionButton(L("EMPEZAR RONDA", "START ROUND"), () => RunComparison(test));
             }
             else
             {
-                Line(L($"Tiempo en blanco · A {test.Mean(false):P0} · B {test.Mean(true):P0}",
-                    $"Time on target · A {test.Mean(false):P0} · B {test.Mean(true):P0}"), UiTheme.Text);
-                Line(!test.Valid ? L("Muestra insuficiente. Mantén pulsado disparo al menos 24 segundos por ronda y repite la prueba.",
+                Line($"{test.Measure} · A {test.Mean(false):P0} · B {test.Mean(true):P0}", UiTheme.Text);
+                if (!test.Tracking && test.Valid)
+                    Line(L("Tiempo hasta acertar", "Time to hit") + $" · A {test.MeanTime(false):0} ms · B {test.MeanTime(true):0} ms", UiTheme.Text);
+                Line(!test.Valid && !test.Tracking ? L("Repite la prueba con al menos 15 primeros disparos medidos y 10 aciertos analizados por ronda, manteniendo los ajustes.", "Repeat with at least 15 measured first shots and 10 analyzed hits per round, keeping settings fixed.")
+                    : !test.Valid ? L("Muestra insuficiente. Mantén pulsado disparo al menos 24 segundos por ronda y repite la prueba.",
                     "Insufficient data. Hold fire for at least 24 seconds per round and repeat the test.")
                     : test.Winner ? L("B mejoró en ambas comparaciones. Puedes usarla en el entrenador y repetir la prueba otro día.",
                         "B improved in both comparisons. You can use it in the trainer and repeat the test another day.")
@@ -136,6 +146,21 @@ public partial class PracticeScreen : ScreenBase
                 var step = plan[round];
                 Line($"{round + 1}/{plan.Length} · {Loc.T(CoachData.DrillName(step.Drill))}", UiTheme.Teal);
                 Line(Cue(step), UiTheme.Text);
+                if (step.Source is { } weakness) {
+                    if (!string.IsNullOrWhiteSpace(weakness.Title)) Line(L("DEBILIDAD · ", "WEAKNESS · ") + weakness.Title, UiTheme.Accent);
+                    if (!string.IsNullOrWhiteSpace(weakness.Evidence)) Line(L("QUÉ OBSERVÓ EL COACH · ", "WHAT THE COACH OBSERVED · ") + weakness.Evidence, UiTheme.Text);
+                    if (!string.IsNullOrWhiteSpace(weakness.Why)) Line(L("QUÉ SIGNIFICA · ", "WHAT IT MEANS · ") + weakness.Why, UiTheme.Dim);
+                    foreach (string fix in weakness.Fixes.Skip(1).Take(3)) Line("• " + fix, UiTheme.Text);
+                    if (Academy.For(weakness) is { } lesson)
+                    {
+                        Line(L("TÉCNICA · ", "TECHNIQUE · ") + lesson.Name + "  —  « " + lesson.Cue + " »", UiTheme.Good);
+                        var resume = (drills, profile, round, feedback, previous);
+                        ActionButton(L("VER LA LECCIÓN Y SUS VÍDEOS", "OPEN THE LESSON AND ITS VIDEOS"), () => Main.I.ShowAcademy(lesson.Id,
+                            () => Main.I.ShowScreen(new PracticeScreen(resume.drills!, resume.profile!, resume.round, resume.feedback) { previous = resume.previous })),
+                            VButton.Look.Secondary);
+                    }
+                }
+                Line(L("CÓMO COMPROBAR EL PROGRESO · ", "HOW TO CHECK PROGRESS · ") + PracticeTargets.For(step), UiTheme.Teal);
                 if (ModeRegistry.Find(step.Drill) is { } factory) Line(factory().Description, UiTheme.Dim);
                 if (ForecastFor(step) is { } forecast)
                     Line(L($"Red neuronal local · precisión prevista {forecast.Accuracy:P0} · validada en {forecast.ValidationRuns} rondas.",
@@ -154,8 +179,17 @@ public partial class PracticeScreen : ScreenBase
                 foreach (var forecast in profile.Forecasts)
                 {
                     string drill = Loc.T(CoachData.DrillName(forecast.Drill));
-                    Line(L($"Red neuronal local · {drill} · precisión prevista {forecast.Accuracy:P0}",
-                        $"Local neural network · {drill} · predicted accuracy {forecast.Accuracy:P0}"), UiTheme.Dim);
+                    string metric = forecast.Metric switch {
+                        "recovered-over" => L("aciertos tras corregir un sobrepaso", "hits after correcting an overshoot"),
+                        "overshoot" => L("sobrepasos previstos", "predicted overshoots"),
+                        "undershoot" => L("movimientos cortos previstos", "predicted undershoots"),
+                        "first-hit" => L("primeros disparos centrados", "centered first shots"),
+                        "correction-load" => L("carga de correcciones (escala 0–4)", "correction load (0–4 scale)"),
+                        _ => L("precisión prevista", "predicted accuracy"),
+                    };
+                    string value = forecast.Metric == "correction-load" ? $"{forecast.Accuracy * 4:0.0}" : $"{forecast.Accuracy:P0}";
+                    Line(L($"Red neuronal local · {drill} · {metric} {value} · {forecast.ValidationRuns} rondas de validación",
+                        $"Local neural network · {drill} · {metric} {value} · {forecast.ValidationRuns} validation runs"), UiTheme.Dim);
                 }
                 ActionButton(L("VER PLAN DE PRÁCTICA", "VIEW PRACTICE PLAN"), () => Start(CoachPlan.Build(profile), profile));
                 ActionButton("SENS LAB", Main.I.ShowSensLab, VButton.Look.Secondary);
@@ -178,7 +212,7 @@ public partial class PracticeScreen : ScreenBase
 
     AimForecast? ForecastFor(PlanStep step) =>
         profile != null && Main.I.Tier == profile.ForecastTier && SensLab.SameSens(Main.I.Sens, profile.ForecastSens)
-            ? profile.Forecasts.FirstOrDefault(f => f.Drill == step.Drill) : null;
+            ? profile.Forecasts.FirstOrDefault(f => f.Drill == step.Drill && f.Metric == "accuracy") : null;
 
     void RunGuided(PlanStep step)
     {
@@ -210,6 +244,17 @@ public partial class PracticeScreen : ScreenBase
                     if (previous.TryGetValue(step.Drill, out var before) && before.Tier == current.Tier
                         && before.Map == current.Map && SensLab.SameSens(before.Sens, current.Sens))
                     {
+                        if (before.Metrics is { } oldMetrics && current.Metrics is { } newMetrics &&
+                            oldMetrics.GetValueOrDefault("flick.n_still") >= 15 && newMetrics.GetValueOrDefault("flick.n_still") >= 15 &&
+                            oldMetrics.GetValueOrDefault("context.dpi", -1) == newMetrics.GetValueOrDefault("context.dpi") &&
+                            oldMetrics.GetValueOrDefault("context.weapon", -1) == newMetrics.GetValueOrDefault("context.weapon")) {
+                            string Read(Dictionary<string, float> m) {
+                                float n = m["flick.n_still"];
+                                return L($"{m.GetValueOrDefault("flick.n_over")/n:P0} largos, {m.GetValueOrDefault("flick.n_under")/n:P0} cortos",
+                                    $"{m.GetValueOrDefault("flick.n_over")/n:P0} long, {m.GetValueOrDefault("flick.n_under")/n:P0} short");
+                            }
+                            score += L(" Frenado anterior y actual · ", " Previous and current braking · ") + Read(oldMetrics) + " → " + Read(newMetrics) + ".";
+                        }
                         float change = (current.Accuracy - before.Accuracy) * 100f;
                         score += L($" Frente a la repetición anterior del mismo ejercicio: {change:+0.0;-0.0;0} puntos de precisión. Una ronda no confirma una tendencia.",
                             $" Against the previous repetition of this drill: {change:+0.0;-0.0;0} accuracy points. One round does not establish a trend.");
@@ -240,9 +285,10 @@ public partial class PracticeScreen : ScreenBase
 
     void RunComparison(SensComparison test)
     {
-        if (ModeRegistry.Find("tracking") is not { } make) return;
+        if (ModeRegistry.Find(test.Drill) is not { } make) return;
         Main.I.ShowScreen(new GameSession(make)
         {
+            SessionRecoil = false,
             ComparisonSeed = test.Seeds[round / 2],
             SessionSens = test.IsCandidate(round) ? test.Candidate : test.Baseline,
             TierOverride = test.Tier,
@@ -251,14 +297,13 @@ public partial class PracticeScreen : ScreenBase
             OnFinished = game =>
             {
                 Sfx.I.Play("practice_complete", 0.65f);
-                test.Scores[round] = Math.Clamp((game.Record?.Score ?? 0) / 3000f, 0, 1);
-                test.Valid &= game.Record?.Metrics?.GetValueOrDefault("track.secs") >= 24;
+                test.Record(round, game.Record?.Metrics, Main.I.Settings.Dpi);
                 Callable.From(() => Main.I.ShowScreen(new PracticeScreen(test, round + 1))).CallDeferred();
             }
         });
     }
 
-    sealed class SensComparison(float baseline, float candidate, int dpi, int tier)
+    internal sealed class SensComparison(float baseline, float candidate, int dpi, int tier)
     {
         public float Baseline { get; } = baseline;
         public float Candidate { get; } = candidate;
@@ -266,13 +311,31 @@ public partial class PracticeScreen : ScreenBase
         public int Tier { get; } = tier;
         public int[] Seeds { get; } = new[] { Random.Shared.Next(), Random.Shared.Next() };
         public float[] Scores { get; } = new float[4];
+        public string Drill = "tracking";
+        public bool Tracking => Drill == "tracking";
+        public string Measure => Tracking ? L("Tiempo sobre el blanco", "Time on target") : L("Primeros disparos centrados", "Centered first shots");
+        readonly float[] times = new float[4];
+        public float MeanTime(bool candidate) => Enumerable.Range(0, 4).Where(i => IsCandidate(i) == candidate).Average(i => times[i]);
+        public void Record(int index, Dictionary<string, float>? m, int recordedDpi)
+        {
+            if (m == null || m.GetValueOrDefault("sens.changed") != 0 || recordedDpi != Dpi) { Valid = false; return; }
+            if (Tracking) {
+                Scores[index] = m.GetValueOrDefault("track.ontarget") / 100f;
+                Valid &= m.GetValueOrDefault("track.secs") >= 24 && m.ContainsKey("track.ontarget");
+            } else {
+                Scores[index] = m.GetValueOrDefault("micro.centered_share");
+                times[index] = m.GetValueOrDefault("flick.ttk_ms");
+                Valid &= m.GetValueOrDefault("micro.n") >= 15 && m.GetValueOrDefault("flick.n_hit") >= 10
+                    && times[index] > 0 && m.ContainsKey("micro.centered_share");
+            }
+        }
         public bool Valid = true;
         readonly bool startWithCandidate = Random.Shared.Next(2) == 0;
         public bool IsCandidate(int i) => (i is 0 or 3) == startWithCandidate;
         public string Label(int i) => IsCandidate(i) ? "B" : "A";
         public float Mean(bool candidate) => Enumerable.Range(0, 4).Where(i => IsCandidate(i) == candidate).Average(i => Scores[i]);
         float PairGain(int i) => IsCandidate(i) ? Scores[i] - Scores[i + 1] : Scores[i + 1] - Scores[i];
-        public bool Winner => Valid && PairGain(0) > 0 && PairGain(2) > 0 && Mean(true) - Mean(false) >= 0.02f;
+        public bool Winner => Valid && (Tracking || MeanTime(true) <= MeanTime(false) * 1.08f) && PairGain(0) > 0 && PairGain(2) > 0 && Mean(true) - Mean(false) >= 0.02f;
         public bool CanApply => Main.I.Sens == Baseline && Main.I.Settings.Dpi == Dpi;
     }
 }

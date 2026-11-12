@@ -83,13 +83,24 @@ public sealed class CoachPlan
                         ? "Mantén pulsado disparo y sigue el centro del objetivo. Relaja el agarre al invertir el movimiento e intenta aumentar tu tiempo en blanco."
                         : "Hold fire and follow the center of the target. Relax your grip during reversals and try to increase time on target.",
                 };
-                Add(drill, SkillOf(drill), new Diagnosis("SENS_TASK", SkillOf(drill), Severity.Tip, "",
-                    "", "", new[] { cue }, new[] { drill }, f.Flicks));
+                string weakness = f.Verdict switch {
+                    SensVerdict.Overshoot => es ? "Sobrepasos al frenar" : "Overshooting while braking",
+                    SensVerdict.Undershoot => es ? "Movimientos que se quedan cortos" : "Movements stopping short",
+                    SensVerdict.Mixed => es ? "Frenado inconsistente" : "Inconsistent braking",
+                    _ => es ? "Control del seguimiento" : "Tracking control",
+                };
+                string evidence = es
+                    ? $"{f.Flicks} movimientos medidos; {f.OffTarget * f.OvershootShare:0} sobrepasos, {f.OffTarget * f.UndershootShare:0} cortos; {f.TrackSeconds:0} s de seguimiento."
+                    : $"{f.Flicks} measured movements; {f.OffTarget * f.OvershootShare:0} overshoots, {f.OffTarget * f.UndershootShare:0} short; {f.TrackSeconds:0} s tracking.";
+                Add(drill, SkillOf(drill), new Diagnosis("SENS_TASK", SkillOf(drill), Severity.Tip, weakness,
+                    evidence, es ? "El patrón describe tu control actual; no demuestra que la sensibilidad sea su causa. Aísla el gesto antes de cambiar ajustes."
+                        : "This pattern describes current control; it does not establish sensitivity as its cause. Isolate the movement before changing settings.",
+                    new[] { cue }, new[] { drill }, f.Flicks));
             }
         }
-        foreach (var issue in review.Issues)
+        foreach (var issue in review.Findings.Count > 0 ? review.Findings : review.Issues)
         {
-            string? drill = PersonalDrills.For(issue) ?? issue.Drills.FirstOrDefault(k => ModeRegistry.Find(k) != null && plan.Steps.All(s => s.Drill != k));
+            string? drill = PersonalDrills.For(issue, review.Metrics) ?? issue.Drills.FirstOrDefault(k => ModeRegistry.Find(k) != null && plan.Steps.All(s => s.Drill != k));
             if (drill == null) continue;
             Add(drill, issue.Skill, issue);
             if (plan.Steps.Count >= 3) break;
@@ -128,7 +139,7 @@ public sealed class CoachPlan
 
         foreach (var d in p.Problems)
         {
-            string? drill = PersonalDrills.For(d) ?? (d.Drills ?? Array.Empty<string>())
+            string? drill = PersonalDrills.For(d, p.Metrics) ?? (d.Drills ?? Array.Empty<string>())
                 .FirstOrDefault(k => ModeRegistry.Find(k) != null && !used.Contains(k));
             if (drill == null) continue;
             int runs = d.Severity switch { Severity.Major => 3, Severity.Minor => 2, _ => 1 };

@@ -23,7 +23,9 @@ public sealed class LiveCoach
     readonly RunTelemetry tel;
     readonly bool movementDrill, staticDrill, trackingDrill, botDrill, reactionDrill;
     readonly Dictionary<string, float> lastById = new();
-    float nextCheck = 3f, lastTipAt = -99f;
+    int inspectedEvents;
+    TelemetryEvent? latestChange;
+    float nextCheck = 3f, lastTipAt = -99f, observedChangeAt = -1;
     public LiveTip? Current { get; private set; }
     public readonly List<LiveTip> History = new();
 
@@ -43,6 +45,17 @@ public sealed class LiveCoach
     /// <summary>Call every frame while the run is running.</summary>
     public void Tick(float now, bool stableSensitivity = true)
     {
+        while (inspectedEvents < tel.Events.Count)
+        {
+            var evt = tel.Events[inspectedEvents++];
+            if (evt.Kind == "sens_changed") latestChange = evt;
+        }
+        var changed = latestChange;
+        if (changed != null && changed.T > observedChangeAt) {
+            observedChangeAt = changed.T;
+            Current = null; flick = null;
+            nextCheck = now + 3;
+        }
         if (Current != null && now - Current.At > Show) Current = null;
         if (stableSensitivity && (staticDrill || botDrill)) PollFlicks(now);
         if (!stableSensitivity) flick = null;
@@ -65,7 +78,7 @@ public sealed class LiveCoach
     /// <param name="OverDeg">Mean overshoot of the flicks that went past (deg), <paramref name="OverPct"/> the same as a
     /// share of the flick distance, <paramref name="OverR"/> their mean target radius; <paramref name="Gain"/> the mean
     /// distance covered by the primary movement / the distance needed (all flicks).</param>
-    readonly record struct FlickCounts(int Flicks, int Over, int Under, float OverDeg, float OverPct, float OverR, float Gain, float At);
+    readonly record struct FlickCounts(int Flicks, int Over, int Under, float OverDeg, float OverPct, float OverR, float Gain, float At, float Corrections);
     FlickCounts? flick;
     System.Threading.Tasks.Task<FlickCounts>? flickTask;
     float nextFlickAt = 4f;
@@ -76,13 +89,19 @@ public sealed class LiveCoach
     {
         if (flickTask is { IsCompleted: true } done)
         {
-            if (done.Status == System.Threading.Tasks.TaskStatus.RanToCompletion) flick = done.Result;
+            if (done.Status == System.Threading.Tasks.TaskStatus.RanToCompletion)
+            {
+                var changed = latestChange;
+                flick = changed == null || done.Result.At > changed.T + FlickWindow ? done.Result : null;
+            }
             flickTask = null;
         }
         if (flickTask != null || now < nextFlickAt) return;
         nextFlickAt = now + FlickEvery;
         float from = now - FlickWindow;
-        var snap = new RunTelemetry { Mode = tel.Mode, Tier = tel.Tier, Sens = tel.Sens, Dpi = tel.Dpi, Weapon = tel.Weapon, HFov = tel.HFov, ZoomSensMult = tel.ZoomSensMult };
+        var change = latestChange;
+        if (change != null) from = Math.Max(from, change.T + .15f);
+        var snap = new RunTelemetry { Mode = tel.Mode, Tier = tel.Tier, Sens = change?.B ?? tel.Sens, Dpi = tel.Dpi, Weapon = tel.Weapon, HFov = tel.HFov, ZoomSensMult = tel.ZoomSensMult };
         int fi = tel.Frames.Count - 1;
         while (fi > 0 && tel.Frames[fi - 1].T >= from) fi--;
         for (int i = Math.Max(0, fi); i < tel.Frames.Count; i++) snap.Frames.Add(tel.Frames[i]);
@@ -96,7 +115,7 @@ public sealed class LiveCoach
         flickTask = System.Threading.Tasks.Task.Run(() =>
         {
             int flicks = 0, over = 0, under = 0;
-            float overDeg = 0, overPct = 0, overR = 0, gain = 0;
+            float overDeg = 0, overPct = 0, overR = 0, gain = 0, corrections = 0;
             try
             {
                 if (RunAnalysis.Prepare(snap) is { } p)
@@ -108,6 +127,7 @@ public sealed class LiveCoach
                         if (r.Bot && !counted.Add((r.TrialId, Math.Round(r.TeP, 1)))) continue;
                         flicks++;
                         gain += r.Gain;
+                        corrections += r.Nc;
                         if (r.Over) { over++; overDeg += r.S; overPct += r.S / r.A; overR += r.R; }
                         else if (r.Under) under++;
                     }
@@ -115,8 +135,8 @@ public sealed class LiveCoach
             }
             catch { /* a partial window the analysis can't read: no cue this time */ }
             return over > 0
-                ? new FlickCounts(flicks, over, under, overDeg / over, 100f * overPct / over, overR / over, flicks > 0 ? gain / flicks : 1f, at)
-                : new FlickCounts(flicks, over, under, 0, 0, 0, flicks > 0 ? gain / flicks : 1f, at);
+                ? new FlickCounts(flicks, over, under, overDeg / over, 100f * overPct / over, overR / over, flicks > 0 ? gain / flicks : 1f, at, flicks > 0 ? corrections / flicks : 0)
+                : new FlickCounts(flicks, over, under, 0, 0, 0, flicks > 0 ? gain / flicks : 1f, at, flicks > 0 ? corrections / flicks : 0);
         });
     }
 
@@ -127,7 +147,7 @@ public sealed class LiveCoach
 
     LiveTip? Evaluate(float now)
     {
-        float from = now - Window;
+        float from = Math.Max(now - Window, observedChangeAt >= 0 ? observedChangeAt + .15f : 0);
         int firstShot = tel.Shots.FindLastIndex(s => s.T < from) + 1;
         int firstEvent = tel.Events.FindLastIndex(e => e.T < from) + 1;
         var shots = tel.Shots.GetRange(firstShot, tel.Shots.Count - firstShot);
@@ -219,7 +239,7 @@ public sealed class LiveCoach
             // flicks cover clearly less than the distance and nearly all off-target ones stop short. Ending a little
             // short is the normal human pattern and never triggers a cue.
             float underShare = n > 0 ? fl.Under / (float)n : 0;
-            if (n >= 6 && fl.Over >= n * 0.68f && fl.OverDeg >= 1.5f * fl.OverR && fl.OverPct >= 4f)
+            if (n >= 6 && fl.Over >= n * 0.65f && fl.Over >= fl.Flicks * .25f && fl.OverDeg > fl.OverR)
                 return Tip("FLICK", now, "You overshoot", "Te pasas del objetivo",
                     "Slow down the last part of the flick; let the crosshair land, then click.",
                     "Frena la última parte del flick: deja que la mira se asiente y luego dispara.",
@@ -231,6 +251,32 @@ public sealed class LiveCoach
                     "Comprométete con el flick: movimiento completo y luego la pequeña corrección.",
                     $"your flicks cover {fl.Gain * 100:0}% of the distance; {fl.Under} of the last {fl.Flicks} stopped before the target",
                     $"tus flicks recorren el {fl.Gain * 100:0}% de la distancia; {fl.Under} de los últimos {fl.Flicks} se quedaron antes del objetivo");
+        }
+
+        if (flick is { Flicks: >= 8 } measured && now - measured.At <= FlickWindow)
+        {
+            if (measured.Over >= measured.Flicks * .25f && measured.Under >= measured.Flicks * .25f && Ready("MIXED", now))
+                return Tip("MIXED", now, "Inconsistent stopping", "Frenado irregular",
+                    "Keep sensitivity fixed; land on the center at a steady pace.", "Mantén la sensibilidad; aterriza en el centro a un ritmo constante.",
+                    $"{measured.Over} long and {measured.Under} short movements in {measured.Flicks} attempts",
+                    $"{measured.Over} sobrepasos y {measured.Under} cortos en {measured.Flicks} intentos");
+            if (measured.Corrections >= 1.5f && Ready("CORRECT", now))
+                return Tip("CORRECT", now, "Too many corrections", "Demasiadas correcciones",
+                    "Slow the initial movement and make one deliberate correction before firing.",
+                    "Controla el primer gesto y haz una corrección deliberada antes de disparar.",
+                    $"{measured.Corrections:0.0} corrections per movement across {measured.Flicks} attempts",
+                    $"{measured.Corrections:0.0} correcciones por movimiento en {measured.Flicks} intentos");
+        }
+        if (staticDrill && RunAnalysis.StaticTargetMode(tel.Mode) && Ready("MICRO", now))
+        {
+            var first = shots.Where(s => s.FocusId != 0 && s.Accurate && s.Speed < .25f && s.FocusRadius > 0)
+                .GroupBy(s => s.FocusId).Select(g => g.First()).ToArray();
+            int outside = first.Count(s => s.Err > s.FocusRadius);
+            if (first.Length >= 8 && outside > first.Length * .5f)
+                return Tip("MICRO", now, "Confirm before firing", "Confirma antes de disparar",
+                    "Use one small correction before the click.", "Haz una corrección pequeña antes del clic.",
+                    $"{outside}/{first.Length} initial shots outside the target in the last {Window:0} s",
+                    $"{outside}/{first.Length} disparos iniciales fuera del objetivo en los últimos {Window:0} s");
         }
 
         // ---- tracking: distance from the target while firing

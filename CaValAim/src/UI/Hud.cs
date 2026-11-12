@@ -237,7 +237,7 @@ public partial class Hud : Control
                 DrawSpotCallouts(size, k, mapSpot);
             if (s.State == GameSession.St.Countdown) DrawBriefing(size, k, mapSpot);
         }
-        if (!m.Is2D && s.State == GameSession.St.Running && s.GuideMode >= 1) DrawGuide(size, k, m);
+        if (s.State == GameSession.St.Running && s.GuideMode >= 1) DrawGuide(size, k, m);
         if (!m.Is2D)
         {
             if (m.ShowScore) DrawVitals(size, k);
@@ -247,7 +247,9 @@ public partial class Hud : Control
         }
         if ((m.ShowInstructions ? m.Prompt ?? m.StatusPrompt ?? s.WorldPrompt : m.StatusPrompt ?? s.WorldPrompt) is { } p) DrawPrompt(size, k, Main.I.Valorant.Binds.Hint(p));
         if (s.BannerTime > 0 && s.BannerText.Length > 0) DrawBanner(size, k);
-        // Live analysis still runs and is archived; tutorial/coaching cards never cover active play.
+        // Measured feedback is optional and stays away from the crosshair; task instructions remain countdown-only.
+        if (s.State == GameSession.St.Running && Main.I.Settings.LiveCoach && s.Live?.Current is { } cue)
+            DrawMeasuredCoach(size, k, cue);
         if (m.KillBanner.Time > 0 && m.KillBanner.Count > 0) DrawKillBanner(size, k, m.KillBanner.Count, m.KillBanner.Time);
         if (s.State == GameSession.St.Countdown) DrawCountdown(size, k, m);
         if (focus != null && m.ShowInstructions) DrawFocus(size, k, focus);
@@ -263,6 +265,12 @@ public partial class Hud : Control
     /// </summary>
     void DrawGuide(Vector2 size, float k, TrainingMode m)
     {
+        if (m.Is2D)
+        {
+            if (m.AimGuide2D(size) is not { } aim) return;
+            DrawGuideTarget(size / 2, aim.Point, aim.Radius, aim.Point.DistanceTo(size / 2) * 70 / size.Y, k);
+            return;
+        }
         if (m.Focus is not { } f) return;
         var cam = GetViewport()?.GetCamera3D();
         if (cam == null) return;
@@ -289,6 +297,13 @@ public partial class Hud : Control
         // Target radius on screen: project a point one radius to the side of its centre.
         var edge = cam.UnprojectPosition(f.Point + cam.GlobalBasis.X * Mathf.Max(0.02f, f.Radius));
         float rpx = Mathf.Max(5 * k, edge.DistanceTo(p));
+        float degrees = Mathf.RadToDeg((-cam.GlobalBasis.Z).AngleTo((f.Point - cam.GlobalPosition).Normalized()));
+        DrawGuideTarget(c, p, rpx, degrees, k);
+    }
+
+    void DrawGuideTarget(Vector2 c, Vector2 p, float rpx, float deg, float k)
+    {
+        var col = UiTheme.Teal;
         float dist = c.DistanceTo(p);
         float ring = rpx + 4 * k;
         var lineCol = new Color(col, 0.55f);
@@ -301,8 +316,6 @@ public partial class Hud : Control
         if (dist > ring + 40 * k)
         {
             // Angular distance from the crosshair (the length of the flick the line describes).
-            var eye = cam.GlobalPosition;
-            float deg = Mathf.RadToDeg((-cam.GlobalBasis.Z).AngleTo((f.Point - eye).Normalized()));
             int fs = UiTheme.Fs(13, k);
             TL(UiTheme.HudWide, cGuide.Get((long)MathF.Round(deg), v => $"{v}°"), p.X + ring + 5 * k, p.Y - ring * 0.4f, fs, new Color(UiTheme.Text, 0.8f));
         }
@@ -1065,7 +1078,7 @@ public partial class Hud : Control
             var t = Difficulty.Get(st.Tier);
             tierText.Text = t.Name;
             tierText.QueueRedraw();
-            tierNote.Text = $"{t.Ranks}  ·  ~{t.Bot.ReactMs:0} ms  ·  " + L("from the next run", "desde la próxima partida");
+            tierNote.Text = $"{Loc.T(t.Ranks)}  ·  ~{t.Bot.ReactMs:0} ms  ·  " + L("from the next run", "desde la próxima partida");
             tierNote.QueueRedraw();
         }
         PaintTier();
@@ -1727,7 +1740,7 @@ public partial class Hud : Control
                 Gfx.TextFit(d, UiTheme.Display, SensLabText.VerdictSentence(sf), x0 + cw + 10 * k,
                     Gfx.Mid(cy, UiTheme.Fs(17, k)), UiTheme.Fs(17, k), UiTheme.Text, x1 - x0 - cw - 10 * k);
                 string sm = review?.Metrics.GetValueOrDefault("sens.changed") > 0
-                    ? L("Sensitivity changed during the round", "La sensibilidad cambió durante la ronda")
+                    ? L("Latest sensitivity segment", "Último tramo con esta sensibilidad") + $" · {review.Metrics.GetValueOrDefault("current.sens"):0.000} · {SensLabText.Metrics(sf)}"
                     : $"{s.Record?.Sens:0.0000} · {SensLabText.Metrics(sf)} · {SensLabText.EvidenceCaption(sf.Confidence)}";
                 Gfx.TextFit(d, UiTheme.Body, sm, x0, Gfx.Mid(st + 56 * k, body), body, UiTheme.Dim, x1 - x0 - 160 * k);
                 CoachDraw.Para(d, UiTheme.Body, SensLabText.Advice(sf), x0, st + 75 * k, x1 - x0, UiTheme.Fs(13.5f, k), UiTheme.Faint, 2);

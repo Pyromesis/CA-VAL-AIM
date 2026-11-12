@@ -5,11 +5,12 @@ namespace CaValAim.Modes;
 /// <summary>Authored training progressions using independent placement, motion and timing constraints.</summary>
 public static class TrainingCatalog
 {
-    public static readonly string[] Sections = { "Precision", "Dynamic", "Micro", "Sensitivity",
+    public static readonly string[] Sections = { TechniqueDrills.Section, "Precision", "Dynamic", "Micro", "Sensitivity",
         "Tracking", "Reactive", "Control", "Switching", "Reflex", "ReactionGames", "Tactical" };
 
     public static string SectionName(string key) => Loc.Spanish ? key switch
     {
+        "Technique" => "Técnica (lecciones del coach)",
         "Precision" => "Precisión y frenado", "Dynamic" => "Clic sobre blancos móviles",
         "Micro" => "Ajustes finos", "Sensitivity" => "Sensibilidad",
         "Tracking" => "Seguimiento preciso", "Reactive" => "Seguimiento reactivo",
@@ -17,6 +18,7 @@ public static class TrainingCatalog
         "ReactionGames" => "Minijuegos de reacción", "Reflex" => "Reacción y adquisición", _ => "Combate, movimiento y utilidad",
     } : key switch
     {
+        "Technique" => "Technique (coach lessons)",
         "Precision" => "Precision and braking", "Dynamic" => "Dynamic clicking",
         "Micro" => "Fine corrections", "Sensitivity" => "Sensitivity",
         "Tracking" => "Precise tracking", "Reactive" => "Reactive tracking",
@@ -29,7 +31,7 @@ public static class TrainingCatalog
         "Flick" => "Precision", "Aim" => "Precision", "Coach" => "Sensitivity",
         "Other" => mode.Is2D ? "Reflex" : "Sensitivity",
         "Micro" or "Sensitivity" or "Tracking" or "Reflex" or "Precision" or "Dynamic"
-            or "Reactive" or "Control" or "Switching" or "ReactionGames" => mode.Category,
+            or "Reactive" or "Control" or "Switching" or "ReactionGames" or "Technique" => mode.Category,
         _ => "Tactical",
     };
 
@@ -37,7 +39,7 @@ public static class TrainingCatalog
 
     static IEnumerable<AimVariant> Build()
     {
-        foreach (string section in Sections.Where(s => s != "Tactical" && s != "ReactionGames"))
+        foreach (string section in Sections.Where(s => s != "Tactical" && s != "ReactionGames" && s != TechniqueDrills.Section))
             for (int layout = 0; layout < 5; layout++)
                 for (int demand = 0; demand < 4; demand++)
                     yield return Make(section, layout, demand);

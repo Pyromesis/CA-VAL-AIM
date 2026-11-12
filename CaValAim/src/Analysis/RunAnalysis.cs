@@ -28,9 +28,11 @@ static class RunAnalysis
     /// <summary>Mode key without its argument: "flashpeek:skye" → "flashpeek" (lists above hold base keys).</summary>
     public static string Base(string mode) { int c = mode.IndexOf(':'); return c > 0 ? mode[..c] : mode; }
 
+    static float StableWeapon(string name) => name.Aggregate(0, (a, c) => (a * 31 + c) & 0x7fffff);
+
     public static Dictionary<string, float> Run(RunTelemetry t)
     {
-        var m = new Dictionary<string, float>();
+        var m = new Dictionary<string, float> { ["analysis.version"] = 3, ["context.dpi"] = t.Dpi, ["context.weapon"] = StableWeapon(t.Weapon) };
         if (Base(t.Mode) == "reactgame") return ReactionGameCoach.Measure(t);
         if (t.Mode == "sensfinder")
         {
@@ -45,6 +47,17 @@ static class RunAnalysis
         var p = new Prep(t);
         m["run.secs"] = p.Ft[^1] - p.Ft[0];
         Flicks(p, m);
+        if (StaticModes.Contains(Base(t.Mode)) && StaticTargetMode(t.Mode))
+        {
+            var first = t.Shots.Where(s => s.FocusId != 0 && s.Accurate && s.Speed < .25f
+                && s.FocusRadius > 0 && float.IsFinite(s.Err)).GroupBy(s => s.FocusId).Select(g => g.First()).ToArray();
+            if (first.Length > 0) {
+                m["micro.n"] = first.Length;
+                m["micro.centered"] = first.Count(s => s.Err <= s.FocusRadius);
+                m["micro.centered_share"] = m["micro.centered"] / first.Length;
+                m["micro.error_r"] = Dsp.Median(first.Select(s => s.Err / s.FocusRadius));
+            }
+        }
         SpeedTier(p, m);
         if (Base(t.Mode) is "tracking" or "airtrack" or "reacttrack" or "trackv") Tracking(p, m);
         Crosshair(p, m);
@@ -232,6 +245,12 @@ static class RunAnalysis
             // Over/undershoot and gain only on targets that don't move: leading a strafing bot would read as overshoot.
             var still = prim.Where(r => !r.Bot && StaticTargetMode(t.Mode)).ToList();
             if (still.Count > 0) { m["flick.n_still"] = still.Count; m["flick.gain"] = Dsp.Mean(still.Select(r => r.Gain)); }
+            // A successful click can hide a long initial landing followed by a return.
+            var recovered = still.Where(r => r.Over && r.Hit && r.Nc > 0 && float.IsFinite(r.Tc)).ToList();
+            m["flick.recovered_over_n"] = recovered.Count;
+            if (recovered.Count > 0) {
+                m["flick.recovered_over_ms"] = Dsp.Median(recovered.Select(r => r.Tc));
+            }
             m["flick.perp_deg"] = Dsp.Median(prim.Select(r => r.Perp));
             m["flick.curv"] = Dsp.Median(prim.Select(r => r.Curv));
             var etaP = prim.Where(r => !float.IsNaN(r.EtaP)).ToList();
@@ -254,6 +273,10 @@ static class RunAnalysis
             if (under.Count > 0) m["flick.mean_undershoot_deg"] = Dsp.Mean(under.Select(r => -r.S));
             var small = still.Where(r => r.A < 25).ToList();
             var large = still.Where(r => r.A >= 25).ToList();
+            m["flick.range_near_n"] = small.Count;
+            m["flick.range_wide_n"] = large.Count;
+            m["flick.range_near_over"] = small.Count(r => r.Over);
+            m["flick.range_wide_over"] = large.Count(r => r.Over);
             if (small.Count > 0) { m["flick.n_small"] = small.Count; m["flick.gain_small"] = Dsp.Mean(small.Select(r => r.Gain)); }
             if (large.Count > 0) { m["flick.n_large"] = large.Count; m["flick.gain_large"] = Dsp.Mean(large.Select(r => r.Gain)); }
             // Directional balance: each static flick is bucketed on its dominant axis (left/right/up/down) and scored by how
@@ -505,7 +528,7 @@ static class RunAnalysis
         if (float.IsNaN(ex0)) return null;
         float A = MathF.Sqrt(ex0 * ex0 + ey0 * ey0);
         float R = Math.Max(0.05f, tr.R);
-        if (A < Math.Max(3f, 3f * R)) return null; // not a flick (already on / next to the target)
+        if (A < Math.Max(0.2f, 1.5f * R)) return null; // not a flick (already on / next to the target)
         float ux = -ex0 / A, uy = -ey0 / A;
         float tClick = tr.Hit ? tr.THit : tr.TEnd;
         int i0 = p.Gi(tr.T0), i1 = p.Gi(tClick);

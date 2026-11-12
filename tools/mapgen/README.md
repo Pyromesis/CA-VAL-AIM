@@ -111,11 +111,10 @@ shipping new collision. Findings are classified:
 
 Only `FAIL` breaks the gate.
 
-Current state (fresh generation): every spawn stands, 20k–49k reachable cells per map.
-The remaining `FAIL`s are Ascent "Heaven" (a raised platform whose access is not in the
-extracted half), the Summit raised platforms, Fracture "Rope"/"Drop" and all of Corrode
-— whose `Rook_Art_AtkPathMid.glb` is a 132-byte empty file even in the shipped
-installer, which is why its spawn pocket is sealed off from the site.
+The 2.10 map set and corrected authored spots pass with 0 failures and 7 warnings.
+Bind's start uses Hookah's visible upper floor and Fracture's start uses visible A Hall floor.
+Ascent's third retake entry, Bind's Hall spots and Pearl's Default use reachable, art-checked floor heights.
+Keep auditing newly generated files: an old passing result does not validate a different map set.
 
 ## Shipping
 
@@ -139,20 +138,63 @@ the rerun — keep it, it is the only backup of the hand-tuned boxes.
 `--no-hidden` (the hidden-ground fills don't change between passes and would be added twice). All 13 maps of the 1.18 set
 were sealed this way into the repository's (git-ignored) `dist-maps/maps`.
 
-Then the spawn audit, against the art:
+### Trimming the collision to the art (2.10)
+
+`gen_collision.py` voxelises *every* triangle of *every* level at 0.5 m, but the runtime only draws
+part of that (`GltfStrip` drops the `EnvCollision` hulls and the texture-only decals, `RealMap`
+skips the backdrop levels and Fracture's two prototype shells), and a 0.5 m voxel reaches up to half
+a metre past the surface it came from. Both leave collision where the player sees nothing: bullets
+stop in mid-air next to a corner, bodies bump into empty space, and a wall of collision can hide a
+line of sight.
+
+`trim_collision.py` samples the *drawn* triangles into a 0.125 m occupancy set and then, for every
+box:
+
+* wall / prop boxes (taller than a floor slab) with no drawn surface inside are removed;
+* the others are shrunk in X, Z and at the top to the drawn surface inside them (never grown,
+  bottoms kept);
+* floor slabs are left alone unless `--floors` is given (then slabs with no drawn floor are
+  removed too).
 
 ```
-Godot --headless --path CaValAim -- --dev --data-dir <tmp> --valorant-dir <tmp> --maps-dir dist-maps --spawn-dump spawns.json
-python audit_spawns.py dist-maps/maps spawns.json --full-pool --write-exclude --pairs 0
+python trim_collision.py dist-maps/maps            # rewrites every map's collision.json
+python trim_collision.py dist-maps/maps --report   # only prints what would change
+```
+
+The first run copies each map's `collision.json` to `<maps>/../collision-pretrim/<map>/collision.json`
+and always trims *that* backup, never an already trimmed file, so a second run does not shrink
+twice. `--backup <dir>` chooses another place for the backups.
+
+Trimming removes solid volume, and the same box list is used for the bodies, the bullets and the
+line of sight, so a wall of collision that was invisible disappears from all three. That is the
+point, but it must be audited:
+
+```
+python audit_collision.py dist-maps/maps     # reachability: must not get worse
+```
+
+The reachability audit only measures walking. The line of sight changes with it, so re-run the
+spawn audit below after trimming (it judges every pool node against the art).
+
+### The spawn audit, against the art
+
+```
+Godot --headless --path CaValAim -- --dev --data-dir <tmp> --valorant-dir <tmp> --maps-dir dist-maps --spawn-dump spawns.json --spawn-unfiltered
+python audit_spawns.py dist-maps/maps spawns.json --full-pool --write-exclude --fresh-exclude --pairs 0
 ```
 
 `--full-pool` judges every Deathmatch spawn-pool node (not a 3000-node sample); `--write-exclude`
 writes `maps/<map>/spawn_exclude.json`: the pool nodes the art check rejects (the game leaves them
-out of its spawn pool, `DeathmatchMode.SpawnPool`) and `moves` for authored drill spots (enemies,
+out of its spawn pool, `DeathmatchMode.SpawnPool`) and `moves` for the player start and authored drill spots (enemies,
 plants, retakes) that are inside art, under a floor or on an invisible slab, to the nearest clean
-point within 3 m (`SpawnSafety.Resolve` applies them). The file is merged across runs, because a dump
+point within 3 m horizontally (`SpawnSafety.Resolve` applies them). Player starts may move up to 2.9 m vertically
+to escape hidden ground below a raised floor; other spots keep a 1.2 m height window. The file is merged across runs, because a dump
 made with it applied no longer lists the excluded nodes: delete it (or pass `--fresh-exclude`)
-whenever `collision.json` changes. Ship `spawn_exclude.json` next to `collision.json`. A last dump and
+whenever `collision.json` changes. `--spawn-unfiltered` bypasses existing exclusions and authored spot moves
+in the dev dump, so `--fresh-exclude` can rebuild them from all candidates without losing previously excluded
+points. The art check uses the same visible materials and levels as `trim_collision.py`; hidden collision hulls
+and decals are not visible floors or walls. Ship `spawn_exclude.json` next to `collision.json`. A last dump
+without `--spawn-unfiltered` and
 `audit_spawns.py ... --full-pool` (without `--write-exclude`) must then report every pool node ok.
 
 ## Caveats
@@ -162,5 +204,5 @@ whenever `collision.json` changes. Ship `spawn_exclude.json` next to `collision.
   walk-through would need a hand-written exclusion.
 * Very tight gaps (< 0.5 m) can be sealed by the voxel step. Prefer a finer `--cell`
   over editing the output by hand.
-* The five blockout maps (Bind, Breeze, Haven, Icebox, Split) have no GLBs at all, so
-  this pipeline cannot generate anything for them.
+* Maps without extracted GLBs cannot be checked against art; the spawn audit explicitly skips
+  blockout maps. Keep the GLBs with the collision files when running these tools.

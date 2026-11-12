@@ -35,6 +35,7 @@ public static class CultureCheck
             CorruptChecks(root);
             DataChecks(root);
             DisplayChecks(fixActive);
+            WarmupLocalizationChecks();
         }
         catch (Exception e) { Fail("unexpected exception", e.ToString()); }
         finally
@@ -414,6 +415,45 @@ public static class CultureCheck
         var broken = ValorantImporter.Load(ValorantImporter.FindAccounts().FirstOrDefault());
         Check("keybinds: corrupt file -> defaults", broken.Found && broken.Binds.Text(GameAction.Jump) == "Space",broken.Binds.Text(GameAction.Jump));
         File.Delete(Path.Combine(accDir, "WindowsClient", "BackupKeybinds.json"));
+    }
+
+    static void WarmupLocalizationChecks()
+    {
+        string before = Loc.Language;
+        try
+        {
+            Loc.SetLanguage("es");
+            Check("warmup check-in has a natural Spanish heading", Loc.T("CHECK-IN") == "¿CÓMO TE SIENTES?");
+            string[] goals = { "Mira a la altura de la cabeza", "Revisa un ángulo cada vez", "Cubre a quien entra primero", "Detente antes de disparar", "Comunícate con tu equipo", "Cumple tu función en el equipo" };
+            string[] cues = { "A la altura de la cabeza", "Fluidez", "Paciencia", "Precisión", "Detente. Dispara.", "Calma" };
+            for (int i = 0; i < goals.Length; i++)
+                Check($"warmup goal {i + 1} fully localized", Warmup.LockInText.DisplayGoal(Warmup.LockInText.Goals[i]) == goals[i]);
+            for (int i = 0; i < cues.Length; i++)
+                Check($"warmup cue {i + 1} fully localized", Warmup.LockInText.DisplayCue(Warmup.LockInText.Cues[i]) == cues[i]);
+            foreach (string text in new[] { Warmup.LockInText.Reappraisal, Warmup.LockInText.FlatTip, Warmup.LockInText.TiltLine,
+                Warmup.LockInText.BreathLine, "how wound up you feel", "how sure your aim feels today", "FLAT", "WIRED", "SHAKY", "SURE",
+                "Or type your own goal", "Or type your own cue", "ONE GOAL FOR YOUR GAMES", "ONE CUE WORD", "4 seconds in, 6 seconds out." })
+            {
+                string translated = Loc.T(text);
+                Check($"warmup complete phrase: {text}", translated != text && Loc.T(translated) == translated);
+            }
+            Check("warmup preserves custom goal and cue", Warmup.LockInText.DisplayGoal("Mi objetivo personal") == "Mi objetivo personal" && Warmup.LockInText.DisplayCue("Mi consigna") == "Mi consigna");
+            Check("HUD rank band uses Spanish with the actual en dash", Loc.T("REGULAR · SILVER – GOLD") == "REGULAR · PLATA – ORO");
+            Check("warmup preset localized at display time", Warmup.WarmupPresets.NameOf(Warmup.WarmupPresets.Get("short")) == "Breve");
+            Loc.SetLanguage("en");
+            Check("warmup switching to English restores original text", Loc.T("CHECK-IN") == "CHECK-IN" &&
+                Warmup.LockInText.Cues.All(c => Warmup.LockInText.DisplayCue(c) == c) &&
+                Warmup.WarmupPresets.NameOf(Warmup.WarmupPresets.Get("short")) == "Short");
+            Check("warmup timeline labels switch back to English", Warmup.WarmupDrills.Short("tracking") == "TRACK");
+            Check("warmup cached drill cues retain canonical English", Warmup.WarmupPresets.All[0].Steps[0].Cue == "Keep the crosshair on the target's head. Smooth, no rushing.");
+            Loc.SetLanguage("es");
+            Check("warmup timeline uses Spanish labels", Warmup.WarmupDrills.Short("tracking") == "SEGUIM.");
+            Check("warmup language round trip clears cached translations", Warmup.LockInText.DisplayCue("Head level") == "A la altura de la cabeza");
+            var legacy = System.Text.Json.JsonSerializer.Deserialize<AppSettings>("{\"GuideLine\":2,\"GuideExplicitlyEnabled\":false}", new System.Text.Json.JsonSerializerOptions { IncludeFields = true })!;
+            Check("guide selection survives the old hidden false flag", Game.GameSession.EffectiveGuideMode(legacy.GuideLine, false) == 2);
+            Check("guide respects off and keeps previews hidden", Game.GameSession.EffectiveGuideMode(0, false) == 0 && Game.GameSession.EffectiveGuideMode(2, true) == 0);
+        }
+        finally { Loc.SetLanguage(before); }
     }
 
     // ---------------- helpers ----------------

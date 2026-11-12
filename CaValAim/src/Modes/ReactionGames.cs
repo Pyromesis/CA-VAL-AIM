@@ -98,6 +98,8 @@ public sealed class ReactionGameMode : TrainingMode
     }
     Vector2 TargetOffset => offset + (Kind == ReactionGameKind.AimMoving ? new Vector2(Mathf.Sin(elapsed * (1.5f + Level * 0.3f)) * 6, 0) : Vector2.Zero);
     public (int Id, Vector2 Error, float Radius)? AngularFocus => NeedsAim && phase == Phase.Signal ? (completed + 1, AimError, Radius) : null;
+    public override (Vector2 Point, float Radius)? AimGuide2D(Vector2 size) => AngularFocus is { } focus
+        ? (size / 2 + PlayerView.ScreenOffset(focus.Error, size.Y / 70f), focus.Radius * size.Y / 70f) : null;
     Vector2 AimError => TargetOffset - new Vector2(Mathf.Wrap(G.View.ViewYaw - yaw0, -180, 180), G.View.ViewPitch - pitch0);
     public override void Update(float dt)
     {
