@@ -12,10 +12,7 @@ using CaValAim.Valorant;
 namespace CaValAim.UI;
 
 /// <summary>
-/// In-game HUD in VALORANT's layout: top-centre timer flanked by score (teal) and kills/accuracy (red), drill
-/// info top-left, health + shield and ammo + reserve bottom-centre, reload progress, speed meter for movement
-/// drills, damage direction arc + vignette, kill banner, session banners, countdown, pause menu and results
-/// (with a procedurally drawn rank emblem). Reads everything from the session; no game logic here.
+/// Shows the session's live metrics, drill cues, and pause and results interfaces.
 /// </summary>
 public partial class Hud : Control
 {
@@ -28,12 +25,10 @@ public partial class Hud : Control
     TrainingMode? lastMode;
     DrawBox? overlay;
     Vector2 overlaySize;
-    readonly List<BaseButton> overlayButtons = new();
-    BaseButton? resetSens;
+    SettingsScreen? pauseOptions;
     LineEdit? sensEdit;
     float overlayAt;
     int locRev = Loc.Revision;
-    List<(string Label, string Value)> resultLines = new();
 
     // aim coach: cue shown during the countdown (from a "Practise" button or the last run's review)
     CoachData.Focus? focus, nextFocus;
@@ -78,8 +73,8 @@ public partial class Hud : Control
         }
     }
 
-    // uppercase labels cached per mode / subtitle / weapon (avoid per-frame string allocations)
-    string nameUpper = "", subSrc = "", subUpper = "", gunSrc = "", gunUpper = "";
+    // Cached labels for live rendering.
+    string modeTitle = "", subSrc = "", subUpper = "";
 
     string Upper(ref string src, ref string upper, string value)
     {
@@ -121,7 +116,7 @@ public partial class Hud : Control
         if (locRev != Loc.Revision)
         {
             locRev = Loc.Revision;
-            nameUpper = Loc.T(s.Mode.Name).ToUpperInvariant();
+            modeTitle = Loc.T(s.Mode.Name);
             if (overlay != null) RebuildOverlay(size, keepTime: true);
         }
         if (s.State != lastState || s.Mode != lastMode || (overlay != null && size != overlaySize))
@@ -132,7 +127,7 @@ public partial class Hud : Control
             if (modeChanged)
             {
                 lastStopSeen = -2f;
-                nameUpper = Loc.T(s.Mode.Name).ToUpperInvariant();
+                modeTitle = Loc.T(s.Mode.Name);
                 focus = CoachData.TakeFocus(s.Mode.Key) ?? nextFocus;
                 nextFocus = null;
             }
@@ -149,7 +144,6 @@ public partial class Hud : Control
         {
             overlay.QueueRedraw();
             overlay.Modulate = new Color(1, 1, 1, Gfx.EaseOut((RealNow - overlayAt) / 0.2f));
-            if (resetSens != null) resetSens.Visible = Main.I.Settings.UseSensOverride;
         }
     }
 
@@ -159,7 +153,7 @@ public partial class Hud : Control
     /// </summary>
     public override void _Input(InputEvent e)
     {
-        if (overlay == null) return;
+        if (overlay == null || pauseOptions != null || s.State != GameSession.St.Paused) return;
         bool typing = sensEdit != null && IsInstanceValid(sensEdit) && sensEdit.HasFocus();
         // Esc while typing a sensitivity: stop typing (don't resume the drill).
         if (typing && e is InputEventKey { Pressed: true, Echo: false, Keycode: Key.Escape })
@@ -223,8 +217,13 @@ public partial class Hud : Control
         if (!m.Is2D) m.Draw2D(this, size); // 3D drills can add their own overlay (e.g. the spray chart)
 
         if (!m.Is2D) DrawDamage(size, k);
-        DrawTopBar(size, k, m);
-        DrawModeInfo(size, k, m);
+        bool countdown = s.State == GameSession.St.Countdown;
+        if (!countdown)
+        {
+            DrawTopBar(size, k, m);
+            DrawModeInfo(size, k, m);
+        }
+        else DrawCountdownBackdrop(size);
         if (Main.I.Valorant.ShowFps)
         {
             int fps = (int)Engine.GetFramesPerSecond();
@@ -248,10 +247,13 @@ public partial class Hud : Control
         if ((m.ShowInstructions ? m.Prompt ?? m.StatusPrompt ?? s.WorldPrompt : m.StatusPrompt ?? s.WorldPrompt) is { } p) DrawPrompt(size, k, Main.I.Valorant.Binds.Hint(p));
         if (s.BannerTime > 0 && s.BannerText.Length > 0) DrawBanner(size, k);
         // Measured feedback is optional and stays away from the crosshair; task instructions remain countdown-only.
-        if (s.State == GameSession.St.Running && Main.I.Settings.LiveCoach && s.Live?.Current is { } cue)
-            DrawMeasuredCoach(size, k, cue);
+        if (s.State == GameSession.St.Running)
+        {
+            if (s.SensSearch is { Active: true } search) DrawSensitivitySearch(size, k, search);
+            else if (Main.I.Settings.LiveCoach && s.Live?.Current is { } cue) DrawMeasuredCoach(size, k, cue);
+        }
         if (m.KillBanner.Time > 0 && m.KillBanner.Count > 0) DrawKillBanner(size, k, m.KillBanner.Count, m.KillBanner.Time);
-        if (s.State == GameSession.St.Countdown) DrawCountdown(size, k, m);
+        if (countdown) DrawCountdown(size, k, m);
         if (focus != null && m.ShowInstructions) DrawFocus(size, k, focus);
     }
 
@@ -345,78 +347,80 @@ public partial class Hud : Control
 
     void DrawTopBar(Vector2 size, float k, TrainingMode m)
     {
-        float cx = size.X / 2, top = 14 * k, bh = 56 * k, tw = 128 * k, sw = 168 * k, gap = 6 * k;
-
+        float cx = size.X / 2, top = 20 * k;
+        var plate = new Color(0.045f, 0.063f, 0.075f, 0.9f);
+        int small = UiTheme.Fs(15, k);
         if (s.FreePlay)
         {
-            // free play: no clock and no score (the drill starts over by itself when its time is up)
-            float fw = 210 * k;
-            var fr = new Rect2(cx - fw / 2, top, fw, bh);
-            DrawRect(fr, UiTheme.Plate);
-            DrawRect(new Rect2(fr.Position.X, fr.End.Y - 2 * k, fw, 2 * k), new Color(UiTheme.Teal, 0.7f));
-            int ffs = UiTheme.Fs(24, k), fls = UiTheme.Fs(12, k);
-            TC(UiTheme.HudWide, "FREE PLAY", cx, Gfx.Mid(top + bh / 2, ffs), ffs, UiTheme.Text);
-            TC(UiTheme.HudWide, "NO SCORE · ESC TO STOP", cx, top + bh + 18 * k, fls, UiTheme.Dim);
+            DrawRect(new Rect2(cx - 134 * k, top, 268 * k, 43 * k), plate);
+            string caption = s.CoachSuspended ? L("Warm-up", "Calentamiento")
+                : L("Free play", "Práctica libre");
+            TC(UiTheme.Body, caption, cx, Gfx.Mid(top + 21 * k, small), small, UiTheme.Text);
+            string exit = L("Esc to stop", "Esc para salir");
+            if (!s.CoachSuspended) exit = $"{Loc.Score(s.TrainingPoints)} pts  ·  {exit}";
+            TC(UiTheme.Body, exit, cx, top + 61 * k, small, UiTheme.Text);
             return;
         }
 
-        // timer
         float remain = s.ClockSeconds;
         bool timed = s.HasTimeLimit;
         int secs = timed ? Mathf.CeilToInt(remain) : (int)remain;
-        var tr = new Rect2(cx - tw / 2, top, tw, bh);
-        DrawRect(tr, UiTheme.Plate);
-        DrawRect(new Rect2(tr.Position.X, tr.End.Y - 2 * k, tw, 2 * k), new Color(UiTheme.Text, 0.18f));
         bool hurry = timed && remain < 10f && s.State == GameSession.St.Running;
-        int fs = UiTheme.Fs(42, k);
-        string clock = cClock.Get(secs, v => $"{v / 60}:{v % 60:00}");
-        float sc = 1f;
-        if (hurry) { float f = remain - Mathf.Floor(remain); sc = 1f + 0.14f * Mathf.Max(0, (f - 0.7f) / 0.3f); }
-        var clockCol = hurry ? UiTheme.Accent : timed ? UiTheme.Text : UiTheme.Dim;
-        ScaledTextC(UiTheme.Display, clock, new Vector2(cx, Gfx.Mid(top + bh / 2, fs)), fs, clockCol, sc);
-        if (timed)
+        bool showStats = m.ShowScore && !s.CoachSuspended;
+        float half = (showStats ? 164 : 54) * k;
+        float height = (showStats ? 60 : 44) * k;
+        var clockColor = hurry ? UiTheme.Warn : UiTheme.Text;
+        DrawRect(new Rect2(cx - half, top, 2 * half, height), plate);
+        int clockSize = UiTheme.Fs(30, k);
+        TC(UiTheme.Hud, cClock.Get(secs, v => $"{v / 60}:{v % 60:00}"), cx,
+            Gfx.Mid(top + (showStats ? 27 : 21) * k, clockSize), clockSize, clockColor);
+        if (timed && s.RunLength > 0)
         {
-            float frac = s.RunLength > 0 ? Mathf.Clamp(remain / s.RunLength, 0, 1) : 0;
-            DrawRect(new Rect2(tr.Position.X, tr.End.Y - 2 * k, tw * frac, 2 * k), hurry ? UiTheme.Accent : UiTheme.Text);
+            float progress = Mathf.Clamp(remain / s.RunLength, 0, 1);
+            DrawRect(new Rect2(cx - 31 * k, top + height - 9 * k, 62 * k, 2 * k), new Color(UiTheme.Text, 0.14f));
+            DrawRect(new Rect2(cx - 31 * k, top + height - 9 * k, 62 * k * progress, 2 * k), new Color(clockColor, 0.75f));
+        }
+        if (!s.Demo && s.SensComparisonTrial == null && m.Key != "sensfinder")
+        {
+            string points = s.CoachSuspended ? L("Warm-up", "Calentamiento")
+                : $"{Loc.Score(s.TrainingPoints)} {L("practice pts", "pts de práctica")}";
+            TC(UiTheme.Body, points, cx, top + height + 19 * k, small, UiTheme.Text);
+        }
+        if (!showStats) return;
+
+        int valueSize = UiTheme.Fs(24, k);
+        void Stat(float x, string value, string label)
+        {
+            TC(UiTheme.Hud, value, x, Gfx.Mid(top + 22 * k, valueSize), valueSize, UiTheme.Text);
+            TC(UiTheme.Body, label, x, Gfx.Mid(top + 44 * k, small), small, UiTheme.Dim);
         }
 
-        if (!m.ShowScore) return; // drills without a meaningful score/accuracy (Sens Finder): clock only
-
-        // score (teal) — left
-        var lr = new Rect2(tr.Position.X - gap - sw, top, sw, bh);
-        Gfx.Slant(this, lr, 20 * k, true, new Color(UiTheme.Teal, 0.85f));
-        int vs = UiTheme.Fs(40, k), ls = UiTheme.Fs(12, k);
-        TC(UiTheme.Display, cScore.Get(m.Score, v => Loc.Score(v)), lr.GetCenter().X + 8 * k, Gfx.Mid(top + bh / 2, vs), vs, UiTheme.Text);
-        TC(UiTheme.HudWide, "SCORE", lr.GetCenter().X + 8 * k, top + bh + 18 * k, ls, UiTheme.Teal);
-
-        // kills / accuracy (red) — right
-        var rr = new Rect2(tr.End.X + gap, top, sw, bh);
-        Gfx.Slant(this, rr, 20 * k, false, new Color(UiTheme.Accent, 0.85f));
-        int accTenths = (int)(m.Accuracy * 1000);
-        string right = m.UsesHeadshots ? cRight.Get(m.Kills, v => v.ToString(Inv)) : cRight.Get(accTenths + 1_000_000L, v => $"{(v - 1_000_000) / 10f:0}%");
-        TC(UiTheme.Display, right, rr.GetCenter().X - 8 * k, Gfx.Mid(top + bh / 2, vs), vs, UiTheme.Text);
-        string rl = m.UsesHeadshots
-            ? cRightLabel.Get(accTenths / 10, v => Loc.Spanish ? $"BAJAS · {v}% PREC." : $"KILLS · {v}% ACC")
-            : "ACCURACY";
-        TC(UiTheme.HudWide, rl, rr.GetCenter().X - 8 * k, top + bh + 18 * k, ls, UiTheme.Accent);
+        for (int side = -1; side <= 1; side += 2)
+            DrawRect(new Rect2(cx + side * 54 * k, top + 12 * k, 1, 36 * k), new Color(UiTheme.Text, 0.13f));
+        int accuracy = Mathf.RoundToInt(m.Accuracy * 100);
+        string right = m.UsesHeadshots ? cRight.Get(m.Kills, v => v.ToString(Inv))
+            : cRight.Get(accuracy + 1000, v => $"{v - 1000}%");
+        string label = m.UsesHeadshots ? cRightLabel.Get(2 * accuracy + (Loc.Spanish ? 1 : 0),
+            v => (v % 2 == 0 ? "Kills" : "Bajas") + $" · {v / 2}%")
+            : L("Accuracy", "Precisión");
+        Stat(cx - 110 * k, cScore.Get(m.Score, v => Loc.Score(v)), L("Score", "Puntuación"));
+        Stat(cx + 110 * k, right, label);
     }
 
     void DrawModeInfo(Vector2 size, float k, TrainingMode m)
     {
-        float x = 30 * k, y = 22 * k;
-        DrawRect(new Rect2(x, y, 4 * k, 36 * k), UiTheme.Accent);
-        int ns = UiTheme.Fs(34, k);
-        TL(UiTheme.Display, nameUpper, x + 14 * k, Gfx.Mid(y + 18 * k, ns), ns, UiTheme.Text);
-        y += 56 * k;
-        var tier = Difficulty.Get(s.Tier);
-        int ts = UiTheme.Fs(13, k);
-        if (m.ShowScore) RankEmblem.Draw(this, new Vector2(x + 9 * k, y), 9 * k, tier.Id);
-        if (m.ShowScore) TL(UiTheme.HudWide, cTier.Get(tier.Id, v => $"{Difficulty.Get((int)v).Name.ToUpperInvariant()} · {Difficulty.Get((int)v).Ranks.ToUpperInvariant()}"),
-            x + 26 * k, Gfx.Mid(y, ts), ts, UiTheme.TierColor(tier.Id));
+        float x = 26 * k, y = 34 * k;
+        int ns = UiTheme.Fs(23, k);
+        TL(UiTheme.Hud, modeTitle, x, Gfx.Mid(y, ns), ns, UiTheme.Text);
+        y += 24 * k;
+        int ts = UiTheme.Fs(14, k);
+        if (m.ShowScore)
+            TL(UiTheme.Body, cTier.Get(s.Tier, v => Difficulty.Get((int)v).Name),
+                x, Gfx.Mid(y, ts), ts, UiTheme.Text);
         if (m.Subtitle is { } sub)
         {
             y += 24 * k;
-            TL(UiTheme.HudWide, Upper(ref subSrc, ref subUpper, sub), x + 26 * k, Gfx.Mid(y, ts), ts, new Color(UiTheme.Text, 0.85f));
+            TL(UiTheme.HudWide, Upper(ref subSrc, ref subUpper, sub), x, Gfx.Mid(y, ts), ts, new Color(UiTheme.Text, 0.85f));
         }
         if (PlaylistRunner.TaskCount > 0)
         {
@@ -424,7 +428,7 @@ public partial class Hud : Control
             string progress = Loc.Spanish
                 ? $"TAREA {PlaylistRunner.TaskNumber}/{PlaylistRunner.TaskCount} · REPETICIÓN {PlaylistRunner.RunOfStep}/{PlaylistRunner.RunsInStep}"
                 : $"TASK {PlaylistRunner.TaskNumber}/{PlaylistRunner.TaskCount} · RUN {PlaylistRunner.RunOfStep}/{PlaylistRunner.RunsInStep}";
-            TL(UiTheme.HudWide, progress, x + 26 * k, Gfx.Mid(y, ts), ts, UiTheme.Teal);
+            TL(UiTheme.HudWide, progress, x, Gfx.Mid(y, ts), ts, UiTheme.Teal);
         }
         y += 34 * k;
         int ls = UiTheme.Fs(18, k);
@@ -527,53 +531,58 @@ public partial class Hud : Control
 
     void DrawVitals(Vector2 size, float k)
     {
-        float cx = size.X / 2, bh = 74 * k, by = size.Y - 30 * k - bh, bw = 300 * k;
-        var r = new Rect2(cx - 140 * k - bw, by, bw, bh);
-        Gfx.PlateEx(this, r, 12 * k, true, false, false, true, UiTheme.Plate, new Color(UiTheme.Text, 0.09f), 1f);
-        float hp = Mathf.Max(0, s.Player.Hp), sh = Mathf.Max(0, s.Player.Shield);
-        bool low = hp < 30;
-
-        // shield icon + value
-        float sx = r.Position.X + 26 * k, sy = r.Position.Y + 30 * k, ss = 12 * k;
-        Span<Vector2> shield = stackalloc Vector2[5];
-        shield[0] = new(sx - ss, sy - ss); shield[1] = new(sx + ss, sy - ss); shield[2] = new(sx + ss, sy + ss * 0.2f);
-        shield[3] = new(sx, sy + ss * 1.25f); shield[4] = new(sx - ss, sy + ss * 0.2f);
-        this.FillPoly(shield, new Color(UiTheme.Text, sh > 0 ? 0.8f : 0.25f));
-        int svs = UiTheme.Fs(24, k);
-        TL(UiTheme.Hud, cShield.Get(Mathf.CeilToInt(sh), v => v.ToString(Inv)), sx + ss + 10 * k, Gfx.Mid(sy, svs), svs, sh > 0 ? UiTheme.Text : UiTheme.Faint);
-
-        // health (big, right side of the plate)
-        int hs = UiTheme.Fs(66, k);
-        TR(UiTheme.Display, cHp.Get(Mathf.CeilToInt(hp), v => v.ToString(Inv)), r.End.X - 22 * k, Gfx.Mid(r.Position.Y + 32 * k, hs), hs,
-            low ? UiTheme.Accent : UiTheme.Text);
-
-        // bars: shield (thin) over health
-        float bx = r.Position.X + 16 * k, bwid = r.Size.X - 32 * k, hy = r.End.Y - 11 * k;
-        DrawRect(new Rect2(bx, hy, bwid, 4 * k), new Color(1, 1, 1, 0.12f));
-        DrawRect(new Rect2(bx, hy, bwid * Mathf.Clamp(hp / 100f, 0, 1), 4 * k), low ? UiTheme.Accent : UiTheme.Text);
-        if (sh > 0) DrawRect(new Rect2(bx, hy - 4 * k, bwid * Mathf.Clamp(sh / 50f, 0, 1), 2 * k), new Color(0.62f, 0.8f, 1f, 0.85f));
+        float hp = Mathf.Max(0, s.Player.Hp), shield = Mathf.Max(0, s.Player.Shield);
+        var healthColor = hp < 30 ? UiTheme.Warn : UiTheme.Text;
+        var shieldColor = new Color(0.66f, 0.85f, 0.91f);
+        float x = 37 * k, y = size.Y - 37 * k;
+        int large = UiTheme.Fs(44, k), medium = UiTheme.Fs(28, k), small = UiTheme.Fs(15, k);
+        DrawBottomScrim(size, k, left: true);
+        TL(UiTheme.Body, L("HEALTH", "VIDA"), x, y - 46 * k, small, UiTheme.Text);
+        TL(UiTheme.Hud, cHp.Get(Mathf.CeilToInt(hp), v => v.ToString(Inv)), x, y, large, healthColor);
+        DrawLine(new Vector2(x + 97 * k, y - 34 * k), new Vector2(x + 97 * k, y),
+            new Color(UiTheme.Text, 0.26f), Mathf.Max(1, k));
+        TL(UiTheme.Body, L("SHIELD", "ESCUDO"), x + 115 * k, y - 46 * k, small, shieldColor);
+        TL(UiTheme.Hud, cShield.Get(Mathf.CeilToInt(shield), v => v.ToString(Inv)), x + 115 * k, y,
+            medium, shield > 0 ? shieldColor : UiTheme.Dim);
+        DrawStatusLine(x, y + 9 * k, 85 * k, k, hp / 100f, healthColor);
+        DrawStatusLine(x + 115 * k, y + 9 * k, 66 * k, k, shield / 50f, shieldColor);
     }
 
     void DrawAmmo(Vector2 size, float k)
     {
         var gun = s.Gun!;
-        float cx = size.X / 2, bh = 74 * k, by = size.Y - 30 * k - bh, bw = 300 * k;
-        var r = new Rect2(cx + 140 * k, by, bw, bh);
-        Gfx.PlateEx(this, r, 12 * k, true, false, false, true, UiTheme.Plate, new Color(UiTheme.Text, 0.09f), 1f);
+        float right = size.X - 37 * k, y = size.Y - 37 * k;
+        int large = UiTheme.Fs(44, k), small = UiTheme.Fs(16, k);
         bool low = gun.Ammo <= Math.Max(1, gun.Def.Mag / 5);
-        int as_ = UiTheme.Fs(66, k), rs = UiTheme.Fs(26, k), ns = UiTheme.Fs(12, k);
-        string ammo = cAmmo.Get(gun.Ammo, v => v.ToString(Inv));
-        float x = r.Position.X + 22 * k, baseY = Gfx.Mid(r.Position.Y + 32 * k, as_);
-        var ac = gun.Reloading ? UiTheme.Faint : low ? UiTheme.Accent : UiTheme.Text;
-        TL(UiTheme.Display, ammo, x, baseY, as_, ac);
-        x += Gfx.TextW(UiTheme.Display, ammo, as_) + 10 * k;
-        TL(UiTheme.Hud, cReserve.Get(gun.Reserve, v => $"/ {v}"), x, baseY, rs, UiTheme.Dim);
-        TR(UiTheme.HudWide, Upper(ref gunSrc, ref gunUpper, gun.Def.Name), r.End.X - 22 * k, r.Position.Y + 24 * k, ns, UiTheme.Dim);
-        // magazine bar
-        float bx = r.Position.X + 16 * k, bwid = r.Size.X - 32 * k, hy = r.End.Y - 11 * k;
-        DrawRect(new Rect2(bx, hy, bwid, 4 * k), new Color(1, 1, 1, 0.12f));
-        float frac = gun.Reloading ? 1f - gun.ReloadLeft / Mathf.Max(0.01f, gun.Def.Reload) : gun.Ammo / (float)Math.Max(1, gun.Def.Mag);
-        DrawRect(new Rect2(bx, hy, bwid * Mathf.Clamp(frac, 0, 1), 4 * k), gun.Reloading ? UiTheme.Warn : low ? UiTheme.Accent : UiTheme.Text);
+        var amountColor = gun.Reloading ? UiTheme.Dim : low ? UiTheme.Warn : UiTheme.Text;
+        DrawBottomScrim(size, k, left: false);
+        TR(UiTheme.Body, gun.Def.Name.ToUpperInvariant(), right, y - 46 * k, small, UiTheme.Text);
+        string reserve = cReserve.Get(gun.Reserve, v => $"/ {v}");
+        float width = TR(UiTheme.Body, reserve, right, y, UiTheme.Fs(24, k), UiTheme.Text);
+        TR(UiTheme.Hud, cAmmo.Get(gun.Ammo, v => v.ToString(Inv)), right - width - 9 * k, y, large, amountColor);
+        DrawStatusLine(right - 116 * k, y + 9 * k, 116 * k, k,
+            gun.Ammo / (float)Math.Max(1, gun.Def.Mag), amountColor);
+    }
+
+    void DrawStatusLine(float x, float y, float width, float k, float progress, Color color)
+    {
+        float line = Mathf.Max(1, 2 * k);
+        DrawRect(new Rect2(x, y, width, line), new Color(UiTheme.Text, 0.23f));
+        DrawRect(new Rect2(x, y, width * Mathf.Clamp(progress, 0, 1), line), color);
+    }
+
+    void DrawBottomScrim(Vector2 size, float k, bool left)
+    {
+        float edge = left ? 0 : size.X;
+        float inner = left ? 340 * k : size.X - 300 * k;
+        Span<Vector2> points = stackalloc Vector2[]
+        {
+            new(edge, size.Y - 152 * k), new(inner, size.Y - 152 * k),
+            new(inner, size.Y), new(edge, size.Y)
+        };
+        var end = new Color(0.025f, 0.036f, 0.042f, 0.74f);
+        Span<Color> colors = stackalloc Color[] { new(end, 0), new(end, 0), new(end, 0), end };
+        this.GradPoly(points, colors);
     }
 
     void DrawReload(Vector2 size, float k)
@@ -729,25 +738,53 @@ public partial class Hud : Control
         DrawSetTransformMatrix(Transform2D.Identity);
     }
 
+    void DrawCountdownBackdrop(Vector2 size)
+    {
+        Span<Vector2> points = stackalloc Vector2[]
+        {
+            Vector2.Zero, new(size.X, 0), new(size.X, size.Y * 0.50f), new(0, size.Y * 0.50f)
+        };
+        var dark = new Color(0.025f, 0.032f, 0.043f, 0.86f);
+        Span<Color> colors = stackalloc Color[] { dark, dark, new(dark, 0), new(dark, 0) };
+        this.GradPoly(points, colors);
+    }
+
     void DrawCountdown(Vector2 size, float k, TrainingMode m)
     {
         int n = Mathf.Max(1, Mathf.CeilToInt(s.Countdown));
-        float frac = Mathf.Clamp(s.Countdown - (n - 1), 0, 1); // 1 → 0 within each second
-        var c = new Vector2(size.X / 2, size.Y * 0.3f);
-        float r = 104 * k;
-        DrawCircle(c, r + 18 * k, new Color(0.03f, 0.05f, 0.08f, 0.45f));
-        DrawArc(c, r, 0, Mathf.Tau, 72, new Color(UiTheme.Text, 0.12f), 3 * k, true);
-        DrawArc(c, r, -Mathf.Pi / 2, -Mathf.Pi / 2 + Mathf.Tau * frac, 72, UiTheme.Accent, 4 * k, true);
-        float pulse = frac > 0.78f ? (frac - 0.78f) / 0.22f : 0f;
-        float sc = 1f + 0.4f * pulse * pulse;
-        int fs = UiTheme.Fs(150, k);
-        ScaledTextC(UiTheme.Display, cCount.Get(n, v => v.ToString(Inv)), new Vector2(c.X, Gfx.Mid(c.Y, fs)), fs, new Color(UiTheme.Text, 1f - 0.5f * pulse), sc);
-        int ls = UiTheme.Fs(14, k);
-        TC(UiTheme.HudWide, "GET READY", c.X, c.Y - r - 34 * k, ls, UiTheme.Dim);
-        int ns = UiTheme.Fs(30, k), ds = UiTheme.Fs(16, k);
-        TC(UiTheme.Display, nameUpper, c.X, c.Y + r + 54 * k, ns, UiTheme.Text);
-        TC(UiTheme.Body, m.Description, c.X, c.Y + r + 82 * k, ds, UiTheme.Dim);
-        if (m.MadeBy is { } by) TC(UiTheme.HudWide, $"MADE BY THE COMMUNITY · @{by}", c.X, c.Y + r + 110 * k, ls, UiTheme.Good);
+        float cx = size.X / 2, y = size.Y * 0.125f;
+        var tint = new Color(0.65f, 0.90f, 0.84f);
+        int caption = UiTheme.Fs(17, k), title = UiTheme.Fs(30, k), number = UiTheme.Fs(104, k);
+        Gfx.TextC(this, UiTheme.HudWide, L("STARTING IN", "EMPIEZA EN"), cx, y, caption, tint);
+        Gfx.TextC(this, UiTheme.Hud, modeTitle, cx, y + 37 * k, title, UiTheme.Text);
+        Gfx.TextC(this, UiTheme.Light, cCount.Get(n, v => v.ToString(Inv)), cx, y + 146 * k, number, UiTheme.Text);
+
+        float track = y + 167 * k;
+        for (int segment = 1; segment <= 3; segment++)
+        {
+            float x = cx + (segment - 2) * 36 * k - 15 * k;
+            DrawStatusLine(x, track, 30 * k, k, s.Countdown - (segment - 1), tint);
+        }
+
+        float nextLine = track + 32 * k;
+        if (m.Description.Length > 0)
+        {
+            float width = Mathf.Min(size.X - 38 * k, 740 * k);
+            int fontSize = UiTheme.Fs(18, k);
+            var font = UiTheme.Body;
+            string description = Loc.T(m.Description);
+            var position = new Vector2(cx - width / 2, nextLine);
+            DrawMultilineString(font, position + Vector2.Down, description,
+                HorizontalAlignment.Center, width, fontSize, 2, new Color(0, 0, 0, 0.8f));
+            DrawMultilineString(font, position, description,
+                HorizontalAlignment.Center, width, fontSize, 2, UiTheme.Text);
+            nextLine += CoachDraw.TextH(font, description, width, fontSize, 2) + 4 * k;
+        }
+        if (m.MadeBy is { } by)
+        {
+            TC(UiTheme.Body, $"@{by}", cx, nextLine, caption, UiTheme.Text);
+            nextLine += 20 * k;
+        }
         if (s.CanSwitchWeapon || s.CanSwapRifle)
         {
             var binds = Main.I.Valorant.Binds;
@@ -765,7 +802,7 @@ public partial class Hud : Control
             {
                 hint = $"{s.Weapon?.Name.ToUpperInvariant()} · {key1} {(Loc.Spanish ? "PARA CAMBIAR A" : "TO SWITCH TO")} {other}";
             }
-            TC(UiTheme.HudWide, hint, c.X, c.Y + r + (m.MadeBy != null ? 136 : 110) * k, ls, UiTheme.Teal);
+            TC(UiTheme.Body, hint, cx, nextLine + 4 * k, UiTheme.Fs(14, k), tint);
         }
     }
 
@@ -828,10 +865,9 @@ public partial class Hud : Control
     void RebuildOverlay(Vector2 size, bool keepTime = false)
     {
         if (overlay != null) { RemoveChild(overlay); overlay.QueueFree(); overlay = null; }
-        overlayButtons.Clear();
-        resetSens = null;
         sensEdit = null;
         insightsPending = false;
+        if (s.State != GameSession.St.Paused) CloseOptions();
         if (s.State is not (GameSession.St.Paused or GameSession.St.Results)) return;
 
         overlaySize = size;
@@ -841,53 +877,31 @@ public partial class Hud : Control
         overlay.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         overlay.Theme = UiTheme.MakeTheme(k);
         AddChild(overlay);
-        if (s.State == GameSession.St.Paused) BuildPause(size, k);
+        if (s.State == GameSession.St.Paused)
+        {
+            BuildPause(size, k);
+            overlay.Visible = pauseOptions == null;
+        }
         else BuildResults(size, k);
         Loc.Apply(overlay);
     }
 
-    VButton OverlayButton(string label, VButton.Look look, Rect2 r, float k, Action a, float fontPx = 22)
+    void OpenOptions()
     {
-        var b = new VButton { Label = label, Kind = look, K = k, FontPx = fontPx, Position = r.Position, Size = r.Size, CustomMinimumSize = r.Size };
-        b.Pressed += a;
-        overlay!.AddChild(b);
-        overlayButtons.Add(b);
-        return b;
+        if (pauseOptions != null) return;
+        overlay!.Hide();
+        pauseOptions = new SettingsScreen { BackToPause = () => CloseOptions() };
+        AddChild(pauseOptions);
     }
 
-    static void Dimmer(CanvasItem ci, Vector2 size, float k, float a, float t = 0f)
+    public bool CloseOptions()
     {
-        ci.DrawRect(new Rect2(Vector2.Zero, size), new Color(0.02f, 0.03f, 0.05f, a));
-        // vignette: gradient bands pressing in the top and bottom edges
-        float m = Mathf.Min(size.Y * 0.34f, 190 * k);
-        var edge = new Color(0, 0, 0, Mathf.Clamp(a - 0.32f, 0, 0.6f));
-        Span<Vector2> q = stackalloc Vector2[4];
-        Span<Color> c = stackalloc Color[4];
-        q[0] = new(0, 0); q[1] = new(size.X, 0); q[2] = new(size.X, m); q[3] = new(0, m);
-        c[0] = new Color(0, 0, 0, 0); c[1] = c[0]; c[2] = edge; c[3] = c[2];
-        ci.GradPoly(q, c);
-        q[0] = new(0, size.Y - m); q[1] = new(size.X, size.Y - m); q[2] = new(size.X, size.Y); q[3] = new(0, size.Y);
-        c[0] = edge; c[1] = c[0]; c[2] = new Color(0, 0, 0, 0); c[3] = c[2];
-        ci.GradPoly(q, c);
-        // hairline hatch in both diagonals
-        var line = new Color(1, 1, 1, 0.011f);
-        float step = 62 * k;
-        for (float x = -size.Y; x < size.X; x += step)
-            ci.DrawLine(new Vector2(x, size.Y), new Vector2(x + size.Y * 0.58f, 0), line, 1f);
-        var line2 = new Color(1, 1, 1, 0.006f);
-        for (float x = 0; x < size.X + size.Y; x += step * 1.7f)
-            ci.DrawLine(new Vector2(x, 0), new Vector2(x - size.Y * 0.58f, size.Y), line2, 1f);
-        // a slow accent light bundle sweeping across at 45°
-        if (t > 0)
-        {
-            float cx = Mathf.Lerp(-size.Y * 0.6f, size.X + size.Y * 0.3f, (t * 0.05f) % 1f);
-            for (int i = 0; i < 13; i++)
-            {
-                float fall = 1f - MathF.Abs(i - 6f) / 7f;
-                ci.DrawLine(new Vector2(cx + (i - 6) * 16 * k, size.Y + 12), new Vector2(cx + (i - 6) * 16 * k + size.Y * 0.58f, -12),
-                    new Color(UiTheme.Accent, 0.018f * fall), 1.5f);
-            }
-        }
+        if (pauseOptions == null) return false;
+        RemoveChild(pauseOptions);
+        pauseOptions.QueueFree();
+        pauseOptions = null;
+        if (s.State == GameSession.St.Paused) RebuildOverlay(GetViewportRect().Size, keepTime: true);
+        return true;
     }
 
     // ---------------- pause ----------------
@@ -1035,6 +1049,23 @@ public partial class Hud : Control
         restart.Pressed += s.Restart;
         left.AddChild(restart);
         Gap(left, 8);
+        var options = new MAction
+        {
+            K = k, Label = L("OPTIONS", "OPCIONES"), Px = 13, Delay = 0.19f,
+            CustomMinimumSize = new Vector2(0, 44 * k), SizeFlagsHorizontal = SizeFlags.ExpandFill,
+        };
+        options.Pressed += OpenOptions;
+        left.AddChild(options);
+
+        if (s.CanToggleWarmup)
+        {
+            var warmup = Link(s.CoachSuspended ? L("RESTART WITH COACH", "REINICIAR CON COACH")
+                : L("RESTART AS WARM-UP", "REINICIAR COMO CALENTAMIENTO"), s.ToggleWarmup, .19f, 11);
+            warmup.TooltipText = L("This starts a fresh round and sets the mode for future free drills.",
+                "Inicia una ronda nueva y aplica el modo a los siguientes ejercicios libres.");
+            left.AddChild(warmup);
+        }
+        Gap(left, 8);
         var menu = new MAction
         {
             K = k, Label = L("BACK TO MENU", "VOLVER AL MENÚ"), Px = 13, Delay = 0.2f,
@@ -1121,7 +1152,11 @@ public partial class Hud : Control
             if (m.ForcedRecoil || s.SessionRecoil != null) return;
             st.RecoilEnabled = on;
             st.Save();
-            if (s.Gun != null) s.Gun.RecoilOn = on;
+            if (s.Gun != null && s.Gun.RecoilOn != on)
+            {
+                s.Gun.RecoilOn = on;
+                s.Event("recoil_changed");
+            }
         };
         left.AddChild(recoil);
         left.AddChild(new MText
@@ -1149,7 +1184,9 @@ public partial class Hud : Control
         var sensRow = ArrowRow();
         MText sensNote = null!; // declared first: the arrow/use lambdas can run before the note is built
         MLink useVal = null!;
-        bool fixedSens = s.SessionSens.HasValue;
+        bool blindSens = m.Key == "sensfinder" || s.SensComparisonTrial != null;
+        bool fixedSens = s.SessionSens.HasValue || blindSens || s.SensSearch?.Active == true;
+        bool CategoryOverride() => st.CategorySensitivities?.ContainsKey(s.SensSection) == true;
         var sPrev = Arrow("‹", () => AdjustSens(-1), 0.17f);
         sPrev.Disabled = fixedSens;
         sensRow.AddChild(sPrev);
@@ -1181,59 +1218,80 @@ public partial class Hud : Control
             CustomMinimumSize = new Vector2(0, 18 * k),
         };
         right.AddChild(sensNote);
-        useVal = Link(L("USE VALORANT SENSITIVITY", "USAR SENSIBILIDAD DE VALORANT"), () =>
+        useVal = Link(CategoryOverride() ? L("USE GENERAL SENSITIVITY", "USAR SENSIBILIDAD GENERAL")
+            : L("USE VALORANT SENSITIVITY", "USAR SENSIBILIDAD DE VALORANT"), () =>
         {
-            st.UseSensOverride = false;
-            st.Save();
+            if (CategoryOverride()) app.SetCategorySens(s.SensSection, null);
+            else { st.UseSensOverride = false; st.Save(); }
             PaintSens();
         }, 0.2f, 10.5f);
         useVal.CustomMinimumSize = new Vector2(0, 24 * k);
-        resetSens = useVal;
         right.AddChild(useVal);
 
+        if (!blindSens && !s.CoachSuspended)
+        {
+            var searchButton = Link(st.LiveSensitivityEnabled
+                ? L("STOP SENSITIVITY SEARCH", "DETENER BÚSQUEDA DE SENSIBILIDAD")
+                : L("FIND SENSITIVITY", "BUSCAR SENSIBILIDAD"), () =>
+            {
+                s.ToggleSensitivitySearch();
+                Callable.From(() => RebuildOverlay(size, keepTime: true)).CallDeferred();
+            }, 0.22f, 12);
+            searchButton.Tint = UiTheme.Teal;
+            right.AddChild(searchButton);
+        }
+        if (!s.CoachSuspended && !s.CanSearchSensitivity && !blindSens && s.SessionSens == null && s.OnFinished == null && SensitivityProfiles.Supports(s.SensSection))
+            right.AddChild(Link(L("SENSITIVITY A/B TEST", "PRUEBA DE SENSIBILIDAD A/B"),
+                () => app.ShowScreen(new SensLabScreen { SelectedSection = s.SensSection }), .22f, 12));
+
+        void StoreSens(float value)
+        {
+            if (CategoryOverride()) app.SetCategorySens(s.SensSection, new CategorySensitivity(value, st.Dpi, false));
+            else { st.UseSensOverride = true; st.SensOverride = value; st.Save(); }
+        }
         void AdjustSens(int d)
         {
-            if (!st.UseSensOverride) { st.UseSensOverride = true; st.SensOverride = app.Valorant.Sensitivity; }
             float step = Input.IsKeyPressed(Key.Shift) ? 0.001f : 0.01f;
-            st.SensOverride = MathF.Max(0.001f, MathF.Round((st.SensOverride + d * step) * 1000f) / 1000f);
-            st.Save();
+            StoreSens(Math.Clamp(MathF.Round((s.CurrentSens + d * step) * 1000f) / 1000f, SensInput.Min, SensInput.Max));
             PaintSens();
         }
         void PaintSens()
         {
-            float effective = s.SessionSens ?? app.Sens;
+            float effective = s.CurrentSens;
             if (sensEdit != null && IsInstanceValid(sensEdit) && !sensEdit.HasFocus())
-                sensEdit.Text = effective.ToString("0.0000", Inv);
+                sensEdit.Text = blindSens ? "A/B" : effective.ToString("0.0000", Inv);
             if (fixedSens)
             {
-                sensNote.Text = L($"FIXED FOR THIS ROUND · {PlayerView.Cm360(effective, st.Dpi):0.0} CM/360",
-                    $"FIJA PARA ESTA RONDA · {PlayerView.Cm360(effective, st.Dpi):0.0} CM/360");
+                sensNote.Text = blindSens ? L("BLIND TEST IN PROGRESS", "PRUEBA CIEGA EN CURSO")
+                    : s.SensSearch?.Active == true ? L("TEMPORARY SEARCH IN PROGRESS", "BÚSQUEDA TEMPORAL EN CURSO")
+                    : L($"FIXED FOR THIS ROUND · {PlayerView.Cm360(effective, st.Dpi):0.0} CM/360",
+                        $"FIJA PARA ESTA RONDA · {PlayerView.Cm360(effective, st.Dpi):0.0} CM/360");
                 sensNote.QueueRedraw();
                 useVal.Hide();
                 return;
             }
-            string note = st.UseSensOverride
-                ? $"CUSTOM · {PlayerView.Cm360(app.Sens, st.Dpi):0.0} CM/360"
-                : $"FROM VALORANT · {PlayerView.Cm360(app.Sens, st.Dpi):0.0} CM/360";
+            string note = CategoryOverride()
+                ? $"{TrainingCatalog.SectionName(s.SensSection).ToUpperInvariant()} · {PlayerView.Cm360(effective, st.Dpi):0.0} CM/360"
+                : st.UseSensOverride ? $"CUSTOM · {PlayerView.Cm360(effective, st.Dpi):0.0} CM/360"
+                : $"FROM VALORANT · {PlayerView.Cm360(effective, st.Dpi):0.0} CM/360";
+            if (st.LiveSensitivityEnabled && !s.CanSearchSensitivity && !s.CoachSuspended)
+                note = L("SEARCH ON · NEXT COMPATIBLE DRILL", "BÚSQUEDA ACTIVA · PRÓXIMO EJERCICIO COMPATIBLE");
             sensNote.Text = Loc.Numeric(L(note, note.Replace("CUSTOM", "PERSONALIZADA").Replace("FROM VALORANT", "DE VALORANT")));
             sensNote.QueueRedraw();
-            useVal.Visible = st.UseSensOverride;
+            useVal.Label = CategoryOverride() ? L("USE GENERAL SENSITIVITY", "USAR SENSIBILIDAD GENERAL")
+                : L("USE VALORANT SENSITIVITY", "USAR SENSIBILIDAD DE VALORANT");
+            useVal.Visible = CategoryOverride() || st.UseSensOverride;
         }
         // Enter or clicking away applies a valid value; anything else snaps back to the current sensitivity.
         void ApplySens()
         {
             if (fixedSens || sensEdit == null || !IsInstanceValid(sensEdit)) return;
-            if (SensInput.TryParse(sensEdit.Text, out var v) && (!st.UseSensOverride || v != st.SensOverride))
-            {
-                st.UseSensOverride = true;
-                st.SensOverride = v;
-                st.Save();
-            }
+            if (SensInput.TryParse(sensEdit.Text, out var v) && Math.Abs(v - s.CurrentSens) > .00005f) StoreSens(v);
             PaintSens();
         }
         sensEdit.TextSubmitted += _ => sensEdit?.ReleaseFocus();
         sensEdit.FocusExited += ApplySens;
-        sensEdit.Text = app.Sens.ToString("0.000", Inv);
+        sensEdit.Text = s.CurrentSens.ToString("0.0000", Inv);
         PaintSens();
 
         // Dev self-check "--pause-jump <-1|1>" (with --pause-at): jump to the previous/next routine task while paused.
@@ -1406,371 +1464,294 @@ public partial class Hud : Control
     void BuildResults(Vector2 size, float k)
     {
         var m = s.Mode;
-        resultLines = m.ResultLines().ToList();
-        if (s.Live is { History.Count: > 0 } live)
-            resultLines.Add((Loc.Spanish ? "Coach en directo" : "Live coach",
-                string.Join(" · ", live.History.Where(h => !h.Positive).Select(h => h.Headline).Distinct().DefaultIfEmpty(live.History[^1].Headline))));
-        if (s.ProgressiveFrom is int pf && s.ProgressiveTo is int pt)
-            resultLines.Add((L("Progressive difficulty", "Dificultad progresiva"),
-                $"{(pt > pf ? "↑" : "↓")}  {Loc.T(Difficulty.Get(pf).Name)} → {Loc.T(Difficulty.Get(pt).Name)}  ·  " +
-                L("applies to the next run", "se aplica en la próxima partida")));
-        var rec = s.Record;
-        int prev = s.PrevBest;
-        int tierId = s.Tier;
-        int badge = rec?.Badge ?? m.Badge();
-        int score = rec?.Score ?? m.Score;
-        bool first = prev < 0, pb = !first && score > prev;
-        var tier = Difficulty.Get(tierId);
-        string scoreText = Loc.Score(score);
-        string modeName = m.Name.ToUpperInvariant();
-        string tl = $"{tier.Name.ToUpperInvariant()} · {tier.Ranks.ToUpperInvariant()}";
-        string? subUp = m.Subtitle?.ToUpperInvariant();
-        string chip = pb ? "NEW PERSONAL BEST" : $"FIRST RUN AT {tier.Name.ToUpperInvariant()}";
-        string prevText = pb ? $"previous best {Loc.Score(prev)}" : $"{tier.Name} best: {Loc.Score(prev)}  ({Loc.Delta(score - prev)})";
-        string badgeName = badge >= 0 ? Difficulty.Tiers[badge].Name.ToUpperInvariant() : "BELOW ROOKIE";
-        string badgeRanks = badge >= 0 ? Difficulty.Tiers[badge].Ranks : "keep practising";
-        bool showScore = m.ShowScore;
-        float scoreH = showScore ? 292 * k : 40 * k; // score + badge block (hidden for drills like the Sens Finder)
-
-        // aim coach review (right-hand panel) and mode-specific extra buttons
         var review = CoachData.ReviewFor(s);
         bool hasReview = CoachData.HasContent(review);
         if (hasReview) nextFocus = FocusFor(review!, m.Key);
+        bool canRewind = RewindData.CanRewind(s.Telemetry);
+        var rewind = canRewind ? RewindData.Ready(s.Telemetry) : null;
+        insightsPending = canRewind && rewind == null && hasReview;
         var extra = ExtraButtons(m);
-        var sens = review?.Sens;
-        bool showSens = sens != null;
-        if (hasReview) k = Mathf.Min(k, size.X / 1764f); // both panels side by side must fit (4:3 / 5:4 windows)
-        float sensH = showSens ? 128 * k : 0;
-        // Rewind: any run with a target in its frames; its insights build on a worker (the review's "Show me" links
-        // appear when they're ready: _Process re-lays the overlay once).
-        var tel = s.Telemetry;
-        bool canRewind = RewindData.CanRewind(tel);
-        var rins = canRewind ? RewindData.Ready(tel) : null;
-        insightsPending = canRewind && rins == null && hasReview;
-        Func<string, bool>? showable = rins == null ? null : id => rins.Moments.Any(mo => mo.Code == id);
+        if (s.SensSearch is { } tested && !SensLab.SameSens(tested.Candidate, Main.I.SensFor(s.SensSection)))
+            extra.Insert(0, (L("Validate candidate A/B", "Validar candidata A/B"),
+                () => PracticeScreen.Compare(tested.Candidate, s.SensSection)));
 
-        bool twoCol = resultLines.Count > 5;
-        int lineRows = twoCol ? (resultLines.Count + 1) / 2 : resultLines.Count;
-        float pw = (hasReview ? 900 : 1060) * k, rw = hasReview ? 760 * k : 0, gap = hasReview ? 24 * k : 0;
-        float extraH = extra.Count > 0 ? 72 * k : 0;
-        float maxH = size.Y - 60 * k;
-        float ph = Mathf.Min(maxH, 120 * k + scoreH + lineRows * 40 * k + 40 * k + 104 * k + extraH + sensH);
-        var rl = hasReview ? LayoutReview(review!, rw, maxH - 22 * k, k, showable, OpenRewind,
-            review!.Plays is { HasData: true } ? () => OpenPlays(review.Plays!) : null) : null;
-        if (rl != null) ph = Mathf.Min(maxH, Mathf.Max(ph, rl.Height + 22 * k));
-        float left = size.X / 2 - (pw + gap + rw) / 2;
-        var panel = new Rect2(left, size.Y / 2 - ph / 2, pw, ph);
-        var rpanel = new Rect2(panel.End.X + gap, panel.Position.Y, rw, ph);
-        float btnY = panel.End.Y - 90 * k;
-        float sensTop = panel.Position.Y + 120 * k + scoreH + lineRows * 40 * k + 18 * k;
-        if (canRewind)
+        k = Mathf.Min(k, size.X / 1000f);
+        float width = size.X - 108 * k;
+        var screen = new PanelContainer { Size = size };
+        var paint = new StyleBoxFlat { BgColor = new Color(0.039f, 0.051f, 0.063f) };
+        paint.ContentMarginLeft = paint.ContentMarginRight = 54 * k;
+        paint.ContentMarginTop = 42 * k;
+        paint.ContentMarginBottom = 30 * k;
+        screen.AddThemeStyleboxOverride("panel", paint);
+        overlay!.AddChild(screen);
+        screen.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+
+        var page = Column(22);
+        screen.AddChild(page);
+        var header = Column(3);
+        page.AddChild(header);
+        AddText(header, L("ROUND RESULTS", "RESULTADOS"), 16, UiTheme.Teal);
+        AddText(header, m.Name, 60, UiTheme.Text, display: true);
+        AddText(header, string.Join("  ·  ", new[] { Loc.T(Difficulty.Get(s.Tier).Name), m.Subtitle }
+            .Where(v => !string.IsNullOrEmpty(v))), 20, UiTheme.Dim);
+
+        bool showScore = m.ShowScore && s.SensSearch == null && !s.CoachSuspended && s.SensComparisonTrial == null;
+        var record = s.Record;
+        bool showAccuracy = showScore && record is { Shots: > 0, Accuracy: >= 0 };
+        if (s.CoachSuspended)
+            AddText(page, L("Warm-up", "Calentamiento"), 26, UiTheme.Text, display: true);
+        else if (record != null && (showScore || record.PracticeRank))
         {
-            // PLAY AGAIN · REWIND · MENU (the mode's own buttons keep the row above)
-            float bx0 = panel.GetCenter().X - 401 * k;
-            OverlayButton("PLAY AGAIN  (R)", VButton.Look.Primary, new Rect2(bx0, btnY, 280 * k, 58 * k), k, s.Restart);
-            OverlayButton("REWIND", VButton.Look.Secondary, new Rect2(bx0 + 296 * k, btnY, 210 * k, 58 * k), k, () => OpenRewind(null));
-            OverlayButton("MENU  (ESC)", VButton.Look.Secondary, new Rect2(bx0 + 522 * k, btnY, 280 * k, 58 * k), k, Main.I.ShowMenu);
-            if (Main.I.Dev && !devRewindShown && CmdLine.After("--rewind-at") != null)
-            {
-                devRewindShown = true; // dev screenshots: --rewind-at S [--rewind-code CODE]
-                Callable.From(() => OpenRewind(CmdLine.After("--rewind-code"))).CallDeferred();
-            }
-        }
-        else
-        {
-            OverlayButton("PLAY AGAIN  (R)", VButton.Look.Primary, new Rect2(panel.GetCenter().X - 330 * k, btnY, 320 * k, 58 * k), k, s.Restart);
-            OverlayButton("MENU  (ESC)", VButton.Look.Secondary, new Rect2(panel.GetCenter().X + 10 * k, btnY, 320 * k, 58 * k), k, Main.I.ShowMenu);
-        }
-        if (extra.Count > 0)
-        {
-            float eg = 20 * k;
-            float ew = Mathf.Min(320 * k, (pw - 88 * k - (extra.Count - 1) * eg) / extra.Count);
-            float ex = panel.GetCenter().X - (extra.Count * ew + (extra.Count - 1) * eg) / 2;
-            var extraBtns = new List<(VButton B, string Up)>();
-            foreach (var (label, act) in extra)
-            {
-                string up = label.ToUpperInvariant();
-                VButton? eb = null;
-                eb = OverlayButton(up, VButton.Look.Secondary, new Rect2(ex, btnY - 70 * k, ew, 52 * k), k, () =>
-                {
-                    try { act(); } catch (Exception ex2) { GD.PushWarning($"Result button failed: {ex2.Message}"); }
-                    // only the last choice is ticked ("Use …" then "Keep my sens" undoes the first)
-                    foreach (var (b, u) in extraBtns) { b.Label = b == eb ? "✓  " + u : u; b.QueueRedraw(); }
-                }, 19);
-                extraBtns.Add((eb, up));
-                ex += ew + eg;
-            }
-        }
-        if (showSens && review != null)
-            OverlayButton(L("PRACTISE THIS  ›", "PRACTICAR ESTO  ›"), VButton.Look.Ghost,
-                new Rect2(panel.End.X - 44 * k - 160 * k, sensTop - 2 * k, 160 * k, 28 * k), k,
-                () => PracticeScreen.Start(CoachPlan.FromRun(review), CoachData.Ready ?? new SkillProfile()), 12);
-        if (rl != null)
-            foreach (var (r, label, sub, act, look) in rl.Buttons)
-            {
-                var b = OverlayButton(label, look, new Rect2(rpanel.Position + r.Position, r.Size), k, act, look == VButton.Look.Ghost ? 14 : 15);
-                b.Sub = sub;
-                b.SubPx = 11.5f;
-                if (look == VButton.Look.Ghost) { b.TitleFont = UiTheme.HudWide; b.Align = HorizontalAlignment.Left; }
-            }
-
-        overlay!.OnDraw = d =>
-        {
-            float t = RealNow - overlayAt;
-            Dimmer(d, size, k, 0.86f, RealNow);
-            var pr = panel;
-            float x0 = pr.Position.X + 44 * k, x1 = pr.End.X - 44 * k, y = pr.Position.Y;
-            float p0 = pr.Position.X, p1 = pr.End.X, py1 = pr.End.Y;
-            float cut = 26 * k, pulse = Gfx.Wave(RealNow, 0.5f);
-
-            // marching dash runs sliding along hairlines (same language the pause plate uses)
-            void RunX(float ex, float ey, float len, Color c, float h, float speed)
-            {
-                float db = 62 * k, span = len + db;
-                float xx = ((RealNow * speed * k) % span) - db;
-                for (int i = 0; i < 9; i++)
-                {
-                    float fall = 1f - MathF.Abs(i - 4f) / 5f;
-                    d.DrawRect(new Rect2(ex + xx + (i - 4) * 9 * k, ey, 3 * k, h), new Color(c, c.A * fall * 0.85f));
-                }
-            }
-
-            // ---- plate: halo glow, per-corner cuts, inner hairline, breathing outer brackets ----
-            for (int i = 0; i < 2; i++)
-            {
-                float e = (7 + i * 10 + pulse * 3) * k;
-                Gfx.PlateEx(d, new Rect2(p0 - e, pr.Position.Y - e, pr.Size.X + e * 2, pr.Size.Y + e * 2), cut + e,
-                    true, false, false, true, new Color(0, 0, 0, 0), new Color(UiTheme.Accent, 0.05f / (i + 1)), 1f);
-            }
-            Gfx.PlateEx(d, pr, cut, true, false, false, true,
-                new Color(0.05f, 0.09f, 0.13f, 0.97f), new Color(UiTheme.Text, 0.14f + 0.06f * pulse), 1.5f);
-            Gfx.PlateEx(d, new Rect2(p0 + 4 * k, pr.Position.Y + 4 * k, pr.Size.X - 8 * k, pr.Size.Y - 8 * k), cut - 4 * k,
-                true, false, false, true, new Color(0, 0, 0, 0), new Color(UiTheme.Accent, 0.11f), 1f);
-            float dp = (3f + 1.6f * pulse) * k;
-            Gfx.Diamond(d, new Vector2(p0, pr.Position.Y + cut), dp, dp, UiTheme.Accent);
-            Gfx.Diamond(d, new Vector2(p1 - cut, py1), dp, dp, UiTheme.Teal);
-            float bb = 9 * k + pulse * 2.5f * k;
-            Gfx.Brackets(d, new Rect2(p0 - bb, pr.Position.Y - bb, pr.Size.X + bb * 2, pr.Size.Y + bb * 2),
-                (15 + 3 * pulse) * k, new Color(UiTheme.Text, 0.28f + 0.14f * pulse), 2 * k);
-            // accent run along the top edge with a fading tail; teal echo at the bottom right
-            float abw = (110 + 60 * pulse) * k;
-            d.DrawRect(new Rect2(p0 + cut, pr.Position.Y, abw, 3 * k), UiTheme.Accent);
-            Span<Vector2> abq = stackalloc Vector2[4];
-            Span<Color> abc = stackalloc Color[4];
-            abq[0] = new(p0 + cut + abw, pr.Position.Y);
-            abq[1] = abq[0] + new Vector2(80 * k, 0);
-            abq[2] = abq[1] + new Vector2(0, 3 * k);
-            abq[3] = abq[0] + new Vector2(0, 3 * k);
-            abc[0] = new Color(UiTheme.Accent, 0.4f); abc[3] = abc[0];
-            abc[1] = new Color(0, 0, 0, 0); abc[2] = abc[1];
-            d.GradPoly(abq, abc);
-            d.DrawRect(new Rect2(p1 - cut - 80 * k, py1 - 3 * k, 80 * k, 3 * k), new Color(UiTheme.Teal, 0.7f));
-            // slow scan shimmer drifting inside the plate
-            float scanY = pr.Position.Y + ((RealNow * 36 * k) % pr.Size.Y);
-            float band = MathF.Min(34 * k, scanY - pr.Position.Y - 2 * k);
-            if (band > 0)
-            {
-                Span<Vector2> sq = stackalloc Vector2[4];
-                Span<Color> sc = stackalloc Color[4];
-                sq[0] = new(p0 + 3 * k, scanY - band);
-                sq[1] = new(p1 - 3 * k, scanY - band);
-                sq[2] = sq[1] + new Vector2(0, band);
-                sq[3] = sq[0] + new Vector2(0, band);
-                sc[0] = new Color(0, 0, 0, 0); sc[1] = sc[0];
-                sc[2] = new Color(UiTheme.Accent, 0.025f); sc[3] = sc[2];
-                d.GradPoly(sq, sc);
-            }
-            d.DrawRect(new Rect2(p0 + 3 * k, scanY, pr.Size.X - 6 * k, 1.5f), new Color(UiTheme.Accent, 0.08f));
-
-            // ---- header: kicker, big mode name sliding in on an accent rail, tier read-out on the right ----
-            int hs = UiTheme.Fs(13, k), ks = UiTheme.Fs(12, k), ts = UiTheme.Fs(46, k);
-            float entry = Gfx.EaseOutExpo(Mathf.Clamp(t / 0.5f, 0, 1));
-            float move = (1f - entry) * 22 * k;
-            float kkw = Gfx.TextW(UiTheme.HudWide, "// RESULTS", ks);
-            Gfx.Text(d, UiTheme.HudWide, "// RESULTS", x0, y + 38 * k, ks, new Color(UiTheme.Teal, 0.75f + 0.25f * pulse));
-            Gfx.Diamond(d, new Vector2(x0 + kkw + 10 * k, y + 38 * k - ks * 0.36f), 2.4f * k, 2.4f * k, new Color(UiTheme.Teal, 0.7f));
-            Gfx.Text(d, UiTheme.Display, modeName, x0 + move, y + 100 * k, ts, new Color(UiTheme.Text, 0.35f + 0.65f * entry));
-            float uW = 90f * k * entry;
-            if (uW > 1)
-            {
-                d.DrawRect(new Rect2(x0, y + 128 * k, uW, 2 * k), UiTheme.Accent);
-                Span<Vector2> uq = stackalloc Vector2[4];
-                Span<Color> uc = stackalloc Color[4];
-                uq[0] = new(x0 + uW, y + 128 * k);
-                uq[1] = uq[0] + new Vector2(46 * k, 0);
-                uq[2] = uq[1] + new Vector2(0, 2 * k);
-                uq[3] = uq[0] + new Vector2(0, 2 * k);
-                uc[0] = new Color(UiTheme.Accent, 0.45f * entry); uc[3] = uc[0];
-                uc[1] = new Color(0, 0, 0, 0); uc[2] = uc[1];
-                d.GradPoly(uq, uc);
-            }
-            // tier chip (right): read-out over an emblem, with a hairline rail tying it to the frame
+            var metrics = Row(24);
+            page.AddChild(metrics);
             if (showScore)
             {
-            float tw = Gfx.TextW(UiTheme.HudWide, tl, hs);
-            var tc2 = UiTheme.TierColor(tierId);
-            float ta = entry;
-            Gfx.Text(d, UiTheme.HudWide, "PLAYED AT", x1 - tw, y + 50 * k, UiTheme.Fs(11, k), new Color(UiTheme.Faint, ta));
-            Gfx.TextR(d, UiTheme.HudWide, tl, x1, y + 72 * k, hs, new Color(tc2, ta));
-            RankEmblem.Draw(d, new Vector2(x1 - tw - 22 * k, y + 66 * k), 12 * k, tierId, ta);
-            }
-            if (subUp != null) Gfx.TextR(d, UiTheme.HudWide, subUp, x1, y + 96 * k, UiTheme.Fs(11, k), new Color(UiTheme.Dim, entry));
-            // header divider: accent fading right + marching dashes
-            float dy = y + 120 * k;
-            Span<Vector2> dvq = stackalloc Vector2[4];
-            Span<Color> dvc = stackalloc Color[4];
-            dvq[0] = new(p0 + 4 * k, dy); dvq[1] = new(p1 - 4 * k, dy);
-            dvq[2] = dvq[1] + new Vector2(0, 1.4f); dvq[3] = dvq[0] + new Vector2(0, 1.4f);
-            dvc[0] = new Color(UiTheme.Accent, 0.35f); dvc[3] = dvc[0];
-            dvc[1] = new Color(UiTheme.Text, 0.09f); dvc[2] = dvc[1];
-            d.GradPoly(dvq, dvc);
-            Gfx.Diamond(d, new Vector2(x0 - 10 * k, dy), 3.5f * k, 3.5f * k, UiTheme.Accent);
-            RunX(x0 + 4 * k, dy - 2 * k, p1 - x0 - 16 * k, new Color(UiTheme.Text, 0.26f), 4 * k, 48);
-
-            // score block (left)
-            float sy = y + 120 * k;
-            if (showScore)
-            {
-            int ls = UiTheme.Fs(13, k), ss = UiTheme.Fs(140, k), ps = UiTheme.Fs(15, k);
-            float ex = pr.Position.X + pr.Size.X * 0.73f;
-            float hcy = sy + 40 * k - ls * 0.36f;
-            Gfx.Diamond(d, new Vector2(x0 + 3 * k, hcy), (2.8f + 1.4f * pulse) * k, (2.8f + 1.4f * pulse) * k, UiTheme.Accent);
-            Gfx.Text(d, UiTheme.HudWide, "SCORE", x0 + 14 * k, sy + 40 * k, ls, UiTheme.Dim);
-            float hw = Gfx.TextW(UiTheme.HudWide, "SCORE", ls);
-            float rail = MathF.Max(0f, ex - 44 * k - (x0 + 14 * k + hw + 10 * k));
-            d.DrawRect(new Rect2(x0 + 14 * k + hw + 10 * k, hcy - 0.5f, rail, 1), new Color(UiTheme.Text, 0.10f));
-            float countT = Mathf.Clamp(t / 0.6f, 0, 1);
-            string shown = countT >= 1 ? scoreText : Loc.Score((int)(score * Gfx.EaseOut(countT)));
-            Gfx.Text(d, UiTheme.Display, shown, x0 - 4 * k, sy + 170 * k, ss, new Color(UiTheme.Text, entry));
-            if (pb || first)
-            {
-                var cr = new Rect2(x0, sy + 202 * k, Gfx.TextW(UiTheme.HudWide, chip, ps) + 22 * k, 30 * k);
-                float glow = pb ? 0.5f + 0.5f * Mathf.Sin(t * 5f) : 0f;
-                if (pb) Gfx.PlateEx(d, cr.Grow(5 * k), 12 * k, true, false, false, true,
-                    new Color(0, 0, 0, 0), new Color(UiTheme.Good, 0.10f + 0.08f * glow), 1f);
-                Gfx.PlateEx(d, cr, 8 * k, true, false, false, true,
-                    new Color(UiTheme.Good, 0.16f + 0.1f * glow), UiTheme.Good, 1f);
-                Gfx.Text(d, UiTheme.HudWide, chip, cr.Position.X + 11 * k, Gfx.Mid(cr.GetCenter().Y, ps), ps, UiTheme.Good);
-                if (pb) Gfx.Text(d, UiTheme.Body, prevText, cr.End.X + 14 * k, Gfx.Mid(cr.GetCenter().Y, ps), ps, UiTheme.Dim);
-            }
-            else Gfx.Text(d, UiTheme.Body, prevText,
-                x0, Gfx.Mid(sy + 217 * k, ps + 2), ps + 2, UiTheme.Dim);
-
-            // rank emblem block (right): pulse halo + pop-in emblem
-            float ey = sy + 90 * k, er = 54 * k;
-            float pop = Gfx.EaseOutBack(Mathf.Clamp((t - 0.15f) / 0.45f, 0, 1));
-            var tc = UiTheme.TierColor(badge);
-            if (pop > 0.01f)
-            {
-                float ring = 0.5f + 0.5f * Mathf.Sin(t * 2.4f);
-                d.DrawCircle(new Vector2(ex, ey), er * 1.35f, new Color(tc, 0.06f + 0.04f * ring));
-                d.DrawArc(new Vector2(ex, ey), er * 1.35f, 0, Mathf.Tau, 64, new Color(tc, 0.35f), Mathf.Max(1, 2 * k), true);
-                // four signal ticks orbiting the halo at 45° steps, fading with the pulse
-                for (int i = 0; i < 4; i++)
+                string? best = null;
+                if (s.PrevBest >= 0)
                 {
-                    float ang = Mathf.Tau * i / 4f + Mathf.Pi / 4f;
-                    var dir = new Vector2(MathF.Cos(ang), MathF.Sin(ang));
-                    var tcol = new Color(UiTheme.Text, 0.14f + 0.12f * ring);
-                    d.DrawLine(new Vector2(ex, ey) + dir * (er * 1.35f + 8 * k),
-                        new Vector2(ex, ey) + dir * (er * 1.35f + (16 + 4 * pulse) * k), tcol, 1.5f);
+                    int delta = record.Score - s.PrevBest;
+                    best = delta > 0 ? L("New personal best", "Nuevo récord personal")
+                        : $"{L("Best", "Récord")} {Loc.Score(s.PrevBest)}  ({Loc.Delta(delta)})";
                 }
-                d.DrawSetTransform(new Vector2(ex, ey), 0, new Vector2(pop, pop));
-                RankEmblem.Draw(d, Vector2.Zero, er, badge);
-                d.DrawSetTransformMatrix(Transform2D.Identity);
+                Metric(metrics, L("Score", "Puntuación"), Loc.Score(record.Score), UiTheme.Text, best);
             }
-            float ty = ey + er * 1.35f;
-            Gfx.TextC(d, UiTheme.HudWide, "PERFORMED AT", ex, ty + 22 * k, UiTheme.Fs(12, k), UiTheme.Dim);
-            int bs = UiTheme.Fs(36, k);
-            Gfx.TextC(d, UiTheme.Display, badgeName, ex, ty + 58 * k, bs, tc);
-            Gfx.TextC(d, UiTheme.Body, badgeRanks, ex, ty + 82 * k, UiTheme.Fs(15, k), UiTheme.Dim);
-            }
+            int rank = Math.Clamp(record.Badge, 0, Difficulty.Tiers.Length - 1);
+            Metric(metrics, record.PracticeRank ? L("Practice rank", "Rango de práctica") : L("Rank", "Rango"),
+                Loc.T(Difficulty.Get(rank).Name), UiTheme.TierColor(rank));
+            if (showAccuracy)
+                Metric(metrics, L("Accuracy", "Precisión"), Loc.Numeric($"{record.Accuracy * 100:0.0}%"), UiTheme.Text,
+                    $"{record.Hits}/{record.Shots} {L("hits", "aciertos")}");
+            if (review?.Feedback is { } points)
+                Metric(metrics, L("Practice points", "Puntos de práctica"), Loc.Score(points.Score), UiTheme.Text,
+                    $"+{points.Earned} / −{points.Lost}");
+        }
+        Rule(page);
 
-            // result lines: divider + staggered rows sliding in from the left
-            float ly = sy + scoreH;
-            float ldy = ly - 10 * k;
-            Span<Vector2> lq = stackalloc Vector2[4];
-            Span<Color> lc = stackalloc Color[4];
-            lq[0] = new(x0, ldy); lq[1] = new(x1, ldy);
-            lq[2] = lq[1] + new Vector2(0, 1.4f); lq[3] = lq[0] + new Vector2(0, 1.4f);
-            lc[0] = new Color(UiTheme.Accent, 0.40f + 0.2f * pulse); lc[3] = lc[0];
-            lc[1] = new Color(0.0f, 0.0f, 0.0f, 0f); lc[2] = lc[1];
-            d.GradPoly(lq, lc);
-            RunX(x0 + 6 * k, ldy - 2 * k, x1 - x0 - 12 * k, new Color(UiTheme.Text, 0.24f), 4 * k, 42);
-            int rs = UiTheme.Fs(18, k);
-            float colW = twoCol ? (x1 - x0 - 40 * k) / 2 : x1 - x0;
-            if (twoCol)
-            {
-                float vx = x0 + colW + 20 * k;
-                d.DrawRect(new Rect2(vx, ly + 2 * k, 1, lineRows * 40 * k - 4 * k), new Color(UiTheme.Text, 0.09f));
-                Gfx.Diamond(d, new Vector2(vx, ly + 2 * k), 2.6f * k, 2.6f * k, new Color(UiTheme.Teal, 0.8f));
-                Gfx.Diamond(d, new Vector2(vx, ly + lineRows * 40 * k - 2 * k), 2.6f * k, 2.6f * k, new Color(UiTheme.Teal, 0.8f));
-            }
-            for (int i = 0; i < resultLines.Count; i++)
-            {
-                int ci = twoCol ? i / lineRows : 0, ri = twoCol ? i % lineRows : i;
-                float lx0 = x0 + ci * (colW + 40 * k), lyy = ly + ri * 40 * k + 20 * k;
-                float ra = Gfx.EaseOutExpo(Mathf.Clamp((t - 0.25f - i * 0.045f) / 0.35f, 0, 1));
-                float lx = lx0 + (1f - ra) * 12 * k;
-                if (ri % 2 == 0) d.DrawRect(new Rect2(lx0, lyy - 20 * k, colW, 40 * k), new Color(1, 1, 1, 0.025f * ra));
-                var (label, value) = resultLines[i];
-                value = Loc.Numeric(value);
-                float vw = Mathf.Min(Gfx.TextW(UiTheme.Body, value, rs), colW * 0.6f);
-                Gfx.TextFit(d, UiTheme.Body, label, lx + 12 * k, Gfx.Mid(lyy, rs), rs, new Color(UiTheme.Dim, ra), colW - vw - 36 * k);
-                Gfx.TextFit(d, UiTheme.Body, value, lx + colW - 12 * k - colW * 0.6f, Gfx.Mid(lyy, rs), rs, new Color(UiTheme.Text, ra), colW * 0.6f, HorizontalAlignment.Right);
-            }
+        var body = Row(37);
+        body.SizeFlagsVertical = SizeFlags.ExpandFill;
+        page.AddChild(body);
+        var summary = Column(16);
+        summary.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        summary.SizeFlagsStretchRatio = hasReview ? 0.68f : 1f;
+        body.AddChild(summary);
+        AddText(summary, L("Round details", "Detalles de la ronda"), 29, UiTheme.Text, display: true);
+        var stats = AddScroll(summary);
+        foreach (var (label, value) in m.ResultLines())
+            if (!showAccuracy || label != "Accuracy") AddStat(label, value);
+        if (review?.Feedback is { } feedback)
+        {
+            if (!showScore)
+                AddStat(L("Practice points", "Puntos de práctica"), $"{Loc.Score(feedback.Score)}  (+{feedback.Earned} / −{feedback.Lost})");
+            foreach (var setting in feedback.Sensitivities.OrderByDescending(x => x.Hits + x.Misses))
+                AddStat($"{L("Sens.", "Sens.")} {setting.Sensitivity:0.0000}",
+                    $"{setting.Total:+0;-0;0} pts  ·  {setting.Hits} {L("hits", "aciertos")} / {setting.Misses} {L("misses", "fallos")}");
+        }
+        if (s.SensSearch is { } search)
+            AddStat(L("Sensitivity search", "Búsqueda de sensibilidad"), !SensLab.SameSens(search.Baseline, search.Candidate)
+                ? $"{search.Baseline:0.0000} → {search.Candidate:0.0000}"
+                : L("Collect more consistent first-shot samples", "Faltan primeros tiros con un patrón consistente"));
+        if (s.Live is { History.Count: > 0 } live)
+            AddStat(L("Live coach", "Coach en directo"), string.Join(" · ", live.History.Where(h => !h.Positive)
+                .Select(h => h.Headline).Distinct().DefaultIfEmpty(live.History[^1].Headline)));
+        if (s.ProgressiveFrom is int from && s.ProgressiveTo is int to)
+            AddStat(L("Next difficulty", "Próxima dificultad"),
+                $"{Loc.T(Difficulty.Get(from).Name)} → {Loc.T(Difficulty.Get(to).Name)}");
+        if (review?.Sens is { } sens)
+        {
+            Rule(stats);
+            AddText(stats, L("Sensitivity", "Sensibilidad"), 24, UiTheme.Text, display: true);
+            AddText(stats, SensLabText.VerdictSentence(sens), 17, UiTheme.Text);
+            string segment = review.Metrics.GetValueOrDefault("sens.changed") > 0
+                ? L("Latest segment", "Último tramo") + $" · {review.Metrics.GetValueOrDefault("current.sens"):0.0000}"
+                : $"{s.Record?.Sens:0.0000}";
+            AddText(stats, $"{segment} · {SensLabText.Metrics(sens)} · {SensLabText.EvidenceCaption(sens.Confidence)}", 15, UiTheme.Dim);
+            AddText(stats, SensLabText.Advice(sens), 16, UiTheme.Dim);
+            ActionButton(stats, L("Practise sensitivity", "Practicar sensibilidad"),
+                () => PracticeScreen.Start(CoachPlan.FromRun(review), CoachData.Ready ?? new SkillProfile()));
+        }
 
-            if (showSens && sens is { } sf)
+        var extras = new List<(VButton Button, string Label)>();
+        foreach (var (label, action) in extra)
+        {
+            VButton? button = null;
+            button = ActionButton(stats, label, () =>
             {
-                float st = sensTop;
-                float sdy = st - 10 * k;
-                Span<Vector2> sdq = stackalloc Vector2[4];
-                Span<Color> sdc = stackalloc Color[4];
-                sdq[0] = new(x0, sdy); sdq[1] = new(x1, sdy);
-                sdq[2] = sdq[1] + new Vector2(0, 1.4f); sdq[3] = sdq[0] + new Vector2(0, 1.4f);
-                sdc[0] = new Color(UiTheme.Teal, 0.35f); sdc[3] = sdc[0];
-                sdc[1] = new Color(UiTheme.Text, 0.09f); sdc[2] = sdc[1];
-                d.GradPoly(sdq, sdc);
-                Gfx.Diamond(d, new Vector2(x0 - 10 * k, sdy), 3 * k, 3 * k, UiTheme.Teal);
-                int cap = UiTheme.Fs(12, k), body = UiTheme.Fs(14, k);
-                Gfx.Diamond(d, new Vector2(x0 + 3 * k, st + 8 * k), (2.6f + 1.2f * pulse) * k, (2.6f + 1.2f * pulse) * k, UiTheme.Accent);
-                Gfx.Text(d, UiTheme.HudWide, L("SENSITIVITY THIS RUN", "SENSIBILIDAD EN ESTA RONDA"), x0 + 14 * k, Gfx.Mid(st + 8 * k, cap), cap, UiTheme.Dim);
-                float cy = st + 32 * k;
-                var vc = SensLabText.VerdictColor(sf.Verdict);
-                float cw = CoachDraw.Chip(d, SensLabText.Verdict(sf), x0, cy, k, vc, filled: true);
-                Gfx.TextFit(d, UiTheme.Display, SensLabText.VerdictSentence(sf), x0 + cw + 10 * k,
-                    Gfx.Mid(cy, UiTheme.Fs(17, k)), UiTheme.Fs(17, k), UiTheme.Text, x1 - x0 - cw - 10 * k);
-                string sm = review?.Metrics.GetValueOrDefault("sens.changed") > 0
-                    ? L("Latest sensitivity segment", "Último tramo con esta sensibilidad") + $" · {review.Metrics.GetValueOrDefault("current.sens"):0.000} · {SensLabText.Metrics(sf)}"
-                    : $"{s.Record?.Sens:0.0000} · {SensLabText.Metrics(sf)} · {SensLabText.EvidenceCaption(sf.Confidence)}";
-                Gfx.TextFit(d, UiTheme.Body, sm, x0, Gfx.Mid(st + 56 * k, body), body, UiTheme.Dim, x1 - x0 - 160 * k);
-                CoachDraw.Para(d, UiTheme.Body, SensLabText.Advice(sf), x0, st + 75 * k, x1 - x0, UiTheme.Fs(13.5f, k), UiTheme.Faint, 2);
-            }
+                try { action(); }
+                catch (Exception error) { GD.PushWarning($"Result action failed: {error.Message}"); return; }
+                foreach (var (item, title) in extras)
+                {
+                    item.Label = item == button ? $"✓  {title}" : title;
+                    item.QueueRedraw();
+                }
+            });
+            extras.Add((button, label));
+        }
 
-            if (rl != null)
+        if (hasReview) BuildReview(body, review!);
+        Rule(page);
+        var actions = Row(12);
+        actions.SizeFlagsHorizontal = SizeFlags.ShrinkEnd;
+        page.AddChild(actions);
+        ActionButton(actions, L("Play again · R", "Otra vez · R"), s.Restart, VButton.Look.Primary, minimumWidth: 192);
+        if (canRewind) ActionButton(actions, L("Rewind", "Rebobinar"), () => OpenRewind(null), minimumWidth: 144);
+        ActionButton(actions, L("Menu · Esc", "Menú · Esc"), Main.I.ShowMenu, minimumWidth: 144);
+        if (canRewind && Main.I.Dev && !devRewindShown && CmdLine.After("--rewind-at") != null)
+        {
+            devRewindShown = true;
+            Callable.From(() => OpenRewind(CmdLine.After("--rewind-code"))).CallDeferred();
+        }
+
+        VBoxContainer Column(float gap)
+        {
+            var col = new VBoxContainer();
+            col.AddThemeConstantOverride("separation", (int)(gap * k));
+            return col;
+        }
+
+        HBoxContainer Row(float gap)
+        {
+            var row = new HBoxContainer();
+            row.AddThemeConstantOverride("separation", (int)(gap * k));
+            return row;
+        }
+
+        void Rule(Control parent)
+        {
+            parent.AddChild(new ColorRect { Color = UiTheme.Line, CustomMinimumSize = new Vector2(0, 1), MouseFilter = MouseFilterEnum.Ignore });
+        }
+
+        void AddText(Control parent, string text, float px, Color color, bool display = false)
+        {
+            var label = new Label
             {
-                var rp = rpanel;
-                float rp0 = rp.Position.X, rp1x = rp.End.X, rpy1 = rp.End.Y, rcut = 22 * k;
-                Gfx.PlateEx(d, rp, rcut, true, false, false, true,
-                    new Color(0.05f, 0.09f, 0.13f, 0.97f), new Color(UiTheme.Text, 0.14f + 0.06f * pulse), 1.5f);
-                Gfx.PlateEx(d, new Rect2(rp0 + 3 * k, rp.Position.Y + 3 * k, rp.Size.X - 6 * k, rp.Size.Y - 6 * k), rcut - 3 * k,
-                    true, false, false, true, new Color(0, 0, 0, 0), new Color(UiTheme.Teal, 0.10f), 1f);
-                float rbw = (60 + 34 * pulse) * k;
-                d.DrawRect(new Rect2(rp0 + rcut, rp.Position.Y, rbw, 3 * k), UiTheme.Accent);
-                Span<Vector2> tq2 = stackalloc Vector2[4];
-                Span<Color> tc2b = stackalloc Color[4];
-                tq2[0] = new(rp0 + rcut + rbw, rp.Position.Y);
-                tq2[1] = tq2[0] + new Vector2(56 * k, 0);
-                tq2[2] = tq2[1] + new Vector2(0, 3 * k);
-                tq2[3] = tq2[0] + new Vector2(0, 3 * k);
-                tc2b[0] = new Color(UiTheme.Accent, 0.4f); tc2b[3] = tc2b[0];
-                tc2b[1] = new Color(0, 0, 0, 0); tc2b[2] = tc2b[1];
-                d.GradPoly(tq2, tc2b);
-                d.DrawRect(new Rect2(rp1x - rcut - 56 * k, rpy1 - 3 * k, 56 * k, 3 * k), new Color(UiTheme.Teal, 0.7f));
-                Gfx.Diamond(d, new Vector2(rp0, rp.Position.Y + rcut), (2.6f + 1.2f * pulse) * k, (2.6f + 1.2f * pulse) * k, UiTheme.Accent);
-                Gfx.Diamond(d, new Vector2(rp1x - rcut, rpy1), (2.6f + 1.2f * pulse) * k, (2.6f + 1.2f * pulse) * k, UiTheme.Teal);
-                foreach (var op in rl.Ops) op(d, rp.Position);
+                Text = text, AutowrapMode = TextServer.AutowrapMode.WordSmart,
+                SizeFlagsHorizontal = SizeFlags.ExpandFill, MouseFilter = MouseFilterEnum.Ignore,
+                LabelSettings = new LabelSettings { Font = display ? UiTheme.Hud : UiTheme.Body,
+                    FontColor = color, FontSize = UiTheme.Fs(px, k) },
+            };
+            parent.AddChild(label);
+        }
+
+        void Metric(Control parent, string label, string value, Color color, string? detail = null)
+        {
+            var panel = new PanelContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+            panel.AddThemeStyleboxOverride("panel", Surface(new Color(0.068f, 0.087f, 0.103f), 18));
+            parent.AddChild(panel);
+            var column = Column(2);
+            panel.AddChild(column);
+            AddText(column, label, 17, UiTheme.Dim);
+            AddText(column, value, 48, color, display: true);
+            if (detail != null) AddText(column, detail, 15, UiTheme.Dim);
+        }
+
+        StyleBoxFlat Surface(Color fill, float padding)
+        {
+            var style = new StyleBoxFlat { BgColor = fill };
+            style.SetCornerRadiusAll((int)(6 * k));
+            style.ContentMarginLeft = style.ContentMarginRight = padding * k;
+            style.ContentMarginTop = style.ContentMarginBottom = padding * k;
+            return style;
+        }
+
+        VBoxContainer AddScroll(Control parent)
+        {
+            var scroll = new ScrollContainer
+            {
+                SizeFlagsVertical = SizeFlags.ExpandFill,
+                HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
+                FollowFocus = true,
+            };
+            parent.AddChild(scroll);
+            var content = Column(11);
+            content.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+            scroll.AddChild(content);
+            return content;
+        }
+
+        void AddStat(string caption, string value)
+        {
+            var row = Row(14);
+            stats.AddChild(row);
+            AddText(row, caption, 17, UiTheme.Dim);
+            AddText(row, Loc.Numeric(value), 18, UiTheme.Text);
+        }
+
+        VButton ActionButton(Control parent, string label, Action action, VButton.Look kind = VButton.Look.Secondary,
+            float minimumWidth = 0)
+        {
+            float labelWidth = Gfx.TextW(UiTheme.Body, Loc.T(label), UiTheme.Fs(17, k)) + 32 * k;
+            var button = new VButton
+            {
+                K = k, Label = label, Kind = kind, FontPx = 17,
+                SizeFlagsHorizontal = parent is HBoxContainer ? SizeFlags.ExpandFill : SizeFlags.ShrinkBegin,
+                CustomMinimumSize = new Vector2(Mathf.Clamp(labelWidth, minimumWidth * k, width * 0.38f), 47 * k),
+            };
+            button.Pressed += action;
+            parent.AddChild(button);
+            return button;
+        }
+
+        void BuildReview(Control parent, RunReview coach)
+        {
+            var col = Column(16);
+            col.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+            parent.AddChild(col);
+            AddText(col, L("Coach review", "Revisión del coach"), 29, UiTheme.Text, display: true);
+            var detail = AddScroll(col);
+            if (coach.NextTip.Length > 0)
+            {
+                var callout = new PanelContainer();
+                callout.AddThemeStyleboxOverride("panel", Surface(new Color(0.069f, 0.118f, 0.123f), 18));
+                detail.AddChild(callout);
+                var tip = Column(6);
+                callout.AddChild(tip);
+                AddText(tip, L("Next attempt", "Próximo intento"), 16, UiTheme.Teal);
+                AddText(tip, coach.NextTip, 25, UiTheme.Text, display: true);
             }
-        };
+            if (coach.Summary.Length > 0)
+                AddText(detail, coach.Summary, 17, UiTheme.Dim);
+            if (coach.Strengths.Count > 0)
+            {
+                Rule(detail);
+                AddText(detail, L("What went well", "Lo que salió bien"), 17, UiTheme.Good, display: true);
+                foreach (var strength in coach.Strengths)
+                    AddText(detail, strength, 16, UiTheme.Text);
+            }
+            foreach (var issue in coach.Issues)
+            {
+                Rule(detail);
+                AddText(detail, issue.Title, 19, UiTheme.Text, display: true);
+                if (issue.Evidence.Length > 0) AddText(detail, issue.Evidence, 16, UiTheme.Dim);
+                foreach (var fix in issue.Fixes ?? Array.Empty<string>())
+                    AddText(detail, "•  " + Loc.T(fix), 16, UiTheme.Text);
+                var drill = (issue.Drills ?? Array.Empty<string>()).FirstOrDefault(CoachData.HasDrill);
+                bool canShowMoment = rewind?.Moments.Any(moment => moment.Code == issue.Id) == true;
+                if (drill != null || canShowMoment)
+                {
+                    var links = Row(10);
+                    links.SizeFlagsHorizontal = SizeFlags.ShrinkBegin;
+                    detail.AddChild(links);
+                    if (drill != null)
+                        ActionButton(links, L("Practise", "Practicar") + $" · {CoachData.DrillName(drill)}",
+                            () => CoachData.StartDrill(drill, CoachData.FocusFrom(issue)));
+                    if (canShowMoment)
+                        ActionButton(links, L("Show moment", "Ver momento"), () => OpenRewind(issue.Id));
+                }
+            }
+            if (coach.Timeline?.Actionable(6).ToList() is { Count: > 0 } findings)
+            {
+                Rule(detail);
+                AddText(detail, L("During the round", "Durante la ronda"), 18, UiTheme.Text, display: true);
+                foreach (var finding in findings)
+                {
+                    AddText(detail, finding.Title(), 16, TimelineUi.Tone(finding.Tone));
+                    AddText(detail, finding.Detail(), 15, UiTheme.Dim);
+                }
+            }
+            if (coach.Plays is { HasData: true } plays)
+                ActionButton(detail, L("Play by play", "Jugada a jugada"), () => OpenPlays(plays));
+            ActionButton(detail, L("Coach profile", "Perfil del coach"), Main.I.ShowProfile);
+        }
     }
 
     // ---------------- coach review (results) ----------------
@@ -1823,180 +1804,4 @@ public partial class Hud : Control
         return d == null ? null : CoachData.FocusFrom(d)! with { Mode = modeKey };
     }
 
-    /// <summary>Pre-measured review panel: draw ops (relative to the panel origin) and its buttons.</summary>
-    sealed class ReviewLayout
-    {
-        public float Height;
-        public readonly List<Action<CanvasItem, Vector2>> Ops = new();
-        public readonly List<(Rect2 R, string Label, string? Sub, Action Act, VButton.Look Look)> Buttons = new();
-    }
-
-    /// <summary>Lays the review out, dropping detail (cues, issues, strengths, summary lines) until it fits <paramref name="maxH"/>.</summary>
-    static ReviewLayout LayoutReview(RunReview rv, float w, float maxH, float k, Func<string, bool>? showable = null, Action<string>? showMe = null,
-        Action? playByPlay = null)
-    {
-        (int Issues, int Cues, int Strengths, int SumLines, int Findings)[] variants =
-        {
-            (3, 2, 3, 6, 2), (3, 1, 2, 5, 2), (2, 2, 2, 5, 1), (2, 1, 1, 4, 1), (1, 1, 1, 3, 1), (1, 0, 0, 3, 0),
-        };
-        ReviewLayout? l = null;
-        foreach (var v in variants)
-        {
-            l = TryLayoutReview(rv, w, k, v.Issues, v.Cues, v.Strengths, v.SumLines, v.Findings, showable, showMe, playByPlay);
-            if (l.Height <= maxH) break;
-        }
-        return l!;
-    }
-
-    static ReviewLayout TryLayoutReview(RunReview rv, float w, float k, int maxIssues, int maxCues, int maxStrengths, int sumLines,
-        int maxFindings, Func<string, bool>? showable = null, Action<string>? showMe = null, Action? playByPlay = null)
-    {
-        var L = new ReviewLayout();
-        var body = UiTheme.Body;
-        float pad = 36 * k, x = pad, tw = w - pad * 2;
-        int hs = UiTheme.Fs(13, k), ss = UiTheme.Fs(17, k), cs = UiTheme.Fs(12, k), ts = UiTheme.Fs(23, k), es = UiTheme.Fs(14.5f, k);
-
-        // header tag
-        string caption = rv.Issues.Count > 0 ? "WHAT TO FIX NEXT RUN" : "NO CLEAR PROBLEMS THIS RUN";
-        L.Ops.Add((d, o) =>
-        {
-            var tag = new Rect2(o.X + x, o.Y + 34 * k, Gfx.TextW(UiTheme.HudWide, "COACH REVIEW", hs) + 18 * k, 22 * k);
-            d.DrawRect(tag, UiTheme.Accent);
-            Gfx.Text(d, UiTheme.HudWide, "COACH REVIEW", tag.Position.X + 9 * k, Gfx.Mid(tag.GetCenter().Y, hs), hs, UiTheme.Text);
-            Gfx.TextR(d, UiTheme.HudWide, caption, o.X + w - pad, Gfx.Mid(tag.GetCenter().Y, cs), cs, rv.Issues.Count > 0 ? UiTheme.Faint : UiTheme.Good);
-        });
-        float y = 78 * k;
-
-        if (rv.Summary.Length > 0)
-        {
-            float sy = y;
-            float h = CoachDraw.TextH(body, rv.Summary, tw, ss, sumLines);
-            L.Ops.Add((d, o) => CoachDraw.Para(d, body, rv.Summary, o.X + x, o.Y + sy, tw, ss, UiTheme.Text, sumLines));
-            y += h + 22 * k;
-        }
-
-        void Section(string title)
-        {
-            float sy = y;
-            L.Ops.Add((d, o) =>
-            {
-                float cy = o.Y + sy + 8 * k;
-                d.DrawRect(new Rect2(o.X + x, cy - 3 * k, 6 * k, 6 * k), UiTheme.Accent);
-                float tw0 = Gfx.TextW(UiTheme.HudWide, title, cs);
-                Gfx.Text(d, UiTheme.HudWide, title, o.X + x + 14 * k, Gfx.Mid(cy, cs), cs, UiTheme.Dim);
-                d.DrawRect(new Rect2(o.X + x + 28 * k + tw0, cy, tw - 28 * k - tw0, 1), new Color(UiTheme.Text, 0.1f));
-            });
-            y += 28 * k;
-        }
-
-        var issues = rv.Issues.Take(maxIssues).ToList();
-        if (issues.Count > 0)
-        {
-            Section(issues.Count == 1 ? "TOP ISSUE" : "TOP ISSUES");
-            foreach (var iss in issues)
-            {
-                float iy = y;
-                var sc = CoachSkills.SeverityColor(iss.Severity);
-                string sev = CoachSkills.SeverityName(iss.Severity);
-                string? drill = (iss.Drills ?? Array.Empty<string>()).FirstOrDefault(CoachData.HasDrill);
-                float bw = drill != null ? 160 * k : 0;
-                if (drill != null)
-                {
-                    var focusCue = CoachData.FocusFrom(iss);
-                    L.Buttons.Add((new Rect2(x + tw - bw, iy, bw, 42 * k), "PRACTISE", CoachData.DrillName(drill), () => CoachData.StartDrill(drill, focusCue), VButton.Look.Secondary));
-                }
-                // "Show me": this run has moments for the issue → a rewind focused on them
-                float smw = 0;
-                if (showMe != null && showable != null && showable(iss.Id))
-                {
-                    smw = Gfx.TextW(UiTheme.HudWide, "SHOW ME ›", UiTheme.Fs(14, k)) + 44 * k;
-                    string id = iss.Id;
-                    L.Buttons.Add((new Rect2(x + tw - bw - (bw > 0 ? 10 * k : 0) - smw, iy + 5 * k, smw, 32 * k), "SHOW ME ›", null, () => showMe(id), VButton.Look.Ghost));
-                    smw += 10 * k;
-                }
-                L.Ops.Add((d, o) =>
-                {
-                    float cy = o.Y + iy + 21 * k;
-                    float cw = CoachDraw.Chip(d, sev, o.X + x, cy, k, sc, filled: iss.Severity == Severity.Major);
-                    float avail = tw - cw - 10 * k - (bw > 0 ? bw + 12 * k : 0) - smw;
-                    int fs = ts;
-                    while (fs > UiTheme.Fs(16, k) && Gfx.TextW(UiTheme.Display, iss.Title, fs) > avail) fs--;
-                    Gfx.TextFit(d, UiTheme.Display, iss.Title, o.X + x + cw + 10 * k, Gfx.Mid(cy, fs), fs, UiTheme.Text, avail);
-                });
-                y += 50 * k;
-                if (iss.Evidence.Length > 0)
-                {
-                    float ey = y;
-                    float h = CoachDraw.TextH(body, iss.Evidence, tw, es, 2);
-                    L.Ops.Add((d, o) => CoachDraw.Para(d, body, iss.Evidence, o.X + x, o.Y + ey, tw, es, UiTheme.Dim, 2));
-                    y += h + 6 * k;
-                }
-                foreach (var cue in (iss.Fixes ?? Array.Empty<string>()).Take(maxCues))
-                {
-                    float qy = y;
-                    float h = CoachDraw.TextH(body, cue, tw - 20 * k, es, 2);
-                    L.Ops.Add((d, o) =>
-                    {
-                        Gfx.Diamond(d, new Vector2(o.X + x + 5 * k, o.Y + qy + es * 0.62f), 3.5f * k, 3.5f * k, sc);
-                        CoachDraw.Para(d, body, cue, o.X + x + 20 * k, o.Y + qy, tw - 20 * k, es, UiTheme.Text, 2);
-                    });
-                    y += h + 4 * k;
-                }
-                y += 16 * k;
-            }
-        }
-
-        var good = rv.Strengths.Take(maxStrengths).ToList();
-        if (good.Count > 0)
-        {
-            Section("WHAT WENT WELL");
-            foreach (var g in good)
-            {
-                float gy = y;
-                float h = CoachDraw.TextH(body, g, tw - 20 * k, es, 2);
-                L.Ops.Add((d, o) =>
-                {
-                    Span<Vector2> pts = stackalloc Vector2[3];
-                    float bx = o.X + x, by = o.Y + gy + es * 0.62f;
-                    pts[0] = new(bx, by); pts[1] = new(bx + 4 * k, by + 4 * k); pts[2] = new(bx + 11 * k, by - 5 * k);
-                    d.Polyline(pts, UiTheme.Good, Mathf.Max(1.5f, 2 * k), true);
-                    CoachDraw.Para(d, body, g, o.X + x + 20 * k, o.Y + gy, tw - 20 * k, es, UiTheme.Text, 2);
-                });
-                y += h + 6 * k;
-            }
-        }
-
-        var findings = rv.Timeline?.Actionable(maxFindings).ToList() ?? new List<TimelineFinding>();
-        if (findings.Count > 0)
-        {
-            Section(Loc.Spanish ? "SEGUNDO A SEGUNDO" : "SECOND BY SECOND");
-            foreach (var f in findings)
-            {
-                float fy = y;
-                var col = TimelineUi.Tone(f.Tone);
-                string title = f.Title().ToUpperInvariant();
-                string detail = f.Detail();
-                float dh = CoachDraw.TextH(body, detail, tw - 12 * k, es, 2);
-                L.Ops.Add((d, o) =>
-                {
-                    d.DrawRect(new Rect2(o.X + x, o.Y + fy + 1 * k, MathF.Max(1.5f, 2 * k), 12 * k), col);
-                    Gfx.TextFit(d, UiTheme.HudWide, title, o.X + x + 10 * k, Gfx.Mid(o.Y + fy + 7 * k, cs), cs, col, tw - 10 * k);
-                    CoachDraw.Para(d, body, detail, o.X + x + 10 * k, o.Y + fy + 18 * k, tw - 10 * k, es, UiTheme.Dim, 2);
-                });
-                y += 18 * k + dh + 8 * k;
-            }
-        }
-
-        y += 10 * k;
-        if (rv.Plays is { HasData: true } plays && playByPlay != null)
-        {
-            string label = (Loc.Spanish ? "JUGADA A JUGADA" : "PLAY BY PLAY") + $"  ({plays.Plays.Count})  ›";
-            L.Buttons.Add((new Rect2(x - 2 * k, y, 360 * k, 32 * k), label, null, playByPlay, VButton.Look.Ghost));
-            y += 32 * k + 9 * k;
-        }
-        L.Buttons.Add((new Rect2(x - 2 * k, y, 300 * k, 32 * k), "FULL COACH PROFILE  ›", null, () => Main.I.ShowProfile(), VButton.Look.Ghost));
-        y += 32 * k + 26 * k;
-        L.Height = y;
-        return L;
-    }
 }

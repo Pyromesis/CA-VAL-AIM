@@ -267,17 +267,22 @@ public sealed class TrackingMode : TrainingMode
     public override string Name => "Strafe Tracking";
     public override string Description => "Hold Mouse 1 on a target that A-D strafes like a real player (realistic stops and reversals).";
     public override WeaponKind Weapon => WeaponKind.None;
+    public override bool SupportsAdaptive => true;
 
     Target target = null!;
     float vx, targetVx, nextTurn, held, onTarget, crouchT;
+    float window, windowOn;
     bool onNow;
 
     protected override void Setup()
     {
-        target = G.SpawnTarget(Difficulty.TrackRadius(Tier));
+        target = G.SpawnTarget(TrackRadius());
         target.Position = new Vector3(0, PlayerView.EyeHeight, -11);
         targetVx = Difficulty.TrackSpeed(Tier);
     }
+
+    float TrackRadius() => Adapt is { } a
+        ? Difficulty.Tf(a.Level, .45f, .38f, .30f, .22f, .16f) : Difficulty.TrackRadius(Tier);
 
     public override void Update(float dt)
     {
@@ -310,7 +315,23 @@ public sealed class TrackingMode : TrainingMode
                 if ((int)(onTarget * 5) != (int)((onTarget - dt) * 5)) G.Sound("track_contact", 0.45f);
             }
         }
+        if (Adapt is { } adapt) UpdateChallenge(dt, adapt);
         Score = (int)(onTarget * 100);
+    }
+
+    void UpdateChallenge(float dt, Staircase adapt)
+    {
+        if (!G.TriggerHeld) { window = windowOn = 0; return; }
+        const float windowSeconds = 2f;
+        float used = MathF.Min(windowSeconds - window, dt);
+        window += used;
+        if (onNow) windowOn += used;
+        if (window < windowSeconds) return;
+        if (windowOn >= windowSeconds * .65f) adapt.Hit(); else adapt.Miss();
+        Event("track_adapt_window", windowOn / windowSeconds, adapt.Level);
+        target.SetRadius(TrackRadius());
+        window = dt - used;
+        windowOn = onNow ? window : 0;
     }
 
     public override float Accuracy => held <= 0 ? 0 : onTarget / held;

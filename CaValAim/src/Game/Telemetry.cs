@@ -37,6 +37,7 @@ public struct ShotSample
     public float ErrYaw, ErrPitch, FocusRadius;
     public float Speed;
     public bool Accurate;
+    public float Sensitivity;       // base VALORANT sensitivity in effect when the shot was taken
     public bool Hit => Zone >= 0;
     public float Err => MathF.Sqrt(ErrYaw * ErrYaw + ErrPitch * ErrPitch);
 }
@@ -53,12 +54,15 @@ public struct ShotSample
 /// </summary>
 public sealed record TelemetryEvent(float T, string Kind, float A = 0, float B = 0);
 
+public sealed record SensitivityTrial(Guid Id, int Round, bool Candidate, int Seed, string Section = "");
+
 /// <summary>Everything recorded during one run. Saved compactly so the coach can analyse recent sessions.</summary>
 public sealed class RunTelemetry
 {
     public string Mode = "";
     public int Tier;
     public float Sens;
+    public string SensSection = "";
     public int Dpi;
     public string Weapon = "";
     public string Map = "";
@@ -67,6 +71,8 @@ public sealed class RunTelemetry
     public float HFov = PlayerView.HipHFov;
     /// <summary>Valorant's ADS/scoped sensitivity multiplier for this run's weapon (zoomed look = sens × mult / zoom).</summary>
     public float ZoomSensMult = 1f;
+    public SensitivityTrial? Comparison;
+    public bool TrackFeedback;
     public readonly List<FrameSample> Frames = new(16384);
     public readonly List<ShotSample> Shots = new(512);
     public readonly List<TelemetryEvent> Events = new(256);
@@ -96,7 +102,7 @@ public sealed class RunTelemetry
         using (var bw = new BinaryWriter(File.Create(file)))
         {
             bw.Write(Magic);
-            var meta = JsonSerializer.Serialize(new { Mode, Tier, Sens, Dpi, Weapon, Map, When, Duration, HFov, ZoomSensMult, FrameFields = 14 });
+            var meta = JsonSerializer.Serialize(new { Mode, Tier, Sens, SensSection, Dpi, Weapon, Map, When, Duration, HFov, ZoomSensMult, Comparison, TrackFeedback, FrameFields = 14, ShotFields = 11 });
             bw.Write(meta);
             bw.Write(Frames.Count);
             foreach (var f in Frames)
@@ -110,6 +116,7 @@ public sealed class RunTelemetry
             {
                 bw.Write(s.T); bw.Write(s.Yaw); bw.Write(s.Pitch); bw.Write(s.Zone); bw.Write(s.FocusId);
                 bw.Write(s.ErrYaw); bw.Write(s.ErrPitch); bw.Write(s.FocusRadius); bw.Write(s.Speed); bw.Write(s.Accurate);
+                bw.Write(s.Sensitivity);
             }
             bw.Write(Events.Count);
             foreach (var e in Events) { bw.Write(e.T); bw.Write(e.Kind); bw.Write(e.A); bw.Write(e.B); }
@@ -150,6 +157,7 @@ public sealed class RunTelemetry
                 Mode = m.GetProperty("Mode").GetString() ?? "",
                 Tier = m.GetProperty("Tier").GetInt32(),
                 Sens = m.GetProperty("Sens").GetSingle(),
+                SensSection = m.TryGetProperty("SensSection", out var section) ? section.GetString() ?? "" : "",
                 Dpi = m.GetProperty("Dpi").GetInt32(),
                 Weapon = m.GetProperty("Weapon").GetString() ?? "",
                 Map = m.GetProperty("Map").GetString() ?? "",
@@ -157,6 +165,8 @@ public sealed class RunTelemetry
                 Duration = m.GetProperty("Duration").GetSingle(),
                 HFov = m.TryGetProperty("HFov", out var hf) ? hf.GetSingle() : PlayerView.HipHFov,
                 ZoomSensMult = m.TryGetProperty("ZoomSensMult", out var zm) ? zm.GetSingle() : 1f,
+                Comparison = m.TryGetProperty("Comparison", out var ab) ? ab.Deserialize<SensitivityTrial>() : null,
+                TrackFeedback = m.TryGetProperty("TrackFeedback", out var tf) && tf.GetBoolean(),
                 SourceFile = file, // its .vtr sidecar (3D Rewind) sits next to it
             };
             int n = br.ReadInt32();
@@ -178,11 +188,13 @@ public sealed class RunTelemetry
                 t.Frames.Add(f);
             }
             n = br.ReadInt32();
+            bool shotSensitivity = m.TryGetProperty("ShotFields", out var shotFields) && shotFields.GetInt32() >= 11;
             for (int i = 0; i < n; i++)
                 t.Shots.Add(new ShotSample
                 {
                     T = br.ReadSingle(), Yaw = br.ReadSingle(), Pitch = br.ReadSingle(), Zone = br.ReadSByte(), FocusId = br.ReadInt32(),
                     ErrYaw = br.ReadSingle(), ErrPitch = br.ReadSingle(), FocusRadius = br.ReadSingle(), Speed = br.ReadSingle(), Accurate = br.ReadBoolean(),
+                    Sensitivity = shotSensitivity ? br.ReadSingle() : 0,
                 });
             n = br.ReadInt32();
             for (int i = 0; i < n; i++) t.Events.Add(new TelemetryEvent(br.ReadSingle(), br.ReadString(), br.ReadSingle(), br.ReadSingle()));

@@ -34,27 +34,41 @@ static class RunAnalysis
     {
         var m = new Dictionary<string, float> { ["analysis.version"] = 3, ["context.dpi"] = t.Dpi, ["context.weapon"] = StableWeapon(t.Weapon) };
         if (Base(t.Mode) == "reactgame") return ReactionGameCoach.Measure(t);
+        if (t.Shots.Count > 0)
+        {
+            m["shot.n"] = t.Shots.Count;
+            m["shot.hits"] = t.Shots.Count(s => s.Hit);
+            m["shot.misses"] = t.Shots.Count - m["shot.hits"];
+            m["shot.unsteady"] = t.Shots.Count(s => !s.Accurate);
+        }
         if (t.Mode == "sensfinder")
         {
             // The sens changes mid-run: never feed skill ratings / sens history. Keep only the drill's result.
             var res = t.Events.LastOrDefault(e => e.Kind == "sens_result");
             if (res != null && res.A > 0) { m["sensfinder.sens"] = res.A; m["sensfinder.conf"] = res.B; }
+            m["sensfinder.timeouts"] = t.Events.Where(e => e.Kind == "sf_block_timeouts").Sum(e => e.A);
+            m["sensfinder.omissions"] = t.Events.Where(e => e.Kind == "sf_block_timeouts").Sum(e => e.B);
             return m;
         }
         if (t.Mode == "xhairfinder") return m; // the crosshair changes mid-run: its trials are not comparable skill data
+        int cleared = t.Events.Count(e => e.Kind == "target_hit");
+        if (cleared > 0) m["run.cleared"] = cleared;
         if (t.Events.Any(e => e.Kind == "sens_changed")) m["sens.changed"] = 1;
+        if (t.Events.Any(e => e.Kind == "weapon_changed")) m["weapon.changed"] = 1;
+        if (t.Events.Any(e => e.Kind == "recoil_changed")) m["recoil.changed"] = 1;
         if (t.Frames.Count < 10 || !FramesUsable(t)) { Reaction(t, m); Flash(t, m); return Clean(m); }
         var p = new Prep(t);
         m["run.secs"] = p.Ft[^1] - p.Ft[0];
         Flicks(p, m);
         if (StaticModes.Contains(Base(t.Mode)) && StaticTargetMode(t.Mode))
         {
-            var first = t.Shots.Where(s => s.FocusId != 0 && s.Accurate && s.Speed < .25f
-                && s.FocusRadius > 0 && float.IsFinite(s.Err)).GroupBy(s => s.FocusId).Select(g => g.First()).ToArray();
+            var first = t.Shots.Where(s => s.FocusId != 0).GroupBy(s => s.FocusId).Select(g => g.First())
+                .Where(s => s.Accurate && s.Speed < .25f && s.FocusRadius > 0 && float.IsFinite(s.Err)).ToArray();
             if (first.Length > 0) {
                 m["micro.n"] = first.Length;
                 m["micro.centered"] = first.Count(s => s.Err <= s.FocusRadius);
                 m["micro.centered_share"] = m["micro.centered"] / first.Length;
+                m["micro.first_hit_share"] = first.Count(s => s.Hit) / (float)first.Length;
                 m["micro.error_r"] = Dsp.Median(first.Select(s => s.Err / s.FocusRadius));
             }
         }
@@ -384,7 +398,7 @@ static class RunAnalysis
 
     // A moving opponent, scoped shot, or recoil can look like a sensitivity error. Only measure
     // the hand motion while the same target stays nearly still in world angle and the player holds still.
-    internal static bool CleanAimSample(Prep p, TrialResult r)
+    internal static bool CleanAimSample(Prep p, TrialResult r, bool requireQuietWeapon = true)
     {
         if (!r.HasPrimary || !double.IsFinite(r.TsP) || !double.IsFinite(r.TeP) ||
             r.TeP - r.TsP < 0.08 || r.Perp > 2 * r.R) return false;
@@ -397,7 +411,7 @@ static class RunAnalysis
         for (int i = p.FrameAt(r.TsP - 0.3); i <= end; i++)
         {
             var f = frames[i];
-            if (f.Has(FrameFlags.Firing) || f.Has(FrameFlags.Ads)) return false;
+            if ((requireQuietWeapon && f.Has(FrameFlags.Firing)) || f.Has(FrameFlags.Ads)) return false;
             if (i < start) continue;
             if (f.FocusId != r.TrialId || f.Speed > 0.25f || !f.Has(FrameFlags.Alive) ||
                 f.Has(FrameFlags.Blind | FrameFlags.Airborne)) return false;

@@ -162,10 +162,10 @@ public sealed partial class Mover
 
         Shape(Down(keys, GameAction.Crouch), ref feet, world);
         var delta = Update(dt, yawDeg, keys);
+        float floorY = feet.Y;
         Collision.MoveAndSlide(ref feet, ref Vel, delta, world,
             Grounded ? Collision.StepHeight : Collision.AirStep, BodyHeight);
         bool wasGrounded = Grounded;
-        float floorY = feet.Y;
         Vertical(dt, ref feet, world);
         // Stairs and curbs: the body snaps onto the next floor in one frame (Collision.StepHeight) but the camera
         // eases there instead, like Unreal's stair smoothing. Jumps, falls and landings are never delayed.

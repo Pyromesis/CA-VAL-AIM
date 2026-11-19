@@ -120,7 +120,8 @@ static class VmTest
         var b = new Basis(new Vector3(1, 0, 0), new Vector3(0, 0, 1), new Vector3(0, -1, 0));
         for (int i = 0; i < 2; i++)
         {
-            var mi = new MeshInstance3D { Mesh = VmHands.Build(shape, i == 1, Vector3.Back, glove, pad, sleeve, acc), Layers = Viewmodel.VisualLayer };
+            var mi = new MeshInstance3D { Mesh = VmHands.Build(shape, i == 1, Vector3.Back, glove, pad, sleeve, acc, glove,
+                mirrorView: i == 1), Layers = Viewmodel.VisualLayer };
             var t = new Transform3D(b, new Vector3(i == 0 ? 0.07f : -0.07f, -0.05f, -0.32f));
             if (i == 1) t = VmMesh.Mirror(t);
             mi.Transform = t;

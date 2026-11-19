@@ -8,17 +8,18 @@ using CaValAim.Valorant;
 namespace CaValAim.UI;
 
 /// <summary>
-/// Settings, two pages. GENERAL: trainer overrides on the left/middle (applied immediately and saved), everything
-/// imported from Valorant (read-only) on the right with a re-import button. ABOUT: version, renderer/GPU, data and log
-/// folders, update checks, bug reports and the open-source licenses. Esc / Back returns to the menu.
-/// Narrow windows (4:3, 16:10) stack each row's label above its control so nothing gets cut off.
+/// Trainer settings grouped by category, with imported controls and app information in their own sections.
 /// </summary>
 public partial class SettingsScreen : ScreenBase
 {
-    public enum Page { General, About }
+    public enum Page { General, Aim, Targets, Training, Video, Audio, Account, About }
 
     /// <summary>Page the next settings screen opens on (dev: --screen about).</summary>
-    public static Page StartPage = Page.General;
+    public static Page StartPage = Page.Aim;
+
+    public Action? BackToPause { get; init; }
+
+    protected override void Back() => (BackToPause ?? Main.I.ShowMenu)();
 
     Page page;
     bool stacked;
@@ -28,7 +29,7 @@ public partial class SettingsScreen : ScreenBase
     public SettingsScreen()
     {
         page = StartPage;
-        StartPage = Page.General;
+        StartPage = Page.Aim;
     }
 
     static readonly string[] WindowModes = { "Fullscreen", "Windowed Fullscreen", "Windowed" };
@@ -57,59 +58,84 @@ public partial class SettingsScreen : ScreenBase
 
     static Main App => Main.I;
     static AppSettings St => Main.I.Settings;
+    static string L(string es, string en) => Loc.Spanish ? es : en;
 
     protected override void Build()
     {
         refreshers.Clear();
         float k = K;
-        // Column content width (3 panels, ratios 1 : 1 : 1.05, minus padding and scrollbar) in 1080p design units:
-        // below ~480 the label + 250-wide selector side by side would cut labels off, so stack them.
         float vw = GetViewportRect().Size.X;
-        stacked = ((vw - 140 * k) / 3.05f - 54 * k) / k < 480;
+        bool compact = vw / k < 950;
+        stacked = compact || (page == Page.About && vw / k < 1420);
         var root = Margins(VBox(18 * k), 44 * k, 24 * k, 44 * k, 24 * k);
         root.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         AddChild(root);
         var col = (VBoxContainer)root.GetChild(0);
 
         var head = HBox(16 * k);
-        var title = Heading("SETTINGS", page == Page.General
-            ? "CHANGES APPLY IMMEDIATELY AND ARE SAVED · ANYTHING LEFT ON \"VALORANT\" FOLLOWS YOUR GAME"
-            : "VERSION · UPDATES · FOLDERS · OPEN-SOURCE LICENSES");
+        var title = Heading("SETTINGS", L("LOS CAMBIOS SE GUARDAN AL INSTANTE", "CHANGES ARE SAVED IMMEDIATELY"));
         title.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         head.AddChild(title);
-        var tabs = HBox(6 * k);
-        tabs.SizeFlagsVertical = SizeFlags.ShrinkCenter;
-        foreach (var (pg, name) in new[] { (Page.General, "GENERAL"), (Page.About, "ABOUT") })
-        {
-            var b = new VButton { Kind = VButton.Look.Select, K = k, Label = name, FontPx = 15, Selected = page == pg, CustomMinimumSize = new Vector2(132 * k, 40 * k) };
-            b.Pressed += () => { if (page != pg) { page = pg; Rebuild(); } };
-            tabs.AddChild(b);
-        }
-        head.AddChild(tabs);
-        head.AddChild(Spacer(10 * k, 0));
-        var back = Btn("BACK", VButton.Look.Secondary, Main.I.ShowMenu, 132, 42, 16);
+        var back = Btn("BACK", VButton.Look.Secondary, Back, 132, 42, 16);
         back.SizeFlagsVertical = SizeFlags.ShrinkCenter;
         head.AddChild(back);
         col.AddChild(head);
 
-        var cols = HBox(22 * k);
-        cols.SizeFlagsVertical = SizeFlags.ExpandFill;
-        col.AddChild(cols);
-
-        if (page == Page.About)
+        var categories = new[]
         {
-            BuildAbout(cols);
-            col.AddChild(Lbl("Esc — back to menu   ·   CA-VAL-AIM is free software (GPL-3.0)   ·   fan-made, not affiliated with or endorsed by Riot Games",
-                UiTheme.Body, 13, UiTheme.Faint));
+            (Page.Aim, L("Sensibilidad y mira", "Sensitivity and crosshair")), (Page.General, L("Idioma", "Language")),
+            (Page.Targets, L("Objetivos", "Targets")), (Page.Training, L("Entrenamiento", "Training")),
+            (Page.Video, L("Vídeo", "Video")), (Page.Audio, "Audio"), (Page.Account, "VALORANT"),
+            (Page.About, L("Acerca de", "About")),
+        };
+        int selected = Array.FindIndex(categories, x => x.Item1 == page);
+        var groups = HBox(22 * k);
+        groups.SizeFlagsVertical = SizeFlags.ExpandFill;
+        if (compact)
+        {
+            var picker = new OptionButton { CustomMinimumSize = new Vector2(0, 42 * k) };
+            foreach (var (_, label) in categories) picker.AddItem(label);
+            picker.Select(selected);
+            picker.ItemSelected += i => Open(categories[(int)i].Item1);
+            col.AddChild(picker);
         }
         else
         {
-            BuildAim(Column(cols, "AIM & ACCOUNT", null, 1f));
-            BuildVideo(Column(cols, "VIDEO & GAMEPLAY", null, 1f));
-            BuildImported(cols);
-            col.AddChild(Lbl("Esc — back to menu   ·   F11 — toggle windowed / borderless   ·   Shift-click the custom sensitivity arrows for ±0.001",
-                UiTheme.Body, 13, UiTheme.Faint));
+            var nav = VBox(6 * k);
+            nav.CustomMinimumSize = new Vector2(214 * k, 0);
+            groups.AddChild(nav);
+            foreach (var (pg, label) in categories)
+            {
+                var b = Btn(label, VButton.Look.Select, () => Open(pg), 214, 44, 16);
+                b.Selected = pg == page;
+                nav.AddChild(b);
+            }
         }
+        col.AddChild(groups);
+        var content = HBox(18 * k);
+        content.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        groups.AddChild(content);
+        if (page == Page.About)
+        {
+            BuildAbout(content);
+            col.AddChild(Lbl(L("Software libre GPL-3.0 · Proyecto independiente de Riot Games",
+                "GPL-3.0 free software · Independent of Riot Games"), UiTheme.Body, 13, UiTheme.Faint));
+        }
+        else if (page == Page.Account) BuildImported(content);
+        else
+        {
+            var panel = Column(content, categories[selected].Item2.ToUpperInvariant(), null, 1);
+            switch (page)
+            {
+                case Page.General: BuildGeneral(panel); break;
+                case Page.Aim: BuildAim(panel); break;
+                case Page.Targets: BuildTargets(panel); break;
+                case Page.Training: BuildTraining(panel); break;
+                case Page.Video: BuildVideo(panel); break;
+                case Page.Audio: BuildAudio(panel); break;
+            }
+        }
+        void Open(Page next) { if (page != next) { page = next; Rebuild(); } }
         updateRev = UpdateCheck.Revision;
         RefreshAll();
     }
@@ -146,15 +172,18 @@ public partial class SettingsScreen : ScreenBase
 
     // ---------------- left column ----------------
 
-    void BuildAim(VBoxContainer v)
+    void BuildGeneral(VBoxContainer v)
     {
         float k = K;
         v.AddChild(new SectionLabel { Text = "LANGUAGE", K = k });
         v.AddChild(Segmented("Interface language", new[] { "ENGLISH", "ESPAÑOL" }, () => St.Language == "es" ? 1 : 0,
             i => App.SetLanguage(i == 1 ? "es" : "en"),
             note: () => "The whole interface changes immediately"));
-        v.AddChild(Spacer(0, 6 * k));
+    }
 
+    void BuildAccount(VBoxContainer v)
+    {
+        float k = K;
         v.AddChild(new SectionLabel { Text = "VALORANT ACCOUNT", K = k });
         v.AddChild(Selector("Account", () =>
             {
@@ -177,7 +206,11 @@ public partial class SettingsScreen : ScreenBase
                     ? $"{App.Accounts.Count} encontradas{(CurrentAccount().IsLastUsed ? " · esta se usó la última" : "")}"
                     : $"{App.Accounts.Count} found{(CurrentAccount().IsLastUsed ? " · this one was used last" : "")}"));
 
-        v.AddChild(Spacer(0, 6 * k));
+    }
+
+    void BuildAim(VBoxContainer v)
+    {
+        float k = K;
         v.AddChild(new SectionLabel { Text = "SENSITIVITY", K = k });
         v.AddChild(Segmented("Sensitivity source", new[] { "VALORANT", "CUSTOM" }, () => St.UseSensOverride ? 1 : 0, i =>
         {
@@ -188,20 +221,11 @@ public partial class SettingsScreen : ScreenBase
         v.AddChild(SensRow());
         v.AddChild(Selector("Mouse DPI", () => St.Dpi.ToString(),
             d => St.Dpi = Dpis[Wrap(Array.IndexOf(Dpis, St.Dpi) + d, 0, Dpis.Length - 1)],
-            note: () => "Only for showing eDPI and cm/360"));
+            note: () => L("Calcula los cm/360 y conserva el giro físico de tus perfiles por categoría.",
+                "Calculates cm/360 and preserves the physical rotation of category profiles.")));
         v.AddChild(SensSummary());
-
-        v.AddChild(Spacer(0, 6 * k));
-        v.AddChild(new SectionLabel { Text = "ENEMIES", K = k });
-        v.AddChild(Selector("Enemy highlight",
-            () => St.EnemyColorOverride < 0 ? $"Valorant ({UiTheme.EnemyColorNames[Math.Clamp(App.Valorant.EnemyHighlight, 0, 3)]})" : UiTheme.EnemyColorNames[St.EnemyColorOverride],
-            d => St.EnemyColorOverride = Wrap(St.EnemyColorOverride + d, -1, 3),
-            swatch: () => App.EnemyColor));
-        v.AddChild(Segmented("Enemy outlines + fresnel", new[] { "OFF", "ON" }, () => St.Outlines ? 1 : 0, i => St.Outlines = i == 1,
-            note: () => "Valorant: \"Hide outlines and fresnel\" off = ON"));
-        v.AddChild(Segmented("Aim drill targets", new[] { "VALORANT", "CLASSIC" }, () => St.TargetStyle == Target.StyleClassic ? 1 : 0,
-            i => St.TargetStyle = i == 1 ? Target.StyleClassic : Target.StyleValorant,
-            note: () => St.TargetStyle == Target.StyleClassic ? "Solid spheres in the highlight colour" : "Dark body + highlight outline, like VALORANT enemies"));
+        if (BackToPause == null)
+            v.AddChild(Btn(L("PERFILES POR CATEGORÍA", "CATEGORY PROFILES"), VButton.Look.Secondary, App.ShowSensLab, 230, 40, 15));
 
         // Crosshair: VALORANT's imported profile, or CA-VAL-AIM's own code: the Crosshair Finder's result or a pasted code
         // (CA-VAL-AIM only; VALORANT is never changed).
@@ -218,6 +242,17 @@ public partial class SettingsScreen : ScreenBase
         if (!string.IsNullOrWhiteSpace(St.LastFinderCrosshairCode))
             v.AddChild(CodeRow("Last Crosshair Finder result", () => St.LastFinderCrosshairCode ?? ""));
         v.AddChild(PasteRow());
+    }
+
+    void BuildTargets(VBoxContainer v)
+    {
+        v.AddChild(Selector("Enemy highlight",
+            () => St.EnemyColorOverride < 0 ? $"Valorant ({UiTheme.EnemyColorNames[Math.Clamp(App.Valorant.EnemyHighlight, 0, 3)]})" : UiTheme.EnemyColorNames[St.EnemyColorOverride],
+            d => St.EnemyColorOverride = Wrap(St.EnemyColorOverride + d, -1, 3), swatch: () => App.EnemyColor));
+        v.AddChild(Segmented("Enemy outlines + fresnel", new[] { "OFF", "ON" }, () => St.Outlines ? 1 : 0, i => St.Outlines = i == 1));
+        v.AddChild(Segmented("Aim drill targets", new[] { "VALORANT", "CLASSIC" }, () => St.TargetStyle == Target.StyleClassic ? 1 : 0,
+            i => St.TargetStyle = i == 1 ? Target.StyleClassic : Target.StyleValorant,
+            note: () => St.TargetStyle == Target.StyleClassic ? "Solid spheres in the highlight colour" : "Dark body + highlight outline, like VALORANT enemies"));
     }
 
     /// <summary>A warning line (hidden while <paramref name="text"/> returns null).</summary>
@@ -440,8 +475,15 @@ public partial class SettingsScreen : ScreenBase
             d => St.Quality = Wrap(St.Quality + d, 0, 3),
             note: () => "Applies on next drill"));
 
-        v.AddChild(Spacer(0, 6 * k));
+    }
+
+    void BuildTraining(VBoxContainer v)
+    {
+        float k = K;
         v.AddChild(new SectionLabel { Text = "DRILLS", K = k });
+        v.AddChild(Segmented(L("Calentamiento libre", "Unscored warm-up"), new[] { "OFF", "ON" },
+            () => St.UnscoredWarmup ? 1 : 0, i => St.UnscoredWarmup = i == 1,
+            note: () => L("Los ejercicios libres se inician sin coach, puntos ni búsqueda de sensibilidad.", "Free practice starts with the coach, points and sensitivity search paused.")));
         v.AddChild(Segmented("Primary rifle", new[] { "VANDAL", "PHANTOM" }, () => St.PrimaryRifle == 1 ? 1 : 0,
             i => St.PrimaryRifle = i,
             note: () => "Used by every drill that accepts a rifle; Vandal Spray and Phantom Spray keep their own"));
@@ -472,10 +514,9 @@ public partial class SettingsScreen : ScreenBase
                 1 => "A line from the crosshair to the nearest target",
                 _ => "Aim line, plus the shortest route to the nearest enemy on map drills",
             }));
-        v.AddChild(Segmented(Loc.Spanish ? "Análisis del coach en directo" : "Live coach analysis", new[] { "OFF", "ON" }, () => St.LiveCoach ? 1 : 0, i => St.LiveCoach = i == 1,
-            note: () => St.LiveCoach
-                ? (Loc.Spanish ? "Analiza en segundo plano y guarda las observaciones para la revisión, sin carteles durante el juego." : "Analyzes in the background and saves observations for review, without pop-up instructions during play.")
-                : (Loc.Spanish ? "El coach revisa la ronda al terminar." : "The coach reviews the round when it ends.")));
+        v.AddChild(Segmented(L("Consejos durante el ejercicio", "Tips during practice"), new[] { "OFF", "ON" },
+            () => St.LiveCoach ? 1 : 0, i => St.LiveCoach = i == 1,
+            note: () => L("El resumen y el consejo final aparecen al terminar una ronda evaluada.", "Scored rounds always end with a summary and a tip.")));
         v.AddChild(Segmented("Weapon hand", new[] { "RIGHT", "LEFT" }, () => St.LeftHandedWeapon ? 1 : 0, i => St.LeftHandedWeapon = i == 1,
             note: () => Main.I.Valorant.Found
                 ? Loc.Spanish
@@ -483,8 +524,22 @@ public partial class SettingsScreen : ScreenBase
                     : $"Applies on next drill · VALORANT uses {(Main.I.Valorant.LeftHanded ? "left" : "right")}"
                 : Loc.Spanish ? "Se aplica en el siguiente ejercicio" : "Applies on next drill"));
 
-        v.AddChild(Spacer(0, 6 * k));
-        v.AddChild(new SectionLabel { Text = "AUDIO", K = k });
+    }
+
+    void BuildAudio(VBoxContainer v)
+    {
+        v.AddChild(Segmented(L("Mezcla de juego", "Game mix"), new[] { L("SUAVE", "SOFT"), L("CLÁSICA", "CLASSIC") },
+            () => St.SoftGameAudio ? 0 : 1, i => { St.SoftGameAudio = i == 0; Sfx.I?.Play("phantom", .6f); }));
+        v.AddChild(Selector(L("Disparos", "Gunshots"), () => $"{St.ShotVolume:P0}",
+            d => { St.ShotVolume = Math.Clamp(St.ShotVolume + d * .05f, 0, 1); Sfx.I?.Play("phantom", .6f); },
+            bar: () => St.ShotVolume));
+        v.AddChild(Selector(L("Aciertos y fallos", "Hit and miss cues"), () => $"{St.FeedbackVolume:P0}",
+            d => { St.FeedbackVolume = Math.Clamp(St.FeedbackVolume + d * .05f, 0, 1); Sfx.I?.Play("head"); },
+            bar: () => St.FeedbackVolume));
+        var previews = HBox(10 * K);
+        previews.AddChild(Btn(L("PROBAR ACIERTO", "PREVIEW HIT"), VButton.Look.Secondary, () => Sfx.I?.Play("head"), 180, 40, 14));
+        previews.AddChild(Btn(L("PROBAR FALLO", "PREVIEW MISS"), VButton.Look.Secondary, () => Sfx.I?.Play("miss"), 180, 40, 14));
+        v.AddChild(previews);
         v.AddChild(Selector("Volume", () => $"{St.Volume * 100:0}%",
             d =>
             {
@@ -524,6 +579,8 @@ public partial class SettingsScreen : ScreenBase
         var v = VBox(0);
         v.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         scroll.AddChild(v);
+        BuildAccount(v);
+        v.AddChild(Spacer(0, 10 * k));
 
         int stripe = 0;
         var vp = () => App.Valorant;

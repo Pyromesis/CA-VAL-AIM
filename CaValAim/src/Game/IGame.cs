@@ -88,6 +88,8 @@ public interface IGame
     float? TrialSens { get; set; }
     /// <summary>The sensitivity currently applied to mouse look.</summary>
     float CurrentSens { get; }
+    /// <summary>A geometric click from a drill that has no weapon or bullet simulation.</summary>
+    void RecordAimClick(AimFocus focus, bool hit) { }
     /// <summary>Crosshair override for this session (crosshair finder trials); null = the player's crosshair.</summary>
     CaValAim.Valorant.CrosshairSettings? TrialCrosshair { get; set; }
     /// <summary>

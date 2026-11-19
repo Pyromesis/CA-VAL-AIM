@@ -368,16 +368,34 @@ public static class CoachCli
         SensCase("no data @50 cm", new List<SensAdvisor.RunInfo>(), 0.327f, "keep");
         SensCase("changed sens 2 sessions ago evaluates new evidence", S(0.25f, 3, Over, 20).Concat(S(0.327f, 2, Over, 6)).ToList(), 0.327f, "lower");
         SensComparisonCases();
+        SensitivityProfileCases();
+        TrainingFeedbackCases();
+        var finderBlocks = new[] { 0, 1, 1, 0 }.Select(c =>
+        {
+            var b = new Modes.SfBlock { Cond = c, ScoredTrials = 16, ScoredHits = 14, Score = c == 0 ? .4 : -.4 };
+            b.TrackLogit.AddRange(new[] { .5, .5 });
+            return b;
+        }).ToArray();
+        bool replicated = Modes.SfStats.ReplicatedWinner(finderBlocks, 16) == 0;
+        finderBlocks[3].Score = -.5;
+        bool split = Modes.SfStats.ReplicatedWinner(finderBlocks, 16) == -1;
+        finderBlocks[3].Score = .4;
+        finderBlocks[3].ScoredHits = 7;
+        bool incomplete = Modes.SfStats.ReplicatedWinner(finderBlocks, 16) == -1;
+        P($"  {(replicated && split && incomplete ? "PASS" : "FAIL")} Sens Finder requires replicated and sufficiently complete blocks");
         foreach (string drill in new[] { "tracking", "flickx:coach-brake-wide", "microx:coach-micro-confirm" }) {
             var test = new UI.PracticeScreen.SensComparison(.3f, .28f, 800, 2) { Drill = drill };
+            bool partialRejected = false;
             for (int i = 0; i < 4; i++) {
                 float quality = test.IsCandidate(i) ? .9f : .7f;
                 test.Record(i, new() { ["track.secs"] = 26, ["track.ontarget"] = quality * 100, ["micro.n"] = 20,
-                    ["micro.centered_share"] = quality, ["flick.n_hit"] = 16, ["flick.ttk_ms"] = 400 }, 800);
+                    ["micro.first_hit_share"] = quality, ["shot.hits"] = 16, ["shot.misses"] = 4,
+                    ["context.dpi"] = 800, ["context.weapon"] = 1, ["flick.n_hit"] = 16, ["flick.ttk_ms"] = 400 }, 800);
+                if (i == 2) partialRejected = !test.Winner;
             }
             bool ok = test.Winner && Modes.ModeRegistry.Find(drill)?.Invoke().Key == drill;
             test.Record(0, new() { ["sens.changed"] = 1 }, 800);
-            P($"  {(ok && !test.Winner ? "PASS" : "FAIL")} matched practice protocol {drill}");
+            P($"  {(ok && partialRejected && !test.Winner ? "PASS" : "FAIL")} matched practice protocol {drill}");
         }
 
         // Rank calibration: rank-typical mechanics (docs/coach_spec.md "Calibration notes") must map to ordered,
@@ -571,6 +589,114 @@ public static class CoachCli
         Check("neural mechanics never pools DPI groups", !CoachNetwork.Forecast(neural, .3f, 2).Any(f => f.Metric != "accuracy" && f.ValidationRuns > 18));
     }
 
+    static void SensitivityProfileCases()
+    {
+        void Check(string name, bool ok) => P($"  {(ok ? "PASS" : "FAIL")} {name}");
+        var profiles = new Dictionary<string, CategorySensitivity>
+        {
+            ["Precision"] = new(.25f, 800, true),
+            ["Tracking"] = new(.50f, 1600, true),
+            ["Switching"] = new(1f, 800, false),
+        };
+        var combined = SensitivityProfiles.Combine(profiles, 800);
+        Check("category sensitivities preserve cm/360 at a different DPI", SensitivityProfiles.Resolve(profiles, "Tracking", 800, .4f) == 1f);
+        Check("category sensitivity falls back to general", SensitivityProfiles.Resolve(profiles, "Tactical", 800, .4f) == .4f);
+        Check("combined sensitivity uses every explicit profile once", combined.Count == 3 && combined.Verified == 1
+            && Math.Abs(combined.Value - .6300f) < .0001f && combined.Low == .25f && combined.High == 1f);
+        var date = new DateTime(2026, 11, 18, 12, 0, 0, DateTimeKind.Utc);
+        SensitivityTestResult Trial(string section, int dpi, int tier, float baseline, float candidate, int winner) =>
+            new(Guid.NewGuid(), date, section, "fixture", tier, dpi, baseline, candidate, winner,
+                new[] { false, true, true, false }
+                    .Select(b => new SensitivityBlockResult(b, b == (winner > 0) ? .85f : .6f, 300, 20, 3, 23, 0, 71))
+                    .ToArray());
+        var precision = Trial("Precision", 800, 2, .33f, .25f, 1);
+        var tracking = Trial("Tracking", 800, 2, .40f, .44f, -1);
+        var weighted = SensitivityProfiles.Combine(null, 800, new[]
+        {
+            precision, tracking, precision with { Id = Guid.NewGuid(), WhenUtc = date.AddMinutes(-30) },
+            Trial("Control", 1600, 2, .8f, 1f, 1), Trial("Dynamic", 800, 1, .5f, .6f, 1),
+            Trial("Tactical", 800, 2, .5f, .6f, 0), tracking with { Blocks = tracking.Blocks[..2] },
+        }, 2, date);
+        Check("general evidence weighs replicated winners and rejects other DPI, tier, ties and unfinished tests",
+            weighted.Count == 2 && weighted.Tests == 2 && weighted.Verified == 2
+            && Math.Abs(weighted.Value - .3162f) < .0001f);
+        Check("an inconclusive repeat replaces the earlier same-day result",
+            SensitivityProfiles.Combine(null, 800, new[] { precision, tracking,
+                tracking with { Id = Guid.NewGuid(), WhenUtc = date.AddMinutes(30), Preferred = 0 } }, 2, date).Count == 0);
+        var stale = SensitivityProfiles.Combine(profiles, 800, new[]
+        {
+            Trial("Precision", 800, 2, .25f, .70f, 1) with { WhenUtc = date.AddDays(-720) }
+        }, 2, date);
+        Check("stale test does not shift the general profile", stale.Value == combined.Value && stale.Tests == 0);
+        foreach (string section in Modes.TrainingCatalog.Sections.Where(SensitivityProfiles.Supports))
+        {
+            string? key = UI.PracticeScreen.Representative(section);
+            Check($"category A/B representative for {section}", key != null &&
+                Modes.ModeRegistry.Find(key)?.Invoke() is { } mode && mode.Key == key && SensitivityProfiles.For(mode) == section);
+            if (key == null) continue;
+            var test = new UI.PracticeScreen.SensComparison(.3f, .28f, 800, 2, section) { Drill = key };
+            for (int i = 0; i < 4; i++)
+            {
+                float quality = test.IsCandidate(i) ? .9f : .7f;
+                test.Record(i, new()
+                {
+                    ["context.dpi"] = 800, ["context.weapon"] = 1,
+                    ["track.secs"] = 28, ["track.ontarget"] = quality * 100,
+                    ["shot.n"] = 20, ["shot.hits"] = quality * 20, ["shot.misses"] = (1 - quality) * 20,
+                    ["micro.n"] = 20, ["micro.first_hit_share"] = quality,
+                    ["flick.n_hit"] = 14, ["flick.ttk_ms"] = 400,
+                }, 800, new RunRecord { Accuracy = quality, Kills = 12 });
+            }
+            Check($"category A/B measures repeated gain for {section}", test.Winner);
+        }
+        var search = new LiveSensitivity(.30f, 0);
+        Check("live sensitivity ignores mixed or mostly successful windows",
+            !search.TryAdjust(new(1, 9, 12, 5, 3, 4), 9)
+            && !search.TryAdjust(new(1, 10, 24, 20, 4, 0), 10));
+        Check("live sensitivity raises after clean short misses",
+            search.TryAdjust(new(1, 12, 12, 4, 0, 8), 12) && search.Candidate > search.Baseline);
+        float raised = search.Candidate;
+        Check("live sensitivity waits for fresh evidence before reversing",
+            !search.TryAdjust(new(1, 13, 12, 4, 8, 0), 13)
+            && search.TryAdjust(new(13, 22, 12, 4, 8, 0), 22) && search.Candidate < raised && search.Candidate > search.Baseline);
+        for (int i = 0; i < 12; i++)
+            search.TryAdjust(new(search.Since + .5f, search.Since + 9, 12, 4, 0, 8), search.Since + 9);
+        Check("live sensitivity bounds drift and stops on request", search.Candidate <= .33601f);
+        search.Stop();
+        Check("ended search ignores further evidence", !search.TryAdjust(new(200, 220, 10, 0, 10, 0), 220));
+        var saved = new SensitivitySearchValue(.3f, .32f, 800);
+        Check("persistent sensitivity resumes the search only at the same baseline and DPI",
+            saved.Matches(.3f, 800) && !saved.Matches(.3f, 1600) && !saved.Matches(.31f, 800)
+            && new LiveSensitivity(saved.Baseline, 0, saved.Candidate).Candidate == .32f);
+    }
+
+    static void TrainingFeedbackCases()
+    {
+        void Check(string name, bool ok) => P($"  {(ok ? "PASS" : "FAIL")} {name}");
+        var t = new RunTelemetry { Mode = "flick", Sens = .3f };
+        t.Shots.Add(new ShotSample { Zone = 0, Sensitivity = .3f, Accurate = true, T = 1 });
+        var counter = new TrainingFeedbackCounter(false);
+        counter.Update(t);
+        t.Events.Add(new TelemetryEvent(1.5f, "sens_changed", .3f, .4f));
+        t.Shots.Add(new ShotSample { Zone = -1, Sensitivity = .4f, Accurate = true, T = 2 });
+        counter.Update(t);
+        counter.Update(t);
+        var f = counter.Snapshot();
+        Check("round points count each bullet once and penalize the sensitivity at the time of the miss",
+            f is { Earned: 10, Lost: 5, Score: 5 } && counter.PointsAt(.3f) == 10 && counter.PointsAt(.4f) == -5);
+        var review = Coach.CompleteReview(t, new RunReview(), f);
+        Check("coach describes the success and error and gives a next step on thin samples",
+            review.Strengths.Count > 0 && review.Issues.Count > 0 && review.NextTip.Length > 0 && f.PracticeRank() == 0);
+        var reaction = new RunTelemetry { Mode = "reactgame:aimpop-1" };
+        reaction.Events.Add(new TelemetryEvent(1, "early_click"));
+        reaction.Events.Add(new TelemetryEvent(1, "reaction_game_trial", 0));
+        reaction.Events.Add(new TelemetryEvent(2, "reaction_game_trial", 1));
+        var r = TrainingFeedbackCounter.Read(reaction);
+        Check("reaction trial counts anticipation only once", r is { Successes: 1, Errors: 1, Score: 5 });
+        Check("fallback practice rank increases with an adequate strong sample",
+            (f with { Successes = 24, Errors = 1 }).PracticeRank() == 4 && (f with { Successes = 2, Errors = 13 }).PracticeRank() == 0);
+    }
+
     static void TimelineCases()
     {
         var t = new RunTelemetry
@@ -626,12 +752,19 @@ public static class CoachCli
         {
             Directory.CreateDirectory(dir);
             var review = new RunReview { Summary = "synthetic archive check", Plays = pa };
+            t.SensSection = "Precision";
+            t.Comparison = new SensitivityTrial(Guid.NewGuid(), 2, true, 71, t.SensSection);
+            t.Shots.Add(new ShotSample { T = 590, Sensitivity = .352f, Zone = -1 });
+            var telemetry = RunTelemetry.Load(t.Save(dir));
             string? path = CoachArchive.Save(t, review, null, dir, keep: 2);
             var back = path == null ? null : CoachArchive.Load(path);
             bool round = back != null && back.Schema == CoachArchive.CurrentSchema
                 && back.Review.Plays?.Timeline?.Seconds.Count == 130
                 && back.Review.Plays.Plays.Count == 60
                 && back.Review.Plays.Plays[0].Title == pa.Plays[0].Title
+                && back.Run.Comparison == t.Comparison && telemetry?.Comparison == t.Comparison
+                && back.Run.SensSection == t.SensSection && telemetry?.SensSection == t.SensSection
+                && telemetry?.Shots.Last().Sensitivity == .352f
                 && back.Review.Summary == review.Summary;
             P($"  {(round ? "PASS" : "FAIL")} coach archive: {(path == null ? "not written" : $"{new FileInfo(path).Length / 1024} KB, schema {back?.Schema}")}, " +
               $"{back?.Review.Plays?.Timeline?.Seconds.Count ?? 0} seconds, {back?.Review.Plays?.Plays.Count ?? 0} plays");

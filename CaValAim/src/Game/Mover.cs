@@ -79,7 +79,7 @@ public sealed partial class Mover
     /// <summary>This frame's sideways input: +1 = D (right), −1 = A (left), 0 = neither or both. Recorded by the aim
     /// coach to tell mirroring (moving with the target) from anti-mirroring (moving against it).</summary>
     public float InputStrafe { get; private set; }
-    bool stopping, stoppingCounter, opposedKeys;
+    bool stopping, stoppingCounter;
     float stopT;
 
     /// <summary>
@@ -109,7 +109,6 @@ public sealed partial class Mover
         if (l) wish -= right;
         bool wants = wish.LengthSquared() > 0.001f;
         if (wants) wish = wish.Normalized();
-        opposedKeys = !wants && ((l && r) || (f && b));
 
         Crouching = bodyCrouched || Down(keys, GameAction.Crouch);
         Walking = Down(keys, GameAction.Walk);
@@ -142,28 +141,67 @@ public sealed partial class Mover
         }
         boosting = false;
 
-        float brake = (speedBefore > RunMax * 0.25f ? BrakeHigh : BrakeLow) * dt;
+        float brake = speedBefore > RunMax * 0.25f ? BrakeHigh : BrakeLow;
         bool reversing = false;
+        Vector3 delta;
+        float? accurateAt = null;
 
         if (!wants)
         {
-            float s = Mathf.Max(0, speedBefore - brake);
-            Vel = speedBefore > 0 ? Vel * (s / speedBefore) : Vector3.Zero;
+            var dir = speedBefore > 0 ? Vel / speedBefore : Vector3.Zero;
+            float speed = speedBefore;
+            float distance = Brake(ref speed, dt, 1f, out _);
+            if (speedBefore > AccurateMax && speed <= AccurateMax)
+                accurateAt = (speedBefore - AccurateMax) / BrakeHigh;
+            delta = dir * distance;
+            Vel = dir * speed;
         }
         else
         {
             float along = Vel.Dot(wish);
             var lateral = Vel - wish * along;
             float lat = lateral.Length();
-            if (lat > 0) lateral *= Mathf.Max(0, lat - brake) / lat;
-            if (along < 0) { reversing = true; along = Mathf.Min(0, along + brake * CounterBonus); }
-            else if (along > max) along = Mathf.Max(max, along - brake);
-            else along = Mathf.Min(max, along + Accel * dt);
+            var lateralDir = lat > 0 ? lateral / lat : Vector3.Zero;
+            float lateralDistance = Integrate(ref lat, 0, brake, dt);
+            float distance;
+            if (along < 0)
+            {
+                reversing = true;
+                float back = -along;
+                distance = -Brake(ref back, dt, CounterBonus, out float left);
+                if (lat == 0 && -along > AccurateMax && back <= AccurateMax)
+                    accurateAt = (-along - AccurateMax) / (BrakeHigh * CounterBonus);
+                along = -back;
+                distance += Integrate(ref along, max, Accel, left);
+            }
+            else distance = Integrate(ref along, max, along > max ? brake : Accel, dt);
+            lateral = lateralDir * lat;
             Vel = wish * along + lateral;
+            delta = wish * distance + lateralDir * lateralDistance;
         }
 
-        TrackStop(dt, wants, wish, reversing, speedBefore);
-        return Vel * dt;
+        TrackStop(dt, wants, wish, reversing, speedBefore, accurateAt);
+        return delta;
+    }
+
+    float Brake(ref float speed, float dt, float multiplier, out float left)
+    {
+        float knee = RunMax * 0.25f;
+        float high = Mathf.Clamp((speed - knee) / (BrakeHigh * multiplier), 0, dt);
+        float distance = Integrate(ref speed, knee, BrakeHigh * multiplier, high);
+        float low = Mathf.Min(dt - high, speed / (BrakeLow * multiplier));
+        distance += Integrate(ref speed, 0, BrakeLow * multiplier, low);
+        left = Mathf.Max(0, dt - high - low);
+        return distance;
+    }
+
+    static float Integrate(ref float speed, float target, float rate, float dt)
+    {
+        float changing = Mathf.Min(dt, Mathf.Abs(target - speed) / rate);
+        float next = Mathf.MoveToward(speed, target, rate * changing);
+        float distance = (speed + next) * .5f * changing + next * (dt - changing);
+        speed = next;
+        return distance;
     }
 
     /// <summary>
@@ -194,9 +232,9 @@ public sealed partial class Mover
         if (Speed <= max + 1e-3f) boosting = false;
     }
 
-    void TrackStop(float dt, bool wants, Vector3 wish, bool reversing, float speedBefore)
+    void TrackStop(float dt, bool wants, Vector3 wish, bool reversing, float speedBefore, float? accurateAt)
     {
-        if (!stopping && speedBefore > RunMax * 0.8f && (!wants || reversing || opposedKeys))
+        if (!stopping && speedBefore > RunMax * 0.8f && (!wants || reversing))
         {
             stopping = true;
             stoppingCounter = reversing;
@@ -204,11 +242,13 @@ public sealed partial class Mover
         }
         if (!stopping) return;
         stopT += dt;
-        if (reversing || opposedKeys) stoppingCounter = true;
+        if (reversing) stoppingCounter = true;
         if (Accurate)
         {
             stopping = false;
-            LastStopMs = stopT * 1000f;
+            float fraction = speedBefore > AccurateMax && speedBefore > Speed
+                ? Mathf.Clamp((speedBefore - AccurateMax) / (speedBefore - Speed), 0, 1) : 1f;
+            LastStopMs = (stopT - dt + (accurateAt ?? dt * fraction)) * 1000f;
             LastStopWasCounter = stoppingCounter;
             StopTimesMs.Add(LastStopMs);
             if (stoppingCounter) CounterStopTimesMs.Add(LastStopMs); else ReleaseStopTimesMs.Add(LastStopMs);
@@ -242,6 +282,7 @@ public sealed partial class Mover
     {
         StopTimesMs.Clear(); CounterStopTimesMs.Clear(); ReleaseStopTimesMs.Clear();
         LastStopMs = -1;
+        LastStopWasCounter = false;
         ResetMotion();
     }
 

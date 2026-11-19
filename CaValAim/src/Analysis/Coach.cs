@@ -1,5 +1,6 @@
 ﻿using CaValAim.Core;
 using CaValAim.Game;
+using CaValAim.Modes;
 
 namespace CaValAim.Analysis;
 
@@ -41,9 +42,9 @@ public sealed class SkillProfile
     public List<string> Strengths = new();
     public SensAdvice? Sens;
     public SensLabData? SensLab;
+    public Dictionary<string, (SensLabData Lab, SensAdvice Advice)> SectionSensitivity = new();
     public List<AimForecast> Forecasts = new();
     public int ForecastTier;
-    public float ForecastSens;
     /// <summary>Per-skill change of the rating (tiers; 0.5 ≈ one rank) between the older and the newer runs, only for skills
     /// rated in both (see <see cref="Coach.Trends"/>). Empty until there is enough history.</summary>
     public Dictionary<Skill, float> Trend = new();
@@ -62,6 +63,8 @@ public sealed class RunReview
     public List<CoachObservation> Observations = new();
     public string[] PrescribedDrills = Array.Empty<string>();
     public string Summary = "";
+    public string NextTip = "";
+    public TrainingFeedback? Feedback;
     public List<Diagnosis> Issues = new();
     public List<Diagnosis> Findings = new();
     public List<string> Strengths = new();
@@ -102,39 +105,74 @@ public static class Coach
     }
 
     /// <summary>What went wrong / right in this run and how to fix it.</summary>
-    public static RunReview ReviewRun(RunTelemetry t, Dictionary<string, float> metrics, int tier)
+    public static RunReview ReviewRun(RunTelemetry t, Dictionary<string, float> metrics, int tier, TrainingFeedback? feedback = null)
     {
         var review = new RunReview { Metrics = metrics };
-        if (t.Mode is SensFinderKey or CrosshairFinderKey) return review; // these drills show their own result
+        if (t.Mode is SensFinderKey or CrosshairFinderKey) return CompleteReview(t, review, feedback);
         review.Observations = CoachObservations.Build(t);
         review.Plays = PlayByPlay.Analyze(t);
-        if (RunAnalysis.Base(t.Mode) == "reactgame") { ReactionGameCoach.Review(t, review); return review; }
+        if (RunAnalysis.Base(t.Mode) == "reactgame") { ReactionGameCoach.Review(t, review); return CompleteReview(t, review, feedback); }
         review.Sens = SensLab.Feedback(metrics, tier);
-        if (metrics.Count == 0) { review.Summary = RunSummary.NoData(t.Mode); return review; }
+        if (metrics.Count == 0) { review.Summary = RunSummary.NoData(t.Mode); return CompleteReview(t, review, feedback); }
         var a = Assess.Run(metrics, runLevel: true, tierPlayed: tier);
         review.Findings = a.Issues.Select(i => i.D).ToList();
         review.Issues = review.Findings.Take(3).ToList();
         review.Strengths = a.Strengths.Take(2).Select(s => s.Text).ToList();
         review.Summary = RunSummary.Write(t.Mode, tier, metrics, a);
         review.PrescribedDrills = CoachPlan.FromRun(review).Drills.ToArray();
+        return CompleteReview(t, review, feedback);
+    }
+
+    internal static RunReview CompleteReview(RunTelemetry t, RunReview review, TrainingFeedback? measured)
+    {
+        var f = measured ?? TrainingFeedbackCounter.Read(t);
+        bool es = Loc.Spanish;
+        review.Feedback = f;
+        if (review.Strengths.Count == 0 && f.Successes > 0)
+            review.Strengths.Add(es ? $"{f.Successes} acciones correctas registradas." : $"{f.Successes} successful actions recorded.");
+        if (review.Issues.Count == 0 && f.Errors > 0)
+            review.Issues.Add(new Diagnosis("ROUND_EXECUTION", Skill.Precision, Severity.Tip,
+                es ? "Acciones que costaron puntos" : "Actions that cost points",
+                es ? $"{f.Errors} errores registrados · −{f.Lost} puntos." : $"{f.Errors} recorded errors · −{f.Lost} points.",
+                "", new[] { f.Tip(es) }, Array.Empty<string>(), f.Errors));
+        review.NextTip = review.Issues.SelectMany(d => d.Fixes).FirstOrDefault(x => !string.IsNullOrWhiteSpace(x)) ?? f.Tip(es);
+        if (f.Successes + f.Errors > 0 && review.Summary == RunSummary.NoData(t.Mode))
+            review.Summary = es
+                ? $"La revisión usa {f.Successes + f.Errors} acciones medidas. Repite la tarea para reunir más movimientos comparables."
+                : $"The review uses {f.Successes + f.Errors} measured actions. Repeat the drill to collect more comparable movements.";
+        if (review.Summary.Length == 0)
+            review.Summary = f.Successes + f.Errors > 0
+                ? (es ? $"{f.Successes} acciones correctas y {f.Errors} errores medidos." : $"{f.Successes} successful actions and {f.Errors} errors recorded.")
+                : f.Tip(es);
         return review;
     }
 
     /// <summary>Aggregate profile across recent runs (stats records + recent telemetry files).</summary>
-    public static SkillProfile BuildProfile(StatsStore stats, float currentSens, int dpi, int? currentTier = null)
+    public static SkillProfile BuildProfile(StatsStore stats, float currentSens, int dpi, int? currentTier = null,
+        IReadOnlyDictionary<string, float>? sectionSens = null)
     {
         var runs = new List<SensAdvisor.RunInfo>();
         int analysed = 0;
         SensAdvisor.FinderResult? finder = null;
         // Own snapshot (callers may run this on a worker thread while the game appends runs), newest first so the
         // bounded telemetry re-analysis below goes to the runs that matter most (and still have their files).
-        var all = stats.Runs.ToArray().Where(r => r != null).OrderByDescending(r => r.When).ToList();
+        var all = stats.Runs.ToArray().Where(r => r != null && !r.Warmup).OrderByDescending(r => r.When).ToList();
+        var sections = new Dictionary<string, string>();
+        string Section(RunRecord r)
+        {
+            if (!string.IsNullOrEmpty(r.SensSection)) return r.SensSection;
+            if (!sections.TryGetValue(r.Mode, out var section))
+                sections[r.Mode] = section = ModeRegistry.Find(r.Mode)?.Invoke() is { } mode ? SensitivityProfiles.For(mode) : "";
+            return section;
+        }
         foreach (var r in all)
         {
             if (r.Mode == SensFinderKey)
             {
                 // Its sens changes mid-run: no skill data, but remember the latest recommendation.
-                if (finder == null && r.Metrics != null && r.Metrics.TryGetValue("sensfinder.sens", out var fs) && fs > 0)
+                if (finder == null && r.Metrics != null && r.Metrics.GetValueOrDefault("context.dpi") == dpi
+                    && r.Metrics.GetValueOrDefault("sensfinder.conf") > 0
+                    && r.Metrics.TryGetValue("sensfinder.sens", out var fs) && fs > 0)
                     finder = new SensAdvisor.FinderResult(r.When, fs, (int)r.Metrics.GetValueOrDefault("sensfinder.conf"));
                 continue;
             }
@@ -145,7 +183,11 @@ public static class Coach
                 m = FromFile(r.TelemetryFile!) ?? m; // bounded: ≈10–40 ms per file, cached
                 analysed++;
             }
-            if (m != null && m.Count > 0) runs.Add(new SensAdvisor.RunInfo(r.When, r.Sens, RunAnalysis.Normalize(r.Mode, r.Tier, m), $"{r.Mode}|{r.Tier}|{r.Map}"));
+            if (m != null && m.Count > 0)
+            {
+                var normalized = RunAnalysis.Normalize(r.Mode, r.Tier, m);
+                runs.Add(new SensAdvisor.RunInfo(r.When, r.Sens, normalized, $"{r.Mode}|{r.Tier}|{r.Map}", sectionSens == null ? "" : Section(r)));
+            }
         }
         var agg = Agg.Aggregate(runs.Select(r => (r.When, r.M)), DateTime.Now);
         int tierGuess = (int)MathF.Round((float)all.Take(20).Where(r => r.Tier >= 0).Select(r => r.Tier).DefaultIfEmpty(1).Average());
@@ -162,18 +204,31 @@ public static class Coach
             Strengths = a.Strengths.Where(s => s.Score >= 0.5f || a.Overall < 0).Take(4).Select(s => s.Text).ToList(),
             RunsAnalyzed = runs.Count,
             Metrics = agg,
-            Forecasts = CoachNetwork.Forecast(all, currentSens, forecastTier),
+            Forecasts = CoachNetwork.Forecast(all.Where(r => sectionSens == null || !sectionSens.ContainsKey(Section(r))), currentSens, forecastTier, dpi),
             ForecastTier = forecastTier,
-            ForecastSens = currentSens,
             Updated = DateTime.Now,
         };
         var sensRuns = runs.Select(r => {
             if (r.M.GetValueOrDefault("sens.changed") == 0) return r;
             var segment = r.M.Where(kv => kv.Key.StartsWith("current.")).ToDictionary(kv => kv.Key[8..], kv => kv.Value);
-            return new SensAdvisor.RunInfo(r.When, segment.GetValueOrDefault("sens"), segment, r.Context);
-        }).Where(r => r.Sens > 0).ToList();
-        p.Sens = SensAdvisor.Advise(sensRuns, currentSens, dpi, a.RefTier, finder);
-        p.SensLab = SensLab.Build(sensRuns, currentSens, dpi, a.RefTier);
+            return new SensAdvisor.RunInfo(r.When, segment.GetValueOrDefault("sens"), segment, r.Context, r.Section);
+        }).Where(r => r.Sens > 0 && r.M.GetValueOrDefault("context.dpi") == dpi
+            && r.M.GetValueOrDefault("weapon.changed") == 0 && r.M.GetValueOrDefault("recoil.changed") == 0).ToList();
+        var globalRuns = sensRuns.Where(r => sectionSens == null || !sectionSens.ContainsKey(r.Section)).ToList();
+        p.Sens = SensAdvisor.Advise(globalRuns, currentSens, dpi, a.RefTier, finder);
+        p.SensLab = SensLab.Build(globalRuns, currentSens, dpi, a.RefTier);
+        if (sectionSens != null)
+        {
+            foreach (string section in TrainingCatalog.Sections.Where(SensitivityProfiles.Supports))
+            {
+                float value = sectionSens.GetValueOrDefault(section, currentSens);
+                var matching = sensRuns.Where(r => r.Section == section).ToList();
+                p.SectionSensitivity[section] = (SensLab.Build(matching, value, dpi, a.RefTier),
+                    SensAdvisor.Advise(matching, value, dpi, a.RefTier));
+                if (sectionSens.ContainsKey(section))
+                    p.Forecasts.AddRange(CoachNetwork.Forecast(all.Where(r => Section(r) == section), value, forecastTier, dpi));
+            }
+        }
         (p.Trend, p.TrendSpan) = Trends(runs.Select(r => (r.When, r.M)).ToList(), tierGuess);
         return p;
     }

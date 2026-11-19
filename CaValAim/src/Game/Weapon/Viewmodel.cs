@@ -214,14 +214,16 @@ public partial class Viewmodel : Node3D
             }
         }
 
-        // Gloves + sleeves. Muted tactical palette: the accent is a deep oxblood strap, not bright red.
-        var glove = mats.Make(new Color(0.185f, 0.190f, 0.205f), 0f, 0.70f, 0.42f, 0.55f, 0.42f, 420f);
-        var pad = mats.Make(new Color(0.235f, 0.240f, 0.255f), 0.06f, 0.46f, 0.52f, 0.40f, 0.38f, 200f);
-        var sleeve = mats.Make(new Color(0.200f, 0.215f, 0.248f), 0f, 0.62f, 0.50f, 0.55f, 0.45f, 260f);
-        var accent = mats.Make(new Color(0.300f, 0.080f, 0.075f), 0f, 0.72f, 0.36f, 0.20f, 0.12f, 200f);
+        var glove = mats.Make(new Color(0.16f, 0.17f, 0.17f), 0f, 0.83f, 0.33f, 0.24f, 0.19f, 360f);
+        var pad = mats.Make(new Color(0.23f, 0.25f, 0.23f), 0f, 0.76f, 0.34f, 0.18f, 0.17f, 210f);
+        var sleeve = mats.Make(new Color(0.32f, 0.37f, 0.34f), 0f, 0.89f, 0.32f, 0.58f, 0.16f, 280f);
+        var accent = mats.Make(new Color(0.53f, 0.27f, 0.12f), 0f, 0.72f, 0.34f, 0.16f, 0.14f, 200f);
+        var skin = mats.Make(new Color(0.53f, 0.34f, 0.25f), 0f, 0.82f, 0.30f, 0.18f, 0.16f, 300f);
         var se = pose.Support.ElbowLocal;
-        gripHand = new MeshInstance3D { Name = "GripHand", Mesh = VmHands.Build(pose.Grip.Shape, left, pose.Grip.ElbowLocal, glove, pad, sleeve, accent) };
-        supportHand = new MeshInstance3D { Name = "SupportHand", Mesh = VmHands.Build(pose.Support.Shape, !left, new Vector3(-se.X, se.Y, se.Z), glove, pad, sleeve, accent) };
+        gripHand = new MeshInstance3D { Name = "GripHand", Mesh = VmHands.Build(pose.Grip.Shape, left,
+            pose.Grip.ElbowLocal, glove, pad, sleeve, accent, skin, mirrorView: left) };
+        supportHand = new MeshInstance3D { Name = "SupportHand", Mesh = VmHands.Build(pose.Support.Shape, !left,
+            new Vector3(-se.X, se.Y, se.Z), glove, pad, sleeve, accent, skin, mirrorView: left) };
         gripRest = X(pose.Grip.Xform);
         supportRest = X(pose.Support.Xform);
         boltPose = pose.Bolt != null ? X(pose.Bolt.Xform) : gripRest;

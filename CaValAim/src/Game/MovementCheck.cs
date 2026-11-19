@@ -12,8 +12,8 @@ namespace CaValAim.Game;
 /// <list type="bullet">
 /// <item><c>--movecheck</c>: physics on a synthetic course at 120 Hz: jump apex / air time vs <see cref="MovementTuning"/>,
 /// running-jump distance, crouch-jump ledges, ceiling, ledge drops, fall damage, impulses (dash, air dash, updraft),
-/// steer lock, teleport, speed scale, jump toggle, events, airborne / landing weapon error, and a frame-by-frame
-/// regression of the ground model against the v1.3 code (counter-strafe stop times).</item>
+/// steer lock, teleport, speed scale, jump toggle, events, airborne / landing weapon error, and a
+/// comparison of release and counter-strafe timing across frame rates.</item>
 /// <item><c>--jumpaudit [all|&lt;map key&gt;|&lt;mode key&gt;]</c>: what a player can reach on a map (or a range drill's layout) by
 /// walking, step-ups and (crouch-)jumps; lists reachable wall tops and spots outside the floor (map escapes), each
 /// re-played with the real physics. Exit code = layouts with an escape.</item>
@@ -308,114 +308,42 @@ public static class MovementCheck
         Check(name, on == expect, $"ledge {F(h, "0.00")} m: feet end at {F(r.Feet.Y, "0.00")} m ({(on ? "on top" : "below")})");
     }
 
-    // ------------------------------------------------------------------ ground model regression (v1.3)
+    // ------------------------------------------------------------------ flat ground timing at different frame rates
 
-    /// <summary>The v1.3 ground model, verbatim except the acceleration (1.16: <see cref="Mover.GroundAccel"/>, measured from
-    /// VALORANT), as the reference for frame-by-frame comparison.</summary>
-    sealed class RefMover
-    {
-        const float RunSpeed = 5.4f, WalkSpeed = RunSpeed * 0.55f, CrouchSpeed = RunSpeed * 0.45f, AdsMultiplier = 0.76f, AccurateSpeed = RunSpeed * 0.275f;
-        const float Accel = Mover.GroundAccel, BrakeHigh = 38f, BrakeLow = 24f, CounterBonus = 1.06f;
-        public Vector3 Vel;
-        public bool Crouching, Walking, Ads;
-        public float EyeHeight = Mover.StandEye;
-        public float Speed => new Vector2(Vel.X, Vel.Z).Length();
-        bool Accurate => Speed <= AccurateSpeed + 0.001f;
-        public readonly List<float> StopTimesMs = new(), CounterStopTimesMs = new();
-        bool stopping, stoppingCounter, opposedKeys;
-        float stopT;
-        public Func<InputBinding, bool> Down = _ => false;
-
-        public Vector3 Update(float dt, float yawDeg, ValorantProfile keys)
-        {
-            float y = Mathf.DegToRad(yawDeg);
-            var fwd = new Vector3(Mathf.Sin(y), 0, -Mathf.Cos(y));
-            var right = new Vector3(Mathf.Cos(y), 0, Mathf.Sin(y));
-            var wish = Vector3.Zero;
-            if (Down(keys.KeyForward)) wish += fwd;
-            if (Down(keys.KeyBack)) wish -= fwd;
-            if (Down(keys.KeyRight)) wish += right;
-            if (Down(keys.KeyLeft)) wish -= right;
-            bool wants = wish.LengthSquared() > 0.001f;
-            if (wants) wish = wish.Normalized();
-            opposedKeys = !wants && ((Down(keys.KeyLeft) && Down(keys.KeyRight)) || (Down(keys.KeyForward) && Down(keys.KeyBack)));
-            Crouching = Down(keys.KeyCrouch);
-            Walking = Down(keys.KeyWalk);
-            float target = Crouching ? Mover.CrouchEye : Mover.StandEye;
-            EyeHeight += (target - EyeHeight) * (1f - Mathf.Exp(-14f * dt));
-            float max = Crouching ? CrouchSpeed : Walking ? WalkSpeed : RunSpeed;
-            if (Ads) max = Mathf.Min(max, RunSpeed * AdsMultiplier);
-            float speedBefore = Speed;
-            float brake = (speedBefore > RunSpeed * 0.25f ? BrakeHigh : BrakeLow) * dt;
-            bool reversing = false;
-            if (!wants)
-            {
-                float s = Mathf.Max(0, speedBefore - brake);
-                Vel = speedBefore > 0 ? Vel * (s / speedBefore) : Vector3.Zero;
-            }
-            else
-            {
-                float along = Vel.Dot(wish);
-                var lateral = Vel - wish * along;
-                float lat = lateral.Length();
-                if (lat > 0) lateral *= Mathf.Max(0, lat - brake) / lat;
-                if (along < 0) { reversing = true; along = Mathf.Min(0, along + brake * CounterBonus); }
-                else if (along > max) along = Mathf.Max(max, along - brake);
-                else along = Mathf.Min(max, along + Accel * dt);
-                Vel = wish * along + lateral;
-            }
-            if (!stopping && speedBefore > RunSpeed * 0.8f && (!wants || reversing || opposedKeys)) { stopping = true; stoppingCounter = reversing; stopT = 0; }
-            if (stopping)
-            {
-                stopT += dt;
-                if (reversing || opposedKeys) stoppingCounter = true;
-                if (Accurate)
-                {
-                    stopping = false;
-                    StopTimesMs.Add(stopT * 1000f);
-                    if (stoppingCounter) CounterStopTimesMs.Add(stopT * 1000f);
-                }
-                else if (wants && !reversing && wish.Dot(Vel) > Speed * 0.7f && Speed > speedBefore) stopping = false;
-            }
-            return Vel * dt;
-        }
-    }
-
-    /// <summary>Same scripted strafes, counter-strafes, releases, crouch and walk on flat ground through the new Step and
-    /// the v1.3 code: every frame's velocity and every measured stop must match.</summary>
     static void GroundRegression()
     {
         var keys = new ValorantProfile();
-        (Key k, float a, float b)[] script =
+        var floor = new List<Box> { Floor() };
+        (float StopMs, float Travel, float Accelerate) Measure(int hz, bool counter)
         {
-            (Key.D, 0.0f, 1.0f), (Key.A, 1.0f, 1.07f), (Key.A, 1.5f, 2.5f), (Key.D, 2.5f, 2.6f), (Key.D, 3.0f, 3.8f),
-            (Key.W, 3.0f, 4.0f), (Key.S, 4.0f, 4.12f), (Key.D, 4.6f, 5.4f), (Key.Ctrl, 4.6f, 5.2f), (Key.A, 5.6f, 6.6f),
-            (Key.Shift, 5.6f, 6.2f), (Key.D, 6.6f, 7.4f), (Key.A, 7.4f, 7.5f), (Key.D, 7.4f, 7.5f),
-        };
-        float now = 0;
-        bool Down(InputBinding k) => script.Any(s => (InputBinding)s.k == k && now >= s.a && now < s.b);
-        var world = new List<Box> { Floor() };
-        var m = new Mover();
-        var refm = new RefMover { Down = Down, Ads = false };
-        Mover.KeyOverride = Down;
-        var feet = Vector3.Zero;
-        var refFeet = Vector3.Zero;
-        float maxDev = 0;
-        float yaw = 0;
-        for (int i = 0; i < 960; i++)
+            var mover = new Mover();
+            var feet = Vector3.Zero;
+            Key held = Key.D;
+            float dt = 1f / hz;
+            Mover.KeyOverride = binding => held != Key.None && binding == (InputBinding)held;
+            for (int i = 0; i < hz; i++) mover.Step(dt, 0, keys, ref feet, floor);
+            float atRelease = feet.X;
+            held = counter ? Key.A : Key.None;
+            float farthest = feet.X;
+            for (int i = 0; i < hz / 3; i++)
+            {
+                mover.Step(dt, 0, keys, ref feet, floor);
+                farthest = Math.Max(farthest, feet.X);
+            }
+            return (mover.StopTimesMs.Single(), farthest - atRelease, atRelease);
+        }
+
+        foreach (int hz in new[] { 30, 60, 120, 240 })
         {
-            now = i * Dt;
-            yaw = 20f * Mathf.Sin(now); // looking around doesn't matter, but it must match too
-            m.Step(Dt, yaw, keys, ref feet, world);
-            var d = refm.Update(Dt, yaw, keys);
-            Collision.MoveAndSlide(ref refFeet, ref refm.Vel, d, world);
-            maxDev = Mathf.Max(maxDev, (m.Vel - refm.Vel).Length() + (feet - refFeet).Length() + Mathf.Abs(m.EyeHeight - refm.EyeHeight));
+            var release = Measure(hz, false);
+            var counter = Measure(hz, true);
+            Check($"ground timing at {hz} Hz", MathF.Abs(release.StopMs - 103f) < 1f
+                && MathF.Abs(counter.StopMs - 97.2f) < 2f
+                && MathF.Abs(release.Travel - .394f) < .01f
+                && counter.Travel < release.Travel && MathF.Abs(release.Accelerate - 4.59f) < .01f,
+                $"release {F(release.StopMs)} ms / {F(release.Travel)} m, counter {F(counter.StopMs)} ms / {F(counter.Travel)} m");
         }
         Mover.KeyOverride = null;
-        bool same = maxDev < 1e-5f && m.StopTimesMs.SequenceEqual(refm.StopTimesMs) && m.CounterStopTimesMs.SequenceEqual(refm.CounterStopTimesMs);
-        Check("ground model identical to v1.3", same,
-            $"max deviation {maxDev.ToString("0.###E+0", Inv)}; stops {string.Join(" ", m.StopTimesMs.Select(s => F(s, "0")))} ms " +
-            $"(v1.3: {string.Join(" ", refm.StopTimesMs.Select(s => F(s, "0")))}), counter-strafes {m.CounterStopTimesMs.Count}");
     }
 
     // ------------------------------------------------------------------ jump audit

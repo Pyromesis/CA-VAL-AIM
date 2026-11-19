@@ -27,7 +27,10 @@ public sealed record SensBlock(
     float Corrections, float Jitter, float TrackOnPct,
     float Delta, float Confidence, SensVerdict Verdict)
 {
-    public bool HasData => Flicks > 0 || OffTarget > 0 || TrackSeconds > 0;
+    public int Shots { get; init; }
+    public int Hits { get; init; }
+    public int Cleared { get; init; }
+    public bool HasData => Flicks > 0 || OffTarget > 0 || TrackSeconds > 0 || Shots > 0 || Cleared > 0;
 }
 
 /// <summary>Accumulated sensitivity evidence (current sens + recent sens blocks).</summary>
@@ -128,7 +131,12 @@ public static class SensLab
         var f = Feedback(m, refTier);
         return new SensBlock(sens, runs.Count, Sessions(runs), runs.Min(r => r.When), runs.Max(r => r.When),
             f.Flicks, f.OffTarget, f.TrackSeconds, f.OvershootShare, f.UndershootShare,
-            f.MeanOvershootPct, f.MeanUndershootDeg, f.Corrections, f.Jitter, f.TrackOnPct, f.Delta, f.Confidence, f.Verdict);
+            f.MeanOvershootPct, f.MeanUndershootDeg, f.Corrections, f.Jitter, f.TrackOnPct, f.Delta, f.Confidence, f.Verdict)
+        {
+            Shots = runs.Sum(r => I(r.M, "shot.n")),
+            Hits = runs.Sum(r => I(r.M, "shot.hits")),
+            Cleared = runs.Sum(r => I(r.M, "run.cleared")),
+        };
     }
 
     static float Confidence(int flicks, float secs) => Math.Min(1f, Math.Max(flicks / 40f, secs / 60f));

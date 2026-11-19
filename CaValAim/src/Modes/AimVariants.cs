@@ -71,6 +71,12 @@ public sealed record AimVariant(string Id, AimFamily Family, string Name, string
     public string Key => KeyBase + ":" + Id;
 
     public string? CategoryOverride { get; init; }
+    internal bool SupportsAdaptiveClicking => Count == 1 && TapOnly && !SideStep && Drift == 0
+        && VerticalDrift == 0 && ContactSeconds == 0 && !Id.StartsWith("sc-", StringComparison.Ordinal);
+
+    internal float RadiusAt(float level, int tier) =>
+        Math.Clamp(Radius * MathF.Pow(1.25f, tier - level), 0.035f, 0.8f);
+
     public string Category => CategoryOverride ?? (Family switch
     {
         AimFamily.Flick => "Flick", AimFamily.Track => "Tracking", AimFamily.Micro => "Micro", _ => "Reflex",
@@ -292,6 +298,7 @@ public sealed class FlickVariantMode : TrainingMode
     public override string SimKind => v.ContactSeconds > 0 ? "track"
         : (v.Id.StartsWith("sc-", StringComparison.Ordinal) && (v.Drift > 0 || v.VerticalDrift > 0)) ? "bot" : "static";
     public override bool UsesHeadshots => false;
+    public override bool SupportsAdaptive => v.SupportsAdaptiveClicking;
     public override bool Movement => v.SideStep;
     public bool RegeneratingTargets => v.RegenSeconds > 0;
     public override bool WeaponSlots => !v.SideStep && Weapon != WeaponKind.None;
@@ -339,8 +346,10 @@ public sealed class FlickVariantMode : TrainingMode
 
     void Spawn(int i, bool first = false)
     {
+        if (Adapt is { } a) t[i].SetRadius(v.RadiusAt(a.Level, Tier));
+        float radius = t[i].Radius;
         float d = R(v.DistMin, v.DistMax);
-        float lo = Mathf.Max(v.PitchMin, VariantMath.Floor(G.View.Eye.Y, d, v.Radius));
+        float lo = Mathf.Max(v.PitchMin, VariantMath.Floor(G.View.Eye.Y, d, radius));
         float hi = Mathf.Max(lo + 0.5f, v.PitchMax);
         float yaw = 0, pitch = 1f;
         if (v.Pattern == AimPattern.CenterOut && !atCentre && !first)
@@ -414,6 +423,7 @@ public sealed class FlickVariantMode : TrainingMode
             if (v.Life > 0 && Now - t[i].SpawnTime > v.Life)
             {
                 expired++; Score -= 30; G.Sound("fail", 0.4f); Event("target_expired", ids[i]);
+                Adapt?.Miss();
                 Spawn(i);
             }
         }
@@ -452,9 +462,15 @@ public sealed class FlickVariantMode : TrainingMode
     {
         Shots++;
         int best = TargetAlong(o, d, G.BulletWallDist, out float bestD);
-        if (best < 0) { Score -= 20; return float.PositiveInfinity; }
+        if (best < 0)
+        {
+            Score -= 20;
+            if (Adapt is { } a) { a.Miss(); t[0].SetRadius(v.RadiusAt(a.Level, Tier)); }
+            return float.PositiveInfinity;
+        }
         Hits++;
         LastShotZone = HitZone.Head;
+        Adapt?.Hit();
         ClearTarget(best);
         return bestD;
     }
@@ -500,6 +516,7 @@ public sealed class MicroVariantMode : TrainingMode
     public override string SimKind => v.Id.StartsWith("sc-", StringComparison.Ordinal) && (v.Drift > 0 || v.VerticalDrift > 0)
         ? "bot" : "static";
     public override bool SingleClick => v.TapOnly;
+    public override bool SupportsAdaptive => v.SupportsAdaptiveClicking;
     public override WeaponKind Weapon => v.TapOnly ? WeaponKind.None : base.Weapon;
 
     Target[] t = Array.Empty<Target>();
@@ -534,8 +551,9 @@ public sealed class MicroVariantMode : TrainingMode
 
     void Place(int i, float y, float p, bool first = false)
     {
+        if (Adapt is { } a) t[i].SetRadius(v.RadiusAt(a.Level, Tier));
         float d = R(v.DistMin, v.DistMax);
-        p = Mathf.Max(p, VariantMath.Floor(G.View.Eye.Y, d, v.Radius));
+        p = Mathf.Max(p, VariantMath.Floor(G.View.Eye.Y, d, t[i].Radius));
         if (i == 0) { yaw = y; pitch = p; }
         t[i].Position = home[i] = G.View.Eye + PlayerView.Dir(y, p) * d;
         t[i].SpawnTime = Now;
@@ -596,6 +614,7 @@ public sealed class MicroVariantMode : TrainingMode
             if (v.Life > 0 && Now - t[i].SpawnTime > v.Life)
             {
                 expired++; Score -= 30; G.Sound("fail", 0.4f); Event("target_expired", ids[i]);
+                Adapt?.Miss();
                 Next(i);
             }
         }
@@ -610,7 +629,12 @@ public sealed class MicroVariantMode : TrainingMode
             float h = t[i].Ray(o, d);
             if (h < bestD && h < G.BulletWallDist) { bestD = h; best = i; }
         }
-        if (best < 0) { Score -= 20; return float.PositiveInfinity; }
+        if (best < 0)
+        {
+            Score -= 20;
+            if (Adapt is { } a) { a.Miss(); t[0].SetRadius(v.RadiusAt(a.Level, Tier)); }
+            return float.PositiveInfinity;
+        }
         float ms = (Now - t[best].SpawnTime) * 1000f;
         Hits++; Kills++;
         LastShotZone = HitZone.Head;
@@ -620,6 +644,7 @@ public sealed class MicroVariantMode : TrainingMode
         Score += 100 + (int)Mathf.Max(0, (700 - ms) / 4);
         G.Sound("head", 0.7f);
         t[best].Hit();
+        Adapt?.Hit();
         Next(best);
         return bestD;
     }

@@ -27,6 +27,8 @@ public sealed class LiveCoach
     TelemetryEvent? latestChange;
     float nextCheck = 3f, lastTipAt = -99f, observedChangeAt = -1;
     public LiveTip? Current { get; private set; }
+    public LiveSensitivity.Evidence? SensitivityEvidence => flick?.Sensitivity;
+    public float? SensitivitySearchSince { get; set; }
     public readonly List<LiveTip> History = new();
 
     static bool Es => Loc.Spanish;
@@ -78,7 +80,8 @@ public sealed class LiveCoach
     /// <param name="OverDeg">Mean overshoot of the flicks that went past (deg), <paramref name="OverPct"/> the same as a
     /// share of the flick distance, <paramref name="OverR"/> their mean target radius; <paramref name="Gain"/> the mean
     /// distance covered by the primary movement / the distance needed (all flicks).</param>
-    readonly record struct FlickCounts(int Flicks, int Over, int Under, float OverDeg, float OverPct, float OverR, float Gain, float At, float Corrections);
+    readonly record struct FlickCounts(int Flicks, int Over, int Under, float OverDeg, float OverPct,
+        float OverR, float Gain, float At, float Corrections, LiveSensitivity.Evidence? Sensitivity);
     FlickCounts? flick;
     System.Threading.Tasks.Task<FlickCounts>? flickTask;
     float nextFlickAt = 4f;
@@ -92,7 +95,8 @@ public sealed class LiveCoach
             if (done.Status == System.Threading.Tasks.TaskStatus.RanToCompletion)
             {
                 var changed = latestChange;
-                flick = changed == null || done.Result.At > changed.T + FlickWindow ? done.Result : null;
+                flick = changed == null || done.Result.At > changed.T + FlickWindow
+                    || done.Result.Sensitivity is { } evidence && evidence.From > changed.T ? done.Result : null;
             }
             flickTask = null;
         }
@@ -101,6 +105,9 @@ public sealed class LiveCoach
         float from = now - FlickWindow;
         var change = latestChange;
         if (change != null) from = Math.Max(from, change.T + .15f);
+        bool search = SensitivitySearchSince is { } since && now - since >= 5;
+        float searchFrom = SensitivitySearchSince ?? 0;
+        float evidenceFrom = Math.Max(from, searchFrom + .25f);
         var snap = new RunTelemetry { Mode = tel.Mode, Tier = tel.Tier, Sens = change?.B ?? tel.Sens, Dpi = tel.Dpi, Weapon = tel.Weapon, HFov = tel.HFov, ZoomSensMult = tel.ZoomSensMult };
         int fi = tel.Frames.Count - 1;
         while (fi > 0 && tel.Frames[fi - 1].T >= from) fi--;
@@ -115,12 +122,15 @@ public sealed class LiveCoach
         flickTask = System.Threading.Tasks.Task.Run(() =>
         {
             int flicks = 0, over = 0, under = 0;
+            int attempts = 0, hits = 0, overMiss = 0, underMiss = 0;
             float overDeg = 0, overPct = 0, overR = 0, gain = 0, corrections = 0;
             try
             {
                 if (RunAnalysis.Prepare(snap) is { } p)
                 {
                     var counted = new HashSet<(int, double)>();
+                    var first = search ? snap.Shots.Where(s => s.FocusId != 0).GroupBy(s => s.FocusId)
+                        .ToDictionary(g => g.Key, g => g.First()) : null;
                     foreach (var (_, r) in RunAnalysis.Trials(p))
                     {
                         if (r is not { HasPrimary: true } || (!r.Bot && !RunAnalysis.StaticTargetMode(snap.Mode)) || (r.Bot && !RunAnalysis.CleanAimSample(p, r))) continue;
@@ -130,13 +140,24 @@ public sealed class LiveCoach
                         corrections += r.Nc;
                         if (r.Over) { over++; overDeg += r.S; overPct += r.S / r.A; overR += r.R; }
                         else if (r.Under) under++;
+                        if (first == null || r.Bot || r.TsP < evidenceFrom || !first.TryGetValue(r.TrialId, out var shot)
+                            || Math.Abs(shot.T - r.TShot) > .001f || !shot.Accurate || shot.Speed > .25f
+                            || !RunAnalysis.CleanAimSample(p, r, requireQuietWeapon: snap.Weapon != "None")) continue;
+                        first.Remove(r.TrialId);
+                        attempts++;
+                        if (shot.Hit) { hits++; continue; }
+                        float along = r.Ux * shot.ErrYaw + r.Uy * shot.ErrPitch;
+                        if (r.Over && along > shot.FocusRadius) overMiss++;
+                        else if (r.Under && along < -shot.FocusRadius) underMiss++;
                     }
                 }
             }
             catch { /* a partial window the analysis can't read: no cue this time */ }
-            return over > 0
-                ? new FlickCounts(flicks, over, under, overDeg / over, 100f * overPct / over, overR / over, flicks > 0 ? gain / flicks : 1f, at, flicks > 0 ? corrections / flicks : 0)
-                : new FlickCounts(flicks, over, under, 0, 0, 0, flicks > 0 ? gain / flicks : 1f, at, flicks > 0 ? corrections / flicks : 0);
+            LiveSensitivity.Evidence? evidence = search
+                ? new(evidenceFrom, at, attempts, hits, overMiss, underMiss) : null;
+            return new FlickCounts(flicks, over, under, over > 0 ? overDeg / over : 0,
+                over > 0 ? 100f * overPct / over : 0, over > 0 ? overR / over : 0,
+                flicks > 0 ? gain / flicks : 1f, at, flicks > 0 ? corrections / flicks : 0, evidence);
         });
     }
 
@@ -180,12 +201,13 @@ public sealed class LiveCoach
         // ---- shooting while moving (VALORANT: accurate only below 27.5% of the run speed)
         if (movementDrill && shots.Count >= 6 && Ready("MOVING", now))
         {
-            int moving = shots.Count(s => !s.Accurate);
-            if (moving >= 3 && moving >= shots.Count * 0.35f)
-                return Tip("MOVING", now, "Stop before you shoot", "Párate antes de disparar",
-                    "Tap the opposite strafe key (counter-strafe), then click. Moving shots go wide.",
-                    "Toca la tecla de strafe contraria (counter-strafe) y luego dispara. En movimiento las balas se abren.",
-                    $"{moving} of {shots.Count} shots fired while moving", $"{moving} de {shots.Count} disparos en movimiento");
+            int unstable = shots.Count(s => !s.Accurate);
+            int unstableMisses = shots.Count(s => !s.Accurate && !s.Hit);
+            if (unstableMisses >= 3 && unstable >= shots.Count * 0.35f)
+                return Tip("MOVING", now, "Let the first shot settle", "Estabiliza el primer tiro",
+                    "Release the movement key and fire once the movement error closes.",
+                    "Suelta la tecla de movimiento y dispara cuando se cierre el indicador de error.",
+                    $"{unstableMisses} misses in {unstable} shots with movement error", $"{unstableMisses} fallos en {unstable} tiros con error de movimiento");
         }
 
         // ---- sprays too long for the distance (bot drills with rifles)
@@ -271,12 +293,18 @@ public sealed class LiveCoach
         {
             var first = shots.Where(s => s.FocusId != 0 && s.Accurate && s.Speed < .25f && s.FocusRadius > 0)
                 .GroupBy(s => s.FocusId).Select(g => g.First()).ToArray();
-            int outside = first.Count(s => s.Err > s.FocusRadius);
+            int outside = first.Count(s => !s.Hit && s.Err > s.FocusRadius);
             if (first.Length >= 8 && outside > first.Length * .5f)
                 return Tip("MICRO", now, "Confirm before firing", "Confirma antes de disparar",
                     "Use one small correction before the click.", "Haz una corrección pequeña antes del clic.",
                     $"{outside}/{first.Length} initial shots outside the target in the last {Window:0} s",
                     $"{outside}/{first.Length} disparos iniciales fuera del objetivo en los últimos {Window:0} s");
+            int direct = first.Count(s => s.Hit);
+            if (first.Length >= 12 && direct >= first.Length * .85f && Ready("FIRST_OK", now))
+                return Tip("FIRST_OK", now, "Clean opening shots", "Buenos primeros disparos",
+                    "Keep that rhythm and aim to reach the center in one motion.",
+                    "Conserva ese ritmo e intenta llegar al centro en un solo gesto.",
+                    $"{direct}/{first.Length} targets hit on the first shot", $"{direct}/{first.Length} blancos acertados al primer tiro", positive: true);
         }
 
         // ---- tracking: distance from the target while firing

@@ -42,6 +42,16 @@ public partial class Main : Node
 
     // ---- Effective settings: trainer override if set, otherwise Valorant's ----
     public float Sens => Settings.UseSensOverride ? Settings.SensOverride : Valorant.Sensitivity;
+    public float SensFor(string section) => SensitivityProfiles.Resolve(Settings.CategorySensitivities, section, Settings.Dpi, Sens);
+
+    public void SetCategorySens(string section, CategorySensitivity? profile)
+    {
+        if (!SensitivityProfiles.Supports(section)) return;
+        Settings.CategorySensitivities ??= new();
+        if (profile == null) Settings.CategorySensitivities.Remove(section);
+        else Settings.CategorySensitivities[section] = profile;
+        Settings.Save();
+    }
     public int EnemyColorIndex => Settings.EnemyColorOverride >= 0 ? Settings.EnemyColorOverride : Valorant.EnemyHighlight;
     public Color EnemyColor => UiTheme.EnemyColors[Math.Clamp(EnemyColorIndex, 0, UiTheme.EnemyColors.Length - 1)];
     public int WindowMode => Settings.WindowModeOverride >= 0 ? Settings.WindowModeOverride : Valorant.WindowMode;
@@ -215,7 +225,12 @@ public partial class Main : Node
         // Dev-only: "--screen settings|about|stats" opens that screen directly (MenuScreen handles "profile").
         switch (Dev ? CmdLine.After("--screen")?.ToLowerInvariant() : null)
         {
-            case "settings": Callable.From(ShowSettings).CallDeferred(); break;
+            case "settings":
+                if (Dev && Enum.TryParse<SettingsScreen.Page>(CmdLine.DevAfter("--settings-page"), true, out var settingsPage)
+                    && Enum.IsDefined(settingsPage))
+                    SettingsScreen.StartPage = settingsPage;
+                Callable.From(ShowSettings).CallDeferred();
+                break;
             case "about": SettingsScreen.StartPage = SettingsScreen.Page.About; Callable.From(ShowSettings).CallDeferred(); break;
             case "stats": Callable.From(ShowStats).CallDeferred(); break;
             case "reaction" or "reactions": Callable.From(ShowReactionStats).CallDeferred(); break;

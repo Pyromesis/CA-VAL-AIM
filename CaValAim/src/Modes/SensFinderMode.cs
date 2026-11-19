@@ -9,8 +9,8 @@ namespace CaValAim.Modes;
 /// Sensitivity finder: a blind, performance-scored PSA method that bisects in log space (docs/coach_spec.md §E).
 /// Each step plays 4 blocks (ABBA / BAAB) of L = C/hw and H = C·hw; a block is a standard set of head flicks plus
 /// 10 s of seeded Veteran strafe tracking. Trials are scored (flicks: ln(ID/MT'), tracking: logit of on-target),
-/// standardized within the step, blended 0.65/0.35 and compared with Welch's SE; the centre moves half a step toward
-/// a clear winner. Ends with a blind confirmation of the final C against the player's current sens.
+/// standardized within the step and combined per block. Both matched pairs must agree to move the centre.
+/// Ends with a blind confirmation against the player's current sensitivity.
 /// No gun: clicks are read from the trigger's rising edge, so there is no spread, recoil or fire-rate limit.
 /// Dev flags (with --dev): --sfquick (short protocol), --sfsens X / --sfcm X (pretend current sens),
 /// --sfseed N (reproducible), --sfexit (quit when the result is computed), --sftimescale N (fast-forward screenshots),
@@ -69,7 +69,7 @@ public sealed partial class SensFinderMode : TrainingMode
     float winOn, winTot, tickAcc;
 
     // result
-    float rec, confT = float.NaN;
+    float rec;
     bool confirmed;       // a confirmation stage was run
     bool adoptC = true;
     string confidence = "", confidenceWhy = "";
@@ -265,6 +265,7 @@ public sealed partial class SensFinderMode : TrainingMode
         block = new SfBlock { Cond = cond, Sens = st.Sens[cond], Label = st.Label[cond], Mirror = bi % 2 == 1 };
         G.TrialSens = block.Sens;
         Event("sens_set", block.Sens, cond);
+        Event("sf_block_start", st.Step, bi);
         phase = Ph.Rest;
         phaseT = 0;
         trialLive = false;
@@ -292,6 +293,9 @@ public sealed partial class SensFinderMode : TrainingMode
         trackT.Visible = false;
         trackT.SetHot(false);
         st.Blocks.Add(b);
+        Event("sf_block_clicks", b.Hits, b.Attempts - b.Hits);
+        Event("sf_block_timeouts", b.Timeouts, b.Omissions);
+        Event("sf_block_tracking", b.TrackOn, b.TrackTotal);
         doneBlocks++;
         float medMt = b.FlickMt.Count > 0 ? Median(b.FlickMt) : 0;
         GD.Print($"[sf]   block {blockIdx + 1} {b.Label} sens={b.Sens:0.000} ({Cm(b.Sens):0.0}cm): flicks n={b.FlickZ.Count} zMean={SfStats.Mean(b.FlickZ):0.000} medMT'={medMt * 1000:0}ms acc={(b.Attempts > 0 ? 100f * b.Hits / b.Attempts : 0):0}% timeouts={b.Timeouts}  track on={(b.TrackTotal > 0 ? 100 * b.TrackOn / b.TrackTotal : 0):0}% windows={b.TrackLogit.Count}");
@@ -304,12 +308,13 @@ public sealed partial class SensFinderMode : TrainingMode
         var st = stage!;
         var cmp = SfStats.Compare(st.Blocks, fine: st.Confirm || st.HalfWidth <= 1.09f);
         st.Result = cmp;
+        st.Winner = SfStats.ReplicatedWinner(st.Blocks, cfg.ScoredFlicks);
         foreach (var b in st.Blocks) Event("sens_trial", b.Sens, (float)b.Score);
         float acc = st.Accuracy;
         string stats = $"d={cmp.D:+0.000;-0.000} SE={cmp.Se:0.000} t={cmp.T:+0.00;-0.00} (flick d={cmp.DFlick:+0.00;-0.00}+/-{cmp.SeFlick:0.00} n={cmp.NFlick0}/{cmp.NFlick1}, micro d={cmp.DMicro:+0.00;-0.00}+/-{cmp.SeMicro:0.00} n={cmp.NMicro0}/{cmp.NMicro1}, track d={cmp.DTrack:+0.00;-0.00}+/-{cmp.SeTrack:0.00} n={cmp.NTrack0}/{cmp.NTrack1}) acc={acc * 100:0}%";
         if (!st.Confirm)
         {
-            int win = cmp.T > 1 ? 0 : cmp.T < -1 ? 1 : -1;
+            int win = st.Winner;
             float h = Mathf.Log(st.HalfWidth);
             if (win == 0) centre *= Mathf.Exp(-h / 2);
             else if (win == 1) centre *= Mathf.Exp(h / 2);
@@ -328,18 +333,17 @@ public sealed partial class SensFinderMode : TrainingMode
         }
         else
         {
-            confT = (float)cmp.T;
-            Event("sens_confirm", centre, confT);
-            GD.Print($"[sf] confirm result: {stats} -> {(confT >= -0.5f ? "adopt C" : "geometric mean")}");
+            Event("sens_confirm", centre, st.Winner);
+            GD.Print($"[sf] confirm result: {stats} -> {(st.Winner == 0 ? "candidate replicated" : "keep baseline")}");
         }
 
         if (acc < cfg.MinAccuracy)
         {
             aborted = true;
             abortWhy = Loc.Spanish
-            ? $"La precisión bajó al {acc * 100:0}% (por debajo del {cfg.MinAccuracy * 100:0}%). Probablemente estés cansado. Descansa y vuelve a hacerlo más tarde."
-            : $"Accuracy fell to {acc * 100:0}% (below {cfg.MinAccuracy * 100:0}%). You're probably tired. Take a break and run it again later.";
-            GD.Print($"[sf] ABORT (fatigue): {abortWhy}");
+            ? $"Completaste el {acc:P0} de los objetivos. La prueba requiere al menos {cfg.MinAccuracy:P0}."
+            : $"You completed {acc:P0} of the targets. The test requires at least {cfg.MinAccuracy:P0}.";
+            GD.Print($"[sf] ABORT: {abortWhy}");
             Finish();
             return;
         }
@@ -382,7 +386,9 @@ public sealed partial class SensFinderMode : TrainingMode
 
         if (pressed)
         {
-            if (!float.IsPositiveInfinity(flickT.Ray(G.View.Eye, fwd))) { EndTrial(true); return; }
+            bool hit = !float.IsPositiveInfinity(flickT.Ray(G.View.Eye, fwd));
+            if (Focus is { } focus) G.RecordAimClick(focus, hit);
+            if (hit) { EndTrial(true); return; }
             misses++;
             Shots++;
             block!.Attempts++;
@@ -453,13 +459,15 @@ public sealed partial class SensFinderMode : TrainingMode
         else
         {
             b.Timeouts++;
-            if (misses == 0) { Shots++; b.Attempts++; }
+            if (misses == 0) b.Omissions++;
             G.Sound("fail", 0.4f);
         }
         float mt = hit ? Now - (onsetFound ? onsetAt : spawnAt) : cfg.FlickTimeout;
         mt = Mathf.Max(0.08f, mt + 0.15f * misses);
         if (scored)
         {
+            b.ScoredTrials++;
+            if (hit) b.ScoredHits++;
             (fl.Micro ? b.MicroZ : b.FlickZ).Add(Math.Log(SfStats.Id(amp, rAng) / mt));
             b.FlickMt.Add(mt);
         }
@@ -533,25 +541,22 @@ public sealed partial class SensFinderMode : TrainingMode
         flickT.Visible = trackT.Visible = false;
         var conf = ConfirmStage;
         confirmed = conf?.Result != null;
-        adoptC = !confirmed || confT >= -0.5f;
-        float r = adoptC ? centre : Mathf.Sqrt(centre * current);
-        r = SfUnits.ClampCm(r, dpi, 15f, 100f);
-        rec = Mathf.Max(0.001f, Mathf.Round(r * 1000f) / 1000f);
+        adoptC = !aborted && conf?.Winner == 0;
+        rec = adoptC ? Mathf.Max(0.001f, Mathf.Round(centre * 1000f) / 1000f) : current;
         if (Mathf.Abs(rec / current - 1f) < 0.02f) rec = current; // "keep": show exactly the current numbers
 
         int decisive = Steps.Count(s => s.Winner >= 0);
         atLimit = !aborted && flips == 0 && decisive >= 3 && decisive >= Steps.Count() - 1;
-        // A failed confirmation between two nearby values is expected noise (Medium); rejecting a big change is not (Low).
-        bool bigReject = confirmed && !adoptC && Mathf.Abs(Mathf.Log(centre / current)) > Mathf.Log(1.15f);
-        if (aborted || flips >= 3 || bigReject) confidence = "Low";
-        else if (flips <= 1 && decisive >= 2 && adoptC && (!confirmed || confT >= 0f)) confidence = "High";
+        if (!adoptC || flips >= 3) confidence = "Low";
+        else if (flips <= 1 && decisive >= 2) confidence = "High";
         else confidence = "Medium";
         bool es = Loc.Spanish;
         var why = new List<string>();
         if (aborted) why.Add(es ? "abortado" : "aborted");
         why.Add(es ? $"{decisive}/{Steps.Count()} decisivos" : $"{decisive}/{Steps.Count()} decisive");
         why.Add(es ? (flips == 1 ? "1 vuelta" : $"{flips} vueltas") : flips == 1 ? "1 flip" : $"{flips} flips");
-        if (confirmed) why.Add(es ? $"confirmación {confT:+0.0;-0.0}σ" : $"confirm {confT:+0.0;-0.0}σ");
+        if (confirmed) why.Add(adoptC ? (es ? "mejora en ambos pares" : "improved in both pairs")
+            : (es ? "evidencia insuficiente para el cambio" : "insufficient evidence for a change"));
         if (atLimit) why.Add(es ? "en el límite de búsqueda" : "at search limit");
         confidenceWhy = string.Join(" · ", why);
 
@@ -592,7 +597,7 @@ public sealed partial class SensFinderMode : TrainingMode
     {
         if (phase != Ph.Summary) yield break;
         bool es = Loc.Spanish;
-        if (aborted) yield return (es ? "Resultado" : "Result", es ? "abortado (fatiga)" : "aborted (fatigue)");
+        if (aborted) yield return (es ? "Resultado" : "Result", abortWhy);
         yield return (aborted ? (es ? "Provisional" : "Provisional") : (es ? "Sens de VALORANT" : "VALORANT sens"), es
             ? $"{rec.ToString("0.000", Inv)}  (antes {current.ToString("0.000", Inv)})"
             : $"{rec.ToString("0.000", Inv)}  (was {current.ToString("0.000", Inv)})");
@@ -602,11 +607,11 @@ public sealed partial class SensFinderMode : TrainingMode
         yield return (es ? "Confianza" : "Confidence", flips > 0
             ? (es ? $"{confidence} · {flips} vuelta{(flips == 1 ? "" : "s")}" : $"{confidence} · {flips} flip{(flips == 1 ? "" : "s")}")
             : confidence);
-        yield return (es ? "Media de pros" : "Pro median", es ? "eDPI 240 ≈ 54 cm/360" : "eDPI 240 ≈ 54 cm/360");
-        yield return (es ? "Repetir" : "Run again", atLimit ? (es ? "en unos días" : "in a few days") : (es ? "otro día" : "another day"));
-        yield return (atLimit ? (es ? "Después" : "Then") : (es ? "Si está dentro del 10%" : "If within 10%"),
-            atLimit ? (es ? "parte de la nueva sens" : "start from the new sens") : (es ? "usa la media" : "use the average"));
-        yield return (es ? "En VALORANT" : "In VALORANT", es ? "cámbiala tú" : "set it yourself");
+        var blocks = stages.SelectMany(s => s.Blocks).ToArray();
+        int hits = blocks.Sum(b => b.Hits), misses = blocks.Sum(b => b.Attempts - b.Hits);
+        yield return (es ? "Clics registrados" : "Recorded clicks", es ? $"{hits} aciertos · {misses} fallos" : $"{hits} hits · {misses} misses");
+        int timeouts = blocks.Sum(b => b.Timeouts), omissions = blocks.Sum(b => b.Omissions);
+        yield return (es ? "Blancos vencidos" : "Expired targets", es ? $"{timeouts} · {omissions} sin clic" : $"{timeouts} · {omissions} without a click");
     }
 
     public override IEnumerable<(string Label, Action Act)> ResultButtons()

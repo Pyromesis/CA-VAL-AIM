@@ -6,6 +6,21 @@ namespace CaValAim.UI;
 
 public partial class Hud
 {
+    void DrawSensitivitySearch(Vector2 size, float k, LiveSensitivity search)
+    {
+        bool es = Loc.Spanish;
+        var e = search.LastEvidence;
+        string evidence = e.Attempts > 0
+            ? es ? $"{e.Hits}/{e.Attempts} aciertos · {e.Over} largos · {e.Under} cortos"
+                 : $"{e.Hits}/{e.Attempts} hits · {e.Over} long · {e.Under} short"
+            : es ? "Reuniendo primeros tiros con blancos inmóviles" : "Collecting opening shots on stationary targets";
+        DrawMeasuredCoach(size, k, new LiveTip("SENS",
+            es ? $"Sensibilidad de prueba {search.Candidate:0.0000}" : $"Trial sensitivity {search.Candidate:0.0000}",
+            es ? $"Base {search.Baseline:0.0000} · esta sens {s.CurrentSensitivityPoints:+0;-0;0} pts"
+               : $"Baseline {search.Baseline:0.0000} · this setting {s.CurrentSensitivityPoints:+0;-0;0} pts",
+            evidence, true, 0));
+    }
+
     /// <summary>
     /// The live coach's current cue (<see cref="LiveCoach"/>): a quiet card under the top-right corner that slides in with
     /// an ease-out, holds, and fades. Accent bar red for a problem, green for a good streak; headline, the fix, and the

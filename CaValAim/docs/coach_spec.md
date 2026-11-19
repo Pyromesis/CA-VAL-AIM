@@ -270,9 +270,10 @@ This is a blind, performance-scored version of the PSA method that bisects in lo
 
 - **Order:** 4 blocks per step, ABBA or BAAB at random.
 - **Blinding:** the player only sees "Setting A / B".
-- **Block (40 s):** 12 flicks + 10 s of strafe tracking, with a 5 s rest between blocks. A step takes about 3 min.
-- **Flick set:** 12 flicks per step:
+- **Block:** 16 scored flicks and 10 s of strafe tracking, with a 5 s rest between blocks.
+- **Flick set:** 16 flicks per block:
   - 4 micro (3–8°), 4 medium (8–20°), 4 large (20–45°), with mixed yaw/pitch.
+  - 4 precision adjustments (0.8–3°) against a half-size target.
   - Head size r = 0.5° at 16 m. Timeout 2.0 s.
   - Both conditions get the same set, mirrored and shuffled.
 - **Tracking:** the same seeded Veteran-tier strafe script in both conditions.
@@ -282,23 +283,23 @@ This is a blind, performance-scored version of the PSA method that bisects in lo
 
 - **Flick:** z = ln(ID / MT′), with ID = log₂(A/2r + 1) and MT′ = t_hit − t_onset + 0.15 s per miss (a timeout counts as 2.0 s).
 - **Tracking:** logit(on-target %), clamped to [.02, .98].
-- **Block score:** standardise both within the step, then 0.65·z_flick + 0.35·z_track.
+- **Block score:** standardise each of wide flicks, precision adjustments and tracking within the step. Coarse weights are 0.45 / 0.25 / 0.30. Fine and confirmation weights are 0.35 / 0.40 / 0.25.
 
 ### Decision
 
-- d = mean(L) − mean(H), with SE from Welch's test on trial-level scores.
-- d/SE > 1 → L wins. d/SE < −1 → H wins. Otherwise it's a tie.
+- Compare condition scores in consecutive matched pairs. The same condition must win both pairs by more than 0.15 standardized composite units.
+- Each block must contain the full scored flick set, at least 50% target completion and two tracking windows. Welch diagnostics may appear in developer logs.
 - If one side wins, move C half a step toward it: C ← C·e^(∓h/2). On a tie, C stays.
 
 ### Stopping and confirmation
 
-- **Stop** after 5 steps, or after 3 ties in a row. Abort if accuracy drops below 50% (fatigue).
-- **Confirmation:** test the final C against the current S, 2 blind blocks each. Adopt C if d ≥ −0.5 SE; otherwise recommend the geometric mean of C and S.
-- **Confidence:** mark it low if the winning direction flipped 3 or more times. Recommend a second run on another day.
+- **Stop** after 5 steps, or after 3 ties in a row. Abort when scored target completion drops below 50%.
+- **Confirmation:** test the final candidate against the current setting, with two blind blocks per condition. Keep the current setting unless the candidate wins both pairs by the specified margin.
+- **Confidence:** treat the result as an operational recommendation. Consistent search directions give a stronger result. A second test on a different day checks repeatability.
 
 ### Presenting the result
 
-- Show "Set VALORANT Sensitivity to 0.xxx (was 0.yyy)", with eDPI, cm/360 and the pro median.
+- Show the confirmed or retained setting with eDPI, cm/360, clicks, misses and expired targets. A timeout without a click is an omission.
 - A "Use in CA-VAL-AIM" button sets AppSettings.UseSensOverride = true and SensOverride = S′.
 
 ## Sources

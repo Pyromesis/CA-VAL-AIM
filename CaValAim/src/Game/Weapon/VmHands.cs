@@ -25,26 +25,65 @@ public sealed record HandPlacement(Vector3 Wrist, Vector3 Fingers, Vector3 Back,
 }
 
 /// <summary>
-/// Builds a low-poly tactical glove + sleeve as one baked ArrayMesh (4 surfaces: glove, glove pads,
-/// sleeve, sleeve accent). <c>mirror</c> builds a left hand.
+/// Fits the glove to the grip pose and mounts the Blender forearm at the wrist.
 /// </summary>
 public static class VmHands
 {
+    static readonly Lazy<Mesh?> forearm = new(LoadForearm);
+
+    static Mesh? LoadForearm()
+    {
+        var scene = GD.Load<PackedScene>("res://assets/weapons/viewmodel_forearm.glb");
+        if (scene == null) return null;
+        var asset = scene.Instantiate();
+        try { return (asset as MeshInstance3D ?? asset.GetNodeOrNull<MeshInstance3D>("Forearm"))?.Mesh; }
+        finally { asset.Free(); }
+    }
+
     static Transform3D T(float x, float y, float z) => new(Basis.Identity, new Vector3(x, y, z));
     static Transform3D RX(float deg) => new(new Basis(Vector3.Right, Mathf.DegToRad(deg)), Vector3.Zero);
 
     /// <param name="elbow">forearm direction in (un-mirrored) hand space.</param>
-    public static ArrayMesh Build(HandShape s, bool mirror, Vector3 elbow, Material glove, Material pad, Material sleeve, Material accent)
+    /// <param name="mirrorView">Whether the entire viewmodel is in left-handed mode. Its sleeve details follow that view.</param>
+    public static ArrayMesh Build(HandShape s, bool mirror, Vector3 elbow, Material glove, Material pad, Material sleeve, Material accent,
+        Material skin, bool mirrorView)
     {
         var mg = new VmMesh(); var mp = new VmMesh(); var ms = new VmMesh(); var ma = new VmMesh();
+        var bareArm = new VmMesh();
         VmOrganicHand.AddHand(mg, mp, s, mirror);
-        VmOrganicHand.AddForearm(mg, ms, ma, s.ForearmLen, elbow, mirror);
+        if (forearm.Value is { } arm)
+        {
+            if (elbow.LengthSquared() < 1e-6f) elbow = new Vector3(0.35f, -0.45f, 0.82f).Normalized();
+            var mount = VmMesh.Look(-elbow, Mathf.Abs(elbow.Y) > 0.95f ? Vector3.Forward : Vector3.Up);
+            var fit = new Basis(Vector3.Right, Vector3.Up, Vector3.Back * (Mathf.Max(0.20f, s.ForearmLen) / 0.5f));
+            var pose = new Transform3D(mount * fit, Vector3.Zero);
+            if (mirror) pose = VmMesh.Mirror(pose);
+            if (mirrorView)
+                pose *= new Transform3D(new Basis(Vector3.Left, Vector3.Up, Vector3.Back), Vector3.Zero);
+            for (int i = 0; i < arm.GetSurfaceCount(); i++)
+            {
+                var destination = arm.SurfaceGetMaterial(i)?.ResourceName.ToString() switch
+                {
+                    "Cuff" => mg,
+                    "Panel" => mp,
+                    "Trim" => ma,
+                    "Skin" => bareArm,
+                    _ => ms,
+                };
+                var arrays = arm.SurfaceGetArrays(i);
+                destination.Add(arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array(),
+                    arrays[(int)Mesh.ArrayType.Normal].AsVector3Array(), arrays[(int)Mesh.ArrayType.Index].AsInt32Array(),
+                    pose, fixWinding: false);
+            }
+        }
+        else VmOrganicHand.AddForearm(mg, ms, ma, s.ForearmLen, elbow, mirror);
 
         var mesh = new ArrayMesh();
         mg.AddTo(mesh, glove);
         mp.AddTo(mesh, pad);
         ms.AddTo(mesh, sleeve);
         ma.AddTo(mesh, accent);
+        bareArm.AddTo(mesh, skin);
         return mesh;
     }
 

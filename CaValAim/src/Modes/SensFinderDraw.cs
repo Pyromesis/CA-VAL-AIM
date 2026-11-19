@@ -133,13 +133,9 @@ public sealed partial class SensFinderMode
         var tag = new Rect2(x0, y + 30 * k, Gfx.TextW(UiTheme.HudWide, tagText, hs) + 18 * k, 22 * k);
         c.DrawRect(tag, aborted ? UiTheme.Warn : UiTheme.Accent);
         Gfx.Text(c, UiTheme.HudWide, tagText, tag.Position.X + 9 * k, Gfx.Mid(tag.GetCenter().Y, hs), hs, aborted ? Colors.Black : UiTheme.Text);
-        string title = aborted
-            ? (KeepSens
-                ? Loc.Spanish ? $"CONSERVA {current:0.000} POR AHORA" : $"KEEP {current:0.000} FOR NOW"
-                : Loc.Spanish ? $"PROVISIONAL {rec:0.000}: CONSERVA {current:0.000} POR AHORA" : $"PROVISIONAL {rec:0.000}: KEEP {current:0.000} FOR NOW")
-            : KeepSens
-                ? Loc.Spanish ? $"CONSERVA TU SENSIBILIDAD: {rec:0.000}" : $"KEEP YOUR SENSITIVITY: {rec:0.000}"
-                : Loc.Spanish ? $"PON LA SENSIBILIDAD DE VALORANT EN {rec:0.000}  (ANTES {current:0.000})" : $"SET VALORANT SENSITIVITY TO {rec:0.000}  (WAS {current:0.000})";
+        string title = KeepSens
+            ? Loc.Spanish ? $"CONSERVA TU SENSIBILIDAD · {rec:0.000}" : $"KEEP YOUR SENSITIVITY · {rec:0.000}"
+            : Loc.Spanish ? $"AJUSTE CONFIRMADO · {rec:0.000}  (ANTES {current:0.000})" : $"CONFIRMED SETTING · {rec:0.000}  (WAS {current:0.000})";
         Gfx.TextFit(c, UiTheme.Display, title, x0, y + 100 * k, UiTheme.Fs(52, k), UiTheme.Text, x1 - x0);
         c.DrawRect(new Rect2(x0, y + 122 * k, x1 - x0, 1), new Color(UiTheme.Text, 0.1f));
 
@@ -155,16 +151,16 @@ public sealed partial class SensFinderMode
         int ns = UiTheme.Fs(18, k);
         string n1 = aborted ? abortWhy
             : Loc.Spanish
-                ? "VALORANT no se cambia solo: ponla tú en VALORANT › Ajustes › General › Ratón › Sensibilidad: apuntado."
-                : "VALORANT isn't changed automatically: set it yourself in VALORANT › Settings › General › Mouse › Sensitivity: Aim.";
+                ? "Al continuar verás los aciertos, fallos y objetivos vencidos de los bloques completados."
+                : "Continue to see hits, misses and expired targets from completed blocks.";
         Gfx.TextFit(c, UiTheme.Body, n1, x0, ny, ns, aborted ? UiTheme.Warn : UiTheme.Text, x1 - x0);
         string n2 = atLimit
             ? Loc.Spanish
                 ? $"Cada paso apuntó {(lastDir < 0 ? "más bajo" : "más alto")}: tu mejor valor puede quedar fuera del alcance de una prueba (±50%). Úsala unos días y repite el buscador."
                 : $"Every step pointed {(lastDir < 0 ? "lower" : "higher")}: your best may be beyond one run's reach (±50%). Use this for a few days, then run the finder again."
             : Loc.Spanish
-                ? "Repite el Buscador otro día. Si las dos pruebas coinciden dentro del 10%, usa la media de las dos."
-                : "Run the Sens Finder again on another day. If both runs agree within 10%, use the average of the two.";
+                ? "Repite el Buscador otro día para comprobar que el resultado se repite."
+                : "Run the Sens Finder again on another day to see whether the result repeats.";
         Gfx.TextFit(c, UiTheme.Body, n2, x0, ny + 30 * k, ns, atLimit ? UiTheme.Warn : UiTheme.Dim, x1 - x0);
         if (phaseT > 3f)
         {
@@ -241,8 +237,7 @@ public sealed partial class SensFinderMode
             Gfx.Text(c, UiTheme.HudWide, name, r.Position.X + 8 * k, Gfx.Mid(cy, ls), ls, UiTheme.Text);
             float xa = X(s.Sens[0]), xb = X(s.Sens[1]);
             c.DrawLine(new Vector2(Mathf.Min(xa, xb), cy), new Vector2(Mathf.Max(xa, xb), cy), new Color(UiTheme.Text, 0.25f), Mathf.Max(1, 2 * k));
-            float t = (float)s.Result!.T;
-            int win = s.Confirm ? (t >= -0.5f ? 0 : 1) : s.Winner;
+            int win = s.Winner;
             if (!s.Confirm)
             {
                 // centre tick and the move to the new centre
@@ -266,14 +261,13 @@ public sealed partial class SensFinderMode
                 Gfx.TextC(c, UiTheme.Body, lbl, p.X, cy - 13 * k, UiTheme.Fs(13, k), w ? UiTheme.Text : UiTheme.Dim);
             }
             string verdict = s.Confirm
-                ? win == 0 ? (es ? $"LA NUEVA AGUANTA {t:+0.0;-0.0}σ" : $"NEW HOLDS {t:+0.0;-0.0}σ")
-                           : (es ? $"EMPATE {t:+0.0;-0.0}σ" : $"SPLIT {t:+0.0;-0.0}σ")
-                : win == 0 ? (es ? $"MÁS BAJA {t:+0.0;-0.0}σ" : $"LOWER {t:+0.0;-0.0}σ")
-                : win == 1 ? (es ? $"MÁS ALTA {t:+0.0;-0.0}σ" : $"HIGHER {t:+0.0;-0.0}σ")
-                : (es ? $"IGUAL {t:+0.0;-0.0}σ" : $"TIE {t:+0.0;-0.0}σ");
+                ? win == 0 ? (es ? "MEJORA REPETIDA" : "REPEATED GAIN") : (es ? "CONSERVA LA ACTUAL" : "KEEP BASELINE")
+                : win == 0 ? (es ? "MÁS BAJA" : "LOWER")
+                : win == 1 ? (es ? "MÁS ALTA" : "HIGHER")
+                : (es ? "SIN GANADOR" : "NO WINNER");
             var vc = win < 0 || (s.Confirm && win == 1) ? UiTheme.Warn : UiTheme.Good;
             Gfx.TextR(c, UiTheme.HudWide, verdict, r.End.X - 8 * k, Gfx.Mid(cy - 8 * k, ts), ts, vc);
-            var res = s.Result;
+            var res = s.Result!;
             Gfx.TextR(c, UiTheme.Body,
                 es ? $"flicks {res.DFlick:+0.00;-0.00} · micro {res.DMicro:+0.00;-0.00} · seguimiento {res.DTrack:+0.00;-0.00}"
                    : $"flicks {res.DFlick:+0.00;-0.00} · micro {res.DMicro:+0.00;-0.00} · tracking {res.DTrack:+0.00;-0.00}",

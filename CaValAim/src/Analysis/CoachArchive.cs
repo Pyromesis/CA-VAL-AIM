@@ -11,6 +11,7 @@ public sealed class CoachRunInfo
     public string Mode = "";
     public int Tier;
     public float Sens;
+    public string SensSection = "";
     public int Dpi;
     public string Weapon = "";
     public string Map = "";
@@ -18,6 +19,7 @@ public sealed class CoachRunInfo
     public float Duration;
     public string TelemetryFile = "";
     public int Frames, Shots, Events;
+    public SensitivityTrial? Comparison;
 }
 
 /// <summary>
@@ -69,6 +71,7 @@ public sealed class CoachArchive
             Mode = t.Mode,
             Tier = t.Tier,
             Sens = t.Sens,
+            SensSection = t.SensSection,
             Dpi = t.Dpi,
             Weapon = t.Weapon,
             Map = t.Map,
@@ -78,6 +81,7 @@ public sealed class CoachArchive
             Frames = t.Frames.Count,
             Shots = t.Shots.Count,
             Events = t.Events.Count,
+            Comparison = t.Comparison,
         },
         Review = review,
     };

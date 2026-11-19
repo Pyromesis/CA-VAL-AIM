@@ -2,6 +2,21 @@
 
 ## [Unreleased]
 
+## [2.11.0] - 2026-11-18
+
+### Added
+
+- Save sensitivity profiles by drill category, keep a local history of sensitivity and shot outcomes, and use the evidence to recommend a general setting.
+- Start or stop sensitivity search from the pause menu. It stays on until you turn it off and adjusts after a consistent pattern of short or long flicks.
+- Free warm-up suspends coaching and practice scoring. Coached rounds award points for hits, subtract points for misses and show feedback and a practice rank when a calibrated rank is unavailable.
+
+### Changed
+
+- Group settings by category and open them directly from a paused round.
+- Simplify the countdown and lower HUD, and use the full screen for round results, next-attempt advice and replay actions.
+- Rebuild the first-person forearm mesh and add a softer audio mix with separate controls for shots and hit or miss cues.
+- Refine movement and stopping behavior and expand the coach's training analysis.
+
 ## [2.10.0] - 2026-11-12
 
 ### Added

@@ -26,13 +26,23 @@ public static class TrainingCatalog
         "ReactionGames" => "Reaction minigames", "Reflex" => "Reaction and acquisition", _ => "Combat, movement and utility",
     };
 
-    public static string SectionOf(TrainingMode mode) => mode.Category switch
+    public static string SectionOf(TrainingMode mode) => mode.Key switch
     {
-        "Flick" => "Precision", "Aim" => "Precision", "Coach" => "Sensitivity",
-        "Other" => mode.Is2D ? "Reflex" : "Sensitivity",
-        "Micro" or "Sensitivity" or "Tracking" or "Reflex" or "Precision" or "Dynamic"
-            or "Reactive" or "Control" or "Switching" or "ReactionGames" or "Technique" => mode.Category,
-        _ => "Tactical",
+        "tracking" => "Tracking",
+        "airtrack" => "Control",
+        "reacttrack" or "anti-mirror" => "Reactive",
+        "microshot" => "Micro",
+        "switch" => "Switching",
+        "popup" => "Reflex",
+        _ => mode.Category switch
+        {
+            "Flick" or "Aim" => "Precision",
+            "Coach" => "Sensitivity",
+            "Other" => mode.Is2D ? "Reflex" : "Sensitivity",
+            "Micro" or "Sensitivity" or "Tracking" or "Reflex" or "Precision" or "Dynamic"
+                or "Reactive" or "Control" or "Switching" or "ReactionGames" or "Technique" => mode.Category,
+            _ => "Tactical",
+        },
     };
 
     public static readonly AimVariant[] All = Build().ToArray();

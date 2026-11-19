@@ -11,6 +11,7 @@ The import cache (`.godot/imported`) is ≈ 250 MB.
 | `assets/characters/` | 6 rigged character glTFs (4 looks + 2 colour variants), shared textures, BoneMap | Quaternius (Universal Base Characters + Modular Character Outfits – Fantasy), CC0 |
 | `assets/characters/animations/` | Universal Animation Library (Standard), imported as **AnimationLibrary** | Quaternius, CC0 |
 | `assets/weapons/` | 4 gun FBX + 4 normalized wrapper scenes | Quaternius Ultimate Gun Pack, CC0 |
+| `assets/weapons/viewmodel_forearm.glb` | First-person forearm with exposed skin, rolled sleeve and layered wrist cuff | Original mesh generated in Blender with `tools/build-viewmodel-arm.py` |
 | `assets/audio/` | gunshots, reloads, impacts, footsteps, UI | Free Firearm Sound Library / OpenGameArt / Kenney, CC0 |
 
 ---

@@ -2,6 +2,21 @@
 
 ## [Sin publicar]
 
+## [2.11.0] - 2026-11-18
+
+### Añadido
+
+- Perfiles de sensibilidad por categoría, historial local de ajustes y resultados de disparos, y una recomendación general basada en esos datos.
+- Activa o detén la búsqueda de sensibilidad desde la pausa. Sigue activa hasta que la desactives y ajusta el valor cuando detecta un patrón de flicks cortos o largos.
+- El calentamiento libre suspende el coach y los puntos de práctica. En las rondas evaluadas, los aciertos suman, los fallos restan y se muestra un rango de práctica cuando falta un rango calibrado.
+
+### Cambiado
+
+- Ajustes agrupados por categoría y accesibles directamente desde la pausa.
+- Cuenta atrás e indicadores inferiores más limpios, y resultados a pantalla completa con consejos para el próximo intento y acceso a la repetición.
+- Nueva malla del antebrazo en primera persona y mezcla de audio suave con controles separados para disparos, aciertos y fallos.
+- Movimiento y frenado ajustados, con análisis de entrenamiento más detallado en el coach.
+
 ## [2.10.0] - 2026-11-12
 
 ### Añadido

@@ -3,6 +3,7 @@ using Godot;
 using CaValAim.Analysis;
 using CaValAim.Core;
 using CaValAim.Game;
+using CaValAim.Modes;
 
 namespace CaValAim.UI;
 
@@ -118,8 +119,10 @@ internal static class SensLabText
             : "Play Head Flicks and Strafe Tracking to fill the lab with flick and tracking data.",
     };
 
-    public static string Metrics(SensBlock b) =>
-        Metrics(b.Flicks > 0 || b.OffTarget > 0, b.TrackSeconds > 0, b.OvershootShare, b.UndershootShare, b.Jitter);
+    public static string Metrics(SensBlock b) => b.Flicks > 0 || b.OffTarget > 0 || b.TrackSeconds > 0
+        ? Metrics(b.Flicks > 0 || b.OffTarget > 0, b.TrackSeconds > 0, b.OvershootShare, b.UndershootShare, b.Jitter)
+        : b.Shots > 0 ? (Es ? $"{b.Hits}/{b.Shots} aciertos" : $"{b.Hits}/{b.Shots} hits")
+        : b.Cleared > 0 ? (Es ? $"{b.Cleared} blancos completados" : $"{b.Cleared} targets cleared") : Verdict(b.Verdict);
 
     public static string Metrics(SensFeedback f) =>
         f.HasFlickData ? (Es ? $"{MathF.Round(f.OffTarget * f.OvershootShare):0}/{f.Flicks} sobrepasos · {MathF.Round(f.OffTarget * f.UndershootShare):0}/{f.Flicks} cortos"
@@ -197,6 +200,7 @@ public partial class SensLabScreen : ScreenBase
     static readonly CultureInfo Inv = CultureInfo.InvariantCulture;
     SkillProfile? profile;
     float spinT;
+    public string SelectedSection { get; set; } = "";
 
     public override void _Ready()
     {
@@ -248,15 +252,23 @@ public partial class SensLabScreen : ScreenBase
             drills.AddChild(Btn(Loc.Spanish ? es : en, VButton.Look.Secondary, () => CoachData.StartDrill(key), 205, 40, 15));
         col.AddChild(drills);
 
+        var scroll = new ScrollContainer { HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled, SizeFlagsVertical = SizeFlags.ExpandFill };
+        col.AddChild(scroll);
+        var body = VBox(16 * k);
+        body.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        scroll.AddChild(body);
+        body.AddChild(CategorySettings());
+
         if (profile == null)
         {
-            col.AddChild(Lbl("LOADING…", UiTheme.HudWide, 18, UiTheme.Dim));
+            body.AddChild(Lbl("LOADING…", UiTheme.HudWide, 18, UiTheme.Dim));
             return;
         }
+        if (SelectedSection.Length > 0) return;
 
         var lab = profile.SensLab;
-        var compare = HBox(10 * k);
-        col.AddChild(compare);
+        var compare = new HFlowContainer();
+        body.AddChild(compare);
         float sens = Main.I.Sens;
         foreach (float factor in new[] { 0.95f, 1.05f })
         {
@@ -275,15 +287,9 @@ public partial class SensLabScreen : ScreenBase
         compare.AddChild(tryCustom);
         if (lab == null || !lab.HasData)
         {
-            col.AddChild(EmptyState(profile));
+            body.AddChild(EmptyState(profile));
             return;
         }
-
-        var scroll = new ScrollContainer { HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled, SizeFlagsVertical = SizeFlags.ExpandFill };
-        col.AddChild(scroll);
-        var body = VBox(16 * k);
-        body.SizeFlagsHorizontal = SizeFlags.ExpandFill;
-        scroll.AddChild(body);
 
         var cur = lab.Current ?? lab.History.LastOrDefault();
         if (cur == null)
@@ -315,6 +321,114 @@ public partial class SensLabScreen : ScreenBase
         actions.AddChild(Btn("AIM COACH", VButton.Look.Secondary, Main.I.ShowProfile, 200, 48, 19));
         actions.AddChild(Btn("BACK", VButton.Look.Ghost, Main.I.ShowMenu, 150, 48, 18));
         body.AddChild(Spacer(0, 10 * k));
+    }
+
+    Control CategorySettings()
+    {
+        string L(string es, string en) => Loc.Spanish ? es : en;
+        var app = Main.I;
+        int dpi = app.Settings.Dpi;
+        var profiles = app.Settings.CategorySensitivities;
+        var panel = new VPanel { K = K, Title = L("SENSIBILIDAD POR CATEGORÍA", "SENSITIVITY BY CATEGORY") };
+        var picker = new OptionButton { CustomMinimumSize = new Vector2(300 * K, 40 * K) };
+        var sections = TrainingCatalog.Sections.Where(SensitivityProfiles.Supports).Prepend("").ToArray();
+        foreach (string key in sections)
+            picker.AddItem(key.Length == 0 ? L("General", "General") : TrainingCatalog.SectionName(key));
+        picker.Select(Math.Max(0, Array.IndexOf(sections, SelectedSection)));
+        picker.ItemSelected += index => { SelectedSection = sections[(int)index]; Rebuild(); };
+        panel.AddChild(picker);
+
+        void Line(string content)
+        {
+            var label = Lbl(content, UiTheme.Body, 15, UiTheme.Text);
+            label.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+            panel.AddChild(label);
+        }
+        void Refresh()
+        {
+            CoachData.Request();
+            profile = CoachData.Ready;
+            Rebuild();
+        }
+        var tests = SensitivityHistory.Tests();
+        var combined = SensitivityProfiles.Combine(profiles, dpi, tests, app.Tier);
+        if (combined.Count >= 2)
+        {
+            Line(L($"General calculada {combined.Value:0.0000} · {PlayerView.Cm360(combined.Value, dpi):0.0} cm/360 · {combined.Count} categorías, {combined.Verified} confirmadas A/B a {dpi} DPI. Rango {combined.Low:0.0000}–{combined.High:0.0000}.",
+                $"Combined {combined.Value:0.0000} · {PlayerView.Cm360(combined.Value, dpi):0.0} cm/360 · {combined.Count} categories, {combined.Verified} A/B verified at {dpi} DPI. Range {combined.Low:0.0000}–{combined.High:0.0000}."));
+            Line(combined.Tests > 0
+                ? L($"El coach ponderó {combined.Tests} comparaciones A/B concluyentes con el DPI y nivel actuales.",
+                    $"The coach weighted {combined.Tests} decisive A/B comparisons at the current DPI and tier.")
+                : L("Estimación provisional basada en los perfiles guardados.", "Provisional estimate based on saved profiles."));
+            var apply = Btn(L("USAR COMO GENERAL", "USE AS GENERAL"), VButton.Look.Secondary, () =>
+            {
+                app.Settings.UseSensOverride = true;
+                app.Settings.SensOverride = combined.Value;
+                app.Settings.Save();
+                Refresh();
+            }, 216, 38, 14);
+            apply.Disabled = SensLab.SameSens(combined.Value, app.Sens);
+            panel.AddChild(apply);
+        }
+        else Line(L("Guarda al menos dos categorías para calcular una sensibilidad general.",
+            "Save at least two categories to calculate a combined sensitivity."));
+
+        if (SelectedSection.Length == 0)
+        {
+            Line(L($"Sensibilidad general activa {app.Sens:0.0000}. Se usa en categorías sin perfil propio.",
+                $"Active general sensitivity {app.Sens:0.0000}. It is used when a category has no profile."));
+            return panel;
+        }
+        string section = SelectedSection;
+        var saved = profiles?.GetValueOrDefault(section);
+        float current = app.SensFor(section);
+        string source = saved == null ? L("usa la general", "using general")
+            : saved.Verified && saved.Dpi == dpi ? L("confirmada en A/B", "verified in A/B")
+            : saved.Dpi != dpi ? L("convertida al DPI actual", "converted to current DPI") : L("manual", "manual");
+        Line(L($"Activa {current:0.0000} · {PlayerView.Cm360(current, dpi):0.0} cm/360 · {source}",
+            $"Active {current:0.0000} · {PlayerView.Cm360(current, dpi):0.0} cm/360 · {source}"));
+        int archived = tests.Count(t => t.Category == section);
+        if (archived > 0) Line(L($"{archived} pruebas A/B archivadas.", $"{archived} archived A/B tests."));
+        float candidate = MathF.Min(SensInput.Max, current * 1.05f);
+        SensLabData? history = null;
+        if (profile?.SectionSensitivity.TryGetValue(section, out var data) == true)
+        {
+            history = data.Lab;
+            if (data.Lab.Current is { HasData: true } b)
+            {
+                Line($"{SensLabText.Runs(b.Runs)} · {SensLabText.Metrics(b)}");
+                if ((b.Flicks > 0 || b.TrackSeconds > 0) && b.Shots > 0)
+                    Line(L($"{b.Hits} aciertos · {b.Shots - b.Hits} fallos", $"{b.Hits} hits · {b.Shots - b.Hits} misses"));
+                if (b.Shots > 0)
+                {
+                    int points = 10 * b.Hits - 5 * (b.Shots - b.Hits);
+                    Line(L($"Puntos de esta sensibilidad {points:+0;-0;0} · +10 por acierto · −5 por fallo",
+                        $"Sensitivity points {points:+0;-0;0} · +10 per hit · −5 per miss"));
+                }
+            }
+            if (data.Lab.Comparison is { } comparison) Line(comparison.Describe(Loc.Spanish));
+            if (data.Advice.Direction != "keep" && SensitivityProfiles.Valid(data.Advice.RecommendedSens))
+            {
+                candidate = data.Advice.RecommendedSens;
+                Line(L($"Candidata del coach {candidate:0.0000} · {SensLabText.ConfidenceCaption(data.Advice.Confidence)}",
+                    $"Coach candidate {candidate:0.0000} · {SensLabText.ConfidenceCaption(data.Advice.Confidence)}"));
+            }
+        }
+        if (SensLab.SameSens(candidate, current)) candidate = current * .95f;
+        var row = new HFlowContainer();
+        var input = new SpinBox { MinValue = SensInput.Min, MaxValue = SensInput.Max, Step = .0001,
+            Value = candidate, CustomMinimumSize = new Vector2(120 * K, 40 * K) };
+        row.AddChild(input);
+        row.AddChild(Btn(L("GUARDAR VALOR", "SAVE VALUE"), VButton.Look.Secondary,
+            () => { app.SetCategorySens(section, new CategorySensitivity((float)input.Value, dpi, false)); Refresh(); }, 166, 40, 14));
+        row.AddChild(Btn(L("COMPARAR A/B", "COMPARE A/B"), VButton.Look.Primary,
+            () => PracticeScreen.Compare((float)input.Value, section), 166, 40, 14));
+        if (saved != null)
+            row.AddChild(Btn(L("USAR LA GENERAL", "USE GENERAL"), VButton.Look.Ghost,
+                () => { app.SetCategorySens(section, null); Refresh(); }, 166, 40, 14));
+        panel.AddChild(row);
+        if (history is { History.Count: > 0 }) panel.AddChild(History(history));
+        return panel;
     }
 
     Control EmptyState(SkillProfile p)

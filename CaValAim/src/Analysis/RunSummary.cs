@@ -19,7 +19,7 @@ static class RunSummary
         return new string(a);
     }
 
-    /// <summary>Modes whose telemetry the coach analyses (everything else gets the "doesn't feed the coach" note).</summary>
+    /// <summary>Modes with their own instructions for collecting a more informative sample.</summary>
     static readonly HashSet<string> CoachModes = new()
     {
         "flickx", "microx", "reflex", "trackv", "airtrack", "reacttrack", "reactlab",
@@ -34,8 +34,8 @@ static class RunSummary
     {
         mode = RunAnalysis.Base(mode);
         if (!CoachModes.Contains(mode))
-            return S("This drill doesn't feed the aim coach yet — your score and accuracy above are the measure. Head Flicks, Spidershot, Gridshot, Strafe Tracking, the bot drills and the spray drills all get a detailed review.",
-                "Este drill todavía no alimenta al entrenador de puntería: tu puntuación y precisión de arriba son la medida. Flicks a la Cabeza, Spidershot, Gridshot, Strafe Tracking, los drills con bots y los de spray sí reciben una revisión detallada.");
+            return S("Complete several attempts using the drill instructions to give the coach a useful sample.",
+                "Completa varios intentos siguiendo las instrucciones para que el coach tenga una muestra útil.");
         string need = mode switch
         {
             "flick" or "microshot" or "popup" or "microx" or "flickx" or "reflex" => S("hit at least 5 targets", "impacta al menos 5 objetivos"),

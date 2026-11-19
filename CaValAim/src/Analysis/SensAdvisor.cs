@@ -79,7 +79,7 @@ static class SensAdvisor
         return (-0.18f * h * c, h, c, sig);
     }
 
-    public sealed record RunInfo(DateTime When, float Sens, Dictionary<string, float> M, string Context = "");
+    public sealed record RunInfo(DateTime When, float Sens, Dictionary<string, float> M, string Context = "", string Section = "");
     /// <summary>Latest Sens Finder recommendation (confidence 0 low, 1 medium, 2 high).</summary>
     public sealed record FinderResult(DateTime When, float Sens, int Confidence);
 

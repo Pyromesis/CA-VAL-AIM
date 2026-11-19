@@ -218,7 +218,8 @@ public static class CoachData
     static string Key()
     {
         var app = Main.I;
-        return string.Create(CultureInfo.InvariantCulture, $"{app.Stats.Runs.Count}|{app.Sens:R}|{app.Settings.Dpi}|{app.Tier}|{FakeVariant}");
+        string sections = string.Join("|", TrainingCatalog.Sections.Select(s => app.SensFor(s).ToString("R", CultureInfo.InvariantCulture)));
+        return string.Create(CultureInfo.InvariantCulture, $"{app.Stats.Runs.Count}|{app.Sens:R}|{app.Settings.Dpi}|{app.Tier}|{FakeVariant}|{sections}");
     }
 
     /// <summary>Starts the analysis (or keeps the cached / running one if nothing changed). Main thread only.</summary>
@@ -233,6 +234,8 @@ public static class CoachData
         float sens = app.Sens;
         int dpi = app.Settings.Dpi;
         int tier = app.Tier;
+        var sectionSens = TrainingCatalog.Sections.Where(s => !SensLab.SameSens(app.SensFor(s), sens))
+            .ToDictionary(s => s, app.SensFor);
         string? fake = FakeVariant;
         bool saves = app.SavesData; // dev runs never touch the player's recordings
         task = Task.Run(() =>
@@ -245,7 +248,7 @@ public static class CoachData
                     return CoachFake.Profile(fake, sens, dpi);
                 }
                 LastError = null;
-                var profile = Coach.BuildProfile(snapshot, sens, dpi, tier);
+                var profile = Coach.BuildProfile(snapshot, sens, dpi, tier, sectionSens);
                 // Refresh examples from recent recordings without deleting the local archive.
                 if (saves)
                 {

@@ -10,7 +10,10 @@ public sealed class AppSettings
     public bool UseSensOverride;
     public float SensOverride = 0.4f;
     public float ValorantSens;         // last sensitivity imported from VALORANT (0 = none yet): lets a CUSTOM copy follow it
-    public int Dpi = 800;              // only used to show eDPI and cm/360
+    public int Dpi = 800;              // measures physical sensitivity and preserves it when category profiles use another DPI
+    public Dictionary<string, CategorySensitivity> CategorySensitivities = new();
+    public bool LiveSensitivityEnabled;
+    public Dictionary<string, SensitivitySearchValue> LiveSensitivityValues = new();
     public int EnemyColorOverride = -1;
     public int WindowModeOverride = -1;
     public int MonitorOverride = -1;   // -1 = same monitor as Valorant
@@ -30,8 +33,12 @@ public sealed class AppSettings
     public int DmPlayers = 12;         // Deathmatch lobby size including you (4..12)
     public float DmMinutes = 9f;       // Deathmatch length in minutes (VALORANT: 9; first to 40 kills)
     public bool LiveCoach = true;      // the coach's cues during a run (Analysis/LiveCoach)
+    public bool UnscoredWarmup;
     public int GuideLine = 0;          // guide to the nearest target: 0 = off, 1 = aim line, 2 = aim line + route on map drills (GuideSession)
     public float Volume = 0.5f;
+    public bool SoftGameAudio = true;
+    public float ShotVolume = 0.75f;
+    public float FeedbackVolume = 0.85f;
     public bool UiSounds = true;       // interface sounds (menu clicks, confirmations); hover is always silent (1.18)
     public float UiVolume = 0.35f;     // interface sounds' volume, relative to Volume
     public bool Outlines = true;      // enemy outline + fresnel (Valorant: "Hide outlines and fresnel" off)
@@ -100,7 +107,11 @@ public sealed class AppSettings
     public void Save()
     {
         if (ReadOnly || readFailed) return;
-        try { Paths.TryWriteAllText(FilePath, JsonSerializer.Serialize(this, Json)); }
+        try
+        {
+            if (Paths.TryWriteAllText(FilePath, JsonSerializer.Serialize(this, Json)))
+                SensitivityHistory.RecordConfiguration(this);
+        }
         catch (Exception e) { Log.Error($"Saving settings failed: {e.Message}"); }
     }
 }

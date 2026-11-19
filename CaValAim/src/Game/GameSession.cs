@@ -39,7 +39,14 @@ public partial class GameSession : Node3D, IGame
     public int? ComparisonSeed { get; init; }
     public bool? SessionRecoil { get; init; }
     public bool GuidedPractice { get; init; }
+    public SensitivityTrial? SensComparisonTrial { get; init; }
     public bool WarmupSession { get; init; }
+    public bool CoachSuspended { get; private set; }
+    public bool CanToggleWarmup => !Demo && !WarmupSession && !GuidedPractice && OnFinished == null
+        && SensComparisonTrial == null && Mode.Key is not ("sensfinder" or "xhairfinder");
+    public int TrainingPoints => feedbackCounter?.Score ?? 0;
+    public int CurrentSensitivityPoints => feedbackCounter?.PointsAt(CurrentSens) ?? 0;
+    TrainingFeedbackCounter? feedbackCounter;
     public float Now { get; private set; }
     public Node3D World { get; private set; } = null!;
     public IReadOnlyList<Box> Solid => solid;
@@ -273,6 +280,7 @@ public partial class GameSession : Node3D, IGame
 
     public void Restart()
     {
+        SaveInterruptedSensitivityTrace();
         envRoot?.QueueFree();
         World?.QueueFree();
         viewmodel?.QueueFree();
@@ -284,8 +292,12 @@ public partial class GameSession : Node3D, IGame
         playedTier = Math.Clamp(TierOverride ?? Mode.PreferredTier ?? Main.I.Tier, 0, 4); // lock the run's difficulty
         ProgressiveFrom = ProgressiveTo = null;
         Mode.Attach(this); // ExtraSolids / Map below already follow the session tier
+        CoachSuspended = WarmupSession || (CanToggleWarmup && Main.I.Settings.UnscoredWarmup);
         if (Adaptive is { Trials: > 0 } stair) Adaptive = stair.Fresh(); // a restarted run adapts from the start level again
         TrialSens = SessionSens; // null unless a routine (warm-up sens shifter) set one
+        SensSection = SensitivityProfiles.For(Mode);
+        SensSearch = null;
+        loggedSearchEvidence = -1;
         TrialCrosshair = null;
         ForcedScope = null;
         Mover = new Mover();
@@ -348,15 +360,19 @@ public partial class GameSession : Node3D, IGame
         GetViewport().Disable3D = Mode.Is2D;
         Telemetry = new RunTelemetry
         {
-            Mode = Mode.Key, Tier = Tier, Sens = SessionSens ?? Main.I.Sens, Dpi = Main.I.Settings.Dpi,
+            Mode = Mode.Key, Tier = Tier, Sens = CurrentSens, SensSection = SensSection, Dpi = Main.I.Settings.Dpi,
             Weapon = chosenWeapon.ToString(), Map = Mode.Map?.Key ?? "range", When = DateTime.Now,
             ZoomSensMult = ZoomSensMultFor(Weapons.Get(chosenWeapon)),
+            Comparison = SensComparisonTrial,
+            TrackFeedback = Mode.SimKind == "track",
         };
+        feedbackCounter = !Demo && !CoachSuspended ? new TrainingFeedbackCounter(TrainingFeedbackCounter.Tracks(Telemetry)) : null;
         // The coach during the run (Analysis/LiveCoach): never in a preview; every drill with a gun or a reaction test.
         lastRecordedSens = Telemetry.Sens;
-        Live = !Demo && (GuidedPractice || Main.I.Settings.LiveCoach)
+        Live = !Demo && !CoachSuspended && SensComparisonTrial == null && (GuidedPractice || Main.I.Settings.LiveCoach)
             && Mode.Key is not ("sensfinder" or "xhairfinder") ? new Analysis.LiveCoach(Telemetry, Mode.Key, Mode.Movement) : null;
-        replay = Demo ? null : StartReplay(extras); // before Begin: it spawns the first bots / targets
+        if (Main.I.Settings.LiveSensitivityEnabled && CanSearchSensitivity) StartSensitivitySearch();
+        replay = Demo || CoachSuspended ? null : StartReplay(extras); // before Begin: it spawns the first bots / targets
         Mode.Begin(this);
         if (Main.I.Dev && !Demo) DevAdsArgs(); // --force-ads (AdsSession.cs)
         if (Demo && Mode.Key == "counterstrafe") Mover.KeyOverride = DemoStrafeKey;
@@ -416,13 +432,17 @@ public partial class GameSession : Node3D, IGame
             if (k.Keycode == Key.Escape)
             {
                 if (State is St.Countdown or St.Running) Pause();
-                else if (State == St.Paused) Resume();
+                else if (State == St.Paused)
+                {
+                    if (hud.CloseOptions()) GetViewport().SetInputAsHandled();
+                    else Resume();
+                }
                 else if (State == St.Results) Main.I.ShowMenu();
                 return;
             }
             if (k.Keycode == Key.R && State == St.Results) { Restart(); return; }
         }
-        OnBindEvent(e, Main.I.Valorant.Binds);
+        if (State is St.Countdown or St.Running) OnBindEvent(e, Main.I.Valorant.Binds);
     }
 
     /// <summary>
@@ -529,13 +549,36 @@ public partial class GameSession : Node3D, IGame
         Input.MouseMode = Input.MouseModeEnum.Visible;
     }
 
+    public void ToggleWarmup()
+    {
+        if (!CanToggleWarmup) return;
+        var settings = Main.I.Settings;
+        settings.UnscoredWarmup = !CoachSuspended;
+        settings.Save();
+        Restart();
+    }
+
     public override void _ExitTree()
     {
+        SaveInterruptedSensitivityTrace();
         // A results-screen "Practise" button starts the next session before this one is freed: leave its state alone.
         if (active != this) return;
         active = null;
         if (GetViewport() is { } vp) vp.Disable3D = false;
         Engine.TimeScale = 1; // dev --sftimescale, if the drill was left mid-run
+    }
+
+    void SaveInterruptedSensitivityTrace()
+    {
+        if (Demo || Main.I?.SavesData != true || State == St.Results ||
+            Telemetry == null || Telemetry.Frames.Count == 0) return;
+        try
+        {
+            Telemetry.Duration = Now;
+            Event("run_interrupted");
+            Telemetry.Save(Paths.DataSubDir("sensitivity-partial"), keep: -1);
+        }
+        catch (Exception ex) { Log.Error($"Saving interrupted sensitivity trace failed: {ex.Message}"); }
     }
 
     public override void _Notification(int what)
@@ -631,6 +674,7 @@ public partial class GameSession : Node3D, IGame
     void RunFrame(float dt)
     {
         Now += dt;
+        if (Main.I.Dev && SensSearch == null && CmdLine.Has("--live-sens-test") && CanSearchSensitivity) StartSensitivitySearch();
         if (Main.I.Dev && !Demo && DevPauseAt is { } pauseAt && Now >= pauseAt && !devPaused) { devPaused = true; Pause(); return; }
         if (Demo && Mode is FlashDodgeMode flashDrill && DemoFlashTurn(flashDrill)) { fireHeld = false; }
         else if (Sim is { } simAim)
@@ -709,8 +753,12 @@ public partial class GameSession : Node3D, IGame
         firePressedEdge = false;
         fireTap = false;
 
-        RecordFrame();
-        Live?.Tick(Now);
+        if (!CoachSuspended)
+        {
+            RecordFrame();
+            feedbackCounter?.Update(Telemetry);
+        }
+        UpdateLiveCoach();
         if (Main.I.Dev && Adaptive != null && Mode.SupportsAdaptive && (int)(Now / 10f) != (int)((Now - dt) / 10f))
             Log.Info($"[adapt] t={Now:0} {Adaptive}"); // dev: the staircase every 10 s
         // A keybind test owns its run (KeybindTest.cs): the drill's clock or kill target must not end it mid-check;
@@ -780,14 +828,18 @@ public partial class GameSession : Node3D, IGame
         replay?.Frame(this, Now, viewmodel != null && viewmodel.Visible); // 3D Rewind (60 Hz, never throws)
 
         // Stops (counter-strafe vs release) for the movement coach.
-        if (Mover.StopTimesMs.Count > lastStopCount)
+        int stopCount = Mover.StopTimesMs.Count;
+        if (stopCount != lastStopCount)
         {
-            lastStopCount = Mover.StopTimesMs.Count;
-            Event("stop", Mover.LastStopMs, Mover.LastStopWasCounter ? 1 : 0);
+            if (stopCount > lastStopCount) Event("stop", Mover.LastStopMs, Mover.LastStopWasCounter ? 1 : 0);
+            lastStopCount = stopCount;
         }
     }
 
-    public void Event(string kind, float a = 0, float b = 0) => Telemetry.Events.Add(new TelemetryEvent(Now, kind, a, b));
+    public void Event(string kind, float a = 0, float b = 0)
+    {
+        if (!CoachSuspended) Telemetry.Events.Add(new TelemetryEvent(Now, kind, a, b));
+    }
 
     void Bullet(Vector3 dir, bool accurate)
     {
@@ -800,22 +852,9 @@ public partial class GameSession : Node3D, IGame
         bool melee = weaponDef?.Melee == true;
         BulletWallDist = melee ? Mathf.Min(wall, weaponDef!.Range) : wall;
         float hitMode = Mode.OnBullet(eye, dir, accurate);
-        var shot = new ShotSample
-        {
-            T = Now, Yaw = Mathf.RadToDeg(Mathf.Atan2(dir.X, -dir.Z)), Pitch = Mathf.RadToDeg(Mathf.Asin(Mathf.Clamp(dir.Y, -1, 1))),
-            Zone = (sbyte)(Mode.LastShotZone != HitZone.None ? (int)Mode.LastShotZone : float.IsPositiveInfinity(hitMode) ? -1 : 1),
-            Speed = Mover.Speed, Accurate = accurate,
-        };
-        if (focus is { } fc)
-        {
-            var d = (fc.Point - eye).Normalized();
-            float fyaw = Mathf.RadToDeg(Mathf.Atan2(d.X, -d.Z)), fpitch = Mathf.RadToDeg(Mathf.Asin(Mathf.Clamp(d.Y, -1, 1)));
-            shot.FocusId = fc.Id;
-            shot.ErrYaw = Mathf.Wrap(shot.Yaw - fyaw, -180f, 180f);
-            shot.ErrPitch = shot.Pitch - fpitch;
-            shot.FocusRadius = AngularRadius(fc.Point, fc.Radius);
-        }
-        Telemetry.Shots.Add(shot);
+        var zone = Mode.LastShotZone != HitZone.None ? Mode.LastShotZone
+            : float.IsPositiveInfinity(hitMode) ? HitZone.None : HitZone.Body;
+        RecordShot(focus, eye, dir, zone, accurate);
         float end = Mathf.Min(Mathf.Min(hitMode, wall), 80f);
         if (melee) { replay?.PlayerShot(Now, Telemetry.Shots.Count - 1, eye + dir * Mathf.Min(end, weaponDef!.Range), Vector3.Zero); return; }
         var muzzle = viewmodel?.MuzzleWorld ?? eye + dir * 0.6f;
@@ -829,6 +868,31 @@ public partial class GameSession : Node3D, IGame
             Effects.Impact(p, wallNormal, new Color(0.5f, 0.5f, 0.5f));
         }
         replay?.PlayerShot(Now, Telemetry.Shots.Count - 1, eye + dir * end, wallNormal);
+    }
+
+    public void RecordAimClick(AimFocus focus, bool hit) =>
+        RecordShot(focus, View.Eye, View.Forward, hit ? HitZone.Body : HitZone.None, accurate: true);
+
+    void RecordShot(AimFocus? focus, Vector3 eye, Vector3 dir, HitZone zone, bool accurate)
+    {
+        if (zone == HitZone.None && focus != null && Mode.Key != "sensfinder") Play2D("miss", .46f);
+        if (CoachSuspended) return;
+        var shot = new ShotSample
+        {
+            T = Now, Yaw = Mathf.RadToDeg(Mathf.Atan2(dir.X, -dir.Z)), Pitch = Mathf.RadToDeg(Mathf.Asin(Mathf.Clamp(dir.Y, -1, 1))),
+            Zone = (sbyte)zone,
+            Speed = Mover.Speed, Accurate = accurate, Sensitivity = CurrentSens,
+        };
+        if (focus is { } fc)
+        {
+            var d = (fc.Point - eye).Normalized();
+            float fyaw = Mathf.RadToDeg(Mathf.Atan2(d.X, -d.Z)), fpitch = Mathf.RadToDeg(Mathf.Asin(Mathf.Clamp(d.Y, -1, 1)));
+            shot.FocusId = fc.Id;
+            shot.ErrYaw = Mathf.Wrap(shot.Yaw - fyaw, -180f, 180f);
+            shot.ErrPitch = shot.Pitch - fpitch;
+            shot.FocusRadius = AngularRadius(fc.Point, fc.Radius);
+        }
+        Telemetry.Shots.Add(shot);
     }
 
     /// <summary>Lotus' stone door: turn it, rewrite its collision boxes, play the grinding stone and show the
@@ -960,19 +1024,38 @@ public partial class GameSession : Node3D, IGame
         Input.MouseMode = Input.MouseModeEnum.Visible;
         var app = Main.I;
         PrevBest = app.Stats.Best(Mode.Key, Tier);
-        Record = Mode.MakeRecord(SessionSens ?? app.Sens);
-        Record.Warmup = WarmupSession;
+        Record = Mode.MakeRecord(Telemetry.Sens);
+        Record.PracticeRank = !CoachSuspended && Record.Badge < 0;
+        Record.SensSection = SensSection;
+        Record.Warmup = CoachSuspended;
         // Aim coach: metrics for this run + a review of what went wrong and how to fix it.
         Telemetry.Duration = Now;
         Telemetry.Replay = replay?.Finish(Now); // the 3D Rewind's data: in memory now, saved next to the .vtt below
         replay = null;
-        try
+        if (!CoachSuspended) try
         {
             Record.Metrics = Coach.Summarize(Telemetry);
             Record.Metrics["run.weapon"] = (float)Mode.SelectedWeapon;
-            Review = Coach.ReviewRun(Telemetry, Record.Metrics, Tier);
+            Record.Metrics["run.recoil"] = Gun?.RecoilOn == true ? 1 : 0;
+            Review = Coach.ReviewRun(Telemetry, Record.Metrics, Tier, feedbackCounter?.Snapshot());
         }
         catch (Exception ex) { GD.PushWarning($"Coach failed: {ex.Message}"); }
+        else if (WarmupSession)
+        {
+            Record.Metrics = new();
+            if (Mode is TrackingMode || Mode.SimKind == "track") Record.Metrics["track.ontarget"] = Mode.Accuracy * 100;
+            if (Mode is FlickMode && Mode.KillTimes.Count > 0)
+                Record.Metrics["flick.ttk_ms"] = Dsp.Median(Mode.KillTimes);
+        }
+        if (!CoachSuspended)
+        {
+            Record.Metrics ??= new();
+            Review ??= Coach.CompleteReview(Telemetry, new RunReview { Metrics = Record.Metrics }, feedbackCounter?.Snapshot());
+            var points = Review.Feedback!;
+            Record.Badge = Record.PracticeRank ? points.PracticeRank() : Math.Clamp(Record.Badge, 0, 4);
+            Record.Metrics["training.earned"] = points.Earned;
+            Record.Metrics["training.lost"] = points.Lost;
+        }
         foreach (var (key, value) in Mode.ExtraMetrics())
         {
             Record.Metrics ??= new();
@@ -985,11 +1068,13 @@ public partial class GameSession : Node3D, IGame
             var st = Adaptive!;
             Record.Metrics ??= new();
             Record.Metrics["adapt.level"] = st.Threshold >= 0 ? st.Threshold : st.Level;
+            Record.Metrics["adapt.start"] = st.StartLevel;
+            Record.Metrics["adapt.target"] = st.TargetHitRate;
             Record.Metrics["adapt.hitrate"] = st.HitRate;
             Record.Metrics["adapt.trials"] = st.Trials;
             Log.Info($"[adapt] {Mode.Key}: start {st.StartLevel:0.00} -> {st}");
         }
-        if (app.SavesData)
+        if (app.SavesData && !CoachSuspended)
         {
             // Written on a worker: ≈1.5 MB for 60 s at 600 FPS, ≈20 MB for a full Sens Finder run. This run's telemetry
             // is never touched again (Restart makes a new one) and the record already carries its metrics.
@@ -1001,9 +1086,12 @@ public partial class GameSession : Node3D, IGame
                 string file = tel.FileIn(dir);
                 Record.TelemetryFile = file;
                 Record.CoachFile = CoachArchive.FileFor(file);
+                bool sensitivityExperiment = tel.Comparison != null || SensSearch != null || Mode.Key == "sensfinder";
+                if (sensitivityExperiment) tel.Save(dir, keep: -1);
                 Task.Run(() =>
                 {
-                    try { tel.Save(dir, keep: -1); } catch (Exception e) { Log.Error($"Saving telemetry failed: {e.Message}"); }
+                    try { if (!sensitivityExperiment) tel.Save(dir, keep: -1); }
+                    catch (Exception e) { Log.Error($"Saving telemetry failed: {e.Message}"); }
                     try
                     {
                         if (review != null) CoachArchive.Save(tel, review, file, keep: -1);
@@ -1011,11 +1099,11 @@ public partial class GameSession : Node3D, IGame
                     catch (Exception e) { Log.Error($"Saving the coach archive failed: {e.Message}"); }
                 });
             }
-            catch { }
+            catch (Exception ex) { Log.Error($"Preparing telemetry archive failed: {ex.Message}"); }
         }
-        else if (TelemetryOut != null) { try { Telemetry.Save(TelemetryOut, keep: 500); } catch { } }
+        else if (!CoachSuspended && TelemetryOut != null) { try { Telemetry.Save(TelemetryOut, keep: 500); } catch { } }
         // Automated/dev runs never touch the user's stats; adaptive runs' scores aren't comparable with fixed-tier runs.
-        if (app.SavesData && KeepInStats && !adaptive && !FreePlay)
+        if (app.SavesData && KeepInStats && !adaptive && !FreePlay && SensSearch == null && !CoachSuspended)
         {
             app.Stats.Runs.Add(Record);
             app.Stats.Save();
@@ -1035,7 +1123,7 @@ public partial class GameSession : Node3D, IGame
     {
         var st = Main.I.Settings;
         if (!st.ProgressiveDifficulty || Record == null || !Mode.ShowScore || OnFinished != null) return;
-        if (TierOverride != null || Adaptive != null || !KeepInStats || Now < 8f) return;
+        if (TierOverride != null || Adaptive != null || !KeepInStats || SensSearch != null || CoachSuspended || Now < 8f) return;
         int played = Tier;
         int score = Record.Score;
         float acc = Record.Accuracy;
@@ -1225,7 +1313,86 @@ public partial class GameSession : Node3D, IGame
     public bool TriggerHeld => (fireHeld || fireTap) && State == St.Running;
     public bool FirePressed => firePressedEdge && State == St.Running;
     public float? TrialSens { get; set; }
-    public float CurrentSens => TrialSens ?? Main.I.Sens;
+    public string SensSection { get; private set; } = "";
+    public float CurrentSens => TrialSens ?? Main.I.SensFor(SensSection);
+    public Analysis.LiveSensitivity? SensSearch { get; private set; }
+    public bool CanSearchSensitivity => !Demo && !CoachSuspended && !FreePlay && !Mode.Movement && SessionSens == null
+        && OnFinished == null && SensitivityProfiles.Supports(SensSection)
+        && (RunAnalysis.Base(Mode.Key) is "flick" or "flickx" or "spider" or "gridshot" or "microshot" or "microx" or "reflex")
+        && Mode.SimKind != "track" && RunAnalysis.StaticTargetMode(Mode.Key);
+
+    public void ToggleSensitivitySearch()
+    {
+        var settings = Main.I.Settings;
+        settings.LiveSensitivityEnabled = !settings.LiveSensitivityEnabled;
+        if (!settings.LiveSensitivityEnabled)
+        {
+            settings.LiveSensitivityValues?.Clear();
+            if (SensSearch is { Active: true } search)
+            {
+                search.Stop();
+                ChangeTrialSensitivity(null);
+                Event("live_sens_stop", search.Candidate, search.Steps);
+            }
+        }
+        else if (CanSearchSensitivity) StartSensitivitySearch();
+        settings.Save();
+    }
+
+    void StartSensitivitySearch()
+    {
+        if (!CanSearchSensitivity || !SensitivityProfiles.Valid(CurrentSens)) return;
+        var st = Main.I.Settings;
+        float baseline = Main.I.SensFor(SensSection);
+        var saved = st.LiveSensitivityValues?.GetValueOrDefault(SensSection);
+        float? resume = saved != null && saved.Matches(baseline, st.Dpi) ? saved.Candidate : null;
+        Live ??= new Analysis.LiveCoach(Telemetry, Mode.Key, Mode.Movement);
+        SensSearch = new Analysis.LiveSensitivity(baseline, Now, resume);
+        if (Now == 0)
+        {
+            TrialSens = resume;
+            Telemetry.Sens = lastRecordedSens = CurrentSens;
+        }
+        else ChangeTrialSensitivity(resume);
+        Event("live_sens_start", baseline, CurrentSens);
+    }
+
+    void UpdateLiveCoach()
+    {
+        if (Live == null) return;
+        Live.SensitivitySearchSince = SensSearch is { Active: true } active ? active.Since : null;
+        Live.Tick(Now);
+        if (SensSearch is not { Active: true } search || Live.SensitivityEvidence is not { } evidence) return;
+        bool adjusted = search.TryAdjust(evidence, Now);
+        if (Main.I.Dev && CmdLine.Has("--live-sens-test") && search.LastEvidence.At == evidence.At && evidence.At != loggedSearchEvidence)
+        {
+            loggedSearchEvidence = evidence.At;
+            GD.Print($"[live-sens] window {evidence.Attempts} first shots / {evidence.Hits} hits / {evidence.Over} long / {evidence.Under} short");
+        }
+        if (!adjusted) return;
+        ChangeTrialSensitivity(search.Candidate);
+        var st = Main.I.Settings;
+        if (st.LiveSensitivityEnabled)
+        {
+            st.LiveSensitivityValues ??= new();
+            st.LiveSensitivityValues[SensSection] = new SensitivitySearchValue(search.Baseline, search.Candidate, Telemetry.Dpi);
+            st.Save();
+        }
+        Event("live_sens_evidence", evidence.Over, evidence.Under);
+        Event("live_sens_sample", evidence.Attempts, evidence.Hits);
+        if (Main.I.Dev)
+            GD.Print($"[live-sens] {evidence.Over} long / {evidence.Under} short; now {CurrentSens:0.0000}");
+    }
+
+    void ChangeTrialSensitivity(float? value)
+    {
+        float before = CurrentSens;
+        TrialSens = value;
+        if (before == CurrentSens) return;
+        lastRecordedSens = CurrentSens;
+        Event("sens_changed", before, CurrentSens);
+    }
+    float loggedSearchEvidence = -1;
     public CaValAim.Valorant.CrosshairSettings? TrialCrosshair { get; set; }
     /// <summary>Distance to the first wall along the bullet currently being processed.</summary>
     public float BulletWallDist { get; private set; } = float.PositiveInfinity;

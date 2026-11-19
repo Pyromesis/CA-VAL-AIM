@@ -69,6 +69,7 @@ public partial class GameSession
         View.RecoilPitch = View.RecoilYaw = 0;
         Telemetry.Weapon = kind.ToString();
         Telemetry.ZoomSensMult = ZoomSensMultFor(def);
+        Event("weapon_changed");
         replay?.WeaponSwitch(Now, kind); // 3D Rewind: the viewmodel follows the switch
     }
 

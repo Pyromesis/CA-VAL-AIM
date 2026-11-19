@@ -340,10 +340,13 @@ public sealed class WarmupPlan
         {
             var d = preset.Steps[i];
             WarmupDrills.Factory(d.Mode, d.Seconds, out float secs);
+            float stepSens = ModeRegistry.Find(d.Mode)?.Invoke() is { } mode
+                ? SensitivityProfiles.Resolve(Main.I.Settings.CategorySensitivities, SensitivityProfiles.For(mode), Main.I.Settings.Dpi, baseSens)
+                : baseSens;
             if (quick) secs = d.Mode == "deathmatch" ? QuickDm : QuickStep;
             plan.Steps.Add(new PlannedStep
             {
-                Index = i, Mode = d.Mode, Seconds = secs, OffsetPct = off[i], Sens = off[i] == 0 ? baseSens : SensAt(baseSens, off[i]), Cue = d.Cue,
+                Index = i, Mode = d.Mode, Seconds = secs, OffsetPct = off[i], Sens = off[i] == 0 ? stepSens : SensAt(stepSens, off[i]), Cue = d.Cue,
                 Phase = d.Phase, TierOffset = d.TierOffset, Tier = Math.Clamp(plan.Tier + d.TierOffset, 0, 4),
                 Adaptive = d.Adaptive && WarmupDrills.CanAdapt(d.Mode),
                 EaseLast = d.EaseLast <= 0 ? 0 : quick ? Math.Min(d.EaseLast, QuickEase) : Math.Min(d.EaseLast, secs),

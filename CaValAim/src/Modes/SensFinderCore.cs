@@ -137,7 +137,7 @@ public sealed class SfBlock
     public readonly List<double> TrackLogit = new();  // logit(on-target) per scored tracking window
     public readonly List<float> FlickMt = new();      // MT' (s), for logs
     public float TrackOn, TrackTotal;                 // scored tracking time on target / total (s)
-    public int Hits, Attempts, Timeouts;
+    public int Hits, Attempts, Timeouts, Omissions, ScoredTrials, ScoredHits;
     public double Score;        // standardized composite (filled when the stage is scored)
 }
 
@@ -161,8 +161,8 @@ public sealed class SfStage
     {
         get
         {
-            int h = Blocks.Sum(b => b.Hits), a = Blocks.Sum(b => b.Attempts);
-            return a == 0 ? 1f : (float)h / a;
+            int h = Blocks.Sum(b => b.ScoredHits), n = Blocks.Sum(b => b.ScoredTrials);
+            return n == 0 ? 0f : (float)h / n;
         }
     }
 }
@@ -179,6 +179,19 @@ public sealed record SfComparison(double D, double Se, double T, double DFlick, 
 
 public static class SfStats
 {
+    /// <summary>Both matched pairs must favor the same setting by a practical margin.</summary>
+    internal static int ReplicatedWinner(IReadOnlyList<SfBlock> blocks, int minimumScoredTrials)
+    {
+        if (blocks.Count != 4 || blocks.Any(b => b.ScoredTrials < minimumScoredTrials ||
+            b.ScoredHits * 2 < b.ScoredTrials || b.TrackLogit.Count < 2)) return -1;
+        double Gain(int i) => blocks[i].Cond == 0 ? blocks[i].Score - blocks[i + 1].Score
+            : blocks[i + 1].Score - blocks[i].Score;
+        if (blocks[0].Cond == blocks[1].Cond || blocks[2].Cond == blocks[3].Cond) return -1;
+        double a = Gain(0), b = Gain(2);
+        const double margin = .15;
+        return a > margin && b > margin ? 0 : a < -margin && b < -margin ? 1 : -1;
+    }
+
     public const double WFlick = 0.65, WTrack = 0.35;
     /// <summary>Weights with micro-adjustments (1.18), as flick / micro / track: the finding steps, and the fine steps where
     /// the small corrections decide.</summary>

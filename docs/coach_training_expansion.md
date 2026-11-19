@@ -26,7 +26,7 @@ Los blancos móviles no se usan para clasificar el frenado como exceso o defecto
 
 El coach puede crear variantes parametrizadas a partir del problema, su dirección y gravedad. Su clave `personal-*` permite reconstruirlas al cargar una lista guardada. Los problemas tácticos utilizan ejercicios de combate existentes. El plan prescribe repeticiones e instrucciones y muestra el resultado al acabar.
 
-La red neuronal local predice precisión a partir de rondas anteriores; la prescripción de ejercicios usa diagnósticos y reglas. Se exigen al menos 24 rondas comparables, separadas por ejercicio, mapa, arma, dificultad y sensibilidad. Las previsiones solo se muestran si superan la media móvil en datos reservados. No hay garantías de mejora ni generación de código mediante un modelo de lenguaje.
+La red neuronal local pronostica métricas a partir de rondas anteriores. En práctica guiada, un pronóstico validado puede ajustar el nivel inicial dentro de un margen de medio nivel. El diagnóstico, la adaptación durante la ronda y las decisiones de sensibilidad conservan criterios observables. El [diseño y sus fuentes](movement_coach_research.md) describen las condiciones de comparación y los umbrales.
 
 ## Referencias de la clasificación
 

@@ -22,6 +22,10 @@ public partial class Sfx : Node
     readonly List<AudioStreamPlayer> cues2D = new();
     readonly List<AudioStreamPlayer3D> cues3D = new();
     int next2D, next3D;
+    ulong nextMissCue;
+    static bool Gunshot(string name) => name is "vandal" or "phantom" or "operator" or "sheriff" or "enemyshot";
+    static bool Feedback(string name) => name is "head" or "body" or "fail" or "miss" or "track_contact"
+        or "kill1" or "kill2" or "kill3" or "kill4" or "kill5";
     internal static bool IsAbilityCue(string name) => name.StartsWith("phoenix_") || name.StartsWith("breach_") ||
         name.StartsWith("kayo_") || name.StartsWith("skye_") || name.StartsWith("yoru_") || name.StartsWith("vyse_") || name.StartsWith("dizzy_") || name == "flash_ring";
     readonly Dictionary<AudioStreamPlayer3D, (float Range, float Floor, float Gain)> spatial = new();
@@ -140,12 +144,50 @@ public partial class Sfx : Node
         slug == "skye" && !targetReached && I.recorded.ContainsKey("skye_pop_nohit") ? "skye_pop_nohit" : slug + "_pop";
 
     AudioStream? Pick(string name) =>
-        recorded.TryGetValue(name, out var r) ? r[Random.Shared.Next(r.Length)] : streams.TryGetValue(name, out var s) ? s : null;
+        (Gunshot(name) || Feedback(name)) && Main.I?.Settings?.SoftGameAudio != false &&
+            streams.TryGetValue("soft_" + name, out var soft) ? soft
+        : recorded.TryGetValue(name, out var r) ? r[Random.Shared.Next(r.Length)] : streams.TryGetValue(name, out var s) ? s : null;
+
+    static float GameGain(string name)
+    {
+        var st = Main.I?.Settings;
+        if (st == null) return 1;
+        float gain = Gunshot(name) ? st.ShotVolume : Feedback(name) ? st.FeedbackVolume : 1f;
+        return float.IsFinite(gain) ? Mathf.Clamp(gain, 0, 1) : 1f;
+    }
 
     void Build()
     {
         var rng = new Random(7);
         float N() => (float)rng.NextDouble() * 2 - 1;
+
+        void SoftShot(string key, float start, float end, float body, float filter)
+        {
+            Add("soft_" + key, .13f, 1, () =>
+            {
+                var wash = new BP(filter, .65f);
+                var thump = new Sweep(start, end, .052f);
+                return t => thump.Next(t) * Env(t, .0025f, body) * .34f
+                    + wash.P(N()) * Env(t, .0018f, .012f) * .50f;
+            });
+        }
+        SoftShot("vandal", 205, 113, .020f, 1200);
+        SoftShot("phantom", 175, 100, .016f, 940);
+        SoftShot("operator", 148, 66, .033f, 890);
+        SoftShot("sheriff", 244, 138, .015f, 1450);
+        SoftShot("enemyshot", 184, 105, .020f, 930);
+        Add("soft_body", .085f, 1, () => t => (Sin(424, t) + .12f * Sin(848, t)) * Env(t, .004f, .016f) * .29f);
+        Add("soft_head", .12f, 1, () => t => Sin(690, t) * Env(t, .004f, .022f) * .30f
+            + Sin(920, t) * Env(t - .022f, .005f, .017f) * .12f);
+        Func<float, float> SoftMiss() => t => (Sin(267, t) + .12f * Sin(534, t)) * Env(t, .004f, .014f) * .20f;
+        Add("soft_fail", .07f, 1, SoftMiss);
+        Add("miss", .07f, 1, SoftMiss);
+        for (int i = 1; i <= 5; i++)
+        {
+            float frequency = 510 + 38 * i;
+            Add("soft_kill" + i, .145f, 1, () => t => Sin(frequency, t) * Env(t, .004f, .028f) * .28f
+                + Sin(frequency * 1.5f, t) * Env(t - .026f, .006f, .022f) * .13f);
+        }
 
         // ---- Weapons ----
         Add("vandal", 0.35f, 6, () =>
@@ -320,7 +362,14 @@ public partial class Sfx : Node
 
     public void Play(string name, float vol = 1f, float pitch = 1f)
     {
+        vol *= GameGain(name);
         if (Volume <= 0 || vol <= 0 || Pick(name) is not { } s) return;
+        if (name is "miss" or "fail")
+        {
+            ulong now = Time.GetTicksMsec();
+            if (now < nextMissCue) return;
+            nextMissCue = now + 230;
+        }
         var pool = IsAbilityCue(name) ? cues2D : players2D;
         var p = pool.FirstOrDefault(p => !p.Playing) ?? pool[next2D = (next2D + 1) % pool.Count];
         p.Stream = s;
@@ -332,6 +381,7 @@ public partial class Sfx : Node
     /// <summary>Positional sound with VALORANT-like flat attenuation (volume floor, fade near max range).</summary>
     public void PlayAt(string name, Vector3 pos, Vector3 listener, float maxRange = 40f, float floor = 0.45f, float vol = 1f, float pitchJitter = 0f)
     {
+        vol *= GameGain(name);
         if (Volume <= 0 || vol <= 0 || maxRange <= 0 || pos.DistanceSquaredTo(listener) >= maxRange * maxRange
             || Pick(name) is not { } s) return;
         float g = DistanceGain(pos.DistanceTo(listener), maxRange, floor);

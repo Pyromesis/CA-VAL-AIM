@@ -12,8 +12,10 @@ public sealed class RunRecord
     public float AvgKillMs;     // avg time per kill / reaction time, 0 when not applicable
     public float HeadshotPct;   // 0..1, -1 when not applicable
     public float Sens;
+    public string SensSection = "";
     public int Tier = -1;       // difficulty tier played (-1 = old Easy/Normal/Hard build)
     public int Badge = -1;      // rank badge earned (-1 = below Rookie / not rated)
+    public bool PracticeRank;   // shared practice rubric when the drill has no authored badge
     public string Map = "";
     /// <summary>Aim-coach metrics for this run (see Analysis.Coach.Summarize).</summary>
     public Dictionary<string, float>? Metrics;
