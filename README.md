@@ -6,21 +6,21 @@
 
 <p align="center">
   <b>Aim, movement and utility trainer for VALORANT players.</b><br>
-  It imports your VALORANT sensitivity, crosshair and keybinds, scales bots to your rank,<br>
-  and tells you what is holding your aim back.
+  Import your VALORANT settings, train against bots at your level,<br>
+  and use the coach's feedback to plan your next round.
 </p>
 
 <p align="center">
-  <a href="https://github.com/Pyromesis/CA-VAL-AIM/releases/latest"><img src="https://img.shields.io/github/v/release/Pyromesis/CA-VAL-AIM?label=download&style=for-the-badge" alt="Download the latest release"></a>
+  <a href="https://github.com/Pyromesis/CA-VAL-AIM/releases/latest"><img src="https://img.shields.io/github/v/release/Pyromesis/CA-VAL-AIM?sort=semver&amp;display_name=tag&amp;label=download&amp;style=for-the-badge" alt="Download the latest stable release"></a>
   <a href="https://github.com/Pyromesis/CA-VAL-AIM/releases"><img src="https://img.shields.io/github/downloads/Pyromesis/CA-VAL-AIM/total?style=for-the-badge" alt="Total downloads"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0--or--later-blue?style=for-the-badge" alt="License: GPL-3.0-or-later"></a>
 </p>
 
 <p align="center"><sub>Windows 10/11 · free and open source · fan-made, not affiliated with Riot Games</sub></p>
 
-<p align="center"><sub><a href="#download">Download</a> · <a href="#screenshots">Screenshots</a> · <a href="#drills">Drills</a> · <a href="#routines-guide-and-glossary">Routines</a> · <a href="#aim-coach">Aim coach</a> · <a href="#how-it-works">How it works</a> · <a href="#building-from-source">Build</a></sub></p>
+<p align="center"><sub><a href="#download">Download</a> · <a href="#screenshots">Screenshots</a> · <a href="#drills">Drills</a> · <a href="#sensitivity-and-warm-up">Sensitivity</a> · <a href="#aim-coach">Aim coach</a> · <a href="#building-from-source">Build</a> · <a href="CHANGELOG.es.md">Cambios en español</a></sub></p>
 
-<img src="docs/screenshots/13-library-search.png" alt="CA-VAL-AIM v2.9.0: searchable drill library and favorite stars" width="100%">
+<img src="docs/screenshots/15-gridshot-v2.11.png" alt="Gridshot in v2.11.0, with the redesigned first-person viewmodel and HUD" width="100%">
 
 | **402 drills** | **13 maps** | **29 agents** | **8 skills** |
 |:---:|:---:|:---:|:---:|
@@ -28,7 +28,7 @@
 
 ## Download
 
-[**Get the latest release →**](https://github.com/Pyromesis/CA-VAL-AIM/releases/latest)
+[**Download v2.11.0 for Windows**](https://github.com/Pyromesis/CA-VAL-AIM/releases/download/v2.11.0/ValTraining-2.11.0-Setup.exe) · [Latest stable release](https://github.com/Pyromesis/CA-VAL-AIM/releases/latest) · [SHA-256 for v2.11.0](https://github.com/Pyromesis/CA-VAL-AIM/releases/download/v2.11.0/SHA256SUMS.txt) · [Release notes](CHANGELOG.md)
 
 | File | What it does |
 |---|---|
@@ -82,10 +82,11 @@ The app is called **CA-VAL-AIM**: window, menu, installer, shortcuts, executable
 
 ## Screenshots
 
-The English interface at 2048×1152. Select English or Spanish in Settings. Captures are in [`docs/screenshots`](docs/screenshots); the library search and favorites captures show v2.9.0; reaction captures show v2.8.0.
+Select English or Spanish in Settings. The Gridshot and results captures show v2.11.0 in Spanish at 1600×900. The library search and favorites captures show v2.9.0, and the reaction captures show v2.8.0. See the [screenshot gallery](docs/screenshots).
 
 | | |
 |---|---|
+| <img src="docs/screenshots/16-countdown-v2.11.png" alt="Gridshot countdown above a clear crosshair and compact status indicators" width="100%"> **Countdown and HUD:** drill instructions above the crosshair, with health, shield and ammo in the lower corners. | <img src="docs/screenshots/17-results-v2.11.png" alt="Full-screen results with score, rank, accuracy, practice points and coaching advice" width="100%"> **Full-screen results:** your metrics, coach review and replay actions in one view. |
 | <img src="docs/screenshots/13-library-search.png" alt="Search drills by name and description" width="100%"> **Library search:** filter drills as you type and star the ones you want to keep. | <img src="docs/screenshots/14-favorites.png" alt="Favorite drills, routines and playlists together" width="100%"> **Favorites:** saved tasks, routines and playlists together, with search. |
 | <img src="docs/screenshots/03-menu-coach.jpg" alt="Aim coach" width="100%"> **Aim coach:** your estimated rank, the problems holding you back and the drill that fixes each one. | <img src="docs/screenshots/07-play-by-play.jpg" alt="Play-by-play review" width="100%"> **Play-by-play:** every engagement graded on its own, with WATCH and PRACTISE. |
 | <img src="docs/screenshots/08-rewind.jpg" alt="Rewind" width="100%"> **Rewind:** the exact moment in 3D, with the crosshair path and the shot that followed. | <img src="docs/screenshots/06-menu-lockin.jpg" alt="Lock-In warm-up" width="100%"> **Lock-In:** the guided warm-up that checks your setup before the first match. |
@@ -213,9 +214,16 @@ The Vandal and Phantom patterns are measured from the real sprays ([SprayTrace](
 - **Guide line** (Settings → Gameplay, on by default): a dashed line to the nearest target with the flick distance in degrees (an edge arrow when it is behind you), and a floor route to the nearest enemy on map drills. Off / Line / Line + Route.
 - Picks a preset for your PC on first start (Low on integrated, virtual or software GPUs); change it any time in Settings.
 
+## Sensitivity and warm-up
+
+- Open **Settings → Sensitivity and crosshair → Category profiles** to set sensitivity by drill category and review a general recommendation based on recorded results.
+- In an eligible drill, use **Find sensitivity** in the pause menu. It stays enabled until you turn it off. Consistently stopping short can raise the setting, and consistently going past the target can lower it. Sensitivity history and shot outcomes stay on your PC.
+- Choose **Restart as warm-up** from the pause menu to practise without coaching or practice points. Choose **Restart with coach** to return to an evaluated round.
+- Open **Options** from pause for the full settings menu. The Audio category offers a soft mix with separate levels for shots and hit or miss feedback.
+
 ## Aim coach
 
-Completed runs record mouse input, crosshair path, shots and events to `%APPDATA%\CA-VAL-AIM\telemetry`. Telemetry and coaching archives remain locally until you remove them; free play saves each completed cycle. The coach turns them into:
+Evaluated runs record mouse input, crosshair path, shots and events to `%APPDATA%\CA-VAL-AIM\telemetry`. Free play saves each evaluated cycle. The coach uses these local records to build the following views.
 
 | | |
 |---|---|
@@ -225,7 +233,7 @@ Completed runs record mouse input, crosshair path, shots and events to `%APPDATA
 | **Problems** | Sorted by importance, each with your numbers, why it happens, how to fix it and drills to practise. |
 | **Direction and tremor** | Separates left, right, up and down flicks, flags aim tremor, under- and overshooting, and points to a drill for each. |
 | **Live coach** | Background analysis stores observations for review. Task instructions appear during the opening countdown; tutorial and coaching cards stay off the active play area. |
-| **Run review** | The results screen adds a summary of that run, the top problems with fixes and what went well. |
+| **Run review** | Full-screen results show the score, rank, strengths and a tip for the next attempt. Hits earn practice points and misses deduct them. A practice rank is shown when a calibrated rank is unavailable. |
 | **Independent observations** | A play can retain overshoot, undershoot, corrections and delayed response together. Moving targets are excluded from static sensitivity braking judgments. |
 | **Guided practice** | Instructions before each task, feedback afterward, and reproducible personal drill variants generated from diagnosis and severity. Save a plan as a playlist and reopen it later. |
 | **Local neural forecasts** | Predicts next-run accuracy from comparable exercise, map, weapon, tier and sensitivity records. Requires at least 24 eligible rounds and must beat a moving average on held-out runs before a prediction is shown. Exercise prescriptions use diagnostic rules; the network is not a language model. |
