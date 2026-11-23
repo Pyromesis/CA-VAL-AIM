@@ -28,7 +28,7 @@
 
 ## Download
 
-[**Download v2.12.0 for Windows**](https://github.com/Pyromesis/CA-VAL-AIM/releases/download/v2.12.0/ValTraining-2.12.0-Setup.exe) · [Latest stable release](https://github.com/Pyromesis/CA-VAL-AIM/releases/latest) · [SHA-256 for v2.12.0](https://github.com/Pyromesis/CA-VAL-AIM/releases/download/v2.12.0/SHA256SUMS.txt) · [Release notes](CHANGELOG.md)
+[**Download v2.13.0 for Windows**](https://github.com/Pyromesis/CA-VAL-AIM/releases/download/v2.13.0/ValTraining-2.13.0-Setup.exe) · [Latest stable release](https://github.com/Pyromesis/CA-VAL-AIM/releases/latest) · [SHA-256 for v2.13.0](https://github.com/Pyromesis/CA-VAL-AIM/releases/download/v2.13.0/SHA256SUMS.txt) · [Release notes](CHANGELOG.md)
 
 | File | What it does |
 |---|---|
@@ -100,7 +100,7 @@ It reads `%LOCALAPPDATA%\VALORANT\Saved\Config` at every start and never changes
 | | |
 |---|---|
 | **Aim** | Sensitivity, scoped and ADS multipliers, the same math as VALORANT (0.07° per count × sens) and 103° horizontal FOV. Raw mouse input keeps your cm/360 identical. |
-| **Look** | The crosshair profile, drawn pixel-for-pixel with movement and firing error, and the enemy highlight colour. |
+| **Look** | The crosshair profile, with configured geometry and separate projected-pixel movement/firing error channels, plus the enemy highlight colour. |
 | **Controls** | All your keybinds (both slots; keys, mouse buttons and the wheel): movement, walk, crouch, jump, fire, alt fire, reload, plant / defuse and abilities; hold or toggle scope. |
 | **Display** | Resolution, display mode, monitor, VSync and FPS cap. |
 
@@ -148,7 +148,7 @@ The **ROUTINES** screen adapts the VALORANT material published by **Voltaic** an
 
 | Tab | What it has |
 |---|---|
-| **Routines** | Eleven routines: five playable adaptations (Voltaic Easy, Advanced Classic, VALORANT Advanced, bardOZ Advanced and cartoon's warm-up), two external Kovaak's playlists with copyable share codes, the in-game practice section and three category routines (Recoil, Deathmatch and Maps). Every step has how-to-play and why-it-matters text, its source scenario name and the sensitivity/recoil it needs. |
+| **Routines** | 22 routines: ten measured-fault sessions, Control Foundations, five playable Voltaic/cartoon adaptations, two external Kovaak's playlists, the in-game section and three category routines (Recoil, Deathmatch and Maps). Every step has bilingual how-to-play and why-it-matters text, its source scenario name and the sensitivity/recoil it needs. |
 | **Guide** | cartoon's aim-training guide, summarised in English and Spanish. |
 | **Glossary** | 126 Voltaic aim terms with short Spanish/English definitions and a search box. |
 | **Data** | An Excel-style table of every routine, step, term and your saved progress, with a four-file CSV export. |
@@ -156,7 +156,7 @@ The **ROUTINES** screen adapts the VALORANT material published by **Voltaic** an
 
 Star tasks, routines and playlists to keep them together on the **Favorites** screen. Search the library, routines, favorites or playlist drill picker by name and description; search ignores case and accents and works with partial words. In the library, **Ctrl+F** or **/** focuses search, **Enter** opens the first visible result and **Esc** clears search before the category. Favorites are stored locally in `favorites.json`.
 
-**FOR YOU**, pinned at the top of Routines, turns the coach profile into a guided recommendation with an editable-playlist action. A new profile receives the complete baseline (five drills, eight runs), a partial profile prioritises missing measurements over unconfirmed tips, and an established profile puts measured diagnoses first.
+**FOR YOU**, pinned at the top of Routines, turns the coach profile into a recommendation with an editable-playlist action. Confirmed findings select one complete measured-fault routine: a 14-minute core plus an optional four-minute deathmatch, with matched baseline/validation blocks, progression and 1× sensitivity. If there is no confirmed finding, a new profile receives the complete guided baseline (five drills, eight runs), a partial profile prioritises missing measurements over unconfirmed tips, and an established profile keeps its short guided plan. Tips, sensitivity candidates, stale history and insufficient samples never create a corrective routine; completing one is practice, not proof of improvement.
 
 Playable routines can be saved as normal playlists and edited like any other. The duration and saved playlist both follow the optional-exercise checkbox. The HUD shows the current task and repetition; its clock follows the actual run duration. For example, Cartoon’s three-minute tasks contain three one-minute runs before advancing. While paused, **‹ ›** jumps to the
 previous or next task without saving the abandoned run. The trainer applies a source's sensitivity boost only on the
@@ -189,7 +189,9 @@ The map mechanics that matter are live too: **Lotus**' stone door turns 180° in
 | **Elite** | Ascendant–Immortal | 225 ms | ≈0.84 s |
 | **Pro** | Radiant | 180 ms | ≈0.53 s |
 
-Bots react with a human-like delay, move their crosshair with Fitts' law and fire the Vandal with a per-shot hit chance against your 100 HP + 50 shield. Target sizes, speeds and time limits scale with the tier, and personal bests are tracked per tier. **Progressive difficulty** (pause menu) raises or lowers the tier after a strong or poor run and says so on the results screen.
+TTK values are the original standing-target calibration reference; movement, cover and the revised turn/acceleration model change the actual duel.
+
+Bots react with a human-like delay, move their crosshair with Fitts' law and fire the Vandal with a per-shot hit chance against your 100 HP + 50 shield. Each exposed point has its own FOV test; sound produces a difficulty-scaled search area rather than exact wall-through knowledge. Turning, acceleration and strafes are bounded, combat movement uses safe gaps between bursts, and dynamic navigation follows Lotus' door. Target sizes, speeds and time limits scale with the tier, and personal bests are tracked per tier. **Progressive difficulty** (pause menu) raises or lowers the tier after a strong or poor run and says so on the results screen.
 
 ## Weapons and movement
 
@@ -219,6 +221,7 @@ The Vandal and Phantom patterns are measured from the real sprays ([SprayTrace](
 ## Sensitivity and warm-up
 
 - Open **Settings → Sensitivity and crosshair → Category profiles** to set sensitivity by drill category and review a general recommendation based on recorded results. When the evidence is consistent, Sens Lab puts the calculated candidate, its direction and cm/360 next to a matched A/B test button; it is applied only if it improves.
+- Open **SENSITIVITY** from the main menu for a focused view of your current sens, eDPI, cm/360 and measured faults. A corrective routine appears only after sufficient evidence identifies a fault; balanced or insufficient profiles get no routine.
 - In an eligible drill, use **Find sensitivity** in the pause menu. It stays enabled until you turn it off. Consistently stopping short can raise the setting, and consistently going past the target can lower it. Sensitivity history and shot outcomes stay on your PC.
 - Choose **Restart as warm-up** from the pause menu to practise without coaching or practice points. Choose **Restart with coach** to return to an evaluated round.
 - Open **Options** from pause for the full settings menu. The Audio category offers a soft mix with separate levels for shots and hit or miss feedback.

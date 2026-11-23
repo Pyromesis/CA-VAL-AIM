@@ -2,6 +2,24 @@
 
 ## [Sin publicar]
 
+## [2.13.0] - 2026-11-23
+
+### Añadido
+
+- Una vista dedicada de **SENSIBILIDAD** muestra la sens actual, eDPI, cm/360 y el veredicto medido, con una rutina correctiva solo cuando hay evidencia suficiente de movimientos cortos o pasados, control irregular, temblor o deriva de tracking. Los perfiles equilibrados o con datos insuficientes no muestran ninguna rutina correctiva.
+- Diez rutinas completas por fallo medido cubren frenado, flicks irregulares, temblor, tracking, timing de clic, reacción, orden de objetivos, colocación de mira y movimiento. Cada una tiene 14 minutos de núcleo, 4 minutos opcionales de deathmatch, mediciones inicial/final equivalentes e instrucciones bilingües a sensibilidad 1×. **PARA TI** selecciona una a partir de 31 diagnósticos confirmados o cinco fallbacks de sensibilidad actual; pistas, candidatas, historial antiguo y datos insuficientes nunca crean una recomendación.
+
+### Cambiado
+
+- Los bots evalúan el campo de visión de cada punto expuesto, giran y aceleran con límites según dificultad, oyen un área de búsqueda incierta en vez de coordenadas exactas a través de paredes y hacen strafes seguros entre ráfagas. Cada readquisición reinicia el temporizador del combate actual.
+- La navegación se actualiza cuando cambia la puerta de Lotus, la recuperación de atascos solo usa nodos alcanzables, el suelo inválido y las caídas teleportadas quedan rechazados y las consultas de colisión paralelas mantienen marcas independientes.
+- Los combates entre bots giran gradualmente, exigen alineación y derivan daño, reacciones y trazas de zonas realmente expuestas en vez de dañar cuerpos ocultos a través de coberturas bajas.
+
+### Corregido
+
+- Los errores de movimiento y disparo del crosshair usan conos proyectados independientes: el movimiento ya no se cuenta dos veces y el error dinámico ya no vuelve a escalarse en resoluciones distintas de 1080p.
+- El conocimiento táctico por sonido exige un testigo en rango; Anchor y Sound Lock ya no leen la posición actual sin percibirla, las reacciones al daño usan el origen histórico del disparo y el sensor sónico responde a disparos reales en vez de a la simple visibilidad.
+
 ## [2.12.0] - 2026-11-22
 
 ### Añadido

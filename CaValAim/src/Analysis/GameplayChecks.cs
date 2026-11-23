@@ -68,6 +68,43 @@ static class GameplayChecks
         var balancedPlan = CoachPlan.Build(balancedProfile);
         Check(!balancedPlan.IsOnboarding && !balancedPlan.IsProvisional && balancedPlan.Steps.Count == 4 && balancedPlan.TotalRuns == 4,
             "recommended balanced veteran gets varied practice, not new-player onboarding");
+
+        var measuredUnder = new SensBlock(.225f, 4, 2, DateTime.Now.AddDays(-2), DateTime.Now, 24, 16, 0,
+            .20f, .80f, 6, 1.7f, 1.1f, 0, 0, .07f, .75f, SensVerdict.Undershoot);
+        var underCorrection = UI.SensLabScreen.CorrectivePlan(measuredUnder);
+        Check(underCorrection is { Steps.Count: >= 2 and <= 3 } && underCorrection.Steps.All(s =>
+                Modes.ModeRegistry.Find(s.Drill)?.Invoke().Key == s.Drill && s.Runs > 0
+                && s.Source != null && s.Source.Fixes.Length > 0 && !string.IsNullOrWhiteSpace(s.Source.Fixes[0])
+                && s.Recoil == CoachPlan.RecoilFor(s.Drill).Advice),
+            "sensitivity correction: undershoot has resolvable steps, repetitions, cues and matching recoil");
+        foreach (var kind in new[] { SensVerdict.Overshoot, SensVerdict.Mixed, SensVerdict.Shaky, SensVerdict.Tracking })
+        {
+            var correction = UI.SensLabScreen.CorrectivePlan(measuredUnder with { Verdict = kind });
+            Check(correction is { Steps.Count: >= 2 and <= 3 } && correction.Steps.All(s =>
+                    Modes.ModeRegistry.Find(s.Drill)?.Invoke().Key == s.Drill && s.Source?.Fixes.Length > 0),
+                $"sensitivity correction: {kind} has a playable routine");
+        }
+        Check(UI.SensLabScreen.CorrectivePlan(measuredUnder with { Verdict = SensVerdict.Balanced }) == null,
+            "sensitivity correction: balanced measurements never create a routine");
+        Check(UI.SensLabScreen.CorrectivePlan(measuredUnder with { Flicks = 4, OffTarget = 2 }) == null,
+            "sensitivity correction: insufficient measurements never create a routine");
+
+        Check(Game.Bots.BotBrain.TurnDegPerSec(Difficulty.Get(4).Bot) > Game.Bots.BotBrain.TurnDegPerSec(Difficulty.Get(0).Bot),
+            "bot aim turn speed follows the difficulty skill instead of snapping every tier equally");
+        Check(Game.Bots.BotBrain.SoundErrorRadius(0, 30) > Game.Bots.BotBrain.SoundErrorRadius(0, 5)
+            && Game.Bots.BotBrain.SoundErrorRadius(5, 30) < Game.Bots.BotBrain.SoundErrorRadius(0, 30),
+            "bot hearing uncertainty grows with distance and stays nonzero at Nightmare");
+        var heardSource = new Vector3(12, 1, -8);
+        var heard = Game.Bots.BotBrain.SoundPosition(heardSource, Vector3.Zero, 2, new Random(19));
+        float heardRadius = Game.Bots.BotBrain.SoundErrorRadius(2, heardSource.DistanceTo(Vector3.Zero));
+        Check(Mathf.Abs(heard.Y - heardSource.Y) < .0001f && new Vector2(heard.X - heardSource.X, heard.Z - heardSource.Z).Length() <= heardRadius + .0001f,
+            "bot sound estimates stay in the horizontal uncertainty disk");
+        Check(Game.Bots.BotBrain.SoundPosition(heardSource, Vector3.Zero, 2, new Random(19)) == heard,
+            "bot sound uncertainty is deterministic with the match RNG");
+        Check(Modes.TacticalSite.StableSeed("lotus") == Modes.TacticalSite.StableSeed("lotus")
+            && Modes.TacticalSite.StableSeed("lotus") != Modes.TacticalSite.StableSeed("ascent"),
+            "tactical layout seeds use a stable text hash rather than process-randomized String.GetHashCode");
+
         Check(CaValAim.Maps.MapSpots.All.All(m => World.Themes.For(m).Key == m.Key),
             "every map keeps its own lighting preset");
         CollisionChecks();
@@ -403,6 +440,37 @@ static class GameplayChecks
             new List<Box> { new(new Vector3(-2, -1, -2), new Vector3(2, 31, 2)) }, Vector3.Zero);
         Check(sealedNav.Count == 0,
             "a world without standing room produces an empty nav grid without crashing");
+        Check(sealedNav.Random(new Random(7)) == Vector3.Zero,
+            "an empty nav grid falls back to its seed instead of indexing an empty node array");
+
+        var dividedWorld = new List<Box>
+        {
+            new(new Vector3(-4, -.5f, -4), new Vector3(4, 0, 4)),
+            new(new Vector3(1, 0, -4), new Vector3(1.2f, 3, 4)),
+        };
+        var dividedNav = CaValAim.Game.Bots.BotNav.For("collision-check:reachable-unwedge", dividedWorld, Vector3.Zero);
+        int reachable = dividedNav.NearestReachable(Vector3.Zero);
+        Check(reachable >= 0 && dividedNav.Pos[reachable].X < 1,
+            "un-wedging chooses a reachable node rather than the geometrically closest point through a wall");
+
+        // Shared broadphase stamps must remain correct while navigation is built on workers and the main thread
+        // continues LOS/body queries. Use >32 boxes so this exercises the grid rather than the linear fallback.
+        var concurrentWorld = new List<Box> { floor };
+        for (int i = 0; i < 40; i++)
+            concurrentWorld.Add(new Box(new Vector3(i * 3, 0, 5), new Vector3(i * 3 + 1, 3, 6)));
+        int concurrentFailures = 0;
+        Parallel.For(0, 2000, _ =>
+        {
+            bool ok = Collision.Ground(Vector3.Zero, concurrentWorld) == 0
+                && !Collision.Overlaps(Vector3.Zero, concurrentWorld)
+                && Collision.Overlaps(new Vector3(.5f, 0, 5.5f), concurrentWorld)
+                && Collision.Blocked(new Vector3(-2, 1.5f, 5.5f), new Vector3(120, 1.5f, 5.5f), concurrentWorld);
+            var near = new List<int>();
+            Collision.Near(concurrentWorld, -1, -1, 1, 1, near);
+            ok &= near.Count > 0 && near.Count == near.Distinct().Count();
+            if (!ok) Interlocked.Increment(ref concurrentFailures);
+        });
+        Check(concurrentFailures == 0, $"parallel collision queries keep independent query stamps ({concurrentFailures} failures)");
 
         // A spawn in the middle of a wall must be moved to a standable spot, never left inside the geometry.
         var solid = new List<Box> { floor, new Box(new Vector3(-1, 0, -1), new Vector3(1, 3, 1)) };

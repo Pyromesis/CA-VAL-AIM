@@ -53,14 +53,15 @@ public sealed class SoundLockMode : MapMode
         public int Wp;
         public float StartAt, StateT;
         public int Jiggles;
-        public Vector3 Peek, JiggleTo, Vel;
-        public bool Seen, Hit, Fake, WalkedIn, Decoy, Silent;
+        public Vector3 Peek, JiggleTo, Vel, WatchPoint;
+        public bool Seen, Hit, Fake, WalkedIn, Decoy, Silent, RouteFailed;
         public float SeenAt, Err, PitchErr;
         public readonly FootstepEmitter Steps = new();
         public bool Alive => GodotObject.IsInstanceValid(Body) && !Body.Dead;
     }
 
     BotNav nav = null!;
+    int navVersion;
     EnemySpot spot = null!;
     string spotName = "";
     readonly List<Entrance> ents = new();
@@ -81,7 +82,8 @@ public sealed class SoundLockMode : MapMode
 
     protected override void Setup()
     {
-        nav = BotNav.For($"{MapSpot.Key}:{G.Solid.Count}", G.Solid, SpawnFeet);
+        navVersion = G.GeometryVersion;
+        nav = BotNav.For($"{MapSpot.Key}:{G.Solid.Count}:v{navVersion}", G.Solid, SpawnFeet);
         var choke = MapSpot.Choke;
         var cands = MapSpot.Enemies.Where(e => e.Feet.Y - choke.Y < 1.5f).OrderBy(_ => Rng.Next())
             .Concat(MapSpot.Enemies.Where(e => e.Feet.Y - choke.Y >= 1.5f)).ToList();
@@ -312,7 +314,8 @@ public sealed class SoundLockMode : MapMode
 
     Walker MakeWalker(Entrance ent, int route, float startAt)
     {
-        var w = new Walker { Ent = ent, StartAt = startAt };
+        // The authored defender spot is the initial belief; later updates require actual sight.
+        var w = new Walker { Ent = ent, StartAt = startAt, WatchPoint = Eye(SpawnFeet) };
         w.Path = new List<Vector3>(ent.Paths[route]);
         w.Peek = ent.Peeks[Rng.Next(ent.Peeks.Count)];
         w.Body = G.SpawnBot(w.Path[0]);
@@ -325,6 +328,7 @@ public sealed class SoundLockMode : MapMode
         };
         var to = w.Path.Count > 1 ? w.Path[1] - w.Path[0] : Vector3.Forward;
         w.Body.FacingYaw = Mathf.RadToDeg(Mathf.Atan2(to.X, -to.Z));
+        if (to.LengthSquared() > 1e-4f) w.Brain.HeldDir = to.Normalized();
         w.Wp = 1;
         w.State = Walker.St.Wait;
         return w;
@@ -339,6 +343,17 @@ public sealed class SoundLockMode : MapMode
 
     public override void Update(float dt)
     {
+        if (navVersion != G.GeometryVersion)
+        {
+            navVersion = G.GeometryVersion;
+            nav = BotNav.For($"{MapSpot.Key}:{G.Solid.Count}:v{navVersion}", G.Solid, SpawnFeet);
+            if (walkers.Any(w => w.Alive))
+            {
+                foreach (var w in walkers.Where(w => w.Alive)) AbortRoute(w, w.Body.Feet);
+                EndRep(false);
+                return;
+            }
+        }
         phT += dt;
         switch (ph)
         {
@@ -357,6 +372,7 @@ public sealed class SoundLockMode : MapMode
             if (ph != Ph.Live) return; // you died
             if (!w.Seen && G.LineOfSight(G.View.Eye, w.Body.Head)) OnSeen(w);
         }
+        if (walkers.Any(w => !w.Decoy && w.RouteFailed)) { EndRep(false); return; }
         bool allDone = walkers.Where(w => !w.Decoy).All(w => !w.Alive);
         bool stale = lastSwingAt >= 0 && Now - lastSwingAt > 6f && walkers.Where(w => !w.Decoy).All(w => !w.Alive || w.State == Walker.St.Hold);
         if (allDone || stale) EndRep(allDone);
@@ -436,39 +452,95 @@ public sealed class SoundLockMode : MapMode
             case Walker.St.Hold:
                 break;
         }
+
         var to = target - b.Feet; to.Y = 0;
         float len = to.Length();
+        Vector3 delta;
         if (speed > 0 && len > 1e-3f)
         {
-            float step = speed * dt;
-            if (len <= step)
-            {
-                b.Feet = new Vector3(target.X, b.Feet.Y, target.Z);
-                if (w.State is Walker.St.Run or Walker.St.Walk) w.Wp++;
-            }
-            else b.Feet += to / len * step;
-            w.Vel = to / Mathf.Max(len, 1e-3f) * speed;
+            w.Vel = to / len * speed;
+            delta = to / len * Mathf.Min(speed * dt, len);
         }
-        else w.Vel = w.Vel.MoveToward(Vector3.Zero, (Tier >= 2 ? 45f : 15f) * dt); // Veteran+ stop dead after the swing
-        var f = b.Feet;
-        f.Y = Collision.Ground(f + new Vector3(0, 0.3f, 0), G.Solid);
-        b.Feet = f;
-        b.Velocity = w.Vel;
-        w.Steps.Update(G, MapSpot, f, w.Vel.Length(), b.Crouched, dt);
-
-        // Look where it's heading; once peeking, pre-aim the defender's spot.
-        if (!w.Brain.SeesPlayer)
+        else
         {
-            var look = !w.Decoy && w.State is Walker.St.Swing or Walker.St.Hold or Walker.St.Jiggle ? G.View.Eye - b.Head : new Vector3(w.Vel.X, 0, w.Vel.Z);
-            if (look.LengthSquared() > 0.01f)
-            {
-                b.FacingYaw = Mathf.RadToDeg(Mathf.Atan2(look.X, -look.Z));
-                var held = look.Normalized();
-                if (w.State is Walker.St.Swing or Walker.St.Hold or Walker.St.Jiggle)
-                    held = held.Rotated(Vector3.Up, Mathf.DegToRad(R(-1, 1) * Difficulty.Get(Tier).Bot.XhairErrDeg));
-                w.Brain.HeldDir = held;
-            }
+            w.Vel = w.Vel.MoveToward(Vector3.Zero, (Tier >= 2 ? 45f : 15f) * dt); // Veteran+ stop dead after the swing
+            delta = w.Vel * dt;
         }
+
+        var before = b.Feet;
+        var next = before;
+        var actualVel = w.Vel;
+        Collision.MoveAndSlide(ref next, ref actualVel, delta, G.Solid);
+        if (!next.IsFinite())
+        {
+            AbortRoute(w, before);
+            return;
+        }
+        float ground = Collision.Ground(next, G.Solid);
+        bool blocked = speed > 0 && delta.LengthSquared() > 1e-8f &&
+            (Mathf.Abs(delta.X) > 1e-6f && actualVel.X == 0f || Mathf.Abs(delta.Z) > 1e-6f && actualVel.Z == 0f);
+        // Grounded routes accept small steps only; never snap down a large drop or into missing collision.
+        if (blocked || !float.IsFinite(ground) || before.Y - ground > MovementTuning.SnapDown)
+        {
+            AbortRoute(w, before);
+            return;
+        }
+        next.Y = ground;
+        if (Collision.Overlaps(next, G.Solid, Collision.PlayerRadius))
+        {
+            AbortRoute(w, before);
+            return;
+        }
+        w.Vel = actualVel;
+        b.Feet = next;
+        b.Velocity = actualVel;
+        w.Steps.Update(G, MapSpot, next, actualVel.Length(), b.Crouched, dt);
+
+        if (speed > 0 && w.State is Walker.St.Run or Walker.St.Walk)
+        {
+            var remaining = target - b.Feet; remaining.Y = 0;
+            if (remaining.Length() <= 0.06f) w.Wp++;
+        }
+
+        // Only genuine sightings refresh the remembered defender position.
+        if (w.Brain.SeesPlayer)
+        {
+            w.WatchPoint = G.View.Eye;
+            return; // BotBrain owns aim while the player is visible.
+        }
+        bool holdingAngle = !w.Decoy && w.State is Walker.St.Swing or Walker.St.Hold or Walker.St.Jiggle;
+        var look = holdingAngle ? w.WatchPoint - b.Head : new Vector3(w.Vel.X, 0, w.Vel.Z);
+        if (look.LengthSquared() > 0.01f) Turn(w, look, dt);
+    }
+
+    void AbortRoute(Walker w, Vector3 safe)
+    {
+        // Keep the last valid position and end the rep instead of pushing through invalid geometry.
+        w.Body.Feet = safe;
+        w.Vel = Vector3.Zero;
+        w.Body.Velocity = Vector3.Zero;
+        w.Body.AimTarget = null;
+        w.Brain.Enabled = false;
+        w.RouteFailed = true;
+        w.State = Walker.St.Hold;
+        w.Wp = w.Path.Count;
+        Log($"#{w.Ent.Index} route aborted at {safe}");
+    }
+
+    void Turn(Walker w, Vector3 look, float dt)
+    {
+        var b = w.Body;
+        var h = new Vector3(look.X, 0, look.Z);
+        if (h.LengthSquared() < 1e-4f) return;
+        float target = Mathf.RadToDeg(Mathf.Atan2(h.X, -h.Z));
+        float rate = Difficulty.T(Tier, 300f, 420f, 560f, 720f, 900f);
+        float diff = Mathf.Wrap(target - b.FacingYaw, -180f, 180f);
+        b.FacingYaw += Mathf.Clamp(diff, -rate * dt, rate * dt);
+        var d = look.Normalized();
+        float r = Mathf.DegToRad(b.FacingYaw);
+        var yd = new Vector3(Mathf.Sin(r), 0, -Mathf.Cos(r));
+        float pitchY = Mathf.Clamp(d.Y, -0.5f, 0.5f);
+        w.Brain.HeldDir = (yd * Mathf.Sqrt(1 - pitchY * pitchY) + new Vector3(0, pitchY, 0)).Normalized();
     }
 
     bool Hidden(List<Vector3> path)
@@ -492,13 +564,39 @@ public sealed class SoundLockMode : MapMode
     {
         w.Brain.Enabled = true;
         w.StateT = 0;
-        if (w.Jiggles > 0)
+        if (w.Jiggles > 0 && FindJiggleTo(w) is { } jiggle)
         {
-            var dir = w.Peek - w.Ent.Corner; dir.Y = 0;
-            w.JiggleTo = w.Ent.Corner + (dir.LengthSquared() > 1e-4f ? dir.Normalized() : Vector3.Forward) * 0.9f;
+            w.JiggleTo = jiggle;
             w.State = Walker.St.Jiggle;
         }
-        else { w.State = Walker.St.Swing; lastSwingAt = Now; }
+        else
+        {
+            w.Jiggles = 0;
+            w.State = Walker.St.Swing;
+            lastSwingAt = Now;
+        }
+    }
+
+    Vector3? FindJiggleTo(Walker w)
+    {
+        var dir = w.Peek - w.Ent.Corner; dir.Y = 0;
+        dir = dir.LengthSquared() > 1e-4f ? dir.Normalized() : Vector3.Forward;
+        var ideal = w.Ent.Corner + dir * 0.9f;
+        float best = 1.25f;
+        Vector3? result = null;
+        for (int i = 0; i < nav.Count; i++)
+        {
+            var q = nav.Pos[i];
+            float distance = q.DistanceTo(ideal);
+            if (distance >= best) continue;
+            var outward = q - w.Ent.Corner; outward.Y = 0;
+            if (outward.Dot(dir) < 0.2f || !SpawnSafety.Standable(q, G.Solid)) continue;
+            // The poke and its return both need a body-clear route.
+            if (!nav.Straight(w.Ent.Corner, q) || !nav.Straight(q, w.Ent.Corner)) continue;
+            best = distance;
+            result = q;
+        }
+        return result;
     }
 
     void EndRep(bool cleared)

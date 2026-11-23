@@ -30,6 +30,17 @@ public sealed class TacticalSite
 {
     public const float DefuserHeadY = 1.0f;
 
+    /// <summary>FNV-1a: unlike String.GetHashCode, this seed is stable across processes and runtimes.</summary>
+    internal static int StableSeed(string text)
+    {
+        unchecked
+        {
+            uint hash = 2166136261;
+            foreach (char c in text) { hash ^= c; hash *= 16777619; }
+            return (int)hash;
+        }
+    }
+
     public readonly string MapKey;
     public readonly Vector3 Spike;
     public readonly Vector3[] Entries;
@@ -179,7 +190,7 @@ public sealed class TacticalSite
             var c = new Cand(n, p, d, exp, nav.Degree(n) < 8, geoStart[n], 0);
             if (sees) cands.Add(c); else lurkCands.Add(c);
         }
-        var r0 = new Random(map.Key.GetHashCode() ^ (int)(spike.X * 100));
+        var r0 = new Random(StableSeed(map.Key) ^ (int)(spike.X * 100));
         Spots = new PostSpot[3][];
         // On site: close to the spike, against cover, little exposure.
         Spots[0] = Pick(cands.Where(c => c.D is >= 3.5f and <= 9f), c => -c.Exp * 3f + (c.Cover ? 0.8f : 0f) - c.D * 0.05f, 0, map, nav, solid, spike, heads);

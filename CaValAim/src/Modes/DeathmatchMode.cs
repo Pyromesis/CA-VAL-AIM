@@ -93,6 +93,7 @@ public sealed partial class DeathmatchMode : MapMode
     // ---------------- state ----------------
 
     BotNav nav = null!;
+    int navVersion;
     /// <summary>The walkable grid the bots navigate (see <see cref="BotNav"/>); the bots use it to un-wedge themselves.</summary>
     internal BotNav Nav => nav;
     readonly List<Bot> bots = new();
@@ -113,7 +114,8 @@ public sealed partial class DeathmatchMode : MapMode
     protected override void Setup()
     {
         var sw = System.Diagnostics.Stopwatch.StartNew();
-        nav = BotNav.For($"{MapSpot.Key}:{G.Solid.Count}", G.Solid, SpawnFeet);
+        navVersion = G.GeometryVersion;
+        nav = BotNav.For($"{MapSpot.Key}:{G.Solid.Count}:v{navVersion}", G.Solid, SpawnFeet);
         if ((G as GameSession)?.DurationOverride is { } ov && killTargetArg == null)
             killTarget = difficulty != null ? DeathmatchRules.KillTarget(ov, lobby) : KillsFor(ov);
         spawnPool = SpawnPool(nav, G.Solid, MapSpot, out var why);
@@ -125,6 +127,14 @@ public sealed partial class DeathmatchMode : MapMode
         if (DevLog)
             GD.Print($"[dm] map {MapSpot.Key} tier {Tier}: nav {nav.Count} nodes ({nav.Area:0} m², built {nav.BuildMs:0} ms), " +
                      $"{spawnPool.Length} spawn spots, {n} bots, first to {killTarget}, setup {sw.Elapsed.TotalMilliseconds:0} ms");
+    }
+
+    void RefreshNav()
+    {
+        navVersion = G.GeometryVersion;
+        nav = BotNav.For($"{MapSpot.Key}:{G.Solid.Count}:v{navVersion}", G.Solid, SpawnFeet);
+        spawnPool = SpawnPool(nav, G.Solid, MapSpot, out _);
+        foreach (var bot in bots) bot.GeometryChanged();
     }
 
     /// <summary>
@@ -192,6 +202,7 @@ public sealed partial class DeathmatchMode : MapMode
     public override void Update(float dt)
     {
         pathBudget = 2;
+        if (navVersion != G.GeometryVersion) RefreshNav();
         if (!started)
         {
             // First running frame (the session's Respawn after Setup resets the player state).
@@ -253,6 +264,14 @@ public sealed partial class DeathmatchMode : MapMode
     /// <summary>Random open spot that no living enemy can see, ≥10 m from all of them (prefers 12–28 m: "close to the action").</summary>
     Vector3 PickSpawn(List<Vector3> enemyEyes, out float yaw)
     {
+        if (spawnPool.Length == 0)
+        {
+            // A broken/empty grid must not crash the session; the authored player start is the final safe fallback.
+            compromisedSpawns++;
+            lastSpawnClean = false;
+            yaw = OpenYaw(SpawnFeet);
+            return SpawnFeet;
+        }
         Vector3 best = nav.Pos[spawnPool[Rng.Next(spawnPool.Length)]];
         float bestScore = float.MinValue;
         bool bestOk = false, lastSpawnOk;
@@ -409,7 +428,7 @@ public sealed partial class DeathmatchMode : MapMode
         var hit = ShootBots(live, o, d, out var zone, out bool killed, out float dist, maxDist);
         if (hit == null) return maxDist < Wall(o, d) ? maxDist : float.PositiveInfinity;
         var bot = bots.First(b => b.Body == hit);
-        bot.Hurt(null);
+        bot.Hurt(null, o);
         if (killed) OnBotKilled(bot, null, zone == HitZone.Head);
         return dist;
     }

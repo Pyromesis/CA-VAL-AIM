@@ -159,7 +159,8 @@ flowchart LR
 | `ProfileScreen` | Estimated rank, 8 skills, problems, today's plan | `UI/ProfileScreen.cs` |
 | `StatsScreen` | Personal bests and history per drill and tier | `UI/StatsScreen.cs` |
 | `ReactionStatsScreen` | Reaction times by category | `UI/ReactionStatsScreen.cs` |
-| `SensLabScreen` | Sensitivity evidence across runs | `UI/SensLabScreen.cs` |
+| `SensLabScreen` | Full sensitivity laboratory, plus the dedicated SENSITIVITY view with measured faults and conditional corrective routines | `UI/SensLabScreen.cs` |
+| `RoutinesScreen` | Catalog plus FOR YOU: one complete measured-fault routine when evidence exists, otherwise the short guided plan | `UI/RoutinesScreen.cs` |
 | `AgentsScreen` | 29 agents, roles, abilities, drills and agent routines | `UI/AgentsScreen.cs` |
 | `PlaylistsScreen` | Named sets of drills played back to back | `UI/PlaylistsScreen.cs` |
 | `WarmupScreen` | Lock-In setup: preset, shifter, estimate | `Warmup/WarmupScreen.cs` |
@@ -356,8 +357,12 @@ drills (Spray Control, Spray Transfer, Operator, Arsenal, Chamber and Crosshair 
 
 ## 9. Bots and difficulty
 
-Bots are `BotCharacter` puppets driven by `BotBrain`: perception, a sampled reaction time, a Fitts-law aim settle, a
-burst rhythm and a hit chance. `BotNav` builds a path over the level's solid boxes.
+Bots are `BotCharacter` puppets driven by `BotBrain`: per-exposure-point FOV/LOS, a sampled reaction time, a Fitts-law aim settle, a
+burst rhythm and a hit chance. Sound uses a difficulty-scaled uncertainty disk rather than exact coordinates. Turn rates and
+acceleration are bounded by tier, combat strafes are collision-aware and happen between bursts, and hit damage uses historical
+shot origins. `BotNav` builds a path over the level's solid boxes; `GeometryVersion` refreshes paths after Lotus' door moves,
+and un-wedging accepts only nodes reachable through a clear body corridor. `Collision` serializes queries that share mutable
+broadphase stamps, so worker-thread navigation can coexist with live LOS/body checks.
 
 ```mermaid
 flowchart TD
@@ -379,6 +384,8 @@ flowchart TD
 | 2 Veteran | Platinum – Diamond | 290 ms | 1.4 s |
 | 3 Elite | Ascendant – Immortal | 225 ms | 0.84 s |
 | 4 Pro | Radiant | 180 ms | 0.53 s |
+
+The TTK figures are the original standing-target calibration reference, not a guarantee for moving targets, cover or the revised turn/acceleration model.
 
 - **Adaptive drills** (`Staircase`) move a continuous level around a target hit rate (usually 80%), so difficulty
   follows the player within a run instead of jumping between tiers.
@@ -420,6 +427,10 @@ forty.
   is logged as `coach_tip` and listed on the results screen.
 - **Sens Lab** aggregates runs by sensitivity and classifies the pattern (overshoot, undershoot, shaky, tracking-limited,
   mixed) before recommending a change.
+- **Measured-fault routines** (`Analysis/AimRoutinePrescription.cs`) map 31 confirmed diagnoses and five current-sens
+  fallbacks to one complete `Routine`. Each has a 14-minute core, optional four-minute deathmatch, matched baseline and
+  validation blocks, and 1× sensitivity. Tips, candidates, old history and insufficient evidence return no prescription;
+  `RoutinesScreen` then falls back to the existing short `CoachPlan`.
 - **Sens Finder** is the in-drill version: a blind PSA-style bisection in log space, four blocks per step, head flicks
   plus seeded strafe tracking, standardized within the step and compared with Welch's standard error.
 - **Crosshair Finder** ranks colour and outline candidates by computed contrast against the map palettes and the enemy

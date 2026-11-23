@@ -58,6 +58,8 @@ public interface IGame
     Node3D World { get; }
     /// <summary>Collision / line-of-sight boxes of the current environment.</summary>
     IReadOnlyList<Box> Solid { get; }
+    /// <summary>Incremented when dynamic collision (for example Lotus' door) changes navigation geometry.</summary>
+    int GeometryVersion => 0;
     WeaponDef? Weapon { get; }
     BlindOverlay Blind { get; }
 

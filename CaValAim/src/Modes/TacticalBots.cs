@@ -55,6 +55,7 @@ public abstract partial class TacticalMode
         public bool Frozen;
         bool wasFighting;
         float strafeUntil, nextStrafeAt, strafeSign = 1f, stuckAt, pathSince;
+        Vector3 strafeDirection;
         int stuckRun;
         Vector3 stuckPos;
         int lastHp = BotCharacter.MaxHp;
@@ -104,6 +105,14 @@ public abstract partial class TacticalMode
 
         public void Stop() { path = null; wantPath = false; }
 
+        /// <summary>Keep the current goal but discard geometry from before a dynamic-door revision.</summary>
+        public void GeometryChanged()
+        {
+            if (!Moving) return;
+            path = null;
+            wantPath = true;
+        }
+
         public bool Near(Vector3 p, float r = 0.8f) => Alive && H(Body.Feet, p) < r && Mathf.Abs(Body.Feet.Y - p.Y) < 1.2f;
 
         void TryPlan()
@@ -148,7 +157,7 @@ public abstract partial class TacticalMode
 
             // Shot by the player without seeing them: turn toward the shots.
             if (b.Hp < lastHp && !Brain.SeesPlayer && !Kneeling && Now - HitAt < 0.3f)
-                Face(G.View.Eye - b.Head, 0.65f);
+                Face(HeardPos - b.Head, 0.65f);
             lastHp = b.Hp;
 
             if (Kneeling)
@@ -170,18 +179,26 @@ public abstract partial class TacticalMode
             float spd = Walk ? Mover.WalkSpeed : Tier == 0 ? 4.6f : Mover.RunSpeed;
             if (fighting)
             {
-                if (Tier >= 3 && Now >= nextStrafeAt)
+                if (Tier >= 3 && Brain.BetweenBursts && Brain.NextShotAt - Now > .19f && Now >= nextStrafeAt)
                 {
-                    // A-D jiggle between bursts (the brain holds fire while moving faster than ~1.5 m/s).
+                    // A-D jiggle only between bursts. Prefer a step that breaks the opponent's line of sight and
+                    // reject both unwalkable landings and paths that sweep the body through a wall.
                     strafeSign = -strafeSign;
+                    var f = Brain.HeldDir;
+                    var side = new Vector3(-f.Z, 0, f.X).Normalized() * strafeSign;
+                    strafeDirection = Vector3.Zero;
+                    for (int i = 0; i < 2; i++, side = -side)
+                    {
+                        var landing = b.Feet + side * .8f;
+                        if (m.Nav.At(landing, Collision.StepHeight) < 0
+                            || Collision.Blocked(b.Head, b.Head + side * .8f, G.Solid)) continue;
+                        if (strafeDirection == Vector3.Zero) strafeDirection = side;
+                        if (!G.LineOfSight(G.View.Eye, b.Head + side * .8f)) { strafeDirection = side; break; }
+                    }
                     strafeUntil = Now + R(0.16f, 0.26f);
                     nextStrafeAt = Now + R(0.8f, 1.6f);
                 }
-                if (Now < strafeUntil)
-                {
-                    var f = Brain.HeldDir; var side = new Vector3(-f.Z, 0, f.X).Normalized() * strafeSign;
-                    if (m.Nav.At(b.Feet + side * 0.8f, Collision.StepHeight) >= 0) want = side;
-                }
+                if (Now < strafeUntil) want = strafeDirection;
             }
             else if (path != null && wp < path.Count)
             {
@@ -191,13 +208,24 @@ public abstract partial class TacticalMode
             }
 
             var target = want * spd;
-            float accel = target.LengthSquared() > 0.01f ? 40f : Difficulty.T(Tier, 9f, 15f, 34f, 42f, 50f);
+            float accel = target.LengthSquared() > 0.01f
+                ? Mover.GroundAccel * Difficulty.T(Tier, .8f, .9f, 1f, 1.05f, 1.1f)
+                : Difficulty.T(Tier, 9f, 15f, 34f, 42f, 50f);
             vel = vel.MoveToward(target, accel * dt);
             var feet = b.Feet;
             var v = vel;
             var before = feet;
             Collision.MoveAndSlide(ref feet, ref v, v * dt, G.Solid);
-            feet.Y = Collision.Ground(feet, G.Solid);
+            float ground = Collision.Ground(feet, G.Solid);
+            if (float.IsFinite(ground) && before.Y - ground <= MovementTuning.SnapDown) feet.Y = ground;
+            else
+            {
+                // Never assign -infinity to a Node3D: a hole in the collision invalidates this path, not the bot.
+                feet = before;
+                v = Vector3.Zero;
+                path = null;
+                wantPath = false;
+            }
             vel = v;
             b.Feet = feet;
             b.Velocity = vel;
@@ -225,7 +253,7 @@ public abstract partial class TacticalMode
                     else if (stuckRun >= 2)
                     {
                         // un-wedge: step onto the nearest open grid node, then try again
-                        int n = m.Nav.Nearest(feet);
+                        int n = m.Nav.NearestReachable(feet);
                         if (n >= 0) b.Feet = m.Nav.Pos[n];
                         GoTo(goal, Walk);
                     }

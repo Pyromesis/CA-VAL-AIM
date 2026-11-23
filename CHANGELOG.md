@@ -2,6 +2,24 @@
 
 ## [Unreleased]
 
+## [2.13.0] - 2026-11-23
+
+### Added
+
+- A dedicated **SENSITIVITY** view shows the current sens, eDPI, cm/360 and measured verdict, with a corrective routine only when sufficient evidence identifies undershoot, overshoot, mixed control, tremor or tracking drift. Balanced or insufficient profiles show no corrective routine.
+- Ten complete measured-fault routines cover braking, inconsistent flicks, tremor, tracking, click timing, reaction, target order, crosshair placement and movement. Each has a 14-minute core, an optional four-minute deathmatch, matched baseline/validation blocks and bilingual instructions at 1× sensitivity. **FOR YOU** selects one from 31 confirmed diagnoses or five current-sens fallbacks; tips, candidates, stale history and insufficient data never create one.
+
+### Changed
+
+- Enemy bots now evaluate FOV per exposed point, turn and accelerate with tier-scaled limits, hear an uncertain search area instead of exact coordinates through walls, and use collision-aware strafes between bursts. Reacquisitions restart the current-engagement timer.
+- Navigation refreshes when Lotus' door changes collision, un-wedging only uses reachable nodes, ground recovery rejects missing floors and large downward teleports, and parallel collision queries keep independent query stamps.
+- Bot-versus-bot combat turns gradually, checks alignment and derives damage, reactions and tracers from exposed hit zones rather than damaging hidden bodies through low cover.
+
+### Fixed
+
+- Crosshair movement and firing error now use their separate projected pixel cones: movement is no longer counted twice, and dynamic error is no longer scaled a second time at non-1080p resolutions.
+- Tactical sound knowledge requires a witness in range; Anchor and Sound Lock no longer read the player's live position without perception, damage reactions use the historical shot origin, and the Sonic Sensor responds to real shots rather than mere visibility.
+
 ## [2.12.0] - 2026-11-22
 
 ### Added

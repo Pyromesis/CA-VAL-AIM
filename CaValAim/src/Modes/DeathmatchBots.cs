@@ -40,6 +40,7 @@ public sealed partial class DeathmatchMode
         int lastHp;
         Bot? attackerBot;
         bool hitByPlayer;
+        Vector3 hitFrom;
         // bot-vs-bot duel
         Bot? foe;
         float foeFireAt, foeScanAt;
@@ -106,9 +107,11 @@ public sealed partial class DeathmatchMode
             if (State is St.Fight or St.Pack) return;
             if (player)
             {
-                lkp = at; lkpAt = Now;
+                // Sound supplies a search area, not the player's exact coordinates through walls. The estimate is
+                // deterministic with the match RNG and more precise at close range / higher difficulty.
+                lkp = BotBrain.SoundPosition(at, Body?.Feet ?? at, m.AiLevel, Rng); lkpAt = Now;
                 // Re-plan only when this changes where we're going (not on every shot you fire).
-                if (State != St.Hunt || (path == null && pending == null) || goal.DistanceTo(at) > 5f) { State = St.Hunt; Replan(); }
+                if (State != St.Hunt || (path == null && pending == null) || goal.DistanceTo(lkp.Value) > 5f) { State = St.Hunt; Replan(); }
             }
             else if (State == St.Roam && Rng.NextDouble() < 0.35)
             {
@@ -116,10 +119,12 @@ public sealed partial class DeathmatchMode
             }
         }
 
-        /// <summary>Took damage from <paramref name="bot"/> (null = the player).</summary>
-        public void Hurt(Bot? bot)
+        /// <summary>Took damage from <paramref name="bot"/> (null = the player). <paramref name="from"/> is the
+        /// historical shot origin, never a live position sampled later during the reaction.</summary>
+        public void Hurt(Bot? bot, Vector3? from = null)
         {
-            if (bot == null) hitByPlayer = true; else attackerBot = bot;
+            if (bot == null) { hitByPlayer = true; if (from is { } p) hitFrom = p; }
+            else attackerBot = bot;
         }
 
         // ---------------------------------------------------------------- frame
@@ -140,7 +145,7 @@ public sealed partial class DeathmatchMode
                 if (hitByPlayer && !brain!.SeesPlayer && m.PlayerAlive)
                 {
                     // Incoming damage reveals a bearing, not an exact position to path to.
-                    if (foe == null) Face(G.View.Eye - b.Head, snap: 0.6f);
+                    if (foe == null) Face(hitFrom - b.Head, snap: 0.6f);
                 }
                 else if (attackerBot != null && attackerBot.Alive && foe == null && !brain!.SeesPlayer)
                 {
@@ -160,7 +165,7 @@ public sealed partial class DeathmatchMode
                 State = St.Fight;
                 if (Now - noiseAt > 0.6f) { noiseAt = Now; m.Noise(b.Feet, this, 25f); } // the fight is audible
             }
-            else UpdateFoe();
+            else UpdateFoe(dt);
             bool fighting = fightPlayer || foe != null;
             if (!fightPlayer) crouchDecided = false;
             if (b.Crouched && Now >= crouchUntil) b.Crouched = false;
@@ -200,7 +205,7 @@ public sealed partial class DeathmatchMode
                     nextStrafeAt = Now + (Tier >= 3 ? R(0.55f, 1.05f) : R(1.3f, 2.3f));
                 }
                 // Hard+: crouch into the spray once the duel has started (smaller head, VALORANT's crouch spray).
-                if (fightPlayer && Tier >= 3 && !crouchDecided && brain.FirstSeenAt >= 0 && Now - brain.FirstSeenAt > 0.25f)
+                if (fightPlayer && Tier >= 3 && !crouchDecided && brain.CurrentEngagementAt >= 0 && Now - brain.CurrentEngagementAt > 0.25f)
                 {
                     crouchDecided = true;
                     if (Rng.NextDouble() < (Nightmare ? 0.5 : 0.3)) { b.Crouched = true; crouchUntil = Now + R(0.6f, 1.1f); }
@@ -228,14 +233,16 @@ public sealed partial class DeathmatchMode
 
             // ---- accelerate / stop (counter-strafe) ----
             var target = want * speed;
-            float accel = target.LengthSquared() > 0.01f ? 40f : Difficulty.T(Tier, 9f, 15f, 34f, 42f, 50f);
+            float accel = target.LengthSquared() > 0.01f
+                ? Mover.GroundAccel * Difficulty.T(Tier, .8f, .9f, 1f, 1.05f, 1.1f)
+                : Difficulty.T(Tier, 9f, 15f, 34f, 42f, 50f);
             vel = vel.MoveToward(target, accel * dt);
             var feet = b.Feet;
             var v = vel;
             var before = feet;
             Collision.MoveAndSlide(ref feet, ref v, v * dt, G.Solid);
             float ground = Collision.Ground(feet, G.Solid);
-            if (float.IsFinite(ground)) feet.Y = ground;
+            if (float.IsFinite(ground) && before.Y - ground <= MovementTuning.SnapDown) feet.Y = ground;
             else
             {
                 // Stepped over a hole in the collision (no floor under the footprint: Ground is -infinity, which used to
@@ -277,7 +284,7 @@ public sealed partial class DeathmatchMode
                         // Un-wedge: replanning alone does not help when the body is jammed against geometry the path
                         // thinks it can pass (the grid's clearance test and the body's do not always agree). Step onto
                         // the nearest open node and try again, like the tactical bots do.
-                        int n = m.Nav.Nearest(feet);
+                        int n = m.Nav.NearestReachable(feet);
                         if (n >= 0)
                         {
                             b.Feet = m.Nav.Pos[n];
@@ -318,6 +325,9 @@ public sealed partial class DeathmatchMode
         const float FootstepRange = 25f;
         float footstepCheckAt, crouchUntil;
         bool crouchDecided;
+
+        /// <summary>Dynamic collision changed: abandon paths based on the old grid and plan against the new one.</summary>
+        public void GeometryChanged() => Replan();
 
         /// <summary>Drop the current path (and any search in flight) so the next frame plans a fresh one.</summary>
         void Replan() { path = null; pending = null; }
@@ -425,7 +435,7 @@ public sealed partial class DeathmatchMode
 
         // ---------------------------------------------------------------- bot vs bot
 
-        void UpdateFoe()
+        void UpdateFoe(float dt)
         {
             var b = Body!;
             if (foe != null)
@@ -433,10 +443,17 @@ public sealed partial class DeathmatchMode
                 if (!foe.Alive || foe.Protected || b.Head.DistanceTo(foe.Body!.Head) > 45f || !G.LineOfSight(b.Head, foe.Body.Head)) { foe = null; return; }
                 State = St.Fight;
                 var to = foe.Body.Head - b.Head;
-                b.FacingYaw = Mathf.RadToDeg(Mathf.Atan2(to.X, -to.Z));
-                brain!.HeldDir = to.Normalized();
+                // Keep the same bounded turn model as every other duel: acquiring a bot must not snap the rifle
+                // instantly or allow a shot while the body is still facing the old angle.
+                Turn(to, dt);
                 b.AimTarget = foe.Body.Head;
-                if (Now >= foeFireAt) FireAtFoe();
+                if (Now >= foeFireAt)
+                {
+                    float yaw = Mathf.RadToDeg(Mathf.Atan2(to.X, -to.Z));
+                    float error = Mathf.Wrap(yaw - b.FacingYaw, -180f, 180f);
+                    if (Mathf.Abs(error) > 7f) { foeFireAt = Now + .02f; return; }
+                    FireAtFoe();
+                }
                 return;
             }
             b.AimTarget = null;
@@ -486,18 +503,31 @@ public sealed partial class DeathmatchMode
                 p *= 0.25f;
             }
             var target = o.Body!.Head + Vector3.Down * 0.35f;
-            float dist = (target - b.Head).Length();
+            float dist = b.Head.DistanceTo(o.Body.Head);
             if (Rng.NextDouble() < p)
             {
                 int zone = Rng.NextDouble() < skill.PHead1 * (s == 0 ? 1f : 0.6f) ? 0 : (Rng.NextDouble() < 0.08 ? 2 : 1);
-                o.Body.Hp -= (int)Mathf.Round(w.Damage(zone, dist));
-                o.Body.OnHit((HitZone)zone);
-                o.Hurt(this);
-                if (o.Body.Dead)
+                bool VisibleZone(int z, out Vector3 point)
                 {
-                    o.Body.Die((o.Body.Head - b.Head).Normalized());
-                    m.OnBotKilled(o, this, zone == 0);
-                    foe = null;
+                    point = o.Body.Head + Vector3.Down * (z == 0 ? 0f : z == 2 ? 1.05f : .45f);
+                    var dir = (point - b.Head).Normalized();
+                    float wall = Collision.FirstHit(b.Head, dir, G.Solid);
+                    return o.Body.Raycast(b.Head, dir, out float body) == (HitZone)z && body < wall;
+                }
+                // A head visible above low cover does not make the chest or legs hittable. Derive damage, hit
+                // reaction and tracer from the same exposed impact; a hidden leg may fall back to an exposed chest.
+                if (VisibleZone(zone, out var impact) || (zone == 2 && VisibleZone(zone = 1, out impact)))
+                {
+                    target = impact;
+                    o.Body.Hp -= (int)Mathf.Round(w.Damage(zone, dist));
+                    o.Body.OnHit((HitZone)zone);
+                    o.Hurt(this);
+                    if (o.Body.Dead)
+                    {
+                        o.Body.Die((o.Body.Head - b.Head).Normalized());
+                        m.OnBotKilled(o, this, zone == 0);
+                        foe = null;
+                    }
                 }
             }
             else target += new Vector3(R(-0.6f, 0.6f), R(-0.4f, 0.5f), R(-0.6f, 0.6f));

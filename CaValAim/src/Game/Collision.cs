@@ -209,27 +209,30 @@ public static class Collision
         float minX = Mathf.Min(prevX, feet.X) - PlayerRadius, maxX = Mathf.Max(prevX, feet.X) + PlayerRadius;
         float minZ = Mathf.Min(prevZ, feet.Z) - PlayerRadius, maxZ = Mathf.Max(prevZ, feet.Z) + PlayerRadius;
         int ix0 = grid.Ix(minX), ix1 = grid.Ix(maxX), iz0 = grid.Iz(minZ), iz1 = grid.Iz(maxZ);
-        int gen = grid.NextGeneration();
+        lock (grid)
+        {
+            int gen = grid.NextGeneration();
 
-        // Resolve in list order (like the old linear scan) so a corner with overlapping boxes stays deterministic.
-        var candidates = resolveScratch ??= new List<int>(64);
-        candidates.Clear();
-        for (int iz = iz0; iz <= iz1; iz++)
-            for (int ix = ix0; ix <= ix1; ix++)
-            {
-                int cell = iz * grid.Nx + ix;
-                for (int k = grid.Start[cell]; k < grid.Start[cell + 1]; k++)
+            // Resolve in list order (like the old linear scan) so a corner with overlapping boxes stays deterministic.
+            var candidates = resolveScratch ??= new List<int>(64);
+            candidates.Clear();
+            for (int iz = iz0; iz <= iz1; iz++)
+                for (int ix = ix0; ix <= ix1; ix++)
                 {
-                    int i = grid.Items[k];
-                    if (grid.Fresh(i, gen)) candidates.Add(i);
+                    int cell = iz * grid.Nx + ix;
+                    for (int k = grid.Start[cell]; k < grid.Start[cell + 1]; k++)
+                    {
+                        int i = grid.Items[k];
+                        if (grid.Fresh(i, gen)) candidates.Add(i);
+                    }
                 }
-            }
-        candidates.Sort();
+            candidates.Sort();
 
-        bool hit = false;
-        foreach (int i in candidates)
-            if (ResolveBox(ref feet, world[i], axisX, moved, step, height)) hit = true;
-        return hit;
+            bool hit = false;
+            foreach (int i in candidates)
+                if (ResolveBox(ref feet, world[i], axisX, moved, step, height)) hit = true;
+            return hit;
+        }
     }
 
     static bool ResolveBox(ref Vector3 feet, Box b, bool axisX, float moved, float step, float height)
@@ -259,7 +262,7 @@ public static class Collision
     }
 
     /// <summary>Indices of every box whose XZ extent may overlap the rectangle [x0,x1]×[z0,z1] (broadphase only: the caller
-    /// still tests the exact extent). Main thread / one thread at a time (the grid's query stamps are shared).</summary>
+    /// still tests the exact extent). Queries on a shared grid are serialized because its query stamps are mutable.</summary>
     public static void Near(IReadOnlyList<Box> world, float x0, float z0, float x1, float z1, List<int> result)
     {
         result.Clear();
@@ -270,17 +273,20 @@ public static class Collision
             return;
         }
         int ix0 = grid.Ix(x0), ix1 = grid.Ix(x1), iz0 = grid.Iz(z0), iz1 = grid.Iz(z1);
-        int gen = grid.NextGeneration();
-        for (int iz = iz0; iz <= iz1; iz++)
-            for (int ix = ix0; ix <= ix1; ix++)
-            {
-                int cell = iz * grid.Nx + ix;
-                for (int k = grid.Start[cell]; k < grid.Start[cell + 1]; k++)
+        lock (grid)
+        {
+            int gen = grid.NextGeneration();
+            for (int iz = iz0; iz <= iz1; iz++)
+                for (int ix = ix0; ix <= ix1; ix++)
                 {
-                    int i = grid.Items[k];
-                    if (grid.Fresh(i, gen)) result.Add(i);
+                    int cell = iz * grid.Nx + ix;
+                    for (int k = grid.Start[cell]; k < grid.Start[cell + 1]; k++)
+                    {
+                        int i = grid.Items[k];
+                        if (grid.Fresh(i, gen)) result.Add(i);
+                    }
                 }
-            }
+        }
     }
 
     /// <summary>Lowest box bottom in the world (the map's underside). Falling far below it means the body left the map.</summary>
@@ -315,22 +321,25 @@ public static class Collision
         }
 
         int ix0 = grid.Ix(feet.X - r), ix1 = grid.Ix(feet.X + r), iz0 = grid.Iz(feet.Z - r), iz1 = grid.Iz(feet.Z + r);
-        int gen = grid.NextGeneration();
-        for (int iz = iz0; iz <= iz1; iz++)
-            for (int ix = ix0; ix <= ix1; ix++)
-            {
-                int cell = iz * grid.Nx + ix;
-                for (int k = grid.Start[cell]; k < grid.Start[cell + 1]; k++)
+        lock (grid)
+        {
+            int gen = grid.NextGeneration();
+            for (int iz = iz0; iz <= iz1; iz++)
+                for (int ix = ix0; ix <= ix1; ix++)
                 {
-                    int i = grid.Items[k];
-                    if (!grid.Fresh(i, gen)) continue;
-                    var b = world[i];
-                    if (b.Max.Y > feet.Y + step) continue;
-                    if (feet.X + r < b.Min.X || feet.X - r > b.Max.X || feet.Z + r < b.Min.Z || feet.Z - r > b.Max.Z) continue;
-                    best = Mathf.Max(best, b.Max.Y);
+                    int cell = iz * grid.Nx + ix;
+                    for (int k = grid.Start[cell]; k < grid.Start[cell + 1]; k++)
+                    {
+                        int i = grid.Items[k];
+                        if (!grid.Fresh(i, gen)) continue;
+                        var b = world[i];
+                        if (b.Max.Y > feet.Y + step) continue;
+                        if (feet.X + r < b.Min.X || feet.X - r > b.Max.X || feet.Z + r < b.Min.Z || feet.Z - r > b.Max.Z) continue;
+                        best = Mathf.Max(best, b.Max.Y);
+                    }
                 }
-            }
-        return best;
+            return best;
+        }
     }
 
     /// <summary>Lowest box bottom over the player's footprint at or above <paramref name="headY"/> (+inf = open sky).
@@ -352,22 +361,25 @@ public static class Collision
         }
 
         int ix0 = grid.Ix(feet.X - r), ix1 = grid.Ix(feet.X + r), iz0 = grid.Iz(feet.Z - r), iz1 = grid.Iz(feet.Z + r);
-        int gen = grid.NextGeneration();
-        for (int iz = iz0; iz <= iz1; iz++)
-            for (int ix = ix0; ix <= ix1; ix++)
-            {
-                int cell = iz * grid.Nx + ix;
-                for (int k = grid.Start[cell]; k < grid.Start[cell + 1]; k++)
+        lock (grid)
+        {
+            int gen = grid.NextGeneration();
+            for (int iz = iz0; iz <= iz1; iz++)
+                for (int ix = ix0; ix <= ix1; ix++)
                 {
-                    int i = grid.Items[k];
-                    if (!grid.Fresh(i, gen)) continue;
-                    var b = world[i];
-                    if (b.Min.Y < headY - 0.01f || b.Min.Y >= best) continue;
-                    if (feet.X + r <= b.Min.X || feet.X - r >= b.Max.X || feet.Z + r <= b.Min.Z || feet.Z - r >= b.Max.Z) continue;
-                    best = b.Min.Y;
+                    int cell = iz * grid.Nx + ix;
+                    for (int k = grid.Start[cell]; k < grid.Start[cell + 1]; k++)
+                    {
+                        int i = grid.Items[k];
+                        if (!grid.Fresh(i, gen)) continue;
+                        var b = world[i];
+                        if (b.Min.Y < headY - 0.01f || b.Min.Y >= best) continue;
+                        if (feet.X + r <= b.Min.X || feet.X - r >= b.Max.X || feet.Z + r <= b.Min.Z || feet.Z - r >= b.Max.Z) continue;
+                        best = b.Min.Y;
+                    }
                 }
-            }
-        return best;
+            return best;
+        }
     }
 
     /// <summary>Distance to the first box hit along a normalized ray, or +inf.</summary>
@@ -390,43 +402,46 @@ public static class Collision
             return best;
         }
 
-        // 2D DDA over the XZ grid: only the cells the ray actually crosses are tested.
-        int gen = grid.NextGeneration();
-        int ix = grid.Ix(o.X), iz = grid.Iz(o.Z);
-        int stepX = d.X >= 0f ? 1 : -1, stepZ = d.Z >= 0f ? 1 : -1;
-        float tDeltaX = Mathf.Abs(d.X) > 1e-8f ? CollisionGrid.CellSize / Mathf.Abs(d.X) : float.PositiveInfinity;
-        float tDeltaZ = Mathf.Abs(d.Z) > 1e-8f ? CollisionGrid.CellSize / Mathf.Abs(d.Z) : float.PositiveInfinity;
-        float tMaxX = float.PositiveInfinity, tMaxZ = float.PositiveInfinity;
-        if (Mathf.Abs(d.X) > 1e-8f)
+        lock (grid)
         {
-            float boundary = grid.CellMinX(d.X > 0f ? ix + 1 : ix);
-            tMaxX = Mathf.Max(0f, (boundary - o.X) / d.X);
-        }
-        if (Mathf.Abs(d.Z) > 1e-8f)
-        {
-            float boundary = grid.CellMinZ(d.Z > 0f ? iz + 1 : iz);
-            tMaxZ = Mathf.Max(0f, (boundary - o.Z) / d.Z);
-        }
-
-        while (true)
-        {
-            int cell = iz * grid.Nx + ix;
-            for (int k = grid.Start[cell]; k < grid.Start[cell + 1]; k++)
+            // 2D DDA over the XZ grid: only the cells the ray actually crosses are tested.
+            int gen = grid.NextGeneration();
+            int ix = grid.Ix(o.X), iz = grid.Iz(o.Z);
+            int stepX = d.X >= 0f ? 1 : -1, stepZ = d.Z >= 0f ? 1 : -1;
+            float tDeltaX = Mathf.Abs(d.X) > 1e-8f ? CollisionGrid.CellSize / Mathf.Abs(d.X) : float.PositiveInfinity;
+            float tDeltaZ = Mathf.Abs(d.Z) > 1e-8f ? CollisionGrid.CellSize / Mathf.Abs(d.Z) : float.PositiveInfinity;
+            float tMaxX = float.PositiveInfinity, tMaxZ = float.PositiveInfinity;
+            if (Mathf.Abs(d.X) > 1e-8f)
             {
-                int i = grid.Items[k];
-                if (!grid.Fresh(i, gen)) continue;
-                float t = world[i].Ray(o, d);
-                if (t < best && t <= maxT) { best = t; index = i; }
+                float boundary = grid.CellMinX(d.X > 0f ? ix + 1 : ix);
+                tMaxX = Mathf.Max(0f, (boundary - o.X) / d.X);
+            }
+            if (Mathf.Abs(d.Z) > 1e-8f)
+            {
+                float boundary = grid.CellMinZ(d.Z > 0f ? iz + 1 : iz);
+                tMaxZ = Mathf.Max(0f, (boundary - o.Z) / d.Z);
             }
 
-            float next = Mathf.Min(tMaxX, tMaxZ);
-            if (index >= 0 && best <= next) break;      // nothing closer can be in a later cell
-            if (next > maxT || float.IsPositiveInfinity(next)) break;
-            if (tMaxX < tMaxZ) { ix += stepX; tMaxX += tDeltaX; }
-            else { iz += stepZ; tMaxZ += tDeltaZ; }
-            if (ix < 0 || ix >= grid.Nx || iz < 0 || iz >= grid.Nz) break;
+            while (true)
+            {
+                int cell = iz * grid.Nx + ix;
+                for (int k = grid.Start[cell]; k < grid.Start[cell + 1]; k++)
+                {
+                    int i = grid.Items[k];
+                    if (!grid.Fresh(i, gen)) continue;
+                    float t = world[i].Ray(o, d);
+                    if (t < best && t <= maxT) { best = t; index = i; }
+                }
+
+                float next = Mathf.Min(tMaxX, tMaxZ);
+                if (index >= 0 && best <= next) break;      // nothing closer can be in a later cell
+                if (next > maxT || float.IsPositiveInfinity(next)) break;
+                if (tMaxX < tMaxZ) { ix += stepX; tMaxX += tDeltaX; }
+                else { iz += stepZ; tMaxZ += tDeltaZ; }
+                if (ix < 0 || ix >= grid.Nx || iz < 0 || iz >= grid.Nz) break;
+            }
+            return best;
         }
-        return best;
     }
 
     public static float FirstHit(Vector3 o, Vector3 d, IReadOnlyList<Box> world) => FirstHit(o, d, world, out _);
@@ -454,21 +469,24 @@ public static class Collision
         }
 
         int ix0 = grid.Ix(feet.X - r), ix1 = grid.Ix(feet.X + r), iz0 = grid.Iz(feet.Z - r), iz1 = grid.Iz(feet.Z + r);
-        int gen = grid.NextGeneration();
-        for (int iz = iz0; iz <= iz1; iz++)
-            for (int ix = ix0; ix <= ix1; ix++)
-            {
-                int cell = iz * grid.Nx + ix;
-                for (int k = grid.Start[cell]; k < grid.Start[cell + 1]; k++)
+        lock (grid)
+        {
+            int gen = grid.NextGeneration();
+            for (int iz = iz0; iz <= iz1; iz++)
+                for (int ix = ix0; ix <= ix1; ix++)
                 {
-                    int i = grid.Items[k];
-                    if (!grid.Fresh(i, gen)) continue;
-                    var b = world[i];
-                    if (b.Max.Y > feet.Y + StepHeight && b.Min.Y < feet.Y + PlayerHeight &&
-                        feet.X > b.Min.X - r && feet.X < b.Max.X + r && feet.Z > b.Min.Z - r && feet.Z < b.Max.Z + r)
-                        return true;
+                    int cell = iz * grid.Nx + ix;
+                    for (int k = grid.Start[cell]; k < grid.Start[cell + 1]; k++)
+                    {
+                        int i = grid.Items[k];
+                        if (!grid.Fresh(i, gen)) continue;
+                        var b = world[i];
+                        if (b.Max.Y > feet.Y + StepHeight && b.Min.Y < feet.Y + PlayerHeight &&
+                            feet.X > b.Min.X - r && feet.X < b.Max.X + r && feet.Z > b.Min.Z - r && feet.Z < b.Max.Z + r)
+                            return true;
+                    }
                 }
-            }
-        return false;
+            return false;
+        }
     }
 }

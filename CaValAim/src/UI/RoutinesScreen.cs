@@ -373,8 +373,32 @@ public partial class RoutinesScreen : ScreenBase
         Loc.Apply(this);
     }
 
+    void BuildPrescribedRoutine(VBoxContainer right, float k, AimRoutineRecommendation recommendation)
+    {
+        var routine = recommendation.Routine;
+        right.AddChild(Kicker(L("FOR YOU · MEASURED-FAULT ROUTINE", "PARA TI · RUTINA POR FALLO MEDIDO"), UiTheme.Teal));
+        string evidence = recommendation.Source is { } finding
+            ? $"{finding.Title} · {finding.Evidence}"
+            : recommendation.Sens is { } sens
+                ? $"{SensLabText.VerdictSentence(sens)} {SensLabText.Metrics(sens)} · {SensLabText.CurrentCaption(sens)}"
+                : "";
+        if (evidence.Length > 0) right.AddChild(Para(evidence, 11.5f, UiTheme.TextSoft));
+        right.AddChild(Para(L(
+            "The pattern guides practice; it does not establish sensitivity as the cause. Baseline and validation use matched settings, and completing the routine does not guarantee improvement.",
+            "El patrón orienta la práctica; no demuestra que la sensibilidad sea la causa. La medición inicial y la validación usan ajustes equivalentes, y completar la rutina no garantiza una mejora."),
+            10.5f, UiTheme.Dim));
+        right.AddChild(Spacer(0, 7 * k));
+        BuildRoutineDetail(right, routine, k);
+    }
+
     void BuildRecommendedDetail(VBoxContainer right, float k)
     {
+        if (profile != null && AimRoutinePrescription.For(profile) is { } recommendation)
+        {
+            BuildPrescribedRoutine(right, k, recommendation);
+            return;
+        }
+
         var head = HBox(16 * k);
         var titles = VBox(0);
         titles.SizeFlagsHorizontal = SizeFlags.ExpandFill;

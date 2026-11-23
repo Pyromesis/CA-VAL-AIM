@@ -15,9 +15,9 @@ public partial class CrosshairView : Control
     /// Tour de Force hologram octagon.</summary>
     public enum SniperScope { Operator, Marshal, Outlaw, TourDeForce }
     public Mode Showing = Mode.Primary;
-    /// <summary>0..1 movement inaccuracy (spreads lines with "movement error").</summary>
-    public float MoveError;
-    /// <summary>Current firing error in pixels beyond the weapon's first-shot error (spreads lines with "firing error").</summary>
+    /// <summary>Current movement error in screen pixels (spreads only lines with "movement error").</summary>
+    public float MovementErrorPx;
+    /// <summary>Current firing-only error in pixels beyond the weapon's first-shot error (spreads only lines with "firing error").</summary>
     public float FiringErrorPx;
     /// <summary>The weapon's minimum (first-shot) error in pixels. Without "Override Firing Error Offset With Crosshair
     /// Offset" (code "m") VALORANT rests the firing-error lines this much further out; 0 = the offset alone.</summary>
@@ -53,7 +53,7 @@ public partial class CrosshairView : Control
         }
         var style = Profile.StyleFor(Showing);
         var sec = Profile.SectionFor(Showing);
-        DrawStyle(this, style, centre.Floor(), k, MoveError, FiringErrorPx,
+        DrawStyle(this, style, centre.Floor(), k, MovementErrorPx, FiringErrorPx,
             restErrorPx: sec.OverrideFiringOffset ? 0f : MinErrorPx, fade: Profile.Extras.Primary.Fade);
     }
 
@@ -61,7 +61,8 @@ public partial class CrosshairView : Control
         DrawStyle(canvas, profile.Primary, (size / 2).Floor(), profile.ScaleToResolution ? size.Y / 1080f : 1f);
 
     /// <summary>Draws one crosshair style centred on <paramref name="centre"/> of any canvas (HUD overlays, previews).
-    /// <paramref name="k"/> scales every size (1 = real screen pixels; larger = magnified preview).
+    /// <paramref name="k"/> scales configured geometry (1 = real screen pixels; larger = magnified preview). Movement,
+    /// firing and rest errors are supplied in final screen pixels and are therefore not scaled a second time.
     /// <para>Like VALORANT at 1080p: each line is a rectangle <c>thickness</c> px across, centred on the screen centre
     /// (a pixel corner), from <c>offset</c> to <c>offset + length</c> px out; the dot is a <c>size</c> px square. Very
     /// short, thick inner lines therefore close into a ring or a box, and offset 0 joins the arms into a closed plus.
@@ -70,12 +71,12 @@ public partial class CrosshairView : Control
     /// <para><paramref name="restErrorPx"/> moves firing-error lines out at rest (the weapon's minimum error when the
     /// profile doesn't override it); <paramref name="fade"/> ("Fade Crosshair With Firing Error") fades firing-error
     /// lines as they spread.</para></summary>
-    public static void DrawStyle(CanvasItem ci, CrosshairStyle style, Vector2 centre, float k = 1f, float moveError = 0f, float firingErrorPx = 0f,
+    public static void DrawStyle(CanvasItem ci, CrosshairStyle style, Vector2 centre, float k = 1f, float movementErrorPx = 0f, float firingErrorPx = 0f,
         float restErrorPx = 0f, bool fade = false)
     {
         if (style.Hide) return;
         int cx = (int)centre.X, cy = (int)centre.Y;
-        var parts = PartRects(style, cx, cy, k, moveError, firingErrorPx, restErrorPx, fade);
+        var parts = PartRects(style, cx, cy, k, movementErrorPx, firingErrorPx, restErrorPx, fade);
         if (style.HasOutline && style.OutlineThickness > 0 && style.OutlineOpacity > 0)
         {
             float o = Mathf.Round(style.OutlineThickness * k);
@@ -86,7 +87,7 @@ public partial class CrosshairView : Control
     }
 
     /// <summary>The fill rectangles of each visible part (centre dot, inner lines, outer lines) with its opacity.</summary>
-    public static List<(List<Rect2> Rects, float Opacity)> PartRects(CrosshairStyle s, int cx, int cy, float k = 1f, float moveError = 0f, float firingErrorPx = 0f,
+    public static List<(List<Rect2> Rects, float Opacity)> PartRects(CrosshairStyle s, int cx, int cy, float k = 1f, float movementErrorPx = 0f, float firingErrorPx = 0f,
         float restErrorPx = 0f, bool fade = false)
     {
         var parts = new List<(List<Rect2>, float)>();
@@ -97,7 +98,7 @@ public partial class CrosshairView : Control
         }
         foreach (var l in new[] { s.Inner, s.Outer })
         {
-            if (Lines(l, cx, cy, k, moveError, firingErrorPx, restErrorPx) is not { } r) continue;
+            if (Lines(l, cx, cy, k, movementErrorPx, firingErrorPx, restErrorPx) is not { } r) continue;
             float op = l.Opacity;
             // Fade With Firing Error (exact curve unpublished): firing-error lines lose up to 65 % opacity by ~30 px of spread.
             if (fade && l.ShowShootingError) op *= Mathf.Lerp(1f, 0.35f, Mathf.Clamp(firingErrorPx * l.FiringErrorScale / 30f, 0f, 1f));
@@ -106,7 +107,7 @@ public partial class CrosshairView : Control
         return parts;
     }
 
-    static List<Rect2>? Lines(CrosshairLines l, int cx, int cy, float k, float moveError, float firingErrorPx, float restErrorPx)
+    static List<Rect2>? Lines(CrosshairLines l, int cx, int cy, float k, float movementErrorPx, float firingErrorPx, float restErrorPx)
     {
         if (!l.Show || l.Opacity <= 0 || l.Thickness <= 0) return null;
         float len = Mathf.Round(l.Length * k);
@@ -114,9 +115,11 @@ public partial class CrosshairView : Control
         float lenV = Mathf.Round((l.AllowVertScaling ? l.LengthVertical : l.Length) * k);
         if (len <= 0 && lenV <= 0) return null;
         float t = Mathf.Max(1, Mathf.Round(l.Thickness * k));
-        float spread = (l.ShowMovementError ? moveError * 14f * l.MovementErrorScale : 0f)
+        // Error inputs are already screen pixels (the same projection as the weapon cone). Only the configured offset
+        // is resolution-scaled: applying k to the errors as well made them wrong at every non-1080p resolution.
+        float spread = (l.ShowMovementError ? movementErrorPx * l.MovementErrorScale : 0f)
                      + (l.ShowShootingError ? (firingErrorPx + restErrorPx) * l.FiringErrorScale : 0f);
-        float off = Mathf.Round((l.Offset + spread) * k);
+        float off = Mathf.Round(l.Offset * k + spread);
         float half = Mathf.Floor(t / 2);
         var r = new List<Rect2>(4);
         if (len > 0)

@@ -222,7 +222,7 @@ public partial class Main : Node
         else if (updating) SetScreen(new UpdatingScreen());
         else ShowMenu();
         if (updating) return;
-        // Dev-only: "--screen settings|about|stats" opens that screen directly (MenuScreen handles "profile").
+        // Dev-only: "--screen settings|about|stats|sensitivity" opens that screen directly (MenuScreen handles "profile").
         switch (Dev ? CmdLine.After("--screen")?.ToLowerInvariant() : null)
         {
             case "settings":
@@ -235,6 +235,7 @@ public partial class Main : Node
             case "stats": Callable.From(ShowStats).CallDeferred(); break;
             case "reaction" or "reactions": Callable.From(ShowReactionStats).CallDeferred(); break;
             case "senslab" or "sens-lab": Callable.From(ShowSensLab).CallDeferred(); break;
+            case "sensitivity": Callable.From(ShowSensitivity).CallDeferred(); break;
             case "favorites": Callable.From(() => ShowScreen(new FavoritesScreen())).CallDeferred(); break;
             case "practice": Callable.From(ShowPractice).CallDeferred(); break;
             case "warmup" or "lockin": Callable.From(ShowLockIn).CallDeferred(); break;
@@ -418,6 +419,8 @@ public partial class Main : Node
     public void ShowProfile() => SetScreen(new ProfileScreen());
     public void ShowPractice() => SetScreen(new PracticeScreen());
     public void ShowSensLab() => SetScreen(new SensLabScreen());
+    /// <summary>Focused current-sensitivity view; the complete laboratory remains <see cref="ShowSensLab"/>.</summary>
+    public void ShowSensitivity() => SetScreen(new SensLabScreen { Dedicated = true });
     /// <summary>The technique library (menu ACADEMY); <paramref name="technique"/> opens that lesson.</summary>
     public void ShowAcademy() => SetScreen(new AcademyScreen());
     public void ShowAcademy(string? technique, Action? back = null) => SetScreen(new AcademyScreen(technique, back));

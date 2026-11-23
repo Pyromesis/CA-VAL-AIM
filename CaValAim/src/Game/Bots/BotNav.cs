@@ -26,6 +26,7 @@ public sealed class BotNav
     readonly int[] colStart; // nodes of column c are colNodes[colStart[c] .. colStart[c+1])
     readonly int[] colNodes;
     readonly Box[] solid;
+    readonly Vector3 fallback;
     public readonly float BuildMs;
 
     public int Count => Pos.Length;
@@ -56,6 +57,7 @@ public sealed class BotNav
     {
         var sw = Stopwatch.StartNew();
         solid = world;
+        fallback = seed;
         float x0 = float.MaxValue, z0 = float.MaxValue, x1 = float.MinValue, z1 = float.MinValue;
         foreach (var b in world)
         {
@@ -253,6 +255,23 @@ public sealed class BotNav
         return bi;
     }
 
+    /// <summary>Nearest node that the body can actually walk to in a straight, unobstructed segment. Unlike
+    /// <see cref="Nearest"/>, this is safe for un-wedging: it never selects a point through a wall or on another floor.</summary>
+    public int NearestReachable(Vector3 p)
+    {
+        int best = -1;
+        float bestD = float.MaxValue;
+        for (int i = 0; i < Pos.Length; i++)
+        {
+            float d = Pos[i].DistanceSquaredTo(p);
+            if (d >= bestD || d > 16f || Mathf.Abs(Pos[i].Y - p.Y) > MovementTuning.SnapDown) continue;
+            if (!Straight(p, Pos[i])) continue;
+            best = i;
+            bestD = d;
+        }
+        return best;
+    }
+
     /// <summary>A* from a world point to another; returns smoothed waypoints (excluding the start) or null.</summary>
     public List<Vector3>? FindPath(Vector3 a, Vector3 b, int maxExpand = 20000)
     {
@@ -380,6 +399,19 @@ public sealed class BotNav
         // The segment's bounding rectangle, expanded by the body radius.
         float minX = Mathf.Min(a.X, b.X) - r, maxX = Mathf.Max(a.X, b.X) + r;
         float minZ = Mathf.Min(a.Z, b.Z) - r, maxZ = Mathf.Max(a.Z, b.Z) + r;
+        if (rayBuckets.Length == 0)
+        {
+            // Degenerate worlds deliberately disable buckets; use the same exact tests in a linear scan instead of
+            // indexing an empty bucket array (or, worse, declaring the corridor clear without testing it).
+            foreach (var box in solid)
+            {
+                if (box.Max.Y <= lo || box.Min.Y >= hi) continue;
+                if (box.Max.X < minX || box.Min.X > maxX || box.Max.Z < minZ || box.Min.Z > maxZ) continue;
+                if (SegmentNearBox(a, d, len, box, r)) return false;
+            }
+            return true;
+        }
+
         int ax = RbX(minX), bx = RbX(maxX), az = RbZ(minZ), bz = RbZ(maxZ);
         for (int z = az; z <= bz; z++)
             for (int x = ax; x <= bx; x++)
@@ -450,8 +482,8 @@ public sealed class BotNav
     int RbX(float x) => Math.Clamp((int)Mathf.Floor((x - rbX0) / RayBucket), 0, Math.Max(0, rbNx - 1));
     int RbZ(float z) => Math.Clamp((int)Mathf.Floor((z - rbZ0) / RayBucket), 0, Math.Max(0, rbNz - 1));
 
-    /// <summary>Random reachable node position.</summary>
-    public Vector3 Random(Random rng) => Pos[rng.Next(Pos.Length)];
+    /// <summary>Random reachable node position, or the construction seed when this world has no walkable grid.</summary>
+    public Vector3 Random(Random rng) => Pos.Length == 0 ? fallback : Pos[rng.Next(Pos.Length)];
 
     /// <summary>Number of links (open nodes have 8).</summary>
     public int Degree(int n) => Links[n].Length;

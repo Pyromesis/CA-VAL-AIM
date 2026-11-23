@@ -30,6 +30,7 @@ public abstract partial class TacticalMode : MapMode
     protected static readonly bool DevLog = CmdLine.Dev;
 
     protected BotNav Nav = null!;
+    int navVersion;
     protected TacticalSite Site = null!;
     protected Vector3[] Plants = Array.Empty<Vector3>();
     protected readonly List<TacBot> Bots = new();
@@ -64,7 +65,8 @@ public abstract partial class TacticalMode : MapMode
         var sw = System.Diagnostics.Stopwatch.StartNew();
         // The walkable grid seeded on the SITE (not the attackers' start): some maps only drop onto the site (Bind's Hookah
         // window), and drops aren't links, so the defenders' side is its own component.
-        Nav = BotNav.For($"{MapSpot.Key}:{G.Solid.Count}:site", G.Solid, TacticalSite.SiteSeed(MapSpot));
+        navVersion = G.GeometryVersion;
+        Nav = BotNav.For($"{MapSpot.Key}:{G.Solid.Count}:site:v{navVersion}", G.Solid, TacticalSite.SiteSeed(MapSpot));
         Plants = TacticalSite.PlantSpotsFor(MapSpot, Nav, G.Solid);
         // Precompute every plant's geometry in parallel (cached for the process).
         var sites = new TacticalSite[Plants.Length];
@@ -149,6 +151,12 @@ public abstract partial class TacticalMode : MapMode
     public override void Update(float dt)
     {
         PathBudget = 3;
+        if (navVersion != G.GeometryVersion)
+        {
+            navVersion = G.GeometryVersion;
+            Nav = BotNav.For($"{MapSpot.Key}:{G.Solid.Count}:site:v{navVersion}", G.Solid, TacticalSite.SiteSeed(MapSpot));
+            foreach (var b in Bots) b.GeometryChanged();
+        }
         if (!started) { started = true; }
         if (RoundPhase == Phase.Over)
         {
@@ -198,9 +206,15 @@ public abstract partial class TacticalMode : MapMode
 
     protected virtual void Heard(Vector3 at, float range)
     {
+        bool heard = false;
         foreach (var b in Bots)
-            if (b.Alive && b.Body.Feet.DistanceTo(at) < range) b.HeardShot(at);
-        Know(at);
+        {
+            if (!b.Alive || b.Body.Feet.DistanceTo(at) >= range) continue;
+            b.HeardShot(at);
+            heard = true;
+        }
+        // A squad callout needs a witness: gunfire outside everyone's range creates no global knowledge.
+        if (heard) Know(at);
     }
 
     void UpdateSpike()

@@ -65,6 +65,10 @@ public sealed partial class AnchorMode
         {
             m = mode; Index = index; Body = body; Brain = brain;
             Name = $"Attacker {index + 1}";
+            Body.Fx += (_, fx, _, _) =>
+            {
+                if (fx == BotCharacter.BotFx.Shoot) lastFireAt = Now;
+            };
             stuckAt = mode.Now; stuckPos = body.Feet;
         }
 
@@ -78,7 +82,7 @@ public sealed partial class AnchorMode
         /// <summary>Running = audible footsteps (walking / crouching is silent).</summary>
         public bool Loud => Alive && Speed > FootstepFx.AudibleSpeed;
         /// <summary>Shot a gun in the last half second (sonic sensor, audio).</summary>
-        public bool Firing => Now - lastFireAt < 0.5f || (Brain.SeesPlayer && Now - Brain.FirstSeenAt > 0.3f);
+        public bool Firing => Now - lastFireAt < 0.5f;
         public bool Held => Now < heldUntil;
         public bool IsRevealed => Now < revealUntil;
         public bool IsVulnerable => Now < vulnUntil;
@@ -163,7 +167,6 @@ public sealed partial class AnchorMode
             if (fight)
             {
                 lkp = m.PlayerFeet; lkpAt = Now;
-                lastFireAt = Now;
                 if (Target != null && Target is not TrapwireDev) Target = null; // the duel comes first
             }
 
@@ -210,7 +213,9 @@ public sealed partial class AnchorMode
 
             // ---- accelerate / stop (counter-strafe at Veteran+) ----
             var target = want * speed * SlowMul;
-            float accel = target.LengthSquared() > 0.01f ? 40f : Difficulty.T(Tier, 9f, 15f, 34f, 42f, 50f);
+            float accel = target.LengthSquared() > 0.01f
+                ? Mover.GroundAccel * Difficulty.T(Tier, .8f, .9f, 1f, 1.05f, 1.1f)
+                : Difficulty.T(Tier, 9f, 15f, 34f, 42f, 50f);
             vel = vel.MoveToward(target, accel * dt);
             if (Held) vel = Vector3.Zero;
             var before = b.Feet;
@@ -227,7 +232,7 @@ public sealed partial class AnchorMode
                 }
             }
             float ground = Collision.Ground(feet, G.Solid);
-            if (float.IsFinite(ground)) feet.Y = ground;
+            if (float.IsFinite(ground) && before.Y - ground <= MovementTuning.SnapDown) feet.Y = ground;
             else { feet = before; v = Vector3.Zero; } // no floor under that step (a hole in the collision): don't fall into NaN
             vel = v;
             b.Feet = feet;
@@ -267,10 +272,17 @@ public sealed partial class AnchorMode
             lookPickAt = 0;
         }
 
-        /// <summary>Go after the player: toward where you were last seen (or roughly where you are — they heard you).</summary>
+        /// <summary>Go after a remembered sighting. Without a real stimulus, keep clearing/holding angles instead of
+        /// reading the player's current position through walls.</summary>
         void StartHunt()
         {
-            var goal = lkp is { } k && Now - lkpAt < 10f ? k : m.PlayerFeet + new Vector3(m.R(-4, 4), 0, m.R(-4, 4));
+            if (lkp is not { } goal || Now - lkpAt >= 10f)
+            {
+                State = St.Hold;
+                holdUntil = Now + m.R(1.2f, 2.4f);
+                lookPickAt = 0;
+                return;
+            }
             var path = m.nav.FindPath(Body.Feet, goal);
             if (path == null || path.Count == 0) { holdUntil = Now + 1.5f; return; }
             State = St.Hunt;

@@ -316,6 +316,7 @@ public partial class MenuScreen : ScreenBase
         Shortcut(L("FAVORITES", "FAVORITOS"), () => Main.I.ShowScreen(new FavoritesScreen()));
         Shortcut(L("AGENTS", "AGENTES"), Main.I.ShowAgents);
         Shortcut("COACH", Main.I.ShowProfile);
+        Shortcut(L("SENSITIVITY", "SENSIBILIDAD"), Main.I.ShowSensitivity);
         Shortcut(L("STATS", "ESTADÍSTICAS"), Main.I.ShowStats);
         left.AddChild(shortcuts);
 

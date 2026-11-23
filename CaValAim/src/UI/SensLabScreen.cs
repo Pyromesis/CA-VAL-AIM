@@ -201,6 +201,8 @@ public partial class SensLabScreen : ScreenBase
     SkillProfile? profile;
     float spinT;
     public string SelectedSection { get; set; } = "";
+    /// <summary>Only the current sensitivity, its measured fault and (when present) its corrective routine.</summary>
+    public bool Dedicated { get; set; }
 
     public override void _Ready()
     {
@@ -229,39 +231,54 @@ public partial class SensLabScreen : ScreenBase
         var col = (VBoxContainer)root.GetChild(0);
 
         var head = HBox(16 * k);
-        var title = Heading("SENS LAB", "OVER/UNDERSHOOT, TREMOR AND TRACKING · ACCUMULATED OVER TIME");
+        var title = Dedicated
+            ? Heading("SENSITIVITY", Loc.Spanish
+                ? "SENS ACTUAL · FALLOS MEDIDOS · CORRECCIÓN SOLO CUANDO HAY EVIDENCIA"
+                : "CURRENT SENS · MEASURED FAULTS · CORRECTION ONLY WITH EVIDENCE")
+            : Heading("SENS LAB", "OVER/UNDERSHOOT, TREMOR AND TRACKING · ACCUMULATED OVER TIME");
         title.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         head.AddChild(title);
-        var coach = Btn("AIM COACH", VButton.Look.Secondary, Main.I.ShowProfile, 220, 48, 19);
-        coach.SizeFlagsVertical = SizeFlags.ShrinkCenter;
-        head.AddChild(coach);
+        if (!Dedicated)
+        {
+            var coach = Btn("AIM COACH", VButton.Look.Secondary, Main.I.ShowProfile, 220, 48, 19);
+            coach.SizeFlagsVertical = SizeFlags.ShrinkCenter;
+            head.AddChild(coach);
+        }
         var back = Btn("BACK", VButton.Look.Primary, Main.I.ShowMenu, 150, 48, 20);
         back.SizeFlagsVertical = SizeFlags.ShrinkCenter;
         head.AddChild(back);
         col.AddChild(head);
 
-        var drills = new HFlowContainer();
-        drills.AddThemeConstantOverride("h_separation", (int)(10 * k));
-        drills.AddThemeConstantOverride("v_separation", (int)(6 * k));
-        foreach (var (key, en, es) in new[]
+        if (!Dedicated)
         {
-            ("flickx:sens-braking", "BRAKING", "FRENADO"),
-            ("microx:sens-fine", "FINE CORRECTIONS", "AJUSTES FINOS"),
-            ("trackv:sens-smooth", "STEADY TRACKING", "SEGUIMIENTO ESTABLE"),
-        })
-            drills.AddChild(Btn(Loc.Spanish ? es : en, VButton.Look.Secondary, () => CoachData.StartDrill(key), 205, 40, 15));
-        col.AddChild(drills);
+            var drills = new HFlowContainer();
+            drills.AddThemeConstantOverride("h_separation", (int)(10 * k));
+            drills.AddThemeConstantOverride("v_separation", (int)(6 * k));
+            foreach (var (key, en, es) in new[]
+            {
+                ("flickx:sens-braking", "BRAKING", "FRENADO"),
+                ("microx:sens-fine", "FINE CORRECTIONS", "AJUSTES FINOS"),
+                ("trackv:sens-smooth", "STEADY TRACKING", "SEGUIMIENTO ESTABLE"),
+            })
+                drills.AddChild(Btn(Loc.Spanish ? es : en, VButton.Look.Secondary, () => CoachData.StartDrill(key), 205, 40, 15));
+            col.AddChild(drills);
+        }
 
         var scroll = new ScrollContainer { HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled, SizeFlagsVertical = SizeFlags.ExpandFill };
         col.AddChild(scroll);
         var body = VBox(16 * k);
         body.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         scroll.AddChild(body);
-        body.AddChild(CategorySettings());
+        if (!Dedicated) body.AddChild(CategorySettings());
 
         if (profile == null)
         {
             body.AddChild(Lbl("LOADING…", UiTheme.HudWide, 18, UiTheme.Dim));
+            return;
+        }
+        if (Dedicated)
+        {
+            BuildDedicated(body, profile);
             return;
         }
         if (SelectedSection.Length > 0) return;
@@ -325,6 +342,157 @@ public partial class SensLabScreen : ScreenBase
         actions.AddChild(Btn("AIM COACH", VButton.Look.Secondary, Main.I.ShowProfile, 200, 48, 19));
         actions.AddChild(Btn("BACK", VButton.Look.Ghost, Main.I.ShowMenu, 150, 48, 18));
         body.AddChild(Spacer(0, 10 * k));
+    }
+
+    void BuildDedicated(VBoxContainer body, SkillProfile p)
+    {
+        float k = K;
+        bool es = Loc.Spanish;
+        var lab = p.SensLab ?? new SensLabData { CurrentSens = Main.I.Sens, Dpi = Main.I.Settings.Dpi };
+        var current = lab.Current; // A focused diagnosis never borrows a fault from another sensitivity in History.
+        body.AddChild(new DrawBox { CustomMinimumSize = new Vector2(0, 276 * k), OnDraw = d => DrawSummary(d, lab, current) });
+
+        if (p.Sens is { } advice && advice.Direction != "keep" && advice.CurrentSens > 0
+            && SensitivityProfiles.Valid(advice.RecommendedSens))
+            body.AddChild(RecommendedCandidate(advice, current));
+
+        if (CorrectivePlan(current) is { } plan && current != null)
+            body.AddChild(CorrectiveCard(current, plan, p));
+        else
+        {
+            bool balanced = current is { HasData: true } b && SensLab.Enough(b) && b.Verdict == SensVerdict.Balanced;
+            string message = balanced
+                ? (es ? "NO HAY FALLOS DETECTABLES · Las mediciones actuales están equilibradas."
+                    : "NO DETECTABLE FAULTS · Your current measurements are balanced.")
+                : (es ? "NO HAY FALLOS DETECTABLES · Todavía no hay datos suficientes para identificar un patrón."
+                    : "NO DETECTABLE FAULTS · There is not enough evidence to identify a pattern yet.");
+            var empty = Lbl(message, UiTheme.Body, 17, balanced ? UiTheme.Good : UiTheme.Dim);
+            empty.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+            empty.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+            body.AddChild(empty);
+        }
+
+        body.AddChild(Btn(es ? "ABRIR SENS LAB COMPLETO" : "OPEN FULL SENS LAB", VButton.Look.Secondary,
+            Main.I.ShowSensLab, 300, 44, 16));
+        body.AddChild(Spacer(0, 10 * k));
+    }
+
+    Control CorrectiveCard(SensBlock current, CoachPlan plan, SkillProfile p)
+    {
+        float k = K;
+        bool es = Loc.Spanish;
+        var tone = SensLabText.VerdictColor(current.Verdict);
+        var frame = new CardFrame { K = k, Strip = tone, SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        var content = VBox(10 * k);
+        content.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        frame.AddChild(Margins(content, 22 * k, 18 * k, 22 * k, 20 * k));
+
+        void Text(string value, int size, Color color)
+        {
+            var label = Lbl(value, UiTheme.Body, size, color);
+            label.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+            label.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+            content.AddChild(label);
+        }
+
+        content.AddChild(Lbl($"{(es ? "FALLO MEDIDO" : "MEASURED FAULT")} · {SensLabText.Verdict(current.Verdict)}",
+            UiTheme.HudWide, 16, tone));
+        Text($"{SensLabText.Metrics(current)} · {SensLabText.CurrentCaption(current)}", 15, UiTheme.Text);
+        Text(SensLabText.VerdictSentence(current), 15, UiTheme.Dim);
+        content.AddChild(Lbl(es ? "RUTINA CORRECTIVA" : "CORRECTIVE ROUTINE", UiTheme.HudWide, 15, UiTheme.Text));
+        for (int i = 0; i < plan.Steps.Count; i++)
+        {
+            var step = plan.Steps[i];
+            string runs = es ? $"serie{(step.Runs == 1 ? "" : "s")}" : $"run{(step.Runs == 1 ? "" : "s")}";
+            Text($"{i + 1}. {Loc.T(CoachData.DrillName(step.Drill))} · {step.Runs} {runs}", 16, UiTheme.Text);
+            Text(step.Source?.Fixes.FirstOrDefault() ?? step.Why, 14, UiTheme.Dim);
+        }
+        content.AddChild(Btn(es ? "EMPEZAR RUTINA" : "START ROUTINE", VButton.Look.Primary,
+            () => PracticeScreen.Start(plan, p), 260, 48, 18));
+        return frame;
+    }
+
+    /// <summary>
+    /// A corrective plan exists only for a measured, sufficiently sampled fault. Balanced, absent and thin samples
+    /// deliberately return null so neither this screen nor a caller can mistake a candidate sensitivity for a routine.
+    /// Every step retains its evidence and first practice cue in <see cref="PlanStep.Source"/>.
+    /// </summary>
+    internal static CoachPlan? CorrectivePlan(SensBlock? current)
+    {
+        if (current == null || !current.HasData || !SensLab.Enough(current)) return null;
+        bool es = Loc.Spanish;
+        (string Drill, int Runs, string Cue)[] specs = current.Verdict switch
+        {
+            SensVerdict.Undershoot => new[]
+            {
+                ("flickx:sens-braking", 2, es
+                    ? "Completa el primer gesto hasta el centro y frena al llegar; no dispares mientras la mira siga corta."
+                    : "Finish the first motion at the center and brake on arrival; do not click while the crosshair is still short."),
+                ("flickx:coach-brake-wide", 2, es
+                    ? "En los giros amplios, recorre toda la distancia con el brazo y termina sobre la cabeza antes de pulsar."
+                    : "On wide turns, use your arm to cover the full distance and arrive on the head before clicking."),
+                ("microx:coach-micro-confirm", 1, es
+                    ? "Haz una sola corrección pequeña hacia el centro, confirma la mira y dispara sin añadir tirones."
+                    : "Make one small correction toward the center, confirm your aim and click without adding extra jerks."),
+            },
+            SensVerdict.Overshoot => new[]
+            {
+                ("flickx:settle-confirm", 2, es
+                    ? "Frena antes de cruzar el blanco, mantén la mira quieta y confirma el contacto antes de cambiar."
+                    : "Brake before crossing the target, hold the crosshair steady and confirm contact before switching."),
+                ("microx:sens-fine", 2, es
+                    ? "Relaja el agarre y reduce la última corrección a un gesto pequeño, sin volver a atravesar el blanco."
+                    : "Relax your grip and make the final correction small, without crossing back through the target."),
+            },
+            SensVerdict.Mixed => new[]
+            {
+                ("microx:sens-fine", 2, es
+                    ? "Usa un ritmo constante y una única corrección final; no persigas el error anterior con otro gesto brusco."
+                    : "Use a steady pace and one final correction; do not answer the previous error with another abrupt motion."),
+                ("flickx:settle-confirm", 2, es
+                    ? "Haz una pausa breve al llegar y comprueba si el error fue corto o pasado antes del siguiente flick."
+                    : "Pause briefly on arrival and check whether the error was short or long before the next flick."),
+            },
+            SensVerdict.Shaky => new[]
+            {
+                ("trackv:sens-smooth", 2, es
+                    ? "Relaja la mano y sigue el centro con un movimiento continuo; evita corregir el temblor con tirones."
+                    : "Relax your hand and follow the center in one continuous motion; avoid correcting tremor with jerks."),
+                ("trackv:control-curves", 2, es
+                    ? "Anticipa cada cambio de dirección y conserva un movimiento suave por toda la curva."
+                    : "Anticipate each direction change and keep your motion smooth through the whole curve."),
+            },
+            SensVerdict.Tracking => new[]
+            {
+                ("trackv:sens-smooth", 2, es
+                    ? "Iguala primero la velocidad del objetivo y mantén el centro sin correcciones a golpes."
+                    : "Match the target's speed first and hold the center without jerky corrections."),
+                ("tracking", 2, es
+                    ? "Sigue el centro durante cada cambio de dirección y procura aumentar el tiempo continuo sobre el blanco."
+                    : "Follow the center through every direction change and try to increase continuous time on target."),
+            },
+            _ => Array.Empty<(string, int, string)>(),
+        };
+        if (specs.Length == 0) return null;
+
+        string title = SensLabText.VerdictSentence(current.Verdict);
+        string evidence = $"{SensLabText.Metrics(current)} · {SensLabText.CurrentCaption(current)}";
+        string why = es
+            ? "El patrón está medido, pero no demuestra que la sensibilidad sea su causa. Aísla el gesto antes de cambiar el ajuste."
+            : "The pattern is measured, but it does not establish sensitivity as its cause. Isolate the motion before changing the setting.";
+        var plan = new CoachPlan { Name = es ? "SENSIBILIDAD · CORRECCIÓN" : "SENSITIVITY · CORRECTION" };
+        foreach (var spec in specs)
+        {
+            var skill = spec.Drill.StartsWith("microx:", StringComparison.Ordinal) ? Skill.Precision
+                : spec.Drill.StartsWith("trackv:", StringComparison.Ordinal) || spec.Drill == "tracking" ? Skill.Tracking
+                : Skill.Flicking;
+            var source = new Diagnosis("SENS_" + current.Verdict.ToString().ToUpperInvariant(), skill, Severity.Minor,
+                title, evidence, why, new[] { spec.Cue }, new[] { spec.Drill },
+                Math.Max(1, (int)MathF.Round(Math.Max(current.Flicks, current.TrackSeconds))));
+            var (recoil, recoilWhy) = CoachPlan.RecoilFor(spec.Drill);
+            plan.Steps.Add(new PlanStep(spec.Drill, skill, spec.Runs, recoil, recoilWhy, source.Title, source));
+        }
+        return plan;
     }
 
     Control RecommendedCandidate(SensAdvice advice, SensBlock? observed)

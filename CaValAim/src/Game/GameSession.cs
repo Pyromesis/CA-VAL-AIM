@@ -50,6 +50,7 @@ public partial class GameSession : Node3D, IGame
     public float Now { get; private set; }
     public Node3D World { get; private set; } = null!;
     public IReadOnlyList<Box> Solid => solid;
+    public int GeometryVersion { get; private set; }
     public WeaponDef? Weapon => weaponDef;
     public BlindOverlay Blind { get; private set; } = null!;
 
@@ -58,6 +59,7 @@ public partial class GameSession : Node3D, IGame
     RevolvingDoor? door;
     int doorStart = -1;
     bool doorWasTurning;
+    int navDoorStep;
     float doorNoise;
     bool nearDoor;
     bool useWasHeld;
@@ -337,6 +339,8 @@ public partial class GameSession : Node3D, IGame
         // over the whole sweep once (the broadphase grid is cached per list and never rebuilt), then shrink them.
         door = built.Door;
         doorStart = -1;
+        GeometryVersion = 0;
+        navDoorStep = 0;
         WorldPrompt = null;
         if (door != null)
         {
@@ -643,10 +647,13 @@ public partial class GameSession : Node3D, IGame
             }
         }
         crosshair.Profile = TrialCrosshair ?? CaValAim.Valorant.CrosshairCode.Effective;
-        crosshair.MoveError = Mode.Movement ? Mover.MoveError : 0f;
-        // Firing error beyond the first shot's: the aimed first-shot error while aimed (CurrentError already subtracts it).
+        // SpreadNow is the complete cone (first shot + firing + movement). Feed each crosshair channel its own component:
+        // previously movement was applied once through MoveError and a second time as part of FiringErrorPx.
+        float movementErrorDeg = Mode.Movement && weaponDef != null ? Mover.MovementErrorDeg(weaponDef) : 0f;
+        crosshair.MovementErrorPx = DegToPx(movementErrorDeg);
+        // Firing-only error beyond the aimed first-shot error (CurrentError already accounts for ADS).
         crosshair.FiringErrorPx = Gun != null && weaponDef != null
-            ? DegToPx(Mathf.Max(0, Gun.SpreadNow - (Gun.Scoped ? weaponDef.FirstShotAds : weaponDef.FirstShotHip))) : 0;
+            ? DegToPx(Mathf.Max(0, Gun.SpreadNow - movementErrorDeg - (Gun.Scoped ? weaponDef.FirstShotAds : weaponDef.FirstShotHip))) : 0;
         // VALORANT rests firing-error lines at the weapon's minimum error unless the profile overrides it with its offset ("m").
         crosshair.MinErrorPx = Gun != null && weaponDef != null ? DegToPx(Gun.Scoped ? weaponDef.FirstShotAds : weaponDef.FirstShotHip) : 0;
         if (viewmodel != null)
@@ -914,6 +921,12 @@ public partial class GameSession : Node3D, IGame
         // stops, the door is solid again (only the box the body is inside is dropped, as a safety net).
         door.BuildBoxes(doorBoxes, feet, door.Turning ? 0.55f : 0.04f);
         for (int i = 0; i < door.BoxCount; i++) solid[doorStart + i] = doorBoxes[i];
+        int step = Mathf.FloorToInt(Mathf.Abs(door.Angle) / (Mathf.Pi / 12f)); // one nav revision per 15°
+        if (step != navDoorStep || door.Turning != doorWasTurning)
+        {
+            navDoorStep = step;
+            GeometryVersion++;
+        }
 
         if (door.Turning)
         {

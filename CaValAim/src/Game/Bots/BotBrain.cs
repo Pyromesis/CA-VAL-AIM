@@ -38,7 +38,31 @@ public sealed class BotBrain
     float alertUntil = -99f;
     bool hadLos;
     public bool SeesPlayer => hadLos;
+    /// <summary>First contact of this life (used by reveal/flash drills).</summary>
     public float FirstSeenAt = -1f;
+    /// <summary>Start of the current uninterrupted engagement; reset every time line of sight is reacquired.</summary>
+    public float CurrentEngagementAt { get; private set; } = -1f;
+
+    /// <summary>Engaged turn speed follows the same skill table as reaction and settling instead of snapping every tier
+    /// at one shared rate. The limits match the navigation motors' 240–900°/s range.</summary>
+    public static float TurnDegPerSec(BotSkill skill) => Mathf.Clamp(72000f / Math.Max(1f, skill.MsPerBit), 240f, 900f);
+
+    /// <summary>Positional uncertainty of an audible event in metres. Close sounds are precise; distant sounds give a
+    /// search area rather than an exact wall-through position. Nightmare still has a small non-zero error.</summary>
+    public static float SoundErrorRadius(int aiLevel, float distance)
+    {
+        float baseRadius = aiLevel >= 5 ? .15f : Difficulty.T(aiLevel, 2.4f, 1.8f, 1.2f, .7f, .35f);
+        return baseRadius * Mathf.Clamp(distance / 15f, .35f, 1.5f);
+    }
+
+    /// <summary>A deterministic (with the mode RNG) point inside the sound's uncertainty disk, without changing height.</summary>
+    public static Vector3 SoundPosition(Vector3 source, Vector3 listener, int aiLevel, Random random)
+    {
+        float radius = SoundErrorRadius(aiLevel, source.DistanceTo(listener));
+        float angle = (float)random.NextDouble() * Mathf.Tau;
+        float distance = Mathf.Sqrt((float)random.NextDouble()) * radius;
+        return source + new Vector3(Mathf.Cos(angle) * distance, 0, Mathf.Sin(angle) * distance);
+    }
 
     // ---- utility effects on this bot (initiator drills); times on the session clock (g.Now) ----
     /// <summary>Fully blind until this time: can't spot, aim or shoot, and loses whatever it was engaging.</summary>
@@ -104,14 +128,19 @@ public sealed class BotBrain
     bool CanSee(IGame g)
     {
         var eye = Body.Head;
-        var toPlayer = (g.View.Eye - eye).Normalized();
         headVisible = false;
-        if (Mathf.RadToDeg(Mathf.Acos(Mathf.Clamp(HeldDir.Dot(toPlayer), -1, 1))) > HalfFovDeg) return false;
         if (g.Now < NearsightUntil && eye.DistanceTo(g.View.Eye) > NearsightRange) return false; // nearsighted: only close range
-        headVisible = g.LineOfSight(eye, g.View.Eye);
+        bool InFov(Vector3 point)
+        {
+            var to = (point - eye).Normalized();
+            return Mathf.RadToDeg(Mathf.Acos(Mathf.Clamp(HeldDir.Dot(to), -1, 1))) <= HalfFovDeg;
+        }
+        // Each exposed point has its own bearing: a shoulder at the edge of the FOV can be visible even when the
+        // head is just outside it. Testing only the head's angle hid legal shoulder/chest contacts.
+        headVisible = InFov(g.View.Eye) && g.LineOfSight(eye, g.View.Eye);
         if (headVisible) { visiblePoint = g.View.Eye; return true; }
         foreach (var p in Exposure(g.View).Skip(1).Take(ShoulderSight ? 3 : 1)) // chest, then shoulders
-            if (g.LineOfSight(eye, p)) { visiblePoint = p; return true; }
+            if (InFov(p) && g.LineOfSight(eye, p)) { visiblePoint = p; return true; }
         return false;
     }
 
@@ -153,7 +182,8 @@ public sealed class BotBrain
         var to = visiblePoint - Body.Head;
         float yaw = Mathf.RadToDeg(Mathf.Atan2(to.X, -to.Z));
         float error = Mathf.Wrap(yaw - Body.FacingYaw, -180f, 180f);
-        Body.FacingYaw += Mathf.Clamp(error, -540f * dt, 540f * dt);
+        float turnRate = TurnDegPerSec(Skill);
+        Body.FacingYaw += Mathf.Clamp(error, -turnRate * dt, turnRate * dt);
         // Once engaged, keep the perceived target in view while the body catches up.
         HeldDir = to.Normalized();
         Body.AimTarget = visiblePoint;
@@ -172,6 +202,7 @@ public sealed class BotBrain
 
     void OnLosGained(IGame g, float now)
     {
+        CurrentEngagementAt = now;
         if (FirstSeenAt < 0) FirstSeenAt = now;
         bool alert = now < alertUntil;
         float react = Mathf.Max(120f, Gauss(Skill.ReactMs, Skill.ReactSd)) * (alert ? 0.6f : 1f) / 1000f;

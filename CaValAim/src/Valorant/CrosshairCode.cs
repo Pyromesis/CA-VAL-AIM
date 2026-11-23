@@ -737,6 +737,32 @@ public static class CrosshairCode
         foreach (var (name, code) in VerticalOnlyCodes)
             Check($"{name} re-encodes exactly", Decode(code) is { } vc && Encode(vc) == code, Decode(code) is { } vc2 ? Encode(vc2) : "null");
 
+        // Dynamic errors arrive in final screen pixels. Only the configured offset is scaled; movement and firing
+        // have independent channels, so a line with both enabled adds each cone exactly once.
+        var dynamicStyle = DefaultStyle();
+        dynamicStyle.HasOutline = false;
+        dynamicStyle.CenterDot = false;
+        dynamicStyle.Outer.Show = false;
+        dynamicStyle.Inner.ShowMovementError = true;
+        dynamicStyle.Inner.ShowShootingError = false;
+        dynamicStyle.Inner.MovementErrorScale = 1;
+        var move2x = UI.CrosshairView.PartRects(dynamicStyle, 100, 100, k: 2, movementErrorPx: 8).Single().Rects;
+        Check("movement error pixels are not resolution-scaled twice", move2x.Any(r => Near(r.Position.X, 114) && Near(r.Size.X, 12)),
+            string.Join("/", move2x));
+        var moveHalf = UI.CrosshairView.PartRects(dynamicStyle, 100, 100, k: .5f, movementErrorPx: 8).Single().Rects;
+        Check("movement error keeps its projected size at every resolution", moveHalf.Any(r => Near(r.Position.X, 110)),
+            string.Join("/", moveHalf));
+        dynamicStyle.Inner.ShowMovementError = false;
+        dynamicStyle.Inner.ShowShootingError = true;
+        dynamicStyle.Inner.FiringErrorScale = 1.5f;
+        var firing = UI.CrosshairView.PartRects(dynamicStyle, 100, 100, k: 2, movementErrorPx: 99, firingErrorPx: 4, restErrorPx: 2).Single().Rects;
+        Check("firing multiplier excludes disabled movement and includes rest error once", firing.Any(r => Near(r.Position.X, 115)),
+            string.Join("/", firing));
+        dynamicStyle.Inner.ShowMovementError = true;
+        var both = UI.CrosshairView.PartRects(dynamicStyle, 100, 100, k: 1, movementErrorPx: 8, firingErrorPx: 4, restErrorPx: 2).Single().Rects;
+        Check("movement and firing errors add independently without double counting", both.Any(r => Near(r.Position.X, 120)),
+            string.Join("/", both));
+
         // Unknown sections (a future tab marker, the community NAME;"…" extension) and unknown keys are kept.
         foreach (var (name, code) in UnknownCodes)
             Check($"{name} re-encodes exactly", Decode(code) is { } uc && Encode(uc) == code, Decode(code) is { } uc2 ? Encode(uc2) : "null");

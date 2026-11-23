@@ -843,6 +843,8 @@ public static class CoachCli
         var routines = RoutineLibrary.Routines;
         var problems = new List<string>();
         void Bad(string id, string what) => problems.Add($"{id}: {what}");
+        if (routines.Select(r => r.Id).Distinct(StringComparer.OrdinalIgnoreCase).Count() != routines.Count)
+            Bad("routine ids", "every built-in routine id must be unique");
         var repeated = new Routine
         {
             Steps =
@@ -878,13 +880,15 @@ public static class CoachCli
                     Bad(r.Id, $"placeholder scenario “{s.Scenario}”");
                 if (!r.Playable) continue;
                 if (s.Drill.Length == 0) { Bad(r.Id, $"step “{s.Scenario}” has no drill"); continue; }
-                if (ModeRegistry.Find(s.Drill) == null) Bad(r.Id, $"drill “{s.Drill}” does not resolve");
+                if (ModeRegistry.Find(s.Drill)?.Invoke().Key != s.Drill)
+                    Bad(r.Id, $"drill “{s.Drill}” does not resolve to the exact authored key");
                 if (s.Runs.Count == 0 || s.Minutes <= 0) Bad(r.Id, $"step “{s.Scenario}” has no runs");
                 if (s.Runs.Any(run => !float.IsFinite(run.Minutes) || run.Minutes <= 0
                     || !float.IsFinite(run.Sens) || run.Sens <= 0))
                     Bad(r.Id, $"step “{s.Scenario}” has invalid timing or sensitivity");
-                if (string.IsNullOrWhiteSpace(s.HowEs) || string.IsNullOrWhiteSpace(s.HowEn))
-                    Bad(r.Id, $"step “{s.Scenario}” lacks coaching instructions");
+                if (string.IsNullOrWhiteSpace(s.HowEs) || string.IsNullOrWhiteSpace(s.HowEn)
+                    || string.IsNullOrWhiteSpace(s.WhyEs) || string.IsNullOrWhiteSpace(s.WhyEn))
+                    Bad(r.Id, $"step “{s.Scenario}” lacks bilingual coaching instructions or purpose");
                 if (s.DrillName.Length == 0) Bad(r.Id, $"drill “{s.Drill}” has no display name");
             }
         }
@@ -967,6 +971,8 @@ public static class CoachCli
         int forcedSteps = labs.Where(id => ById(id) is { } r && r.Steps.All(s =>
             ModeRegistry.Find(s.Drill)?.Invoke() is { ForcedRealAmmo: true, ForcedRecoil: true })).Count();
 
+        CorrectiveRoutineCases(routines, problems);
+
         P($"  {(problems.Count == 0 ? "PASS" : "FAIL")} routines: {routines.Count} routines, {routines.Sum(r => r.Steps.Count)} steps, " +
           $"{routines.Sum(r => r.PlayableSteps)} with a built-in drill, {problems.Count} problems; " +
           $"cartoon {flicks?.Minutes:0.#}/{micro?.Minutes:0.#} min (32/36), in-game {ingame?.PlayableSteps ?? 0} playable steps, " +
@@ -1000,6 +1006,238 @@ public static class CoachCli
         foreach (var line in missing.Take(8).Select(t => "missing " + t)
             .Concat(stale.Take(8).Select(t => "stale " + t)).Concat(broken.Take(8)))
             P("    " + line);
+    }
+
+    /// <summary>Structural and conditional-selection contracts for the ten measured-fault routines.</summary>
+    static void CorrectiveRoutineCases(IReadOnlyList<Routine> routines, List<string> problems)
+    {
+        void Bad(string id, string what) => problems.Add($"{id}: {what}");
+        (string Id, int Baseline, string[] Keys)[] specs =
+        {
+            ("aim-overflick", 1, new[]
+            {
+                "flickx:course-precision-0-0", "flickx:tech-brake-ladder", "flickx:coach-brake-near",
+                "flickx:coach-brake-wide", "microx:coach-micro-confirm", "flickx:course-precision-0-1",
+                "flickx:course-precision-0-0", "deathmatch",
+            }),
+            ("aim-underflick", 1, new[]
+            {
+                "flickx:course-sensitivity-2-0", "flickx:tech-wide-arm", "flickx:coach-brake-wide",
+                "flickx:sens-braking", "microx:coach-micro-confirm", "flickx:course-sensitivity-2-1",
+                "flickx:course-sensitivity-2-0", "deathmatch",
+            }),
+            ("aim-mixed-flick", 1, new[]
+            {
+                "flickx:course-sensitivity-0-0", "flickx:tech-clean-pace", "flickx:settle-confirm",
+                "microx:line", "flickx:tech-vertical-brake", "flickx:course-sensitivity-0-1",
+                "flickx:course-sensitivity-0-0", "deathmatch",
+            }),
+            ("aim-tremor", 2, new[]
+            {
+                "trackv:course-control-0-0", "flickx:course-precision-0-0", "trackv:tech-smooth-slow",
+                "flickx:tech-still-hold", "trackv:sens-smooth", "trackv:tech-curve-track",
+                "trackv:course-control-0-1", "trackv:course-control-0-0", "flickx:course-precision-0-0", "deathmatch",
+            }),
+            ("aim-tracking-control", 2, new[]
+            {
+                "trackv:course-tracking-0-0", "trackv:course-reactive-0-0", "trackv:tech-pace-match",
+                "trackv:tech-reversal-read", "trackv:stopgo", "trackv:react-diagonal",
+                "trackv:course-reactive-0-1", "trackv:course-tracking-0-0", "trackv:course-reactive-0-0", "deathmatch",
+            }),
+            ("aim-click-control", 2, new[]
+            {
+                "microx:course-micro-0-0", "flickx:course-precision-0-0", "microx:tech-one-correction",
+                "microx:coach-micro-confirm", "flickx:settle-confirm", "flickx:tech-clean-pace",
+                "microx:course-micro-0-1", "microx:course-micro-0-0", "flickx:course-precision-0-0", "deathmatch",
+            }),
+            ("aim-response-timing", 2, new[]
+            {
+                "reaction", "flickx:course-precision-0-0", "flickx:tech-brake-ladder", "reflex:tech-wait-commit",
+                "flickx:timed", "reflex:quick", "reflex:course-reflex-0-1", "reaction",
+                "flickx:course-precision-0-0", "deathmatch",
+            }),
+            ("aim-target-order", 1, new[]
+            {
+                "gridshot", "flickx:tech-sweep-order", "flickx:triple", "switch", "flickx:settle-confirm",
+                "flickx:course-switching-0-1", "gridshot", "deathmatch",
+            }),
+            ("aim-crosshair-placement", 1, new[]
+            {
+                "peek", "flickx:tech-head-line", "microx:tech-body-to-head", "flickx:horizontal", "siteclear",
+                "peek_mix", "peek", "deathmatch",
+            }),
+            ("aim-stop-shoot", 1, new[]
+            {
+                "counterstrafe", "flickx:tech-stop-shoot", "flickx:stop-tap", "anti-mirror", "peekduel",
+                "jigglepeek", "counterstrafe", "deathmatch",
+            }),
+        };
+
+        static bool ExpectedRecoil(string key) => key is "deathmatch" or "peek" or "siteclear" or "peek_mix"
+            or "counterstrafe" or "peekduel" or "jigglepeek" or "flickx:tech-stop-shoot" or "flickx:stop-tap";
+        static bool SameBlock(RoutineStep a, RoutineStep b) => a.Drill == b.Drill && a.RecoilOn == b.RecoilOn
+            && a.Optional == b.Optional && a.Runs.Count == b.Runs.Count && a.Runs.Zip(b.Runs).All(pair =>
+                pair.First.Minutes == pair.Second.Minutes && pair.First.Sens == pair.Second.Sens);
+
+        int structuralBefore = problems.Count;
+        foreach (var spec in specs)
+        {
+            if (routines.FirstOrDefault(r => r.Id == spec.Id) is not { } r)
+            {
+                Bad(spec.Id, "missing measured-fault routine");
+                continue;
+            }
+            if (!r.Playable) Bad(spec.Id, "must be playable");
+            if (r.Steps.Count != spec.Keys.Length) Bad(spec.Id, $"expected {spec.Keys.Length} ordered steps, got {r.Steps.Count}");
+            if (MathF.Abs(r.Minutes - 18) > .001f) Bad(spec.Id, $"expected 18 full minutes, got {r.Minutes}");
+            int runCount = r.Steps.Sum(s => s.Runs.Count);
+            int expectedRuns = spec.Id == "aim-response-timing" ? 17 : 15; // two 30 s reaction baselines and repeats
+            if (runCount != expectedRuns) Bad(spec.Id, $"expected {expectedRuns} full runs, got {runCount}");
+            if (!r.CreditEn.Contains("does not establish", StringComparison.Ordinal)
+                || !r.CreditEn.Contains("does not prove improvement", StringComparison.Ordinal))
+                Bad(spec.Id, "missing sensitivity-causation and improvement guardrails");
+
+            int count = Math.Min(r.Steps.Count, spec.Keys.Length);
+            for (int i = 0; i < count; i++)
+            {
+                var step = r.Steps[i];
+                if (step.Drill != spec.Keys[i]) Bad(spec.Id, $"step {i + 1} expected {spec.Keys[i]}, got {step.Drill}");
+                if (ModeRegistry.Find(step.Drill)?.Invoke().Key != step.Drill)
+                    Bad(spec.Id, $"step {i + 1} does not resolve exact drill {step.Drill}");
+                if (step.RecoilOn != ExpectedRecoil(step.Drill))
+                    Bad(spec.Id, $"step {i + 1} has wrong recoil for {step.Drill}");
+                if (step.Optional != (i == r.Steps.Count - 1)) Bad(spec.Id, $"step {i + 1} has wrong optional flag");
+                if (step.Runs.Any(run => run.Sens != 1f)) Bad(spec.Id, $"step {i + 1} must keep sensitivity at 1x");
+                if (string.IsNullOrWhiteSpace(step.HowEn) || string.IsNullOrWhiteSpace(step.HowEs)
+                    || string.IsNullOrWhiteSpace(step.WhyEn) || string.IsNullOrWhiteSpace(step.WhyEs))
+                    Bad(spec.Id, $"step {i + 1} lacks bilingual instructions and purpose");
+            }
+
+            if (r.Steps.Count > spec.Baseline)
+            {
+                int validation = r.Steps.Count - 1 - spec.Baseline;
+                for (int i = 0; i < spec.Baseline; i++)
+                    if (validation + i >= 0 && validation + i < r.Steps.Count - 1 && !SameBlock(r.Steps[i], r.Steps[validation + i]))
+                        Bad(spec.Id, $"baseline block {i + 1} and validation are not matched");
+            }
+            if (r.Steps.LastOrDefault() is not { Optional: true, Drill: "deathmatch", RecoilOn: true } transfer
+                || transfer.Runs.Count != 1 || MathF.Abs(transfer.Minutes - 4) > .001f)
+                Bad(spec.Id, "last step must be one optional four-minute deathmatch with recoil");
+
+            var full = r.ToPlaylist(out var owners);
+            var core = r.ToPlaylist(out var coreOwners, includeOptional: false);
+            if (full.Modes.Count != expectedRuns || owners.Count != expectedRuns
+                || core.Modes.Count != expectedRuns - 1 || coreOwners.Count != expectedRuns - 1)
+                Bad(spec.Id, $"expected {expectedRuns}/{expectedRuns - 1} full/core runs, got {full.Modes.Count}/{core.Modes.Count}");
+            if (MathF.Abs(full.TotalMinutes - 18) > .001f || MathF.Abs(core.TotalMinutes - 14) > .001f)
+                Bad(spec.Id, $"expected 18/14 full/core playlist minutes, got {full.TotalMinutes}/{core.TotalMinutes}");
+            if (!core.Modes.SequenceEqual(full.Modes.Take(core.Modes.Count))) Bad(spec.Id, "optional filtering changed the core order");
+            var flat = r.Steps.SelectMany((s, owner) => s.Runs.Select(run => (owner, run))).ToArray();
+            for (int i = 0; i < Math.Min(full.Modes.Count, flat.Length); i++)
+            {
+                var expected = flat[i];
+                if (owners[i] != expected.owner || full.Modes[i] != r.Steps[expected.owner].Drill)
+                    Bad(spec.Id, $"run {i + 1} lost its drill or step owner");
+                if (full.MinutesAt(i) != expected.run.Minutes || full.SensAt(i) != 1f
+                    || full.RecoilAt(i) != r.Steps[expected.owner].RecoilOn)
+                    Bad(spec.Id, $"run {i + 1} lost minutes, 1x sensitivity or recoil");
+            }
+        }
+        P($"  {(problems.Count == structuralBefore ? "PASS" : "FAIL")} corrective routine structure: " +
+          $"{specs.Length} routines, exact drills/order, 14 min core + 4 min optional DM, matched validation, 1x sens and recoil");
+
+        int selectionBefore = problems.Count;
+        Diagnosis Finding(string id, Severity severity = Severity.Major) =>
+            new(id, Skill.Flicking, severity, id, "measured evidence", "measured pattern", new[] { "cue" }, Array.Empty<string>(), 30);
+        AimRoutineRecommendation? Select(string id, Severity severity = Severity.Major)
+        {
+            var profile = new SkillProfile();
+            profile.Problems.Add(Finding(id, severity));
+            return AimRoutinePrescription.For(profile);
+        }
+        (string Code, string Id)[] diagnosisCases =
+        {
+            ("OVERFLICK", "aim-overflick"), ("OVER_NEAR", "aim-overflick"), ("OVER_WIDE", "aim-overflick"),
+            ("RECOVERED_OVER", "aim-overflick"), ("UNDERFLICK", "aim-underflick"),
+            ("MIXED_FLICK", "aim-mixed-flick"), ("CURVED", "aim-mixed-flick"), ("LEFT_WEAK", "aim-mixed-flick"),
+            ("RIGHT_WEAK", "aim-mixed-flick"), ("UP_WEAK", "aim-mixed-flick"), ("DOWN_WEAK", "aim-mixed-flick"),
+            ("AIM_TREMOR", "aim-tremor"), ("JITTER", "aim-tremor"),
+            ("TRACK_BEHIND", "aim-tracking-control"), ("TRACK_OVERRUN", "aim-tracking-control"),
+            ("SLOW_REACQ", "aim-tracking-control"), ("MICRO_CONFIRM", "aim-click-control"),
+            ("NO_MICRO", "aim-click-control"), ("SLOW_MICRO", "aim-click-control"), ("PREMATURE", "aim-click-control"),
+            ("HESITATE", "aim-response-timing"), ("SLOW_START", "aim-response-timing"),
+            ("SLOW_REACT", "aim-response-timing"), ("TARGET_ORDER", "aim-target-order"),
+            ("XHAIR_LOW", "aim-crosshair-placement"), ("XHAIR_WIDE", "aim-crosshair-placement"),
+            ("RUN_GUN", "aim-stop-shoot"), ("CLUMSY_MOVE", "aim-stop-shoot"), ("MIRRORING", "aim-stop-shoot"),
+            ("SPRAY_VERT", "recoil-lab"), ("SPRAY_HORIZ", "recoil-lab"),
+        };
+        foreach (var test in diagnosisCases)
+        {
+            var selected = Select(test.Code);
+            if (selected?.Routine.Id != test.Id || selected.Source?.Id != test.Code || selected.Sens != null)
+                Bad("aim prescription", $"{test.Code} should select {test.Id} with its original evidence");
+        }
+        if (Select("UNDERFLICK", Severity.Minor)?.Routine.Id != "aim-underflick")
+            Bad("aim prescription", "confirmed Minor findings must be eligible");
+        if (Select("OVERFLICK", Severity.Tip) != null) Bad("aim prescription", "an unconfirmed Tip must not create a routine");
+        if (Select("FLASH_SLOW") != null) Bad("aim prescription", "an unrelated finding must not borrow an aim routine");
+        if (AimRoutinePrescription.For(new SkillProfile()) != null) Bad("aim prescription", "empty profile must keep the existing fallback");
+        if (AimRoutinePrescription.For(null) != null) Bad("aim prescription", "null profile must be safe");
+
+        var candidateOnly = new SkillProfile
+        {
+            Sens = new SensAdvice(.225f, 800, .240f, 30, 28, "higher", "candidate", .8f),
+        };
+        if (AimRoutinePrescription.For(candidateOnly) != null)
+            Bad("aim prescription", "a candidate sensitivity without a measured fault must not create a routine");
+
+        SensBlock Block(SensVerdict verdict, int flicks = 24, int off = 16, float seconds = 24)
+        {
+            var now = DateTime.Now;
+            return new SensBlock(.225f, 4, 2, now.AddDays(-2), now, flicks, off, seconds,
+                .20f, .80f, 6, 1.7f, 1.1f, 0, 0, .07f, .75f, verdict);
+        }
+        SkillProfile WithSens(SensBlock? current)
+        {
+            var profile = new SkillProfile { SensLab = new SensLabData { CurrentSens = .225f, Dpi = 800, Current = current } };
+            return profile;
+        }
+        (SensVerdict Verdict, string Id)[] sensCases =
+        {
+            (SensVerdict.Overshoot, "aim-overflick"), (SensVerdict.Undershoot, "aim-underflick"),
+            (SensVerdict.Mixed, "aim-mixed-flick"), (SensVerdict.Shaky, "aim-tremor"),
+            (SensVerdict.Tracking, "aim-tracking-control"),
+        };
+        foreach (var test in sensCases)
+        {
+            var selected = AimRoutinePrescription.For(WithSens(Block(test.Verdict)));
+            if (selected?.Routine.Id != test.Id || selected.Source != null || selected.Sens?.Verdict != test.Verdict)
+                Bad("aim prescription", $"current measured {test.Verdict} should select {test.Id} with its SensBlock evidence");
+        }
+        if (AimRoutinePrescription.For(WithSens(Block(SensVerdict.Balanced))) != null
+            || AimRoutinePrescription.For(WithSens(Block(SensVerdict.NoData))) != null)
+            Bad("aim prescription", "balanced and no-data verdicts must not create routines");
+        if (AimRoutinePrescription.For(WithSens(Block(SensVerdict.Overshoot, flicks: 4, off: 2, seconds: 0))) != null)
+            Bad("aim prescription", "a thin but non-empty sample must not create a routine");
+        var historyOnly = WithSens(null);
+        historyOnly.SensLab!.History.Add(Block(SensVerdict.Overshoot));
+        if (AimRoutinePrescription.For(historyOnly) != null)
+            Bad("aim prescription", "history at another sensitivity must not stand in for the current block");
+
+        var priority = WithSens(Block(SensVerdict.Undershoot));
+        priority.Problems.Add(Finding("OVERFLICK"));
+        if (AimRoutinePrescription.For(priority) is not { Routine.Id: "aim-overflick", Source.Id: "OVERFLICK" })
+            Bad("aim prescription", "a specific confirmed diagnosis must take priority over the sens fallback");
+        var deterministic = new SkillProfile();
+        deterministic.Problems.Add(Finding("XHAIR_LOW"));
+        deterministic.Problems.Add(Finding("OVERFLICK"));
+        if (AimRoutinePrescription.For(deterministic)?.Routine.Id != "aim-crosshair-placement"
+            || AimRoutinePrescription.For(deterministic)?.Routine.Id != "aim-crosshair-placement")
+            Bad("aim prescription", "multiple findings must produce one deterministic recommendation in profile order");
+
+        P($"  {(problems.Count == selectionBefore ? "PASS" : "FAIL")} corrective routine selection: " +
+          $"{diagnosisCases.Length} diagnosis mappings (including recoil-lab spray reuse), {sensCases.Length} current-sens fallbacks, " +
+          "evidence gates and deterministic priority");
     }
 
     // ------------------------------------------------------------------ 3D Rewind (.vtr)
