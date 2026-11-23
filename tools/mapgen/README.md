@@ -91,7 +91,9 @@ A run over all eight maps takes a few minutes per map.
 ### `audit_collision.py`
 
 Mirrors the runtime rules (`src/Game/Collision.cs`, `src/Game/MovementBody.cs`: radius
-0.34, height 1.8, step 0.7, snap-down 0.32) and floods the floor from each spawn.
+0.34, height 1.8, step 0.7, snap-down 0.32) and floods the floor from each spawn. The default flood is walking-only:
+a neighbour can rise by at most 0.70 m, with no extra hidden step allowance. Programmatic crouch-jump reach queries must
+opt in explicitly with `flood(..., rise=RISE)`.
 
 ```
 python audit_collision.py "C:\path\to\CA-VAL-AIM\maps"            # current files
@@ -109,7 +111,9 @@ shipping new collision. Findings are classified:
 * `near` — reachable floor within 2.5 m at a compatible height; the runtime snaps the
   drill spawns onto it (`MapModes.SafeFeet`, `StandOnFloor`), so it is playable.
 
-Only `FAIL` breaks the gate.
+Only `FAIL` breaks the gate. This offline check reads `collision.json` and the authored spots; it does not apply every
+runtime transformation (`Cuts`, `ExtraSolid`, `MapCollisionRepairs` or saved spawn moves). Keep the Godot gameplay and
+smoke checks as the final runtime gate as well.
 
 The 2.10 map set and corrected authored spots pass with 0 failures and 7 warnings.
 Bind's start uses Hookah's visible upper floor and Fracture's start uses visible A Hall floor.

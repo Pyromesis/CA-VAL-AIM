@@ -161,10 +161,10 @@ public sealed class Routine
     }
 
     /// <summary>Saves the adapted routine as a normal playlist (the player can edit and replay it).</summary>
-    public Playlist? SaveAsPlaylist()
+    public Playlist? SaveAsPlaylist(bool includeOptional = true)
     {
         if (!Playable) return null;
-        var p = ToPlaylist(out _);
+        var p = ToPlaylist(out _, includeOptional);
         if (p.Modes.Count == 0) return null;
         string name = Name.Length > 30 ? Name[..30] : Name;
         return PlaylistStore.ReplaceRuns("RUTINA · " + name,

@@ -267,6 +267,10 @@ public partial class SensLabScreen : ScreenBase
         if (SelectedSection.Length > 0) return;
 
         var lab = profile.SensLab;
+        if (profile.Sens is { } sensAdvice && sensAdvice.Direction != "keep" && sensAdvice.CurrentSens > 0
+            && SensitivityProfiles.Valid(sensAdvice.RecommendedSens))
+            body.AddChild(RecommendedCandidate(sensAdvice, lab?.Current ?? lab?.History.LastOrDefault()));
+
         var compare = new HFlowContainer();
         body.AddChild(compare);
         float sens = Main.I.Sens;
@@ -323,6 +327,55 @@ public partial class SensLabScreen : ScreenBase
         body.AddChild(Spacer(0, 10 * k));
     }
 
+    Control RecommendedCandidate(SensAdvice advice, SensBlock? observed)
+    {
+        float k = K, candidate = advice.RecommendedSens;
+        bool es = Loc.Spanish, higher = advice.Direction == "higher";
+        var tone = higher ? UiTheme.Teal : UiTheme.Accent;
+        var frame = new CardFrame { K = k, Strip = tone, SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        var content = VBox(10 * k);
+        content.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        frame.AddChild(Margins(content, 22 * k, 18 * k, 22 * k, 20 * k));
+
+        var heading = HBox(14 * k);
+        heading.AddChild(Lbl(es ? "CANDIDATA RECOMENDADA" : "RECOMMENDED CANDIDATE", UiTheme.HudWide, 14, tone));
+        heading.AddChild(Lbl(SensLabText.ConfidenceCaption(advice.Confidence), UiTheme.Body, 13, UiTheme.Dim));
+        content.AddChild(heading);
+
+        string value = candidate.ToString("0.000", Inv);
+        float pct = (candidate / advice.CurrentSens - 1f) * 100f;
+        string pctText = SensLabText.Num(pct.ToString("+0.0;-0.0;0.0", Inv));
+        float cm = advice.RecommendedCm360 > 0 ? advice.RecommendedCm360 : SensAdvisor.Cm360(candidate, advice.Dpi);
+        var values = new HFlowContainer();
+        values.AddThemeConstantOverride("h_separation", (int)(16 * k));
+        values.AddThemeConstantOverride("v_separation", (int)(4 * k));
+        values.AddChild(Lbl(higher ? (es ? "SUBIR SENSIBILIDAD" : "RAISE SENSITIVITY") : (es ? "BAJAR SENSIBILIDAD" : "LOWER SENSITIVITY"),
+            UiTheme.HudWide, 17, tone));
+        values.AddChild(Lbl(value, UiTheme.Display, 34, UiTheme.Text));
+        values.AddChild(Lbl($"{pctText}% · {SensLabText.Num(cm.ToString("0.0", Inv))} cm/360", UiTheme.Display, 20, UiTheme.Text));
+        content.AddChild(values);
+
+        string explanation = higher && observed?.Verdict == SensVerdict.Undershoot
+            ? SensLabText.VerdictSentence(observed.Verdict)
+            : !higher && observed?.Verdict == SensVerdict.Overshoot
+                ? SensLabText.VerdictSentence(observed.Verdict)
+                : higher
+                    ? (es ? "Tus mediciones apuntan a una sensibilidad demasiado baja para completar el gesto."
+                        : "Your measurements point to sensitivity being too low to finish the motion.")
+                    : (es ? "Tus mediciones apuntan a una sensibilidad demasiado alta para frenar el gesto."
+                        : "Your measurements point to sensitivity being too high to brake the motion.");
+        var detail = Lbl(explanation + (es
+                ? " Esta candidata se basa en mediciones; no es una garantía. Debe ganar la comparación A/B antes de aplicarse."
+                : " This candidate is based on measurements; it is not a guarantee. It must win the A/B comparison before it is applied."),
+            UiTheme.Body, 15, new Color(UiTheme.Text, 0.88f));
+        detail.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+        detail.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        content.AddChild(detail);
+        content.AddChild(Btn(es ? $"PROBAR {value} A/B" : $"TEST {value} A/B", VButton.Look.Primary,
+            () => PracticeScreen.Compare(candidate), 250, 48, 18));
+        return frame;
+    }
+
     Control CategorySettings()
     {
         string L(string es, string en) => Loc.Spanish ? es : en;
@@ -330,19 +383,22 @@ public partial class SensLabScreen : ScreenBase
         int dpi = app.Settings.Dpi;
         var profiles = app.Settings.CategorySensitivities;
         var panel = new VPanel { K = K, Title = L("SENSIBILIDAD POR CATEGORÍA", "SENSITIVITY BY CATEGORY") };
+        var content = VBox(10 * K);
+        content.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        panel.AddChild(content);
         var picker = new OptionButton { CustomMinimumSize = new Vector2(300 * K, 40 * K) };
         var sections = TrainingCatalog.Sections.Where(SensitivityProfiles.Supports).Prepend("").ToArray();
         foreach (string key in sections)
             picker.AddItem(key.Length == 0 ? L("General", "General") : TrainingCatalog.SectionName(key));
         picker.Select(Math.Max(0, Array.IndexOf(sections, SelectedSection)));
         picker.ItemSelected += index => { SelectedSection = sections[(int)index]; Rebuild(); };
-        panel.AddChild(picker);
+        content.AddChild(picker);
 
-        void Line(string content)
+        void Line(string text)
         {
-            var label = Lbl(content, UiTheme.Body, 15, UiTheme.Text);
+            var label = Lbl(text, UiTheme.Body, 15, UiTheme.Text);
             label.AutowrapMode = TextServer.AutowrapMode.WordSmart;
-            panel.AddChild(label);
+            content.AddChild(label);
         }
         void Refresh()
         {
@@ -368,7 +424,7 @@ public partial class SensLabScreen : ScreenBase
                 Refresh();
             }, 216, 38, 14);
             apply.Disabled = SensLab.SameSens(combined.Value, app.Sens);
-            panel.AddChild(apply);
+            content.AddChild(apply);
         }
         else Line(L("Guarda al menos dos categorías para calcular una sensibilidad general.",
             "Save at least two categories to calculate a combined sensitivity."));
@@ -426,8 +482,8 @@ public partial class SensLabScreen : ScreenBase
         if (saved != null)
             row.AddChild(Btn(L("USAR LA GENERAL", "USE GENERAL"), VButton.Look.Ghost,
                 () => { app.SetCategorySens(section, null); Refresh(); }, 166, 40, 14));
-        panel.AddChild(row);
-        if (history is { History.Count: > 0 }) panel.AddChild(History(history));
+        content.AddChild(row);
+        if (history is { History.Count: > 0 }) content.AddChild(History(history));
         return panel;
     }
 

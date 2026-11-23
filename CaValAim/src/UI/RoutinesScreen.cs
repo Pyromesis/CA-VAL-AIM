@@ -1,5 +1,6 @@
 using System.Globalization;
 using Godot;
+using CaValAim.Analysis;
 using CaValAim.Core;
 using CaValAim.Game;
 using CaValAim.Modes;
@@ -47,12 +48,15 @@ public partial class RoutinesScreen : ScreenBase
         Main.I.ShowRoutines();
     }
 
+    const string RecommendedId = "__recommended";
     static readonly CultureInfo Inv = CultureInfo.InvariantCulture;
 
+    SkillProfile? profile;
     readonly List<RoutineStepRow> stepRows = new();
     readonly List<VButton> tabButtons = new();
     readonly List<GlossaryTerm> glossaryItems = new();
     VBoxContainer? stepDetail;
+    VBoxContainer? routineDetail;
     GlossaryList? glossaryList;
     VBoxContainer? glossaryDetail;
     MText? statusLine;
@@ -60,6 +64,26 @@ public partial class RoutinesScreen : ScreenBase
     protected override bool AnimatedBackdrop => false;
 
     protected override void Back() => Main.I.ShowMenu();
+
+    public override void _Ready()
+    {
+        CoachData.Request();
+        profile = CoachData.Ready;
+        base._Ready();
+    }
+
+    protected override void Tick(float dt)
+    {
+        if (profile != null || CoachData.Ready is not { } ready) return;
+        profile = ready;
+        // Refresh only the recommendation: keep the list's search text, editing focus and scroll position intact.
+        if (tab == Tab.Routines && routineId == RecommendedId && routineDetail != null)
+        {
+            Clear(routineDetail);
+            BuildRecommendedDetail(routineDetail, K);
+            Loc.Apply(routineDetail);
+        }
+    }
 
     static string L(string en, string es) => Loc.Spanish ? es : en;
 
@@ -69,6 +93,7 @@ public partial class RoutinesScreen : ScreenBase
         stepRows.Clear();
         tabButtons.Clear();
         stepDetail = null;
+        routineDetail = null;
         glossaryList = null;
         glossaryDetail = null;
         statusLine = null;
@@ -254,8 +279,9 @@ public partial class RoutinesScreen : ScreenBase
             routineId = devRoutine;
             stepIndex = -1;
         }
-        if (routineId == null || all.All(r => r.Id != routineId)) routineId = all.FirstOrDefault()?.Id;
-        var routine = RoutineLibrary.Find(routineId ?? "");
+        if (routineId == null || (routineId != RecommendedId && all.All(r => r.Id != routineId))) routineId = RecommendedId;
+        bool recommended = routineId == RecommendedId;
+        var routine = recommended ? null : RoutineLibrary.Find(routineId ?? "");
 
         var row = HBox(26 * k);
         row.SizeFlagsVertical = SizeFlags.ExpandFill;
@@ -278,6 +304,24 @@ public partial class RoutinesScreen : ScreenBase
         var searchRows = new List<(Control Row, string Text)>();
         TaskSearch.Bind(left, k, searchRows);
         left.AddChild(listScroll);
+
+        var personal = new MDrillRow
+        {
+            K = k, Title = L("FOR YOU · Recommended routine", "PARA TI · Rutina recomendada"),
+            Meta = L("Built from your results and missing measurements", "Creada con tus resultados y las mediciones que faltan"),
+            Value = L("PICK", "PARA TI"), Marked = recommended, Delay = 0.08f,
+            CustomMinimumSize = new Vector2(0, 58 * k), SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            TooltipText = L("A guided routine that adapts to your coach profile", "Una rutina guiada que se adapta a tu perfil del coach"),
+        };
+        personal.Pressed += () =>
+        {
+            routineId = RecommendedId;
+            stepIndex = -1;
+            Callable.From(Rebuild).CallDeferred();
+        };
+        list.AddChild(personal);
+        searchRows.Add((personal, L("for you recommended personal coach guided routine results measurements",
+            "para ti recomendada personal coach guiada rutina resultados mediciones")));
 
         int i = 0;
         foreach (var r in all)
@@ -307,9 +351,15 @@ public partial class RoutinesScreen : ScreenBase
         left.AddChild(MkLink("VOLTAIC DISCORD ↗", () => Open(CommunityLinks.VoltaicDiscord),
             L("Official Voltaic Discord server", "Servidor oficial de Discord de Voltaic")));
 
-        var right = VBox(0);
+        var right = routineDetail = VBox(0);
         right.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         row.AddChild(right);
+        if (recommended)
+        {
+            BuildRecommendedDetail(right, k);
+            Loc.Apply(this);
+            return;
+        }
         if (routine == null)
         {
             right.AddChild(new MText
@@ -321,6 +371,117 @@ public partial class RoutinesScreen : ScreenBase
         }
         BuildRoutineDetail(right, routine, k);
         Loc.Apply(this);
+    }
+
+    void BuildRecommendedDetail(VBoxContainer right, float k)
+    {
+        var head = HBox(16 * k);
+        var titles = VBox(0);
+        titles.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        titles.AddChild(new MText
+        {
+            K = k, Text = L("A routine for you", "Una rutina para ti"), Font = UiTheme.Light, Px = 25, Color = UiTheme.Text,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+        });
+        titles.AddChild(new MText
+        {
+            K = k, Text = L("CA-VAL-AIM COACH · PERSONALISED", "COACH DE CA-VAL-AIM · PERSONALIZADA"),
+            Font = UiTheme.HudWide, Px = 10.5f, Color = UiTheme.Teal, SizeFlagsHorizontal = SizeFlags.ExpandFill,
+        });
+        head.AddChild(titles);
+        right.AddChild(head);
+        right.AddChild(Spacer(0, 5 * k));
+
+        if (profile == null)
+        {
+            right.AddChild(Para(L("Analysing your runs and preparing the right starting point…",
+                "Analizando tus partidas y preparando el mejor punto de partida…"), 13, UiTheme.Dim));
+            return;
+        }
+
+        var p = profile;
+        var plan = CoachPlan.Build(p);
+        head.AddChild(new MText
+        {
+            K = k, Text = $"≈{plan.Minutes} MIN", Font = UiTheme.Hud, Px = 24, Color = UiTheme.TextSoft,
+            SizeFlagsVertical = SizeFlags.ShrinkCenter, CustomMinimumSize = new Vector2(105 * k, 0), Align = HorizontalAlignment.Right,
+        });
+        string description = plan.IsOnboarding
+            ? L("Start here: five exercises and eight runs measure your baseline. No weaknesses are assumed.",
+                "Empieza aquí: cinco ejercicios y ocho series miden tu punto de partida. No se presupone ninguna debilidad.")
+            : plan.IsProvisional
+                ? L("Provisional recommendation: fill the biggest measurement gaps first. Possible clues are not treated as confirmed weaknesses.",
+                    "Recomendación provisional: primero completa las mediciones que más faltan. Las posibles pistas no se tratan como debilidades confirmadas.")
+                : L($"Built from {p.RunsAnalyzed} analysed runs, your measured problems and the skills with the most room to improve.",
+                    $"Creada a partir de {p.RunsAnalyzed} partidas analizadas, tus problemas medidos y las habilidades con más margen de mejora.");
+        right.AddChild(Para(description, 11.5f, plan.IsProvisional ? UiTheme.Warn : UiTheme.Dim));
+        right.AddChild(Spacer(0, 7 * k));
+
+        var actions = HBox(8 * k);
+        var play = new MAction
+        {
+            K = k, Primary = true, Label = L("START GUIDED ROUTINE", "EMPEZAR RUTINA GUIADA"), Px = 12.5f,
+            CustomMinimumSize = new Vector2(300 * k, 40 * k), SizeFlagsVertical = SizeFlags.ShrinkCenter,
+            TooltipText = L("Play the whole plan with instructions and feedback between drills",
+                "Juega el plan completo con instrucciones y correcciones entre ejercicios"),
+        };
+        play.Pressed += () => PracticeScreen.Start(plan, p);
+        actions.AddChild(play);
+        var save = new MAction
+        {
+            K = k, Label = L("SAVE AS PLAYLIST", "GUARDAR SERIE"), Px = 12,
+            CustomMinimumSize = new Vector2(230 * k, 40 * k), SizeFlagsVertical = SizeFlags.ShrinkCenter,
+            TooltipText = L("Save an editable copy in PLAYLISTS", "Guarda una copia editable en SERIES"),
+        };
+        save.Pressed += () =>
+        {
+            var saved = CoachData.CreatePlaylist(plan);
+            SetStatus($"{L("Saved as a playlist", "Guardada como serie")} · {saved.Name}");
+        };
+        actions.AddChild(save);
+        var coach = new MAction
+        {
+            K = k, Label = L("VIEW EVIDENCE", "VER EVIDENCIA"), Px = 12,
+            CustomMinimumSize = new Vector2(220 * k, 40 * k), SizeFlagsVertical = SizeFlags.ShrinkCenter,
+            TooltipText = L("Open the coach profile behind this recommendation", "Abre el perfil del coach que origina esta recomendación"),
+        };
+        coach.Pressed += () => Main.I.ShowScreen(new ProfileScreen());
+        actions.AddChild(coach);
+        actions.AddChild(Expander());
+        right.AddChild(actions);
+        right.AddChild(Spacer(0, 7 * k));
+
+        var evidence = plan.Steps.FirstOrDefault(s => s.Source != null)?.Source;
+        right.AddChild(Kicker(evidence == null ? L("WHAT THIS ROUTINE DOES", "QUÉ HACE ESTA RUTINA") : L("WHY THIS ROUTINE", "POR QUÉ ESTA RUTINA"), UiTheme.Faint));
+        right.AddChild(Para(evidence == null
+            ? L($"{plan.Steps.Count} steps · {plan.TotalRuns} runs. Each block explains its purpose before you start.",
+                $"{plan.Steps.Count} pasos · {plan.TotalRuns} series. Cada bloque explica su propósito antes de empezar.")
+            : $"{evidence.Title} · {evidence.Evidence}", 11, evidence == null ? UiTheme.Dim : UiTheme.TextSoft));
+        right.AddChild(Spacer(0, 5 * k));
+
+        var scroll = new ScrollContainer
+        {
+            SizeFlagsVertical = SizeFlags.ExpandFill, HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
+        };
+        var rows = VBox(0);
+        rows.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        scroll.AddChild(rows);
+        right.AddChild(scroll);
+        for (int i = 0; i < plan.Steps.Count; i++)
+        {
+            var step = plan.Steps[i];
+            string tip = step.Why + (step.Source == null ? "" : $"\n{step.Source.Evidence}");
+            var item = new MDrillRow
+            {
+                K = k, Title = CoachData.DrillName(step.Drill),
+                Meta = $"{Coach.SkillName(step.Skill)} · {CoachPlan.RecoilLabel(step.Recoil)}",
+                Value = $"×{step.Runs}", ValueCaption = L("RUNS", "SERIES"), Delay = 0.08f + i * 0.025f,
+                CustomMinimumSize = new Vector2(0, 56 * k), SizeFlagsHorizontal = SizeFlags.ExpandFill,
+                TooltipText = tip + "\n" + L("Click to practise only this exercise", "Haz clic para practicar solo este ejercicio"),
+            };
+            item.Pressed += () => CoachData.StartDrill(step.Drill, step.Source is { } d ? CoachData.FocusFrom(d) : null);
+            rows.AddChild(item);
+        }
     }
 
     void BuildRoutineDetail(VBoxContainer right, Routine r, float k)
@@ -340,12 +501,13 @@ public partial class RoutinesScreen : ScreenBase
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
         });
         head.AddChild(titles);
-        head.AddChild(new MText
+        var duration = new MText
         {
             K = k, Text = r.Minutes > 0 ? $"{r.Minutes:0.#} MIN" : L("EXTERNAL", "EXTERNA"),
             Font = UiTheme.Hud, Px = 24, Color = UiTheme.TextSoft, SizeFlagsVertical = SizeFlags.ShrinkCenter,
             CustomMinimumSize = new Vector2(105 * k, 0), Align = HorizontalAlignment.Right,
-        });
+        };
+        head.AddChild(duration);
         right.AddChild(head);
         right.AddChild(Spacer(0, 3 * k));
         right.AddChild(Para(L(r.DescriptionEn, r.DescriptionEs), 11.5f, UiTheme.Dim));
@@ -362,7 +524,12 @@ public partial class RoutinesScreen : ScreenBase
             if (r.Steps.Any(s => s.Optional && s.Drill.Length > 0))
             {
                 var optional = new CheckButton { Text = L("Include optional exercises", "Incluir ejercicios opcionales"), ButtonPressed = true };
-                optional.Toggled += value => includeOptional = value;
+                optional.Toggled += value =>
+                {
+                    includeOptional = value;
+                    float minutes = r.Steps.Where(s => value || !s.Optional).Sum(s => s.Minutes);
+                    duration.Text = $"{minutes:0.#} MIN";
+                };
                 right.AddChild(optional);
             }
             var play = new MAction
@@ -386,7 +553,7 @@ public partial class RoutinesScreen : ScreenBase
             };
             save.Pressed += () =>
             {
-                var p = r.SaveAsPlaylist();
+                var p = r.SaveAsPlaylist(includeOptional);
                 if (p == null) { SetStatus(L("Nothing to save.", "No hay nada que guardar."), UiTheme.Warn); return; }
                 PlaylistsScreen.Select(p.Id);
                 SetStatus($"{L("Saved as a playlist", "Guardada como serie")} · {p.Name}");

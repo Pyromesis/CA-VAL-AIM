@@ -38,9 +38,9 @@ public static class MovementTuning
     public const float LandingErrTime = 0.225f;
     /// <summary>Impact speed (m/s) at or above which a landing plays its sound (in-game: binary cue). Midpoint
     /// between the two calibrated jumps — crouch-jump ≈4.23 (the tuck shortens the fall, silent) and standing
-    /// jump ≈5.22 (audible) — with a real margin under the standing jump: live framerates quantize the impact
-    /// speed by ±0.1, so the threshold must not sit within 1% of it. (At g = 20 these were 5.0 / 6.17 → 5.8; impact
-    /// speeds from the same heights scale with √g.)</summary>
+    /// jump ≈5.22 (audible) — with a real margin under the standing jump. Contact speed is evaluated at the ballistic
+    /// crossing, so the gate does not move with frame rate. (At g = 20 these were 5.0 / 6.17 → 5.8; impact speeds
+    /// from the same heights scale with √g.)</summary>
     public const float LandingSoundSpeed = 4.9f;
     /// <summary>Falls shorter than this (highest point to landing, metres) never hurt. Wiki: ~15 damage at 8 m, ~100 at 17 m,
     /// to health only (shields don't absorb it).</summary>
@@ -269,12 +269,13 @@ public sealed partial class Mover
             BeginAir(feet, fromJump: false);
         }
 
-        airT += dt;
         float h = BodyHeight;
         float y0 = feet.Y;
+        float velocityY = VelY;
         // Exact ballistic step (frame-rate independent apex and air time).
-        float y1 = y0 + VelY * dt - 0.5f * MovementTuning.Gravity * dt * dt;
-        VelY -= MovementTuning.Gravity * dt;
+        float y1 = y0 + velocityY * dt - 0.5f * MovementTuning.Gravity * dt * dt;
+        VelY = velocityY - MovementTuning.Gravity * dt;
+        bool struckCeiling = false;
         if (y1 > y0)
         {
             float ceil = Collision.Ceiling(feet, world, y0 + h);
@@ -282,16 +283,23 @@ public sealed partial class Mover
             {
                 y1 = Mathf.Max(y0, ceil - h);
                 if (VelY > 0) VelY = 0;
-                HitCeiling = true;
+                HitCeiling = struckCeiling = true;
             }
         }
         float ground = Collision.Ground(feet, world, Collision.AirStep); // surfaces under the feet at the start of the frame
         if (y1 <= ground && VelY <= 0)
         {
+            // The floor crossing generally happens inside the frame. Use the descending ballistic root for both the
+            // air time and the contact velocity, rather than the velocity after a whole extra frame of gravity.
+            float discriminant = Mathf.Max(0, velocityY * velocityY + 2f * MovementTuning.Gravity * (y0 - ground));
+            float impact = struckCeiling ? dt : Mathf.Clamp((velocityY + Mathf.Sqrt(discriminant)) / MovementTuning.Gravity, 0, dt);
+            airT += impact;
             feet.Y = ground;
+            if (!struckCeiling) VelY = velocityY - MovementTuning.Gravity * impact;
             Land(feet);
             return;
         }
+        airT += dt;
         feet.Y = Mathf.Max(y1, ground);
         airTopY = Mathf.Max(airTopY, feet.Y);
         airTopEye = Mathf.Max(airTopEye, feet.Y + EyeHeight);

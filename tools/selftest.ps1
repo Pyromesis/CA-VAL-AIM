@@ -1,8 +1,8 @@
 <#
 .SYNOPSIS
-  Headless self-tests for CA-VAL-AIM: the coach self-test (with the .vtr replay round trip), the locale (culture) tests, the bug report
-  checks, a short smoke test of the drills with the simulated player, the 3D Rewind sidecar check of those runs and the Rewind insights
-  check (flawed simulated players must show their own problem moments).
+  Headless self-tests for CA-VAL-AIM: the coach self-test (with the .vtr replay round trip), movement and synthetic-collision checks,
+  the locale (culture) tests, the bug report checks, a short smoke test of the drills with the simulated player, the 3D Rewind sidecar
+  check of those runs and the Rewind insights check (flawed simulated players must show their own problem moments).
 .DESCRIPTION
   Runs the same checks as CI (.github/workflows/ci.yml). Every run uses --dev with a throw-away --data-dir and an empty
   --valorant-dir, so your real settings, stats, telemetry and VALORANT config are never read or written; the script
@@ -141,6 +141,18 @@ $r = Invoke-Godot "routine-playback-check" (@("--headless", "--fixed-fps", "120"
     @("--routine-playback-check", "--routine-minutes", "0.01"))
 $why = if ($r.Code -ne 0) { "exit code $($r.Code)" } elseif ($r.Text -notmatch '\[routine-playback\] RESULT: PASS') { "no passing playback result" } else { "" }
 Report "all playable routines advance and complete" ($why -eq "") $why $r
+
+# Movement physics: acceleration, braking, jumping, landing, step-up/down and synthetic-wall collision.
+# This battery is deterministic and does not need the optional extracted map set.
+$r = Invoke-Godot "movement-check" (@("--headless", "--fixed-fps", "120", "--path", $Project, "--") + $sandbox +
+    @("--mode", "counterstrafe", "--movecheck"))
+$res = ($r.Text -split "`r?`n" | Where-Object { $_ -match '\[movecheck\] RESULT:' } | Select-Object -Last 1)
+$fails = @($r.Text -split "`r?`n" | Where-Object { $_ -match '\[movecheck\] FAIL' })
+$ex = Get-Exceptions $r.Text
+$why = if ($r.Code -ne 0) { "exit code $($r.Code) ($res) " + (($fails | Select-Object -First 2) -join "; ") } `
+    elseif ($ex.Count -gt 0) { "exception: $($ex[0].Trim())" } elseif ($res -notmatch 'RESULT: PASS') { "no PASS result" } else { "" }
+$detail = if ($res -match 'RESULT: PASS \((\d+) passed') { " ($($Matches[1]) checks)" } else { "" }
+Report "movement and synthetic collision$detail" ($why -eq "") $why $r
 
 # ---- 2. Locale tests: parsers and number formatting in the invariant culture and comma-decimal cultures ----
 foreach ($c in @("") + $Cultures) {

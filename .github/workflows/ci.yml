@@ -84,7 +84,7 @@ jobs:
       - name: Import assets
         run: '& $env:GODOT --headless --path CaValAim --import'
 
-      # Coach self-test, locale tests (invariant, de-DE, tr-TR) and a 5 s simulated-player run of every timed drill.
+      # Coach, movement/synthetic-collision and locale tests, plus a 5 s simulated-player run of every timed drill.
       # All runs use --dev with a throw-away data folder: nothing is read from or written to a real profile.
       - name: Self-tests
         shell: powershell

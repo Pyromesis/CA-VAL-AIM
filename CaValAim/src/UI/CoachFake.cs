@@ -4,7 +4,7 @@ using CaValAim.Game;
 namespace CaValAim.UI;
 
 /// <summary>
-/// Dev-only hand-made coach data (<c>--dev --fakecoach [full|partial|empty]</c>) so the coach UI can be laid out
+/// Dev-only hand-made coach data (<c>--dev --fakecoach [full|partial|empty|under]</c>) so the coach UI can be laid out
 /// while the analysis engine is still being written. Never used in normal runs.
 /// </summary>
 public static class CoachFake
@@ -123,6 +123,23 @@ public static class CoachFake
             "Straight flick paths — 94% of the motion goes toward the target.",
             "Horizontal spray control is clean (0.4° side-to-side scatter).",
         };
+        if (variant == "under")
+        {
+            const float underCur = .225f, underRec = .240f;
+            p.RunsAnalyzed = 24;
+            p.Sens = new SensAdvice(underCur, dpi, underRec, PlayerView.Cm360(underCur, dpi), PlayerView.Cm360(underRec, dpi), "higher",
+                "66% of your off-target flicks stop short, by 1.7° on average. Compare the 0.240 candidate in A/B practice before applying it.",
+                .86f);
+            var underNow = DateTime.Now;
+            var b225 = new SensBlock(underCur, 24, 7, underNow.AddDays(-24), underNow.AddHours(-1), 160, 100, 84,
+                .34f, .66f, 8f, 1.7f, 1.1f, .30f, 64f, .07f, .92f, SensVerdict.Undershoot);
+            p.SensLab = new SensLabData
+            {
+                CurrentSens = underCur, Dpi = dpi, Current = b225, Runs = 24, Sessions = 7,
+                History = new() { b225 },
+            };
+            return p;
+        }
         float cur = 0.21f, rec = 0.19f;
         p.Sens = new SensAdvice(cur, dpi, rec, PlayerView.Cm360(cur, dpi), PlayerView.Cm360(rec, dpi), "lower",
             "62% of your flicks overshoot and you make 2.3 corrections per target — both point to a sens that's a bit high for your arm. About 10% lower should make flicks easier to stop.",

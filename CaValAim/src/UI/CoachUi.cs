@@ -190,13 +190,13 @@ public static class CoachSkills
 /// <summary>
 /// Loads the coach's data for the UI: the skill profile is built on a background thread (cached until the run
 /// count, sensitivity or DPI change) and the post-run review comes from the session. Dev-only
-/// <c>--dev --fakecoach [full|partial|empty]</c> swaps in hand-made data (<see cref="CoachFake"/>) for layout work.
+/// <c>--dev --fakecoach [full|partial|empty|under]</c> swaps in hand-made data (<see cref="CoachFake"/>) for layout work.
 /// </summary>
 public static class CoachData
 {
     static readonly string[] Args = OS.GetCmdlineUserArgs().Concat(OS.GetCmdlineArgs()).ToArray();
 
-    /// <summary>null = real coach; otherwise "full", "partial" or "empty".</summary>
+    /// <summary>null = real coach; otherwise "full", "partial", "empty" or "under".</summary>
     public static readonly string? FakeVariant = ParseFake();
     public static bool Fake => FakeVariant != null;
 
@@ -206,7 +206,7 @@ public static class CoachData
         int i = Array.IndexOf(Args, "--fakecoach");
         if (i < 0) return null;
         string v = i + 1 < Args.Length && !Args[i + 1].StartsWith("--", StringComparison.Ordinal) ? Args[i + 1].ToLowerInvariant() : "full";
-        return v is "empty" or "partial" ? v : "full";
+        return v is "empty" or "partial" or "under" ? v : "full";
     }
 
     // ---------------- profile (background) ----------------

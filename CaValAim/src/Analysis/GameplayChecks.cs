@@ -34,6 +34,42 @@ static class GameplayChecks
         Check(!RunAnalysis.StaticTargetMode("flickx:course-dynamic-0-0") &&
             RunAnalysis.StaticTargetMode("flickx:course-precision-0-0"),
             "moving click targets cannot masquerade as sensitivity braking errors");
+
+        // Recommended routines: a new player gets the complete baseline, partial profiles gather evidence before
+        // acting on Tips, and a well-rated profile keeps its personalised diagnosis-first plan.
+        var emptyPlan = CoachPlan.Build(new SkillProfile());
+        Check(emptyPlan.IsOnboarding && !emptyPlan.IsProvisional && emptyPlan.Steps.Count == CoachPlan.Starter.Length &&
+            emptyPlan.TotalRuns == CoachPlan.Starter.Sum(s => s.Target) && emptyPlan.Steps.Select(s => s.Drill).Distinct().Count() == CoachPlan.Starter.Length &&
+            emptyPlan.Steps.All(s => Modes.ModeRegistry.Find(s.Drill)?.Invoke().Key == s.Drill),
+            $"recommended empty profile: all {CoachPlan.Starter.Length} baseline drills and {emptyPlan.TotalRuns} runs resolve");
+        var emptyAgain = CoachPlan.Build(new SkillProfile());
+        Check(string.Join("|", emptyPlan.Queue()) == string.Join("|", emptyAgain.Queue()),
+            "recommended baseline is deterministic, including repetitions and recoil");
+        var partialProfile = new SkillProfile { RunsAnalyzed = 4 };
+        partialProfile.Skills.Add(new SkillRating(Skill.Flicking, 1.5f, 0.8f, 20, ""));
+        partialProfile.Problems.Add(new Diagnosis("POSSIBLE_ONLY", Skill.Flicking, Severity.Tip, "Possible", "One clue", "",
+            Array.Empty<string>(), new[] { "spider" }, 2));
+        var partialPlan = CoachPlan.Build(partialProfile);
+        Check(partialPlan.IsProvisional && !partialPlan.IsOnboarding && partialPlan.Steps.Count > 0 &&
+            partialPlan.Steps.All(s => s.Source == null || s.Source.Severity != Severity.Tip) && partialPlan.Steps.Any(s => s.Source == null),
+            "recommended partial profile prioritises evidence over unconfirmed Tips");
+        var fullProfile = new SkillProfile { RunsAnalyzed = 40, OverallTier = 2 };
+        foreach (var skill in Enum.GetValues<Skill>())
+            fullProfile.Skills.Add(new SkillRating(skill, skill == Skill.Movement ? 0.5f : 2, 0.8f, 30, ""));
+        var major = new Diagnosis("RUN_GUN", Skill.Movement, Severity.Major, "Confirmed movement issue", "Measured misses", "",
+            Array.Empty<string>(), new[] { "counterstrafe" }, 30);
+        fullProfile.Problems.Add(major);
+        var fullPlan = CoachPlan.Build(fullProfile);
+        Check(!fullPlan.IsProvisional && !fullPlan.IsOnboarding && fullPlan.Steps.Count <= 4 && fullPlan.Steps[0].Source == major,
+            "recommended complete profile keeps its confirmed diagnosis first");
+        var balancedProfile = new SkillProfile { RunsAnalyzed = 40, OverallTier = 2 };
+        foreach (var skill in Enum.GetValues<Skill>())
+            balancedProfile.Skills.Add(new SkillRating(skill, 2, 0.8f, 30, ""));
+        var balancedPlan = CoachPlan.Build(balancedProfile);
+        Check(!balancedPlan.IsOnboarding && !balancedPlan.IsProvisional && balancedPlan.Steps.Count == 4 && balancedPlan.TotalRuns == 4,
+            "recommended balanced veteran gets varied practice, not new-player onboarding");
+        Check(CaValAim.Maps.MapSpots.All.All(m => World.Themes.For(m).Key == m.Key),
+            "every map keeps its own lighting preset");
         CollisionChecks();
         // ---- coach-built drills (CoachForge) ----
         Diagnosis Finding(string id, Skill skill) => new(id, skill, Severity.Major, "", "", "", Array.Empty<string>(), Array.Empty<string>(), 30);
@@ -148,6 +184,7 @@ static class GameplayChecks
             }
             Check(exterior, $"{name} faces are visible from outside");
         }
+        ProceduralMeshChecks(report);
         foreach (bool indexed in new[] { false, true })
         {
             var world = new List<Box>
@@ -228,6 +265,96 @@ static class GameplayChecks
             "spatial audio fades monotonically to silence");
     }
 
+    /// <summary>Structural and rendering-safety invariants for every self-authored first-person mesh.</summary>
+    static void ProceduralMeshChecks(Action<string> report)
+    {
+        void Check(bool ok, string label) => report($"  {(ok ? "PASS" : "FAIL")} gameplay: {label}");
+        static bool Finite(Vector3 p) => float.IsFinite(p.X) && float.IsFinite(p.Y) && float.IsFinite(p.Z);
+
+        var kinds = Enum.GetValues<WeaponKind>()
+            .Where(k => k is WeaponKind.Vandal or WeaponKind.Phantom || ProceduralArsenal.Has(k)).ToArray();
+        var rifleGeometry = new Dictionary<WeaponKind, HashSet<Vector3I>>();
+        int totalTriangles = 0;
+        foreach (var kind in kinds)
+        {
+            Node3D? root = null;
+            try
+            {
+                root = kind is WeaponKind.Vandal or WeaponKind.Phantom
+                    ? ProceduralRifle.Build(kind) : ProceduralArsenal.Build(kind);
+                var muzzle = root.GetNodeOrNull<Node3D>("Muzzle");
+                var magazine = root.GetNodeOrNull<Node3D>("Magazine");
+                Check(muzzle != null && magazine != null && Finite(muzzle.Position),
+                    $"procedural {kind}: Muzzle and Magazine anchors exist and are finite");
+
+                bool valid = true;
+                int meshCount = 0, triangles = 0;
+                var min = new Vector3(float.PositiveInfinity, float.PositiveInfinity, float.PositiveInfinity);
+                var max = new Vector3(float.NegativeInfinity, float.NegativeInfinity, float.NegativeInfinity);
+                var geometry = new HashSet<Vector3I>();
+
+                void Visit(Node node, Transform3D parent)
+                {
+                    var transform = node is Node3D spatial ? parent * spatial.Transform : parent;
+                    if (node is MeshInstance3D mi && mi.Mesh != null)
+                    {
+                        meshCount++;
+                        for (int surface = 0; surface < mi.Mesh.GetSurfaceCount(); surface++)
+                        {
+                            var arrays = mi.Mesh.SurfaceGetArrays(surface);
+                            var vertices = arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+                            var normals = arrays[(int)Mesh.ArrayType.Normal].AsVector3Array();
+                            var indices = arrays[(int)Mesh.ArrayType.Index].AsInt32Array();
+                            valid &= vertices.Length > 0 && normals.Length == vertices.Length && indices.Length >= 3 && indices.Length % 3 == 0;
+                            triangles += indices.Length / 3;
+                            for (int i = 0; i < vertices.Length; i++)
+                            {
+                                var vertex = vertices[i];
+                                var normal = normals.Length == vertices.Length ? normals[i] : Vector3.Zero;
+                                valid &= Finite(vertex) && Finite(normal) && Mathf.Abs(normal.LengthSquared() - 1f) < 0.004f;
+                                if (!Finite(vertex)) continue;
+                                var point = transform * vertex;
+                                valid &= Finite(point);
+                                min = new Vector3(Mathf.Min(min.X, point.X), Mathf.Min(min.Y, point.Y), Mathf.Min(min.Z, point.Z));
+                                max = new Vector3(Mathf.Max(max.X, point.X), Mathf.Max(max.Y, point.Y), Mathf.Max(max.Z, point.Z));
+                                // Quantisation makes this independent of vertex order, material slots and exact counts.
+                                geometry.Add(new Vector3I(Mathf.RoundToInt(point.X * 100000f),
+                                    Mathf.RoundToInt(point.Y * 100000f), Mathf.RoundToInt(point.Z * 100000f)));
+                            }
+                            for (int i = 0; i < indices.Length; i++)
+                                valid &= indices[i] >= 0 && indices[i] < vertices.Length;
+                        }
+                    }
+                    foreach (var child in node.GetChildren()) Visit(child, transform);
+                }
+                Visit(root, Transform3D.Identity);
+
+                var size = max - min;
+                bool bounds = meshCount > 0 && Finite(min) && Finite(max) && Finite(size) &&
+                    size.X > 0.002f && size.Y > 0.002f && size.Z > 0.002f && size.Length() < 2f &&
+                    min.Length() < 2f && max.Length() < 2f;
+                Check(valid && bounds && triangles > 0 && triangles <= 24000,
+                    $"procedural {kind}: {triangles} triangles within budget; finite vertices, unit normals, valid indices and sane bounds ({size.X:0.00}/{size.Y:0.00}/{size.Z:0.00} m)");
+                totalTriangles += triangles;
+                if (kind is WeaponKind.Vandal or WeaponKind.Phantom) rifleGeometry[kind] = geometry;
+            }
+            finally
+            {
+                root?.Free();
+            }
+        }
+        Check(totalTriangles > 0 && totalTriangles <= 240000,
+            $"procedural arsenal total rendering budget: {totalTriangles} triangles across {kinds.Length} models");
+
+        var vandal = rifleGeometry.GetValueOrDefault(WeaponKind.Vandal);
+        var phantom = rifleGeometry.GetValueOrDefault(WeaponKind.Phantom);
+        int shared = vandal != null && phantom != null ? vandal.Intersect(phantom).Count() : 0;
+        int union = vandal != null && phantom != null ? vandal.Count + phantom.Count - shared : 0;
+        float distinct = union > 0 ? 1f - shared / (float)union : 0f;
+        Check(union > 0 && distinct > 0.05f,
+            $"Vandal and Phantom retain genuinely distinct mesh geometry ({distinct:P0} non-shared quantised vertices)");
+    }
+
     /// <summary>
     /// The collision rules the bots and the player share: what blocks a body, what only blocks a bullet, and what the
     /// nav grid may plan through. These are the cases behind "the bots get stuck" and "there are invisible walls".
@@ -235,6 +362,14 @@ static class GameplayChecks
     static void CollisionChecks()
     {
         void Check(bool ok, string label) => Console.WriteLine($"  {(ok ? "PASS" : "FAIL")} collision: {label}");
+
+        float fallHigh = GameSession.FallLimit(0, null, new Vector3(0, 8, 0));
+        float fallBelow = GameSession.FallLimit(0, null, new Vector3(0, -30, 0));
+        Check(fallHigh == -12 && fallBelow == -50,
+            $"fall guard without a safe floor uses a fixed spawn/map threshold ({fallHigh:0.###}/{fallBelow:0.###}, expected -12/-50)");
+        Check(GameSession.FallLimit(0, new Vector3(0, 12, 0), new Vector3(0, 8, 0)) == -8 &&
+            GameSession.FallLimit(-40, null, new Vector3(0, 8, 0)) == -44,
+            "fall guard respects both the last safe floor and the map underside");
 
         // A ray that starts on a wall and points away from it does not cross the wall: it must not report a hit.
         var wall = new List<Box> { new(new Vector3(-1, 0, -1), new Vector3(1, 3, 1)) };

@@ -21,19 +21,22 @@ public static class SurfaceLib
     public const string ShaderDir = "res://assets/shaders/world/";
 
     /// <summary>Average albedo (sRGB), roughness and metallic of each set, measured offline. The shader swaps the
-    /// mean colour for the tint; the Low preset uses the mean roughness/metal instead of sampling the ARM map.</summary>
+    /// mean colour for the tint; the Low preset uses the mean roughness/metal instead of sampling the ARM map.
+    /// Reproduce with Pillow's ImageStat.Stat(image).mean / 255: diffuse RGB for Mean, ARM green/blue for Rough/Metal.</summary>
     static readonly Dictionary<string, (Color Mean, float Rough, float Metal)> Stats = new()
     {
         ["clay_plaster"] = (new Color(0.448f, 0.353f, 0.235f), 0.92f, 0f),
         ["cobblestone_floor_06"] = (new Color(0.314f, 0.275f, 0.238f), 0.80f, 0f),
         ["concrete_floor_worn_02"] = (new Color(0.487f, 0.421f, 0.337f), 0.77f, 0f),
         ["concrete_wall_008"] = (new Color(0.552f, 0.524f, 0.438f), 0.74f, 0f),
+        ["container_side"] = (new Color(0.500f, 0.500f, 0.500f), 0.67f, 0f),
         ["metal_plate_02"] = (new Color(0.331f, 0.286f, 0.243f), 0.66f, 0.91f),
         ["painted_plaster_wall"] = (new Color(0.670f, 0.639f, 0.626f), 0.92f, 0f),
         ["plastered_wall_02"] = (new Color(0.731f, 0.695f, 0.641f), 0.91f, 0f),
         ["red_sandstone_wall"] = (new Color(0.557f, 0.496f, 0.426f), 0.84f, 0f),
         ["rusty_metal_sheet"] = (new Color(0.468f, 0.433f, 0.337f), 0.82f, 0f),
         ["sandstone_blocks_08"] = (new Color(0.648f, 0.574f, 0.457f), 0.51f, 0f),
+        ["snow_02"] = (new Color(0.499f, 0.499f, 0.499f), 0.80f, 0f),
         ["square_tiles"] = (new Color(0.417f, 0.380f, 0.341f), 0.83f, 0f),
         ["stone_tiles_03"] = (new Color(0.526f, 0.480f, 0.389f), 0.86f, 0f),
         ["wood_floor_worn"] = (new Color(0.540f, 0.348f, 0.185f), 0.47f, 0f),

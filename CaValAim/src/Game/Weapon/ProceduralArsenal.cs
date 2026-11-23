@@ -31,7 +31,7 @@ public static class ProceduralArsenal
     sealed class Kit
     {
         public readonly VmMesh Body = new(), Poly = new(), Metal = new(), Accent = new(), Dark = new(), White = new(), Mag = new(), MagTrim = new();
-        public Color BodyCol = new(0.29f, 0.29f, 0.30f), AccentCol = new(0.72f, 0.06f, 0.07f), PolyCol = new(0.185f, 0.19f, 0.20f);
+        public Color BodyCol = new(0.280f, 0.290f, 0.305f), AccentCol = new(0.62f, 0.05f, 0.055f), PolyCol = new(0.170f, 0.180f, 0.195f);
         public Vector3 Muzzle;
     }
 
@@ -98,16 +98,24 @@ public static class ProceduralArsenal
         frame.ChamferZ(z0 + 0.012f, z1 - 0.010f, new Vector2(0.0125f, 0.010f), new Vector2(0.0130f, 0.011f), 0.030f, 0.030f, 0.0018f, I);
         k.Accent.Box(new Vector3(0.0009f, 0.0025f, (z1 - z0) * 0.32f), T(0.0137f, 0.030f, (z0 + z1) * 0.5f - 0.01f));
         k.Accent.Box(new Vector3(0.0009f, 0.0025f, (z1 - z0) * 0.32f), T(-0.0137f, 0.030f, (z0 + z1) * 0.5f - 0.01f));
-        // grip (raked back) with texture panels, trigger guard and trigger
-        k.Poly.LoftY(-0.095f, 0.022f, new Vector2(0.0135f, 0.0205f), new Vector2(0.0150f, 0.0230f), 0.040f, 0.012f, I);
-        k.Dark.Box(new Vector3(0.0008f, 0.034f, 0.016f), T(0.0152f, -0.040f, 0.026f) * RX(15f));
-        k.Dark.Box(new Vector3(0.0008f, 0.034f, 0.016f), T(-0.0152f, -0.040f, 0.026f) * RX(15f));
+        // Tapered, raked grip: a narrow heel and a shallow palm swell instead of a rectangular paddle.
+        k.Poly.ChamferPathY(new[]
+        {
+            (0.022f, 0.0148f, 0.0225f, 0.012f),
+            (-0.012f, 0.0150f, 0.0230f, 0.016f),
+            (-0.050f, 0.0145f, 0.0220f, 0.026f),
+            (-0.080f, 0.0135f, 0.0205f, 0.035f),
+            (-0.096f, 0.0128f, 0.0195f, 0.040f),
+        }, 0.0030f, I);
+        foreach (float sx in new[] { 1f, -1f })
+            k.Dark.RoundBox(new Vector3(0.0008f, 0.0220f, 0.0125f), 0.34f,
+                T(sx * 0.0147f, -0.044f, 0.027f) * RX(15f), lat: 6, lon: 12);
         k.Metal.Box(new Vector3(0.0028f, 0.0028f, 0.026f), T(0f, 0.004f, -0.020f));
         k.Metal.Box(new Vector3(0.0028f, 0.012f, 0.0028f), T(0f, 0.012f, -0.046f));
         k.Metal.Box(new Vector3(0.0022f, 0.010f, 0.0028f), T(0f, 0.016f, -0.010f) * RX(-12f));
         // magazine (base plate under the grip; a long one sticks out)
         float magBottom = longMag ? -0.135f : -0.100f;
-        k.Mag.LoftY(magBottom, -0.060f, new Vector2(0.0118f, 0.0175f), new Vector2(0.0120f, 0.0180f), 0.044f, 0.036f, I);
+        k.Mag.ChamferY(magBottom, -0.060f, new Vector2(0.0118f, 0.0175f), new Vector2(0.0120f, 0.0180f), 0.044f, 0.036f, 0.0025f, I);
         k.MagTrim.Box(new Vector3(0.0140f, 0.0040f, 0.0205f), T(0f, magBottom - 0.002f, 0.045f));
         k.Muzzle = new Vector3(0f, y + 0.002f, z0 - 0.008f);
     }
@@ -209,13 +217,19 @@ public static class ProceduralArsenal
             k.Metal.FacetTubeZ(-0.235f, 0.030f, 0.0145f, 0.0145f, 14, 1f, 1f, T(s * 0.0145f, 0.058f, 0f));
             k.Dark.FacetTubeZ(-0.2365f, -0.2340f, 0.0105f, 0.0105f, 14, 1f, 1f, T(s * 0.0145f, 0.058f, 0f));
         }
-        k.Body.LoftZ(-0.020f, 0.060f, new Vector2(0.030f, 0.020f), new Vector2(0.028f, 0.022f), 0.050f, 0.050f, I);   // breech block
-        k.Poly.LoftZ(-0.215f, -0.080f, new Vector2(0.027f, 0.011f), new Vector2(0.029f, 0.012f), 0.033f, 0.033f, I);  // fore-end
+        k.Body.ChamferZ(-0.020f, 0.060f, new Vector2(0.030f, 0.020f), new Vector2(0.028f, 0.022f), 0.050f, 0.050f, 0.0050f, I);   // breech block
+        k.Poly.ChamferZ(-0.215f, -0.080f, new Vector2(0.027f, 0.011f), new Vector2(0.029f, 0.012f), 0.033f, 0.033f, 0.0035f, I);  // fore-end
         for (int i = 0; i < 5; i++) k.Dark.Box(new Vector3(0.030f, 0.0010f, 0.004f), T(0f, 0.0215f, -0.200f + i * 0.026f));
         k.Accent.Box(new Vector3(0.0010f, 0.004f, 0.060f), T(0.0295f, 0.050f, 0.020f));
         k.Accent.Box(new Vector3(0.0010f, 0.004f, 0.060f), T(-0.0295f, 0.050f, 0.020f));
         k.Metal.Box(new Vector3(0.004f, 0.012f, 0.010f), T(0f, 0.080f, 0.050f));                                       // hammer spur
-        k.Poly.LoftY(-0.100f, 0.030f, new Vector2(0.0140f, 0.021f), new Vector2(0.0160f, 0.024f), 0.045f, 0.014f, I);
+        k.Poly.ChamferPathY(new[]
+        {
+            (0.030f, 0.0155f, 0.0230f, 0.014f),
+            (-0.020f, 0.0158f, 0.0235f, 0.024f),
+            (-0.065f, 0.0145f, 0.0215f, 0.037f),
+            (-0.100f, 0.0130f, 0.0195f, 0.045f),
+        }, 0.0035f, I);
         k.Metal.Box(new Vector3(0.0028f, 0.0028f, 0.026f), T(0f, 0.006f, -0.020f));
         k.Metal.Box(new Vector3(0.0022f, 0.010f, 0.0028f), T(0f, 0.018f, -0.010f) * RX(-12f));
         k.Mag.Box(new Vector3(0.010f, 0.010f, 0.010f), T(0f, 0.058f, 0.050f));                                       // shells at the breech
@@ -231,7 +245,12 @@ public static class ProceduralArsenal
         k.Metal.ChamferZ(-0.198f, -0.020f, shoulder, new Vector2(0.0040f, 0.0180f), 0.050f, 0.048f, 0.0023f);
         k.Metal.ChamferZ(-0.244f, -0.198f, new Vector2(0.0007f, 0.0014f), shoulder, 0.061f, 0.050f, 0.0023f);
         k.Body.Box(new Vector3(0.012f, 0.026f, 0.007f), T(0f, 0.045f, -0.014f));                                       // guard
-        k.Poly.LoftY(-0.080f, 0.032f, new Vector2(0.0110f, 0.0150f), new Vector2(0.0120f, 0.0165f), 0.030f, 0.004f, I);
+        k.Poly.ChamferPathY(new[]
+        {
+            (0.032f, 0.0120f, 0.0165f, 0.004f),
+            (-0.020f, 0.0118f, 0.0160f, 0.015f),
+            (-0.080f, 0.0105f, 0.0145f, 0.030f),
+        }, 0.0030f, I);
         for (int i = 0; i < 6; i++) k.Dark.Box(new Vector3(0.0125f, 0.0012f, 0.017f), T(0f, 0.020f - i * 0.016f, 0.010f + i * 0.0045f) * RX(15f));
         k.Metal.Box(new Vector3(0.010f, 0.008f, 0.012f), T(0f, -0.085f, 0.032f));                                     // pommel
         k.AccentCol = new Color(0.62f, 0.86f, 0.95f);
@@ -245,13 +264,23 @@ public static class ProceduralArsenal
     static void Receiver(Kit k, float front, float rear, float height = 0.062f)
     {
         k.Body.ChamferZ(front, rear, new Vector2(0.026f, 0.034f), new Vector2(0.027f, 0.040f), height, height - 0.002f, 0.0038f, I);
-        k.Dark.LoftZ(front + 0.012f, rear - 0.012f, new Vector2(0.021f, 0.010f), new Vector2(0.023f, 0.012f), 0.022f, 0.024f, I);
+        k.Dark.ChamferZ(front + 0.012f, rear - 0.012f, new Vector2(0.021f, 0.010f), new Vector2(0.023f, 0.012f), 0.022f, 0.024f, 0.0025f, I);
         k.Dark.Box(new Vector3(0.0015f, 0.011f, 0.028f), T(0.0272f, 0.072f, -0.070f));                               // ejection port
         k.Metal.Box(new Vector3(0.012f, 0.0035f, (rear - front) * 0.42f), T(0f, height + 0.046f, (front + rear) * 0.5f));
         for (float z = front + 0.01f; z < rear - 0.01f; z += 0.014f)
             k.Metal.Box(new Vector3(0.0095f, 0.0022f, 0.0022f), T(0f, height + 0.0515f, z));
-        // pistol grip, guard, trigger
-        k.Poly.LoftY(-0.145f, 0.012f, new Vector2(0.019f, 0.025f), new Vector2(0.024f, 0.033f), 0.056f, 0.020f, I);
+        // Shared long-gun grip: chamfered rake, palm swell and a narrower heel, all in one continuous loft.
+        k.Poly.ChamferPathY(new[]
+        {
+            (0.012f, 0.0225f, 0.0300f, 0.020f),
+            (-0.025f, 0.0215f, 0.0285f, 0.032f),
+            (-0.070f, 0.0205f, 0.0270f, 0.045f),
+            (-0.120f, 0.0180f, 0.0235f, 0.056f),
+            (-0.145f, 0.0185f, 0.0240f, 0.058f),
+        }, 0.0045f, I);
+        foreach (float sx in new[] { 1f, -1f })
+            k.Dark.RoundBox(new Vector3(0.0009f, 0.0250f, 0.0130f), 0.34f,
+                T(sx * 0.0207f, -0.068f, 0.045f) * RX(-17f), lat: 6, lon: 12);
         k.Metal.Box(new Vector3(0.0032f, 0.019f, 0.0038f), T(0f, -0.010f, -0.082f));
         k.Metal.Box(new Vector3(0.0032f, 0.0032f, 0.052f), T(0f, -0.029f, -0.034f));
         k.Metal.Box(new Vector3(0.0024f, 0.013f, 0.003f), T(0f, -0.004f, -0.044f) * RX(-14f));
@@ -266,14 +295,14 @@ public static class ProceduralArsenal
 
     static void StraightMag(Kit k, float z, float len, float rake, float w = 0.016f, float d = 0.026f)
     {
-        k.Mag.LoftY(0.012f - len, 0.012f, new Vector2(w, d), new Vector2(w + 0.0005f, d + 0.001f), z - rake, z, I);
+        k.Mag.ChamferY(0.012f - len, 0.012f, new Vector2(w, d), new Vector2(w + 0.0005f, d + 0.001f), z - rake, z, Mathf.Min(0.0035f, w * 0.2f), I);
         k.MagTrim.Box(new Vector3(w + 0.002f, 0.005f, d + 0.002f), T(0f, 0.010f - len, z - rake));
     }
 
     static void Smg(Kit k, bool suppressed)
     {
         Receiver(k, -0.300f, 0.060f, 0.058f);
-        k.Poly.LoftZ(-0.360f, -0.300f, new Vector2(0.024f, 0.028f), new Vector2(0.026f, 0.032f), 0.058f, 0.058f, I);      // nose
+        k.Poly.ChamferZ(-0.360f, -0.300f, new Vector2(0.024f, 0.028f), new Vector2(0.026f, 0.032f), 0.058f, 0.058f, 0.0050f, I);      // nose
         if (suppressed)
         {
             // Spectre: long integral suppressor and an angled magazine
@@ -285,15 +314,20 @@ public static class ProceduralArsenal
             // retractable wire stock
             k.Metal.Box(new Vector3(0.003f, 0.003f, 0.120f), T(0.015f, 0.060f, 0.130f));
             k.Metal.Box(new Vector3(0.003f, 0.003f, 0.120f), T(-0.015f, 0.060f, 0.130f));
-            k.Poly.Box(new Vector3(0.019f, 0.040f, 0.006f), T(0f, 0.050f, 0.252f));
+            k.Poly.ChamferZ(0.246f, 0.258f, new Vector2(0.019f, 0.040f), new Vector2(0.019f, 0.040f), 0.050f, 0.050f, 0.0040f, I);
         }
         else
         {
             // Stinger: short barrel, front vertical grip, folding stock, straight short magazine
             Barrel(k, -0.470f, -0.355f, 0.0095f, 0.070f);
-            k.Poly.LoftY(-0.090f, 0.025f, new Vector2(0.012f, 0.014f), new Vector2(0.013f, 0.016f), -0.300f, -0.300f, I);
+            k.Poly.ChamferPathY(new[]
+            {
+                (0.025f, 0.0130f, 0.0160f, -0.300f),
+                (-0.030f, 0.0128f, 0.0150f, -0.296f),
+                (-0.090f, 0.0115f, 0.0135f, -0.292f),
+            }, 0.0030f, I);
             StraightMag(k, -0.140f, 0.110f, 0.008f);
-            k.Poly.LoftZ(0.060f, 0.230f, new Vector2(0.006f, 0.022f), new Vector2(0.006f, 0.026f), 0.050f, 0.040f, T(0.026f, 0f, 0f));
+            k.Poly.ChamferZ(0.060f, 0.230f, new Vector2(0.006f, 0.022f), new Vector2(0.006f, 0.026f), 0.050f, 0.040f, 0.0025f, T(0.026f, 0f, 0f));
             k.AccentCol = new Color(0.95f, 0.42f, 0.18f);
         }
         k.Metal.Box(new Vector3(0.0032f, 0.016f, 0.005f), T(0f, 0.122f, -0.280f));                                     // front sight
@@ -313,8 +347,8 @@ public static class ProceduralArsenal
         k.Poly.FacetTubeZ(-0.420f, -0.255f, 0.0215f, 0.0215f, 10, 1f, 0.9f, T(0f, 0.052f, 0f));
         for (int i = 0; i < 7; i++) k.Dark.FacetTubeZ(-0.405f + i * 0.022f, -0.401f + i * 0.022f, 0.0222f, 0.0222f, 10, 1f, 0.9f, T(0f, 0.052f, 0f));
         // wooden stock
-        k.Poly.LoftZ(0.070f, 0.300f, new Vector2(0.020f, 0.022f), new Vector2(0.022f, 0.040f), 0.068f, 0.052f, I);
-        k.Dark.Box(new Vector3(0.023f, 0.044f, 0.005f), T(0f, 0.052f, 0.302f));
+        k.Poly.ChamferZ(0.070f, 0.300f, new Vector2(0.020f, 0.022f), new Vector2(0.022f, 0.040f), 0.068f, 0.052f, 0.0060f, I);
+        k.Dark.ChamferZ(0.297f, 0.307f, new Vector2(0.023f, 0.044f), new Vector2(0.022f, 0.043f), 0.052f, 0.052f, 0.0035f, I);
         k.PolyCol = new Color(0.36f, 0.22f, 0.13f);
         k.Metal.Box(new Vector3(0.0032f, 0.010f, 0.004f), T(0f, 0.104f, -0.800f));                                     // bead
         k.Mag.Box(new Vector3(0.007f, 0.007f, 0.012f), T(0.020f, 0.060f, -0.060f));                                     // shell in the port
@@ -325,7 +359,7 @@ public static class ProceduralArsenal
     {
         Receiver(k, -0.260f, 0.070f, 0.064f);
         // wide shroud with vents over a short barrel
-        k.Body.LoftZ(-0.540f, -0.260f, new Vector2(0.030f, 0.026f), new Vector2(0.032f, 0.030f), 0.075f, 0.072f, I);
+        k.Body.ChamferZ(-0.540f, -0.260f, new Vector2(0.030f, 0.026f), new Vector2(0.032f, 0.030f), 0.075f, 0.072f, 0.0060f, I);
         for (int i = 0; i < 5; i++)
         {
             k.Dark.Box(new Vector3(0.0012f, 0.012f, 0.022f), T(0.0305f, 0.076f, -0.505f + i * 0.050f));
@@ -336,8 +370,8 @@ public static class ProceduralArsenal
         k.Mag.FacetTubeZ(-0.040f, 0.040f, 0.058f, 0.058f, 18, 1f, 1f, T(0f, -0.050f, -0.160f) * RY(90f));
         k.MagTrim.FacetTubeZ(-0.042f, -0.038f, 0.030f, 0.030f, 18, 1f, 1f, T(0f, -0.050f, -0.160f) * RY(90f));
         k.MagTrim.FacetTubeZ(0.038f, 0.042f, 0.030f, 0.030f, 18, 1f, 1f, T(0f, -0.050f, -0.160f) * RY(90f));
-        k.Poly.LoftZ(0.060f, 0.270f, new Vector2(0.020f, 0.020f), new Vector2(0.021f, 0.042f), 0.074f, 0.058f, I);
-        k.Dark.Box(new Vector3(0.022f, 0.046f, 0.005f), T(0f, 0.058f, 0.272f));
+        k.Poly.ChamferZ(0.060f, 0.270f, new Vector2(0.020f, 0.020f), new Vector2(0.021f, 0.042f), 0.074f, 0.058f, 0.0055f, I);
+        k.Dark.ChamferZ(0.267f, 0.277f, new Vector2(0.022f, 0.046f), new Vector2(0.021f, 0.045f), 0.058f, 0.058f, 0.0035f, I);
         k.AccentCol = new Color(0.78f, 0.20f, 0.85f);
     }
 
@@ -370,16 +404,16 @@ public static class ProceduralArsenal
         switch (stock)
         {
             case 0:
-                k.Poly.LoftZ(0.088f, 0.290f, new Vector2(0.023f, 0.030f), new Vector2(0.021f, 0.052f), 0.068f, 0.058f, I);
+                k.Poly.ChamferZ(0.088f, 0.290f, new Vector2(0.023f, 0.030f), new Vector2(0.021f, 0.052f), 0.068f, 0.058f, 0.0060f, I);
                 break;
             case 1:
-                k.Poly.LoftZ(0.088f, 0.300f, new Vector2(0.018f, 0.012f), new Vector2(0.017f, 0.012f), 0.095f, 0.095f, I);
-                k.Poly.LoftZ(0.250f, 0.305f, new Vector2(0.019f, 0.046f), new Vector2(0.018f, 0.050f), 0.062f, 0.060f, I);
-                k.Poly.Box(new Vector3(0.006f, 0.006f, 0.100f), T(0f, 0.045f, 0.190f) * RX(-16f));
+                k.Poly.ChamferZ(0.088f, 0.300f, new Vector2(0.018f, 0.012f), new Vector2(0.017f, 0.012f), 0.095f, 0.095f, 0.0035f, I);
+                k.Poly.ChamferZ(0.250f, 0.305f, new Vector2(0.019f, 0.046f), new Vector2(0.018f, 0.050f), 0.062f, 0.060f, 0.0050f, I);
+                k.Poly.ChamferZ(-0.100f, 0.100f, new Vector2(0.006f, 0.006f), new Vector2(0.006f, 0.006f), 0f, 0f, 0.0020f, T(0f, 0.045f, 0.190f) * RX(-16f));
                 break;
             default:
                 k.Metal.FacetTubeZ(0.088f, 0.240f, 0.014f, 0.013f, 10, 1f, 1f, T(0f, 0.080f, 0f));
-                k.Poly.LoftZ(0.220f, 0.300f, new Vector2(0.020f, 0.048f), new Vector2(0.019f, 0.052f), 0.064f, 0.062f, I);
+                k.Poly.ChamferZ(0.220f, 0.300f, new Vector2(0.020f, 0.048f), new Vector2(0.019f, 0.052f), 0.064f, 0.062f, 0.0055f, I);
                 break;
         }
         k.Accent.Box(new Vector3(0.0012f, 0.003f, 0.07f), T(0.0390f, 0.070f, -0.360f));
@@ -418,8 +452,8 @@ public static class ProceduralArsenal
             k.Mag.Box(new Vector3(0.030f, 0.045f, 0.040f), T(0f, -0.035f, -0.165f));
             k.MagTrim.Box(new Vector3(0.031f, 0.006f, 0.041f), T(0f, -0.078f, -0.165f));
         }
-        k.Poly.LoftZ(0.098f, 0.300f, new Vector2(0.024f, 0.032f), new Vector2(0.022f, 0.052f), 0.070f, 0.058f, I);
-        k.Dark.Box(new Vector3(0.023f, 0.054f, 0.005f), T(0f, 0.058f, 0.302f));
+        k.Poly.ChamferZ(0.098f, 0.300f, new Vector2(0.024f, 0.032f), new Vector2(0.022f, 0.052f), 0.070f, 0.058f, 0.0065f, I);
+        k.Dark.ChamferZ(0.297f, 0.307f, new Vector2(0.023f, 0.054f), new Vector2(0.022f, 0.053f), 0.058f, 0.058f, 0.0040f, I);
         k.AccentCol = odin ? new Color(0.92f, 0.26f, 0.18f) : new Color(0.20f, 0.65f, 0.95f);
         k.BodyCol = new Color(0.26f, 0.27f, 0.28f);
     }
@@ -458,9 +492,9 @@ public static class ProceduralArsenal
         k.Dark.Box(new Vector3(0.012f, 0.026f, 0.012f), T(0f, 0.120f, -0.160f));
         k.Dark.Box(new Vector3(0.012f, 0.026f, 0.012f), T(0f, 0.120f, 0.010f));
         // long thin stock with cheek rest
-        k.Poly.LoftZ(0.070f, 0.330f, new Vector2(0.019f, 0.028f), new Vector2(0.020f, 0.050f), 0.072f, 0.060f, I);
-        k.Poly.Box(new Vector3(0.016f, 0.010f, 0.080f), T(0f, 0.108f, 0.200f));
-        k.Dark.Box(new Vector3(0.021f, 0.052f, 0.005f), T(0f, 0.060f, 0.332f));
+        k.Poly.ChamferZ(0.070f, 0.330f, new Vector2(0.019f, 0.028f), new Vector2(0.020f, 0.050f), 0.072f, 0.060f, 0.0055f, I);
+        k.Poly.ChamferZ(0.120f, 0.280f, new Vector2(0.016f, 0.010f), new Vector2(0.016f, 0.010f), 0.108f, 0.108f, 0.0030f, I);
+        k.Dark.ChamferZ(0.327f, 0.337f, new Vector2(0.021f, 0.052f), new Vector2(0.020f, 0.051f), 0.060f, 0.060f, 0.0040f, I);
         k.Poly.FacetTubeZ(-0.500f, -0.250f, 0.024f, 0.028f, 8, 1f, 0.8f, T(0f, 0.050f, 0f));                         // fore-end
     }
 

@@ -328,6 +328,11 @@ public partial class GameSession : Node3D, IGame
         envRoot = built.Root;
         AddChild(envRoot);
         solid = built.Solid;
+        // Fall state belongs to this world and run, never to the map/session that was just replaced.
+        lastSafeFeet = null;
+        safeCheckT = 0f;
+        mapBottom = float.NaN;
+        FallRescues = 0;
         // Lotus' stone door: its boxes sit at the end of the list and are rewritten every frame. Register them
         // over the whole sweep once (the broadphase grid is cached per list and never rebuilt), then shrink them.
         door = built.Door;
@@ -977,6 +982,10 @@ public partial class GameSession : Node3D, IGame
     /// <summary>Times the fall guard put the player back on the map this run (dev logs, the coach ignores those seconds).</summary>
     public int FallRescues { get; private set; }
 
+    /// <summary>Below the map underside or 20 m below the last safe floor (the spawn until one is sampled).</summary>
+    internal static float FallLimit(float mapBottom, Vector3? safeFeet, Vector3 startFeet) =>
+        Mathf.Min(mapBottom - 4f, (safeFeet?.Y ?? startFeet.Y) - 20f);
+
     void GuardFall(Vector3 feet, float dt)
     {
         if (float.IsNaN(mapBottom)) mapBottom = Collision.Bottom(solid);
@@ -989,7 +998,7 @@ public partial class GameSession : Node3D, IGame
             }
             return;
         }
-        float limit = Mathf.Min(mapBottom - 4f, (lastSafeFeet?.Y ?? feet.Y) - 20f);
+        float limit = FallLimit(mapBottom, lastSafeFeet, Mode.StartFeet);
         if (feet.Y > limit) return;
         var back = lastSafeFeet ?? SpawnSafety.Resolve(Mode.StartFeet, solid);
         FallRescues++;

@@ -13,7 +13,7 @@ namespace CaValAim.Game;
 /// <item><c>--movecheck</c>: physics on a synthetic course at 120 Hz: jump apex / air time vs <see cref="MovementTuning"/>,
 /// running-jump distance, crouch-jump ledges, ceiling, ledge drops, fall damage, impulses (dash, air dash, updraft),
 /// steer lock, teleport, speed scale, jump toggle, events, airborne / landing weapon error, and a
-/// comparison of release and counter-strafe timing across frame rates.</item>
+/// comparison of release / counter-strafe timing and jump / landing / impulse integration across frame rates.</item>
 /// <item><c>--jumpaudit [all|&lt;map key&gt;|&lt;mode key&gt;]</c>: what a player can reach on a map (or a range drill's layout) by
 /// walking, step-ups and (crouch-)jumps; lists reachable wall tops and spots outside the floor (map escapes), each
 /// re-played with the real physics. Exit code = layouts with an escape.</item>
@@ -62,11 +62,12 @@ public static class MovementCheck
         public readonly ValorantProfile Keys = new();
         public Vector3 Feet;
         public float Yaw, T, MaxFeet, MaxEye;
+        public readonly float StepDt;
         public int Jumps, Lands;
 
-        public Rig(List<Box> world, Vector3 feet, float yaw = 0)
+        public Rig(List<Box> world, Vector3 feet, float yaw = 0, int hz = 120)
         {
-            World = world; Feet = feet; Yaw = yaw;
+            World = world; Feet = feet; Yaw = yaw; StepDt = 1f / hz;
             M.Jumped += () => Jumps++;
             M.Landed += () => Lands++;
             M.Place(ref Feet, world);
@@ -80,8 +81,8 @@ public static class MovementCheck
         {
             for (int i = 0; i < frames; i++)
             {
-                M.Step(Dt, Yaw, Keys, ref Feet, World);
-                T += Dt;
+                M.Step(StepDt, Yaw, Keys, ref Feet, World);
+                T += StepDt;
                 MaxFeet = Mathf.Max(MaxFeet, Feet.Y);
                 MaxEye = Mathf.Max(MaxEye, Eye.Y);
             }
@@ -289,6 +290,7 @@ public static class MovementCheck
         r.JumpAndLand(0.5f);
         Check("jump disabled", r.Jumps == 0 && r.M.Grounded && r.MaxFeet == 0, $"jumps {r.Jumps}");
 
+        AirRegression();
         GroundRegression();
     }
 
@@ -306,6 +308,56 @@ public static class MovementCheck
         r.Step(60);
         bool on = r.Feet.Y >= h - 1e-3f;
         Check(name, on == expect, $"ledge {F(h, "0.00")} m: feet end at {F(r.Feet.Y, "0.00")} m ({(on ? "on top" : "below")})");
+    }
+
+    // ------------------------------------------------------------------ airborne motion and impulses at different frame rates
+
+    static void AirRegression()
+    {
+        foreach (int hz in new[] { 20, 30, 60, 120, 240 })
+        {
+            var floor = new List<Box> { Floor() };
+
+            // Flat-ground contact has a closed-form time and speed: neither may depend on which frame contains it.
+            var jump = new Rig(floor, Vector3.Zero, hz: hz);
+            jump.JumpAndLand();
+            Check($"jump / landing at {hz} Hz", jump.Jumps == 1 && jump.Lands == 1
+                && Mathf.Abs(jump.M.LastAir.AirTime - MovementTuning.JumpAirTime) < 0.001f
+                && Mathf.Abs(jump.M.LastLandingSpeed - MovementTuning.JumpSpeed) < 0.001f
+                && Mathf.Abs(jump.MaxFeet - MovementTuning.JumpApex) < 0.01f,
+                $"air {F(jump.M.LastAir.AirTime)} s (expected {F(MovementTuning.JumpAirTime)}), impact {F(jump.M.LastLandingSpeed)} m/s, apex {F(jump.MaxFeet)} m");
+
+            // From rest, 0.2 s of unobstructed air acceleration gives v = 4 m/s and x = 0.4 m.
+            var air = new Rig(floor, new Vector3(0, 10, 0), hz: hz);
+            air.Hold(Key.D); air.Step(hz / 5);
+            Check($"air acceleration at {hz} Hz", !air.M.Grounded && Mathf.Abs(air.M.Speed - 4f) < 0.001f
+                && Mathf.Abs(air.Feet.X - 0.4f) < 0.002f,
+                $"speed {F(air.M.Speed)} m/s, distance {F(air.Feet.X)} m (expected 4 / 0.400)");
+
+            // The lock ends at 137 ms, between frames at every tested rate. The expectation also includes the exact
+            // boost-to-run-speed segment and the calibrated release brake, all within a fixed one-second simulation.
+            const float initial = 12f, lockTime = 0.137f;
+            float knee = Mover.RunSpeed * 0.25f;
+            float boostTime = (initial - Mover.RunSpeed) / MovementTuning.ImpulseDecayGround;
+            float expected = initial * lockTime + (initial + Mover.RunSpeed) * 0.5f * boostTime
+                + (Mover.RunSpeed * Mover.RunSpeed - knee * knee) / (2f * 38f) + knee * knee / (2f * 24f);
+            var dash = new Rig(floor, Vector3.Zero, hz: hz);
+            dash.M.Impulse(new Vector3(initial, 0, 0), lockTime, dash.Feet);
+            dash.Step(hz);
+            Check($"ground impulse / fractional lock at {hz} Hz", dash.M.SteerLockLeft <= 1e-5f && dash.M.Speed < 0.001f
+                && Mathf.Abs(dash.Feet.X - expected) < 0.004f,
+                $"distance {F(dash.Feet.X)} m (expected {F(expected)}), speed {F(dash.M.Speed)} m/s");
+
+            // An impulse launch checks the same contact calculation away from the calibrated jump speed.
+            var up = new Rig(floor, Vector3.Zero, hz: hz);
+            up.M.Impulse(new Vector3(0, 8, 0), 0, up.Feet);
+            up.RunUntil(g => g.Lands > 0, 2f);
+            float upAir = 16f / MovementTuning.Gravity, upApex = 64f / (2f * MovementTuning.Gravity);
+            Check($"updraft / landing at {hz} Hz", up.Lands == 1 && Mathf.Abs(up.M.LastAir.AirTime - upAir) < 0.001f
+                && Mathf.Abs(up.M.LastLandingSpeed - 8f) < 0.001f && Mathf.Abs(up.MaxFeet - upApex) < 0.01f,
+                $"air {F(up.M.LastAir.AirTime)} s (expected {F(upAir)}), impact {F(up.M.LastLandingSpeed)} m/s, apex {F(up.MaxFeet)} m");
+        }
+        Mover.KeyOverride = null;
     }
 
     // ------------------------------------------------------------------ flat ground timing at different frame rates

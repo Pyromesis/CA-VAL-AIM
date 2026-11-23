@@ -118,26 +118,37 @@ public sealed partial class Mover
         float max = (Crouching ? CrouchMax : Walking ? WalkMax : RunMax) * SpeedScale;
         if (Ads) max = Mathf.Min(max, RunMax * AdsSpeedMul * SpeedScale);
 
-        // Ability dash: no steering and no friction until the lock runs out (gravity still applies in the air).
+        Vector3 motion = Vector3.Zero;
+        // Ability dash: no steering and no friction until the lock runs out (gravity still applies in the air). If it
+        // ends inside this frame, only the locked fraction uses the unmodified impulse velocity.
         if (SteerLockLeft > 0)
         {
-            SteerLockLeft = Mathf.Max(0, SteerLockLeft - dt);
+            float locked = Mathf.Min(dt, SteerLockLeft);
+            motion = Vel * locked;
+            SteerLockLeft = Mathf.Max(0, SteerLockLeft - locked);
+            dt -= locked;
             CancelStop();
-            return Vel * dt;
+            if (dt <= 0) return motion;
         }
         if (!Grounded)
         {
-            AirMove(dt, wish, wants, max);
+            motion += AirMove(dt, wish, wants, max);
             CancelStop(); // counter-strafe stops are measured on the ground only
-            return Vel * dt;
+            return motion;
         }
 
         float speedBefore = Speed;
         if (boosting && speedBefore > max)
         {
-            BoostDecay(dt, wish, wants, MovementTuning.ImpulseDecayGround, max);
+            // With no turn (or thrust straight ahead), speed follows the known scalar decay and can hand off precisely.
+            // Opposite/lateral input keeps its existing capped-turn step rather than guessing a different contact time.
+            bool linearDecay = !wants || SameDirection(Vel, wish, speedBefore);
+            float boostTime = linearDecay ? Mathf.Min(dt, (speedBefore - max) / MovementTuning.ImpulseDecayGround) : dt;
+            motion += BoostDecay(boostTime, wish, wants, MovementTuning.ImpulseDecayGround, max);
             CancelStop();
-            return Vel * dt;
+            dt -= boostTime;
+            if (dt <= 0) return motion;
+            speedBefore = Speed; // normal calibrated ground movement owns the rest of a partially boosted frame
         }
         boosting = false;
 
@@ -181,7 +192,7 @@ public sealed partial class Mover
         }
 
         TrackStop(dt, wants, wish, reversing, speedBefore, accurateAt);
-        return delta;
+        return motion + delta;
     }
 
     float Brake(ref float speed, float dt, float multiplier, out float left)
@@ -209,28 +220,63 @@ public sealed partial class Mover
     /// you took off with (or your stance's max), so air-strafing turns and brakes but never builds speed (no bunny hops).
     /// No key = no friction: you keep your momentum.
     /// </summary>
-    void AirMove(float dt, Vector3 wish, bool wants, float max)
+    Vector3 AirMove(float dt, Vector3 wish, bool wants, float max)
     {
+        var initial = Vel;
         float before = Speed;
-        if (boosting && before > max) { BoostDecay(dt, wish, wants, MovementTuning.ImpulseDecayAir, max); return; }
+        if (boosting && before > max)
+        {
+            bool linearDecay = !wants || SameDirection(initial, wish, before);
+            float boostTime = linearDecay ? Mathf.Min(dt, (before - max) / MovementTuning.ImpulseDecayAir) : dt;
+            Vector3 delta = BoostDecay(boostTime, wish, wants, MovementTuning.ImpulseDecayAir, max);
+            dt -= boostTime;
+            // Once the extra speed is gone, ordinary air control owns the remainder of the frame.
+            return dt > 0 ? delta + AirMove(dt, wish, wants, max) : delta;
+        }
         boosting = false;
         float cap = Mathf.Max(max, before);
-        if (wants) Vel += wish * MovementTuning.AirAccel * dt;
+        if (!wants) return initial * dt;
+        if (SameDirection(initial, wish, before))
+        {
+            float speed = before;
+            float distance = Integrate(ref speed, cap, MovementTuning.AirAccel, dt);
+            var dir = before > 1e-6f ? initial / before : wish;
+            Vel = dir * speed;
+            return dir * distance;
+        }
+        Vel += wish * MovementTuning.AirAccel * dt;
         float s = Speed;
         if (s > cap) Vel *= cap / s;
+        // Preserve the existing capped turn, but integrate its changing velocity instead of using only its end value.
+        return (initial + Vel) * (0.5f * dt);
     }
 
     /// <summary>After an ability impulse: the extra speed bleeds off at <paramref name="decay"/> m/s²; the keys can steer
-    /// (turn) but not add speed. Normal movement resumes once you're back under the stance's max.</summary>
-    void BoostDecay(float dt, Vector3 wish, bool wants, float decay, float max)
+    /// (turn) but not add speed. Normal movement resumes once you're back under the stance's max. Returns the exact
+    /// straight-line distance, or the integral of the linearly changing velocity while turning.</summary>
+    Vector3 BoostDecay(float dt, Vector3 wish, bool wants, float decay, float max)
     {
+        var initial = Vel;
         float before = Speed;
+        if (!wants || SameDirection(initial, wish, before))
+        {
+            float speed = before;
+            float distance = Integrate(ref speed, max, decay, dt);
+            var dir = before > 1e-6f ? initial / before : wish;
+            Vel = dir * speed;
+            if (Speed <= max + 1e-3f) boosting = false;
+            return dir * distance;
+        }
         float cap = Mathf.Max(max, before - decay * dt);
-        if (wants) Vel += wish * (Grounded ? Accel : MovementTuning.AirAccel) * dt;
+        Vel += wish * (Grounded ? Accel : MovementTuning.AirAccel) * dt;
         float s = Speed;
         if (s > cap) Vel *= cap / s;
         if (Speed <= max + 1e-3f) boosting = false;
+        return (initial + Vel) * (0.5f * dt);
     }
+
+    static bool SameDirection(Vector3 velocity, Vector3 wish, float speed) =>
+        speed < 1e-6f || (velocity - wish * speed).LengthSquared() < 1e-8f;
 
     void TrackStop(float dt, bool wants, Vector3 wish, bool reversing, float speedBefore, float? accurateAt)
     {

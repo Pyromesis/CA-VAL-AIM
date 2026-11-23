@@ -31,9 +31,9 @@ public static class ProceduralRifle
     {
         public readonly VmMesh Body = new(), Poly = new(), Metal = new(), Accent = new(), Dark = new(), White = new();
         public readonly VmMesh Rubber = new(), Steel = new(), Mag = new(), MagTrim = new();
-        public Color BodyCol = new(0.300f, 0.292f, 0.280f);
-        public Color PolyCol = new(0.185f, 0.190f, 0.200f);
-        public Color AccentCol = new(0.720f, 0.055f, 0.065f);
+        public Color BodyCol = new(0.295f, 0.302f, 0.312f);
+        public Color PolyCol = new(0.170f, 0.178f, 0.190f);
+        public Color AccentCol = new(0.620f, 0.045f, 0.055f);
     }
 
     public static Node3D Build(WeaponKind kind)
@@ -42,12 +42,13 @@ public static class ProceduralRifle
         var k = new Kit();
         if (phantom)
         {
-            k.BodyCol = new Color(0.290f, 0.310f, 0.350f);
-            k.AccentCol = new Color(0.050f, 0.560f, 0.600f);
+            k.BodyCol = new Color(0.265f, 0.288f, 0.322f);
+            k.PolyCol = new Color(0.155f, 0.172f, 0.196f);
+            k.AccentCol = new Color(0.035f, 0.440f, 0.480f);
         }
         else
         {
-            k.BodyCol = new Color(0.340f, 0.322f, 0.298f);
+            k.BodyCol = new Color(0.310f, 0.314f, 0.318f);
         }
 
         Receiver(k, phantom);
@@ -181,8 +182,8 @@ public static class ProceduralRifle
 
         // Accent strip along both sides of the handguard.
         float ax = phantom ? 0.0368f : 0.0356f;
-        k.Accent.Box(new Vector3(0.0012f, 0.0024f, 0.078f), T(ax, 0.073f, -0.354f));
-        k.Accent.Box(new Vector3(0.0012f, 0.0024f, 0.078f), T(-ax, 0.073f, -0.354f));
+        k.Accent.Box(new Vector3(0.0010f, 0.0016f, 0.066f), T(ax, 0.073f, -0.354f));
+        k.Accent.Box(new Vector3(0.0010f, 0.0016f, 0.066f), T(-ax, 0.073f, -0.354f));
     }
 
     // ------------------------------------------------------------------ barrel / muzzle
@@ -253,55 +254,77 @@ public static class ProceduralRifle
     {
         if (phantom)
         {
-            // Buffer tube and collar, then a single solid wedge stock: a gentle top line from the tube to
-            // the butt, full side panels and a thick rubber pad. One closed loft, so no sky can show
-            // between comb and body (the old three-plate frame did).
-            k.Metal.FacetTubeZ(0.060f, 0.212f, 0.0155f, 0.0145f, 16, 1f, 1f, T(0f, 0.079f, 0f));
-            k.Dark.ChamferZ(0.088f, 0.110f, new Vector2(0.0225f, 0.0140f), new Vector2(0.0225f, 0.0140f), 0.0820f, 0.0820f, 0.003f);
-            k.Poly.ChamferZ(0.100f, 0.300f, new Vector2(0.0200f, 0.0074f), new Vector2(0.0210f, 0.0520f), 0.0890f, 0.0700f, 0.004f);
-            k.Rubber.ChamferZ(0.300f, 0.314f, new Vector2(0.0210f, 0.0520f), new Vector2(0.0195f, 0.0510f), 0.0700f, 0.0705f, 0.004f);
-            // Metal reinforcement plate with teal accent on both sides, plus the lower side slot.
-            k.Dark.Box(new Vector3(0.0012f, 0.0230f, 0.0860f), T(0.0213f, 0.0930f, 0.234f));
-            k.Dark.Box(new Vector3(0.0012f, 0.0230f, 0.0860f), T(-0.0213f, 0.0930f, 0.234f));
-            k.Metal.Box(new Vector3(0.0012f, 0.0195f, 0.0800f), T(0.0216f, 0.0930f, 0.234f));
-            k.Metal.Box(new Vector3(0.0012f, 0.0195f, 0.0800f), T(-0.0216f, 0.0930f, 0.234f));
-            k.Accent.Box(new Vector3(0.0012f, 0.0026f, 0.0740f), T(0.0220f, 0.1010f, 0.234f));
-            k.Accent.Box(new Vector3(0.0012f, 0.0026f, 0.0740f), T(-0.0220f, 0.1010f, 0.234f));
-            k.Dark.Box(new Vector3(0.0012f, 0.0140f, 0.0560f), T(0.0216f, 0.0480f, 0.250f));
-            k.Dark.Box(new Vector3(0.0012f, 0.0140f, 0.0560f), T(-0.0216f, 0.0480f, 0.250f));
-            // Adjustment lever under the stock and a QD socket at the butt.
-            k.Metal.Box(new Vector3(0.0140f, 0.0070f, 0.0280f), T(0f, 0.0200f, 0.230f));
-            k.Dark.Box(new Vector3(0.0100f, 0.0030f, 0.0160f), T(0f, 0.0158f, 0.234f));
-            k.Metal.FacetTubeZ(0f, 0.004f, 0.0050f, 0.0050f, 10, 1f, 1f, T(0.0210f, 0.074f, 0.272f) * RY(90));
+            // Telescoping stock: the buffer tube, cheek rest and lower guide are separate pieces. The
+            // rising diagonal, lower guide and rear upright leave a real triangular through-opening;
+            // there is deliberately no full-width side plate behind it.
+            k.Metal.FacetTubeZ(0.060f, 0.222f, 0.0135f, 0.0125f, 16, 1f, 1f, T(0f, 0.079f, 0f));
+            k.Dark.ChamferZ(0.086f, 0.112f, new Vector2(0.0215f, 0.0140f), new Vector2(0.0210f, 0.0140f), 0.080f, 0.080f, 0.0035f);
+            k.Metal.ChamferZ(0.112f, 0.140f, new Vector2(0.0180f, 0.0160f), new Vector2(0.0175f, 0.0155f), 0.079f, 0.079f, 0.0030f);
+            k.Poly.ChamferZ(0.112f, 0.286f, new Vector2(0.0205f, 0.0085f), new Vector2(0.0200f, 0.0090f), 0.098f, 0.094f, 0.0035f);
+            k.Rubber.ChamferZ(0.136f, 0.268f, new Vector2(0.0202f, 0.0020f), new Vector2(0.0198f, 0.0020f), 0.108f, 0.105f, 0.0014f);
+            StockBeam(k.Metal, 0.034f, 0.118f, 0.034f, 0.288f, 0.0155f, 0.0055f, 0.0025f);
+            StockBeam(k.Poly, 0.036f, 0.140f, 0.080f, 0.288f, 0.0170f, 0.0060f, 0.0028f);
+            StockBeam(k.Poly, 0.034f, 0.290f, 0.096f, 0.290f, 0.0185f, 0.0075f, 0.0032f);
+            k.Rubber.ChamferZ(0.298f, 0.314f, new Vector2(0.0205f, 0.0500f), new Vector2(0.0195f, 0.0490f), 0.066f, 0.067f, 0.0040f);
+
+            // Rounded inset on the cheek rest only, so the opening stays completely unobstructed.
+            foreach (float sx in new[] { 1f, -1f })
+            {
+                k.Dark.RoundBox(new Vector3(0.0011f, 0.0058f, 0.0390f), 0.34f,
+                    T(sx * 0.0207f, 0.096f, 0.211f), lat: 6, lon: 12);
+                k.Metal.RoundBox(new Vector3(0.0009f, 0.0044f, 0.0350f), 0.34f,
+                    T(sx * 0.0213f, 0.096f, 0.211f), lat: 6, lon: 12);
+                k.Accent.RoundBox(new Vector3(0.0007f, 0.0011f, 0.0210f), 0.34f,
+                    T(sx * 0.0220f, 0.096f, 0.213f), lat: 4, lon: 10);
+                for (int i = 0; i < 4; i++)
+                    k.Dark.Box(new Vector3(0.0008f, 0.0014f, 0.0030f), T(sx * 0.0160f, 0.036f, 0.172f + i * 0.018f));
+                k.Steel.FacetTubeZ(-0.0015f, 0.0015f, 0.0038f, 0.0038f, 10, 1f, 1f,
+                    T(sx * 0.0200f, 0.078f, 0.276f) * RY(90));
+            }
+            // The release lever and its pivot read as an adjustable stock rather than a fixed frame.
+            k.Metal.ChamferZ(0.166f, 0.199f, new Vector2(0.0100f, 0.0038f), new Vector2(0.0090f, 0.0035f), 0.023f, 0.022f, 0.0015f);
+            k.Dark.Box(new Vector3(0.0070f, 0.0012f, 0.0110f), T(0f, 0.0185f, 0.184f));
+            k.Steel.FacetTubeZ(-0.011f, 0.011f, 0.0030f, 0.0030f, 10, 1f, 1f, T(0f, 0.029f, 0.157f) * RY(90));
         }
         else
         {
-            // Fixed stock: a solid comb over a small triangular cut-out, with a thick diagonal brace and
-            // a junction block that closes the old notch where the receiver met the stock.
-            // The comb starts on a ramp that grows out of the receiver top; a vertical front cap at the
-            // old z0 stood 12 mm above the receiver and read as a fin from the gameplay camera.
-            k.Poly.ChamferZ(0.060f, 0.135f, new Vector2(0.0215f, 0.0035f), new Vector2(0.0230f, 0.0190f), 0.0965f, 0.0955f, 0.002f);
-            k.Poly.ChamferZ(0.128f, 0.286f, new Vector2(0.0230f, 0.0190f), new Vector2(0.0215f, 0.0180f), 0.0955f, 0.0965f, 0.004f);
-            k.Poly.ChamferZ(0.086f, 0.286f, new Vector2(0.0190f, 0.0080f), new Vector2(0.0180f, 0.0080f), 0.0240f, 0.0250f, 0.003f);
-            k.Poly.ChamferZ(0.100f, 0.128f, new Vector2(0.0230f, 0.0420f), new Vector2(0.0225f, 0.0410f), 0.0640f, 0.0655f, 0.005f);
-            k.Poly.ChamferZ(0.258f, 0.290f, new Vector2(0.0225f, 0.0450f), new Vector2(0.0210f, 0.0440f), 0.0670f, 0.0675f, 0.004f);
-            k.Poly.Box(new Vector3(0.0105f, 0.0105f, 0.0700f), T(0f, 0.052f, 0.190f) * RX(-24f));
-            // Cheek pad: full comb width so the polymer top edge does not show as a raised ledge beside
-            // it (the gameplay camera looks almost along the stock top; any exposed ledge read as a fin).
-            k.Rubber.ChamferZ(0.132f, 0.262f, new Vector2(0.0234f, 0.0022f), new Vector2(0.0229f, 0.0018f), 0.1123f, 0.1127f, 0.0018f);
-            k.Rubber.ChamferZ(0.289f, 0.299f, new Vector2(0.0210f, 0.0440f), new Vector2(0.0200f, 0.0430f), 0.0675f, 0.0680f, 0.004f);
-            k.Metal.Box(new Vector3(0.0160f, 0.0030f, 0.0120f), T(0f, 0.1135f, 0.280f));
-            k.Metal.Box(new Vector3(0.0030f, 0.0030f, 0.0200f), T(0.0200f, 0.048f, 0.120f) * RX(-15f));
-            // Inset reinforcement plate on both sides of the comb, with the accent line on top of it.
-            k.Dark.Box(new Vector3(0.0012f, 0.0145f, 0.0545f), T(0.0228f, 0.096f, 0.190f));
-            k.Dark.Box(new Vector3(0.0012f, 0.0145f, 0.0545f), T(-0.0228f, 0.096f, 0.190f));
-            k.Metal.Box(new Vector3(0.0012f, 0.0115f, 0.0490f), T(0.0230f, 0.096f, 0.190f));
-            k.Metal.Box(new Vector3(0.0012f, 0.0115f, 0.0490f), T(-0.0230f, 0.096f, 0.190f));
-            k.Accent.Box(new Vector3(0.0012f, 0.0022f, 0.0430f), T(0.0234f, 0.096f, 0.190f));
-            k.Accent.Box(new Vector3(0.0012f, 0.0022f, 0.0430f), T(-0.0234f, 0.096f, 0.190f));
-            k.Metal.FacetTubeZ(0f, 0.004f, 0.0050f, 0.0050f, 10, 1f, 1f, T(0.0230f, 0.072f, 0.258f) * RY(90));
-            k.Dark.FacetTubeZ(-0.001f, 0.001f, 0.0030f, 0.0030f, 10, 1f, 1f, T(0.0272f, 0.072f, 0.258f) * RY(90));
+            // Fixed angular stock: three structural members outline a large triangular aperture. The
+            // diagonal carries the butt, while the separate cheek rest keeps the top line slim.
+            k.Poly.ChamferZ(0.058f, 0.116f, new Vector2(0.0210f, 0.0180f), new Vector2(0.0215f, 0.0200f), 0.071f, 0.077f, 0.0040f);
+            StockBeam(k.Poly, 0.095f, 0.104f, 0.087f, 0.286f, 0.0215f, 0.0100f, 0.0038f);
+            StockBeam(k.Poly, 0.073f, 0.112f, 0.029f, 0.284f, 0.0180f, 0.0065f, 0.0028f);
+            StockBeam(k.Poly, 0.029f, 0.286f, 0.096f, 0.286f, 0.0200f, 0.0070f, 0.0032f);
+            StockBeam(k.Rubber, 0.107f, 0.132f, 0.100f, 0.267f, 0.0218f, 0.0022f, 0.0014f);
+            k.Rubber.ChamferZ(0.289f, 0.299f, new Vector2(0.0205f, 0.0435f), new Vector2(0.0198f, 0.0425f), 0.067f, 0.067f, 0.0038f);
+            k.Metal.ChamferZ(0.283f, 0.290f, new Vector2(0.0190f, 0.0060f), new Vector2(0.0195f, 0.0060f), 0.103f, 0.103f, 0.0020f);
+
+            // Small rounded inserts and fasteners sit on the comb, never across the triangular hole.
+            foreach (float sx in new[] { 1f, -1f })
+            {
+                k.Dark.RoundBox(new Vector3(0.0011f, 0.0062f, 0.0350f), 0.34f,
+                    T(sx * 0.0218f, 0.092f, 0.198f), lat: 6, lon: 12);
+                k.Metal.RoundBox(new Vector3(0.0009f, 0.0048f, 0.0310f), 0.34f,
+                    T(sx * 0.0224f, 0.092f, 0.198f), lat: 6, lon: 12);
+                k.Accent.RoundBox(new Vector3(0.0007f, 0.0011f, 0.0180f), 0.34f,
+                    T(sx * 0.0231f, 0.092f, 0.200f), lat: 4, lon: 10);
+                k.Steel.FacetTubeZ(-0.0015f, 0.0015f, 0.0035f, 0.0035f, 10, 1f, 1f,
+                    T(sx * 0.0222f, 0.079f, 0.113f) * RY(90));
+                k.Metal.FacetTubeZ(-0.0015f, 0.0015f, 0.0042f, 0.0042f, 10, 1f, 1f,
+                    T(sx * 0.0200f, 0.039f, 0.267f) * RY(90));
+                k.Dark.Box(new Vector3(0.0008f, 0.0010f, 0.0045f), T(sx * 0.0219f, 0.039f, 0.267f));
+            }
         }
+    }
+
+    /// <summary>Chamfered structural beam between two points in the stock's YZ plane.</summary>
+    static void StockBeam(VmMesh mesh, float y0, float z0, float y1, float z1, float hx, float hy, float chamfer)
+    {
+        float dy = y1 - y0, dz = z1 - z0;
+        float length = Mathf.Sqrt(dy * dy + dz * dz);
+        if (length < 0.0001f) return;
+        var section = new Vector2(hx, hy);
+        var transform = T(0f, (y0 + y1) * 0.5f, (z0 + z1) * 0.5f) * RX(Mathf.RadToDeg(Mathf.Atan2(-dy, dz)));
+        mesh.ChamferZ(-length * 0.5f, length * 0.5f, section, section, 0f, 0f, chamfer, transform);
     }
 
     // ------------------------------------------------------------------ grip
@@ -378,8 +401,8 @@ public static class ProceduralRifle
     {
         if (phantom)
         {
-            k.Accent.Box(new Vector3(0.0012f, 0.0028f, 0.052f), T(0.0278f, 0.090f, -0.018f));
-            k.Accent.Box(new Vector3(0.0012f, 0.0028f, 0.052f), T(-0.0278f, 0.090f, -0.018f));
+            k.Accent.Box(new Vector3(0.0010f, 0.0018f, 0.046f), T(0.0278f, 0.090f, -0.018f));
+            k.Accent.Box(new Vector3(0.0010f, 0.0018f, 0.046f), T(-0.0278f, 0.090f, -0.018f));
             k.White.Box(new Vector3(0.0012f, 0.0024f, 0.0100f), T(0.0279f, 0.064f, 0.022f));
             k.White.Box(new Vector3(0.0012f, 0.0024f, 0.0100f), T(-0.0279f, 0.064f, 0.022f));
             k.Accent.RoundBox(new Vector3(0.0025f, 0.0025f, 0.0025f), 0.9f, T(0.0280f, 0.058f, -0.010f));
@@ -388,10 +411,10 @@ public static class ProceduralRifle
         }
         else
         {
-            k.Accent.Box(new Vector3(0.0012f, 0.0028f, 0.058f), T(0.0278f, 0.091f, -0.020f));
-            k.Accent.Box(new Vector3(0.0012f, 0.0028f, 0.058f), T(-0.0278f, 0.091f, -0.020f));
-            k.Accent.Box(new Vector3(0.0012f, 0.0022f, 0.044f), T(0.0300f, 0.026f, -0.168f));
-            k.Accent.Box(new Vector3(0.0012f, 0.0022f, 0.044f), T(-0.0300f, 0.026f, -0.168f));
+            k.Accent.Box(new Vector3(0.0010f, 0.0018f, 0.050f), T(0.0278f, 0.091f, -0.020f));
+            k.Accent.Box(new Vector3(0.0010f, 0.0018f, 0.050f), T(-0.0278f, 0.091f, -0.020f));
+            k.Accent.Box(new Vector3(0.0010f, 0.0016f, 0.038f), T(0.0300f, 0.026f, -0.168f));
+            k.Accent.Box(new Vector3(0.0010f, 0.0016f, 0.038f), T(-0.0300f, 0.026f, -0.168f));
             k.White.Box(new Vector3(0.0012f, 0.0022f, 0.0090f), T(0.0279f, 0.058f, 0.016f));
             k.White.Box(new Vector3(0.0012f, 0.0022f, 0.0040f), T(-0.0279f, 0.058f, 0.016f));
             k.White.Box(new Vector3(0.0012f, 0.0022f, 0.0040f), T(0.0279f, 0.058f, 0.003f));
@@ -412,7 +435,7 @@ public static class ProceduralRifle
         // camera, so physically dark values read as pure black on screen. Metallic stays below 0.6 for the same reason.
         var root = new Node3D { Name = "Gun" };
         root.AddChild(Part("Body", k.Body, "gunbody", k.BodyCol, 0.30f, 0.42f));
-        root.AddChild(Part("Polymer", k.Poly, "gunpoly", new Color(0.205f, 0.210f, 0.222f), 0.0f, 0.55f));
+        root.AddChild(Part("Polymer", k.Poly, "gunpoly", k.PolyCol, 0.0f, 0.55f));
         root.AddChild(Part("Metal", k.Metal, "gunmetal", new Color(0.380f, 0.388f, 0.400f), 0.55f, 0.30f));
         root.AddChild(Part("Accent", k.Accent, "gunaccent", k.AccentCol, 0.22f, 0.34f));
         root.AddChild(Part("Dark", k.Dark, "gundark", new Color(0.095f, 0.098f, 0.104f), 0.0f, 0.72f));

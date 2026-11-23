@@ -83,7 +83,7 @@ def leak_walls(folder, boxes, seeds):
             continue
         if world.blocked(sd[0], sd[2], world.ground(sd[0], sd[2], sd[1] + 0.3)):
             continue
-        part = ac.flood(world, sd)
+        part = ac.flood(world, sd, rise=ac.RISE)
         if len(part) < 50:
             continue
         for k, v in part.items():

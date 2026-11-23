@@ -18,9 +18,14 @@ public partial class MenuScreen : ScreenBase
 
     readonly List<(Func<TrainingMode> Make, TrainingMode Info)> modes =
         ModeRegistry.All.Select(f => (Make: f, Info: f())).Where(m => m.Info.Category != AgentsCategory).ToList();
-    readonly List<(MDrillRow Row, TrainingMode Info)> rows = new();
+    readonly List<(MDrillRow Row, TrainingMode Info, string Category, string Section, string Description, string SearchText)> rows = new();
+    readonly Dictionary<(string Mode, int Tier), int> bests = new();
+    readonly HashSet<string> playedModes = new();
     MMapSelector? mapSel;
     MWeaponSelector? weaponSel;
+    OptionButton? categoryTabs;
+    LineEdit? searchBox;
+    Label? noResults;
     /// <summary>"ALL" or one of the drill categories: only that category's drills are listed. Static, so returning from a
     /// drill (the menu screen is rebuilt) lands on the same library tab.</summary>
     static string catFilter = "ALL";
@@ -33,12 +38,54 @@ public partial class MenuScreen : ScreenBase
 
     protected override bool AnimatedBackdrop => false;
 
-    /// <summary>Esc closes the map pop-up; otherwise it does nothing on the menu (Quit is a link).</summary>
+    /// <summary>Esc closes pop-ups, then clears the library search/category; the menu itself stays open (Quit is a link).</summary>
     protected override void Back()
     {
         if (weaponSel?.IsOpen == true) { weaponSel.Close(); return; }
-        if (mapSel?.IsOpen == true) mapSel.Close();
+        if (mapSel?.IsOpen == true) { mapSel.Close(); return; }
+        if (taskQuery.Length > 0) { SetSearch(""); return; }
+        if (catFilter != "ALL")
+        {
+            catFilter = "ALL";
+            if (categoryTabs != null) categoryTabs.Selected = 0;
+            FillGrid();
+            return;
+        }
+        searchBox?.ReleaseFocus();
     }
+
+    public override void _Input(InputEvent e)
+    {
+        // LineEdit consumes ui_cancel while editing; handle Escape before GUI input so Back() can clear the filters.
+        if (e is InputEventKey { Pressed: true, Echo: false, Keycode: Key.Escape }
+            && searchBox?.IsEditing() == true && !LibraryCovered())
+        {
+            GetViewport().SetInputAsHandled();
+            Back();
+        }
+    }
+
+    public override void _UnhandledKeyInput(InputEvent e)
+    {
+        if (e is InputEventKey { Pressed: true, Echo: false } key && searchBox != null && !key.AltPressed)
+        {
+            bool find = key.Keycode == Key.F && key.CtrlPressed;
+            bool slash = key.Keycode == Key.Slash && !key.CtrlPressed && (!searchBox.HasFocus() || !searchBox.IsEditing());
+            if ((find || slash) && !LibraryCovered())
+            {
+                searchBox.GrabFocus();
+                if (!searchBox.IsEditing()) searchBox.Edit();
+                searchBox.SelectAll();
+                searchBox.CaretColumn = searchBox.Text.Length;
+                GetViewport().SetInputAsHandled();
+                return;
+            }
+        }
+        base._UnhandledKeyInput(e);
+    }
+
+    bool LibraryCovered() => GetChildren().Any(c => c is DrillPreview or MapPickerOverlay or MWeaponPicker
+        or BugReportPanel or WhatsNewPanel or UpdatesPromptPanel or UpdateOfferPanel);
 
     VBoxContainer? bannerSlot;
     int bannerRev = -1;
@@ -46,11 +93,23 @@ public partial class MenuScreen : ScreenBase
     protected override void Build()
     {
         rows.Clear();
+        bests.Clear();
+        playedModes.Clear();
         if (Main.I.Dev && CmdLine.DevAfter("--menu-search") is { } devQuery) taskQuery = devQuery;
         mapSel = null;
         weaponSel = null;
+        categoryTabs = null;
+        searchBox = null;
+        noResults = null;
+        grid = null;
         coachHint = null; coachHintDone = false;
         summary = SessionSummary.From(Main.I.Stats.Runs);
+        foreach (var run in Main.I.Stats.Runs)
+        {
+            playedModes.Add(run.Mode);
+            var key = (run.Mode, run.Tier);
+            if (!bests.TryGetValue(key, out int best) || run.Score > best) bests[key] = run.Score;
+        }
         // Dev-only: "--menu-filter aim|valorant|..." opens the menu on that category (layout screenshots).
         if (Main.I.Dev && CmdLine.DevAfter("--menu-filter") is { } mf)
             catFilter = Categories().FirstOrDefault(c => c.Equals(mf, StringComparison.OrdinalIgnoreCase)) ?? "ALL";
@@ -264,7 +323,7 @@ public partial class MenuScreen : ScreenBase
         left.AddChild(Caption(L("DRILL LIBRARY", "BIBLIOTECA DE EJERCICIOS"), 0.32f));
         var cats = Categories().ToList();
         if (!cats.Contains(catFilter)) catFilter = "ALL";
-        var tabs = new OptionButton { SizeFlagsHorizontal = SizeFlags.ExpandFill,
+        var tabs = categoryTabs = new OptionButton { SizeFlagsHorizontal = SizeFlags.ExpandFill,
             CustomMinimumSize = new Vector2(0, 38 * k) };
         foreach (string category in cats)
         {
@@ -274,7 +333,11 @@ public partial class MenuScreen : ScreenBase
         tabs.Selected = cats.IndexOf(catFilter);
         tabs.ItemSelected += i => { catFilter = cats[(int)i]; FillGrid(); };
         left.AddChild(tabs);
-        left.AddChild(TaskSearch.Create(k, taskQuery, value => { taskQuery = value; FillGrid(); }));
+        searchBox = TaskSearch.Create(k, taskQuery, SetSearch);
+        searchBox.TooltipText = L("Ctrl+F or / to search · Enter opens the first result · Esc clears the filters",
+            "Ctrl+F o / para buscar · Intro abre el primer resultado · Esc limpia los filtros");
+        searchBox.TextSubmitted += _ => OpenFirstVisible();
+        left.AddChild(searchBox);
         left.AddChild(Spacer(0, 8 * k));
         left.AddChild(new MRule { Delay = 0.36f });
 
@@ -311,40 +374,74 @@ public partial class MenuScreen : ScreenBase
         return summary.LastMode;
     }
 
-    /// <summary>(Re)fills the library with the current category; rows re-enter with a short stagger.</summary>
+    void SetSearch(string value)
+    {
+        if (taskQuery == value && searchBox?.Text == value) return;
+        taskQuery = value;
+        if (searchBox != null && searchBox.Text != value) searchBox.Text = value;
+        FillGrid();
+    }
+
+    void OpenFirstVisible()
+    {
+        foreach (var item in rows)
+            if (item.Row.Visible) { item.Row.EmitSignal(BaseButton.SignalName.Pressed); return; }
+    }
+
+    /// <summary>Builds every row once, then filters in place so typing keeps focus, scroll and the entrance animation.</summary>
     void FillGrid(float delay = 0f)
     {
         if (grid == null) return;
+        bool build = rows.Count == 0;
         float k = K;
-        foreach (var c in grid.GetChildren()) { grid.RemoveChild(c); c.QueueFree(); }
-        rows.Clear();
-        int i = 0;
-        foreach (var (make, info) in modes.Where(m => (catFilter == "ALL" || TrainingCatalog.SectionOf(m.Info) == catFilter) && TaskSearch.Matches(taskQuery, Loc.T(m.Info.Name), Loc.T(m.Info.Description), TrainingCatalog.SectionName(TrainingCatalog.SectionOf(m.Info)), m.Info.Key)))
+        if (build)
         {
-            var row = new MDrillRow
+            foreach (var (make, info) in modes)
             {
-                K = k, Title = info.Name, FavoriteType = FavoriteKind.Drill, FavoriteKey = info.Key, Meta = catFilter == "ALL" ? $"{TrainingCatalog.SectionName(TrainingCatalog.SectionOf(info))}  ·  {Loc.T(info.Description)}" : Loc.T(info.Description),
-                IsNew = IsNew(info.Key), Delay = delay + Math.Min(0.42f, i++ * 0.018f),
-                CustomMinimumSize = new Vector2(0, 62 * k), SizeFlagsHorizontal = SizeFlags.ExpandFill,
-                TooltipText = $"{Loc.T(info.Name)} — {Loc.T(info.Description)}" + (info.MadeBy is { } by ? $"\nMade by the community: @{by}" : ""),
-            };
-            var m = make;
-            row.Pressed += () => DrillPreview.Open(this, K, m, () => Main.I.StartMode(m), freePlay: () => Main.I.StartMode(m, true)); // preview first, START plays
-            rows.Add((row, info));
-            grid.AddChild(row);
+                string category = TrainingCatalog.SectionOf(info);
+                string section = TrainingCatalog.SectionName(category);
+                string description = Loc.T(info.Description);
+                string title = Loc.T(info.Name);
+                var row = new MDrillRow
+                {
+                    K = k, Title = info.Name, FavoriteType = FavoriteKind.Drill, FavoriteKey = info.Key,
+                    IsNew = IsNew(info.Key), Delay = delay,
+                    CustomMinimumSize = new Vector2(0, 62 * k), SizeFlagsHorizontal = SizeFlags.ExpandFill,
+                    TooltipText = $"{title} — {description}" + (info.MadeBy is { } by ? $"\nMade by the community: @{by}" : ""),
+                };
+                var m = make;
+                row.Pressed += () => DrillPreview.Open(this, K, m, () => Main.I.StartMode(m), freePlay: () => Main.I.StartMode(m, true)); // preview first, START plays
+                string searchText = TaskSearch.Normalize(string.Join(" ", title, description, section, info.Key));
+                rows.Add((row, info, category, section, description, searchText));
+                grid.AddChild(row);
+            }
+            noResults = new Label { Text = L("No results. Try another search or category.", "Sin resultados. Prueba otra búsqueda o categoría.") };
+            grid.AddChild(noResults);
         }
-        if (i == 0) grid.AddChild(new Label { Text = L("No results. Try another search or category.", "Sin resultados. Prueba otra búsqueda o categoría.") });
-        RefreshBests();
+
+        string[] terms = TaskSearch.Normalize(taskQuery).Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+        int shown = 0;
+        foreach (var item in rows)
+        {
+            string meta = catFilter == "ALL" ? $"{item.Section}  ·  {item.Description}" : item.Description;
+            if (item.Row.Meta != meta) { item.Row.Meta = meta; item.Row.QueueRedraw(); }
+            item.Row.Visible = (catFilter == "ALL" || item.Category == catFilter) && terms.All(item.SearchText.Contains);
+            if (!item.Row.Visible) continue;
+            if (build) item.Row.Delay = delay + Math.Min(0.42f, shown * 0.018f);
+            shown++;
+        }
+        if (noResults != null) noResults.Visible = shown == 0;
+        if (build) RefreshBests();
     }
 
     void RefreshBests()
     {
-        foreach (var (row, info) in rows)
+        foreach (var item in rows)
         {
-            int pb = Main.I.Stats.Best(info.Key, Main.I.Tier);
-            row.Value = pb >= 0 ? pb.ToString("#,0", CultureInfo.InvariantCulture) : "";
-            row.ValueCaption = pb >= 0 ? L("BEST", "RÉCORD") : "";
-            row.QueueRedraw();
+            int pb = bests.TryGetValue((item.Info.Key, Main.I.Tier), out int best) ? best : -1;
+            item.Row.Value = pb >= 0 ? pb.ToString("#,0", CultureInfo.InvariantCulture) : "";
+            item.Row.ValueCaption = pb >= 0 ? L("BEST", "RÉCORD") : "";
+            item.Row.QueueRedraw();
         }
     }
 
@@ -358,11 +455,11 @@ public partial class MenuScreen : ScreenBase
         ["reactlab:choice"] = "1.18", ["reactlab:flick"] = "1.18",
     };
 
-    static bool IsNew(string key)
+    bool IsNew(string key)
     {
         if (!AddedIn.TryGetValue(key, out var v) || !SemVer.TryParse(v, out var added) || !SemVer.TryParse(AppInfo.Version, out var app)) return false;
         bool current = added.Major > app.Major || (added.Major == app.Major && added.Minor >= app.Minor);
-        return current && !Main.I.Stats.For(key).Any();
+        return current && !playedModes.Contains(key);
     }
 
     // ---------------- right: difficulty, map, deathmatch, setup ----------------

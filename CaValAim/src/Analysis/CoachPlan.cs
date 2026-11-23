@@ -31,6 +31,10 @@ public sealed class CoachPlan
     /// <summary>Rough wall-clock estimate: a run is the drill plus its results screen (≈2 min).</summary>
     public int Minutes => Math.Max(1, TotalRuns * 2);
     public bool IsEmpty => Steps.Count == 0;
+    /// <summary>True for the five-drill baseline used before the coach has evidence.</summary>
+    public bool IsOnboarding { get; private set; }
+    /// <summary>True while fewer than four skills have a medium-confidence rating.</summary>
+    public bool IsProvisional { get; private set; }
 
     /// <summary>The ordered queue (one entry per run) and the recoil setting each run needs.</summary>
     public IEnumerable<(string Key, bool RecoilOn)> Queue()
@@ -127,17 +131,78 @@ public sealed class CoachPlan
         bool es = Loc.Spanish;
         var plan = new CoachPlan { Name = "COACH · " + DateTime.Now.ToString("dd/MM", System.Globalization.CultureInfo.InvariantCulture) };
         var used = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        int maxSteps = MaxSteps;
 
         void Add(string drill, Skill skill, int runs, string why, Diagnosis? source)
         {
-            string key = drill;
-            if (plan.Steps.Count >= MaxSteps || !used.Add(key)) return;
+            if (plan.Steps.Count >= maxSteps || !used.Add(drill)) return;
             if (ModeRegistry.Find(drill) == null) return;
             var (advice, adviceWhy) = RecoilFor(drill);
             plan.Steps.Add(new PlanStep(drill, skill, Math.Clamp(runs, 1, 3), advice, adviceWhy, why, source));
         }
 
-        foreach (var d in p.Problems)
+        void AddStarter(bool onboarding)
+        {
+            maxSteps = onboarding ? Starter.Length : MaxSteps;
+            if (onboarding)
+            {
+                plan.IsOnboarding = true;
+                plan.IsProvisional = false;
+            }
+            foreach (var (key, target, _) in Starter)
+            {
+                string why = !onboarding
+                    ? (es ? "Sesión equilibrada: mantén tus mecánicas con práctica variada." : "Balanced session: maintain your mechanics with varied practice.")
+                    : key switch
+                    {
+                        "flick" => es ? "Flicks y precisión: establece una línea base antes de personalizar." : "Flicks and precision: set a baseline before personalising.",
+                        "tracking" => es ? "Seguimiento: mide tu control actual sin asumir una debilidad." : "Tracking: measure your current control without assuming a weakness.",
+                        "peek" => es ? "Colocación de mira: reúne datos de ángulos y primeros impactos." : "Crosshair placement: gather evidence about angles and first hits.",
+                        "counterstrafe" => es ? "Movimiento: comprueba cómo separas el frenado del disparo." : "Movement: measure how you separate braking from firing.",
+                        _ => es ? "Control de ráfaga: completa la línea base de mecánicas." : "Spray control: complete the mechanics baseline.",
+                    };
+                Add(key, SkillOf(key), onboarding ? target : 1, why, null);
+            }
+        }
+
+        // A genuinely empty profile gets the whole diagnostic routine, not four arbitrary steps from it.
+        if (p.RunsAnalyzed <= 0 && !p.Skills.Any(Rated) && p.Problems.Count == 0)
+        {
+            AddStarter(onboarding: true);
+            return plan;
+        }
+
+        int dependable = p.Skills.Count(r => Rated(r) && r.Confidence >= 0.5f);
+        bool partial = dependable < 4;
+        plan.IsProvisional = partial;
+        var problems = p.Problems.Where(d => !partial || d.Severity != Severity.Tip).ToList();
+
+        // With partial data, first fill the largest measurement gaps. A low-confidence Tip must not displace the
+        // drills that would confirm or reject it. Leave room for confirmed Major/Minor findings when they exist.
+        if (partial)
+        {
+            int coverageLimit = problems.Count > 0 ? 2 : MaxSteps;
+            var missing = Enum.GetValues<Skill>()
+                .Select(skill => (Skill: skill, Rating: p.Skills.FirstOrDefault(r => r.Skill == skill)))
+                .Where(x => x.Rating == null || !Rated(x.Rating) || x.Rating.Confidence < 0.5f)
+                .OrderBy(x => x.Rating == null || !Rated(x.Rating) ? 0 : 1)
+                .ThenBy(x => x.Rating?.Confidence ?? 0f);
+            foreach (var (skill, rating) in missing)
+            {
+                if (plan.Steps.Count >= coverageLimit) break;
+                string? drill = DrillsFor(skill).FirstOrDefault(k => ModeRegistry.Find(k) != null && !used.Contains(k));
+                if (drill == null) continue;
+                int target = Starter.Where(s => s.Key == drill).Select(s => s.Target).FirstOrDefault();
+                string why = rating == null || !Rated(rating)
+                    ? (es ? $"{SkillText(skill)}: aún no hay datos suficientes; esta serie es diagnóstica."
+                        : $"{SkillText(skill)}: not enough evidence yet; this is a diagnostic block.")
+                    : (es ? $"{SkillText(skill)}: confianza baja; reúne otra muestra antes de sacar conclusiones."
+                        : $"{SkillText(skill)}: low confidence; gather another sample before drawing conclusions.");
+                Add(drill, skill, Math.Max(1, target), why, null);
+            }
+        }
+
+        foreach (var d in problems)
         {
             string? drill = PersonalDrills.For(d, p.Metrics) ?? (d.Drills ?? Array.Empty<string>())
                 .FirstOrDefault(k => ModeRegistry.Find(k) != null && !used.Contains(k));
@@ -171,15 +236,8 @@ public sealed class CoachPlan
             }
         }
 
-        // No problems and nothing clearly weak (a new player, or a very even profile): a balanced first session.
-        if (plan.Steps.Count == 0)
-        {
-            foreach (var (key, _, rates) in Starter)
-            {
-                if (plan.Steps.Count >= MaxSteps) break;
-                Add(key, SkillOf(key), 1, es ? "Sesión base: toca todas las mecánicas para que el coach tenga datos." : "Baseline session: covers every mechanic so the coach gets data.", null);
-            }
-        }
+        // No problems and nothing clearly weak (a new player, or a very even profile): a balanced session.
+        if (plan.Steps.Count == 0) AddStarter(onboarding: false);
         return plan;
     }
 

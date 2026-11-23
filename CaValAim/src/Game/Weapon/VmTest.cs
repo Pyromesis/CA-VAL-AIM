@@ -11,8 +11,8 @@ namespace CaValAim.Game.Weapon;
 /// <c>--vmreload 0..1</c> (or <c>--vmreload loop</c>), <c>--vmspeed m/s</c>, <c>--vmcrouch</c>, <c>--vmlook</c>,
 /// <c>--vmflash</c> (hold the muzzle flash), <c>--vmwall</c> (wall 0.2 m in front of the eye: clip test),
 /// <c>--vmview side|left|top</c> (debug orthographic-ish views with a 5 cm grid).
-/// Once the gun is fully aimed (<c>--vmads 1</c>, or a session aimed with <c>--force-ads</c>) it prints the ADS pose check
-/// ("[vmtest] ads sight top …": the gun's top must sit at 0.60–0.65 H); <c>--vmprofile</c> adds the model's top silhouette.
+/// Once a non-scoped gun is fully aimed (<c>--vmads 1</c>, or a session aimed with <c>--force-ads</c>) it prints the ADS pose check
+/// ("[vmtest] ads sight top …": the gun's top must sit at 0.60–0.65 H). Operator uses its scope overlay instead; <c>--vmprofile</c> adds the model's top silhouette.
 /// The log may not be flushed when gshot kills the game: add <c>--vmshots T --vmout prefix</c> so it quits by itself.
 /// </summary>
 static class VmTest
@@ -204,6 +204,14 @@ static class VmTest
     static void AdsCheck(Viewmodel vm)
     {
         if (adsChecked || clock < 1.5f || View != null) return;
+        // Operator aims through the dedicated scope overlay, not over iron sights; the hip/ADS model profile used
+        // by rifles and the Sheriff is not a valid pass/fail check for that pose.
+        if (vm.Kind == WeaponKind.Operator)
+        {
+            adsChecked = true;
+            GD.Print("[vmtest] ads sight Operator: scoped overlay, iron-sight profile not applicable");
+            return;
+        }
         var (top, x, width, ads) = vm.SightTop();
         if (ads < 0.999f) return;
         adsChecked = true;

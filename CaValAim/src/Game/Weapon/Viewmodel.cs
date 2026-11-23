@@ -166,6 +166,18 @@ public partial class Viewmodel : Node3D
             RotationDegrees = new Vector3(-53f, -30f, 0f),
         };
         AddChild(fill);
+        // Low-energy opposite-side edge light catches the stock apertures and chamfers. Like the fill it is
+        // restricted to the viewmodel layer, shadowless and therefore cannot change world lighting.
+        var edge = new DirectionalLight3D
+        {
+            LightColor = new Color(0.82f, 0.90f, 1f),
+            LightEnergy = 0.30f,
+            LightSpecular = 0.32f,
+            ShadowEnabled = false,
+            LightCullMask = VisualLayer,
+            RotationDegrees = new Vector3(-28f, 142f, -12f),
+        };
+        AddChild(edge);
         // The two rifles are CPU-authored here (detailed silhouette + separate magazine); the other guns keep
         // their imported scenes. No new pck assets are needed, so a DLL-only update ships the new models.
         // The rest of the arsenal: procedural, self-made models in the same gun space (ProceduralArsenal).

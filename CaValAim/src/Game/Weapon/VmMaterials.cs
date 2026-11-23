@@ -77,23 +77,25 @@ public sealed class VmMaterials
             switch (k)
             {
                 case "gunbody":
-                    return Make(src, 0.22f, 0.46f, 0.53f, 0.62f, 0.31f, 105f);
+                    // Satin coated metal: broad highlights describe the chamfers without a plastic mirror finish.
+                    return Make(src, 0.34f, 0.37f, 0.55f, 0.42f, 0.25f, 105f);
                 case "gunmetal":
                 {
-                    var metal = Make(src, 0.63f, 0.34f, 0.57f, 0.76f, 0.26f, 112f);
-                    metal.SetShaderParameter("brushed", 0.8f);
+                    var metal = Make(src, 0.68f, 0.28f, 0.58f, 0.55f, 0.24f, 112f);
+                    metal.SetShaderParameter("brushed", 0.65f);
                     return metal;
                 }
                 case "gunpoly":
-                    return Make(src, 0.0f, 0.71f, 0.36f, 0.70f, 0.24f, 126f);
+                    // Polymer stays dielectric, but a satin clear layer separates it from rubber and cavities.
+                    return Make(src, 0.0f, 0.52f, 0.46f, 0.45f, 0.22f, 126f);
                 case "gunmag":
-                    return Make(src, 0.08f, 0.48f, 0.48f, 0.55f, 0.40f, 150f);
+                    return Make(src, 0.16f, 0.43f, 0.50f, 0.42f, 0.30f, 150f);
                 case "gundark":
-                    return Make(src, 0.0f, 0.70f, 0.42f, 0.45f, 0.32f, 210f);
+                    return Make(src, 0.12f, 0.58f, 0.45f, 0.35f, 0.26f, 210f);
                 case "gunrubber":
-                    return Make(src, 0.0f, 0.92f, 0.30f, 0.55f, 0.12f, 320f);
+                    return Make(src, 0.0f, 0.90f, 0.30f, 0.45f, 0.10f, 320f);
                 case "gunsteel":
-                    return Make(src, 0.75f, 0.24f, 0.62f, 0.45f, 0.30f, 160f);
+                    return Make(src, 0.80f, 0.22f, 0.60f, 0.38f, 0.28f, 160f);
                 case "gunglass":
                     return Make(new Color(0.02f, 0.05f, 0.11f), 0.1f, 0.05f, 1.0f, 0f, 0.6f);
                 case "gunsight":
@@ -104,12 +106,12 @@ public sealed class VmMaterials
                     return m;
                 }
                 case "gunwhite":
-                    return Make(src, 0.0f, 0.58f, 0.40f, 0.60f, 0.40f, 190f);
+                    return Make(src, 0.0f, 0.54f, 0.42f, 0.45f, 0.30f, 190f);
                 case "gunaccent":
                 {
-                    var m = Make(src, 0.25f, 0.34f, 0.60f, 0.32f, 0.50f, 80f);
+                    var m = Make(src, 0.18f, 0.38f, 0.52f, 0.24f, 0.34f, 80f);
                     m.SetShaderParameter("emission_color", src);
-                    m.SetShaderParameter("emission_energy", 0.10f);
+                    m.SetShaderParameter("emission_energy", 0.045f);
                     return m;
                 }
             }

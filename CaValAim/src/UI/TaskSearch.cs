@@ -8,7 +8,8 @@ namespace CaValAim.UI;
 /// <summary>Shared search: all words, case/accent insensitive, with a clear button.</summary>
 public static class TaskSearch
 {
-    static string Normalize(string text) => string.Concat(text.Normalize(NormalizationForm.FormD)
+    /// <summary>Case/accent-insensitive form; callers filtering repeatedly can cache this per row.</summary>
+    public static string Normalize(string text) => string.Concat(text.Normalize(NormalizationForm.FormD)
         .Where(c => CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark)).ToLowerInvariant();
     public static bool Matches(string query, params string[] fields)
     {

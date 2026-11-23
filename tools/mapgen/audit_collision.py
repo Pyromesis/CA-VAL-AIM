@@ -4,7 +4,7 @@
 Mirrors the runtime rules in src/Game/Collision.cs and src/Game/MovementBody.cs
 (radius 0.34, height 1.8, step 0.7, snap-down 0.32, jump apex 0.90) and reports, per
 map, whether the spawn is standable and whether the choke, every enemy, every plant
-spot and every retake entry can be reached on foot from the spawn.
+spot and every retake entry can be reached on foot (walking, not jumping) from the spawn.
 
     python audit_collision.py [maps_dir] [collision_file_name]
 
@@ -27,7 +27,7 @@ STEP = 0.7          # Collision.StepHeight
 CELL = 0.35         # audit grid
 BUCKET = 2.0        # spatial hash cell
 SNAP_DOWN = 0.32    # MovementTuning.SnapDown
-RISE = 1.2          # step-ups are 0.7, a crouch-jump clears ~1.2 m
+RISE = 1.2          # optional crouch-jump reach for callers that explicitly request it
 DROP = 6.0          # you may fall into the site; fall damage does not stop the drill
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -85,7 +85,13 @@ class World:
         return True
 
 
-def flood(world, start, max_nodes=400000):
+def flood(world, start, max_nodes=400000, rise=STEP):
+    """Return reachable cells and their floor heights.
+
+    The default is a walking flood: ground receives the current feet height, so its
+    single step allowance caps each rise at STEP (0.70 m). Pass rise=RISE only for
+    a legacy crouch-jump-inclusive reachability query.
+    """
     sx, sz = round(start[0] / CELL), round(start[2] / CELL)
     y0 = world.ground(sx * CELL, sz * CELL, start[1] + 0.3)
     queue = collections.deque([(sx, sz)])
@@ -96,8 +102,8 @@ def flood(world, start, max_nodes=400000):
         for dx, dz in ((1, 0), (-1, 0), (0, 1), (0, -1)):
             n = (cx + dx, cz + dz)
             wx, wz = n[0] * CELL, n[1] * CELL
-            g = world.ground(wx, wz, y + 0.35)
-            if g < y - DROP or g > y + RISE: continue
+            g = world.ground(wx, wz, y, step=rise)
+            if g < y - DROP or g > y + rise: continue
             if world.blocked(wx, wz, g): continue
             # A cell can be reachable at several heights (stairs, ramps, stacked
             # floors).  Keep the highest one: if a later path reaches it higher,

@@ -2,6 +2,29 @@
 
 ## [Sin publicar]
 
+## [2.12.0] - 2026-11-22
+
+### Añadido
+
+- **PARA TI**, en Rutinas, crea una recomendación guiada a partir del perfil del coach. Los jugadores nuevos reciben la línea base completa de cinco ejercicios y ocho series; los perfiles parciales priorizan las mediciones que faltan en vez de pistas sin confirmar, y los perfiles establecidos mantienen primero sus diagnósticos medidos.
+- Busca ejercicios con **Ctrl+F** o **/**, abre el primer resultado visible con **Intro** y limpia progresivamente la búsqueda y la categoría con **Esc**.
+- Sens Lab muestra la candidata calculada por el coach con su dirección, porcentaje y cm/360, y un botón destacado para comprobarla en una prueba A/B; solo se aplica tras demostrar una mejora.
+
+### Cambiado
+
+- La biblioteca conserva filas, foco, desplazamiento y animaciones al escribir o cambiar de categoría. El texto de búsqueda y los récords quedan cacheados, de modo que filtrar ya no reconstruye todas las filas ni recorre todo el historial por cada ejercicio visible.
+- Arsenal en primera persona renovado: Vandal tiene una culata fija abierta y Phantom una culata telescópica diferenciada; el resto de armas gana empuñaduras, culatas y cargadores estilizados con chaflanes. Los acabados satinados de metal y polímero y una luz de borde exclusiva del viewmodel sustituyen el aspecto plano de juguete sin cambiar manejo, miras ni bocas de cañón.
+- La duración y la exportación de rutinas respetan ahora la casilla de ejercicios opcionales.
+- Abyss, Corrode, Fracture, Lotus, Pearl, Summit y Sunset reciben iluminación HDRI propia; la nieve y los contenedores usan estadísticas PBR medidas en el preset gráfico bajo, sin cambiar las colisiones.
+- La aceleración aérea y los impulsos se integran durante cada fotograma, los bloqueos de dirección terminan en la fracción exacta del fotograma y el aterrizaje mide tiempo e impacto en el contacto balístico. Nuevas regresiones cubren de 20 a 240 Hz y conservan el frenado calibrado en suelo.
+- La batería determinista de movimiento y colisiones sintéticas forma parte de `tools/selftest.ps1`.
+
+### Corregido
+
+- El estado de recuperación de caídas se reinicia al reconstruir el mundo y el rescate ya funciona antes de registrar el primer suelo seguro; cambiar de mapa ya no reutiliza el límite inferior del mapa anterior.
+- La auditoría de colisiones offline limita el desplazamiento a pie al escalón real de 0,70 m en vez de permitir por error subidas de 1,05 m.
+- Los controles y explicaciones de categorías en Sens Lab usan una disposición vertical en lugar de dibujarse unos sobre otros.
+
 ## [2.11.0] - 2026-11-18
 
 ### Añadido

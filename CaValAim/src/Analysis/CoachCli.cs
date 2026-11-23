@@ -347,6 +347,13 @@ public static class CoachCli
             ["flick.n_off"] = 60, ["flick.overshoot_share"] = 0.9f, ["flick.n_hit"] = 50, ["flick.nc"] = 2.6f, ["flick.n_corr"] = 120, ["flick.corr_amp_r"] = 1.2f,
             ["track.secs"] = 70, ["track.reversals"] = 30, ["track.jitter"] = 0.85f, ["track.tau_ms"] = 150,
         };
+        Dictionary<string, float> Under() => new()
+        {
+            ["flick.n_off"] = 60, ["flick.n_over"] = 6, ["flick.n_under"] = 54, ["flick.overshoot_share"] = 0.1f,
+            ["flick.n_hit"] = 50, ["flick.nc"] = 1.0f, ["flick.n_corr"] = 50, ["flick.corr_amp_r"] = 1.2f,
+            ["flick.n_small"] = 60, ["flick.n_large"] = 60, ["flick.gain_small"] = 0.98f, ["flick.gain_large"] = 0.78f,
+            ["track.secs"] = 70, ["track.reversals"] = 30, ["track.jitter"] = 0.55f, ["track.tau_ms"] = 160,
+        };
         Dictionary<string, float> Neutral() => new()
         {
             ["flick.n_off"] = 60, ["flick.overshoot_share"] = 0.4f, ["flick.n_hit"] = 50, ["flick.nc"] = 1.7f, ["flick.n_corr"] = 80, ["flick.corr_amp_r"] = 1.2f,
@@ -354,12 +361,15 @@ public static class CoachCli
         };
         List<SensAdvisor.RunInfo> S(float sens, int sessions, Func<Dictionary<string, float>> mk, int startHoursAgo) =>
             Enumerable.Range(0, sessions).Select(k => new SensAdvisor.RunInfo(now.AddHours(-startHoursAgo + k * 2), sens, mk())).ToList();
-        void SensCase(string name, List<SensAdvisor.RunInfo> runs, float sens, string expect)
+        void SensCase(string name, List<SensAdvisor.RunInfo> runs, float sens, string expect, bool rises = false)
         {
             var a = SensAdvisor.Advise(runs, sens, 800, 2);
-            P(F($"  {(a.Direction == expect ? "PASS" : "FAIL")} sens {name}: expected {expect} got {a.Direction} {a.CurrentSens:0.000} -> {a.RecommendedSens:0.000} ({a.CurrentCm360:0.0} -> {a.RecommendedCm360:0.0} cm): {a.Reason}"));
+            bool boundedIncrease = !rises || (a.RecommendedSens > sens && SensitivityProfiles.Valid(a.RecommendedSens)
+                && a.RecommendedSens <= sens * MathF.Exp(.18f) + .0005f && a.RecommendedCm360 is >= 20 and <= 80);
+            P(F($"  {(a.Direction == expect && boundedIncrease ? "PASS" : "FAIL")} sens {name}: expected {expect} got {a.Direction} {a.CurrentSens:0.000} -> {a.RecommendedSens:0.000} ({a.CurrentCm360:0.0} -> {a.RecommendedCm360:0.0} cm): {a.Reason}"));
         }
         SensCase("consistent overshoot + many corrections + jitter, 3 sessions @50 cm", S(0.327f, 3, Over, 10), 0.327f, "lower");
+        SensCase("consistent undershoot, 3 sessions (bounded increase)", S(0.225f, 3, Under, 10), 0.225f, "higher", rises: true);
         SensCase("neutral data @50 cm", S(0.327f, 3, Neutral, 10), 0.327f, "keep");
         SensCase("same signal but only one session (→ keep, leaning lower)", S(0.327f, 1, Over, 2), 0.327f, "keep");
         SensCase("neutral data @95 cm keeps sensitivity", S(0.172f, 3, Neutral, 10), 0.172f, "keep");

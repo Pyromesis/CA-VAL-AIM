@@ -6,7 +6,7 @@ namespace CaValAim.World;
 public enum DecorStyle { Range, Ascent, Bind, Haven, Split }
 
 /// <summary>Everything that gives a map its look: surfaces (palette-tinted PBR sets), sky, sun and grade.</summary>
-public sealed class Theme
+public sealed record Theme
 {
     public required string Key { get; init; }
     public DecorStyle Style { get; init; }
@@ -72,9 +72,16 @@ public static class Themes
 
     public static Theme For(MapSpot m) => m.Look != null ? m.Look(m.Palette) : m.Key switch
     {
+        "abyss" => Abyss(m.Palette),
         "bind" => Bind(m.Palette),
+        "corrode" => Corrode(m.Palette),
+        "fracture" => Fracture(m.Palette),
         "haven" => Haven(m.Palette),
+        "lotus" => Lotus(m.Palette),
+        "pearl" => Pearl(m.Palette),
         "split" => Split(m.Palette),
+        "summit" => Summit(m.Palette),
+        "sunset" => Sunset(m.Palette),
         _ => Ascent(m.Palette),
     };
 
@@ -96,6 +103,68 @@ public static class Themes
         Roof = new Surface("red_sandstone_wall", C(176, 92, 62), 0.9f, 1.4f, 0.6f, Grime: 0f),
         Hues = new[] { C(236, 214, 176), C(226, 186, 140), C(232, 170, 140), C(214, 200, 176), C(240, 224, 196), C(206, 160, 110) },
         MinH = 7.5f, MaxH = 14f,
+    };
+
+    // Extracted maps keep Ascent's safe fallback surfaces, but not its lighting: each preset uses one of the
+    // shipped HDRIs and the map palette already authored beside its collision. No geometry or collision changes.
+    /// <summary>Cool, diffuse light over Abyss' exposed blue-grey site.</summary>
+    static Theme Abyss(MapPalette p) => Ascent(p) with
+    {
+        Key = "abyss", Hdri = Hdris.Overcast, SkyYaw = -35,
+        SkyTint = new Color(0.90f, 0.96f, 1.06f), SkySaturation = 0.9f,
+        SunColor = new Color(0.86f, 0.93f, 1f), SunEnergy = 1.25f, Ambient = 0.8f,
+        Ground = p.Floor, Saturation = 1.06f, Contrast = 1.06f, FogDensity = 0.0018f,
+    };
+
+    /// <summary>Mild late-afternoon marine light for Corrode's weathered stone and green accents.</summary>
+    static Theme Corrode(MapPalette p) => Ascent(p) with
+    {
+        Key = "corrode", Hdri = Hdris.Qwantani, SkyYaw = -50,
+        SunColor = new Color(1f, 0.94f, 0.82f), SunEnergy = 1.55f, Ambient = 0.85f,
+        Ground = p.Floor, Saturation = 1.08f, FogDensity = 0.0014f,
+    };
+
+    /// <summary>Dry, warm sun and harder contrast for Fracture's canyon site.</summary>
+    static Theme Fracture(MapPalette p) => Ascent(p) with
+    {
+        Key = "fracture", Hdri = Hdris.Qwantani, SkyYaw = 70,
+        SunColor = new Color(1f, 0.91f, 0.76f), SunEnergy = 1.9f, Ambient = 0.75f,
+        Ground = p.Floor, Saturation = 1.08f, Contrast = 1.07f, FogDensity = 0.001f,
+    };
+
+    /// <summary>Warm courtyard sun with a cooler sky for Lotus' carved stone and vegetation.</summary>
+    static Theme Lotus(MapPalette p) => Ascent(p) with
+    {
+        Key = "lotus", Hdri = Hdris.Kloofendal, SkyYaw = -40,
+        SkyTint = new Color(1f, 0.98f, 0.94f), SunColor = new Color(1f, 0.90f, 0.76f),
+        SunEnergy = 1.65f, Ambient = 0.85f, Ground = p.Floor, Saturation = 1.16f, FogDensity = 0.0015f,
+    };
+
+    /// <summary>Cool, soft underwater-city light for Pearl, with restrained colour and slightly denser air.</summary>
+    static Theme Pearl(MapPalette p) => Ascent(p) with
+    {
+        Key = "pearl", Hdri = Hdris.Overcast, SkyYaw = 30,
+        SkyTint = new Color(0.92f, 1.01f, 1.04f), SkySaturation = 0.95f,
+        SunColor = new Color(0.88f, 0.98f, 1f), SunEnergy = 1.25f, Ambient = 0.85f,
+        Ground = p.Floor, Saturation = 1.08f, FogDensity = 0.002f,
+    };
+
+    /// <summary>Amber, low-angle late-afternoon light that gives Sunset its own silhouette and colour.</summary>
+    static Theme Sunset(MapPalette p) => Ascent(p) with
+    {
+        Key = "sunset", Hdri = Hdris.Qwantani, SkyYaw = 115,
+        SkyTint = new Color(1.05f, 0.93f, 0.86f), SkySaturation = 1.08f, SkyEnergy = 1.05f,
+        SunColor = new Color(1f, 0.78f, 0.58f), SunEnergy = 1.6f, Ambient = 0.8f,
+        Ground = p.Floor, Saturation = 1.14f, Contrast = 1.06f, FogDensity = 0.0013f,
+    };
+
+    /// <summary>Cold, bright overcast light for Summit's snow and blue-grey metal.</summary>
+    static Theme Summit(MapPalette p) => Ascent(p) with
+    {
+        Key = "summit", Hdri = Hdris.Overcast, SkyYaw = -75,
+        SkyTint = new Color(0.90f, 0.96f, 1.08f), SkySaturation = 0.85f,
+        SunColor = new Color(0.90f, 0.95f, 1f), SunEnergy = 1.2f, Ambient = 0.9f,
+        Ground = p.Floor, Saturation = 1.02f, FogDensity = 0.0019f,
     };
 
     /// <summary>Moroccan: sandy clay plaster, sandstone pavers, terracotta trims and teal tile bands.</summary>

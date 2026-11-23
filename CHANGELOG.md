@@ -2,6 +2,29 @@
 
 ## [Unreleased]
 
+## [2.12.0] - 2026-11-22
+
+### Added
+
+- **FOR YOU** in Routines builds a guided recommendation from the coach profile. New players get the complete five-drill, eight-run baseline; partial profiles prioritise missing evidence instead of unconfirmed tips, and established profiles keep their measured diagnoses first.
+- Search the drill library with **Ctrl+F** or **/**, open the first visible result with **Enter**, and clear search/category progressively with **Esc**.
+- Sens Lab presents the coach's calculated candidate next to its direction, percentage and cm/360, with a prominent matched A/B test action; candidates are only applied after demonstrated improvement.
+
+### Changed
+
+- Keep library rows, focus, scroll and entrance animations while typing or changing category. Cache search text and personal bests so filtering no longer rebuilds every row or rescans the full run history for each visible drill.
+- Rebuild the first-person arsenal: Vandal has an open fixed stock, Phantom a distinct telescoping stock, and the other weapons gain tapered chamfered grips, stocks and magazines. Satin metal/polymer finishes and a viewmodel-only rim light replace the flat toy-like presentation without changing handling, sights or muzzle anchors.
+- Routine duration and playlist export now respect the optional-exercise checkbox.
+- Give Abyss, Corrode, Fracture, Lotus, Pearl, Summit and Sunset distinct HDRI lighting presets, and use measured snow/container PBR statistics in the low graphics preset without changing collision.
+- Integrate airborne acceleration and ability impulses over the frame, expire steer locks at the right fraction of a frame, and measure landing time/impact at the ballistic contact. New regressions cover 20–240 Hz while preserving the calibrated ground braking.
+- Run the deterministic movement and synthetic-collision battery as part of `tools/selftest.ps1`.
+
+### Fixed
+
+- Reset fall-recovery state when a world is rebuilt and make recovery reachable even before the first safe-floor sample; changing maps can no longer reuse the previous map's underside.
+- The offline collision audit now limits ordinary walking to the player's real 0.70 m step instead of accidentally allowing 1.05 m rises.
+- Category controls and explanations in Sens Lab use a vertical layout instead of drawing over one another.
+
 ## [2.11.0] - 2026-11-18
 
 ### Added

@@ -28,7 +28,7 @@
 
 ## Download
 
-[**Download v2.11.0 for Windows**](https://github.com/Pyromesis/CA-VAL-AIM/releases/download/v2.11.0/ValTraining-2.11.0-Setup.exe) · [Latest stable release](https://github.com/Pyromesis/CA-VAL-AIM/releases/latest) · [SHA-256 for v2.11.0](https://github.com/Pyromesis/CA-VAL-AIM/releases/download/v2.11.0/SHA256SUMS.txt) · [Release notes](CHANGELOG.md)
+[**Download v2.12.0 for Windows**](https://github.com/Pyromesis/CA-VAL-AIM/releases/download/v2.12.0/ValTraining-2.12.0-Setup.exe) · [Latest stable release](https://github.com/Pyromesis/CA-VAL-AIM/releases/latest) · [SHA-256 for v2.12.0](https://github.com/Pyromesis/CA-VAL-AIM/releases/download/v2.12.0/SHA256SUMS.txt) · [Release notes](CHANGELOG.md)
 
 | File | What it does |
 |---|---|
@@ -154,9 +154,11 @@ The **ROUTINES** screen adapts the VALORANT material published by **Voltaic** an
 | **Data** | An Excel-style table of every routine, step, term and your saved progress, with a four-file CSV export. |
 | **Credits** | Full attribution, source links and the legal notice. |
 
-Star tasks, routines and playlists to keep them together on the **Favorites** screen. Search the library, routines, favorites or playlist drill picker by name and description; search ignores case and accents and works with partial words. Favorites are stored locally in `favorites.json`.
+Star tasks, routines and playlists to keep them together on the **Favorites** screen. Search the library, routines, favorites or playlist drill picker by name and description; search ignores case and accents and works with partial words. In the library, **Ctrl+F** or **/** focuses search, **Enter** opens the first visible result and **Esc** clears search before the category. Favorites are stored locally in `favorites.json`.
 
-Playable routines can be saved as normal playlists and edited like any other. The HUD shows the current task and repetition; its clock follows the actual run duration. For example, Cartoon’s three-minute tasks contain three one-minute runs before advancing. While paused, **‹ ›** jumps to the
+**FOR YOU**, pinned at the top of Routines, turns the coach profile into a guided recommendation with an editable-playlist action. A new profile receives the complete baseline (five drills, eight runs), a partial profile prioritises missing measurements over unconfirmed tips, and an established profile puts measured diagnoses first.
+
+Playable routines can be saved as normal playlists and edited like any other. The duration and saved playlist both follow the optional-exercise checkbox. The HUD shows the current task and repetition; its clock follows the actual run duration. For example, Cartoon’s three-minute tasks contain three one-minute runs before advancing. While paused, **‹ ›** jumps to the
 previous or next task without saving the abandoned run. The trainer applies a source's sensitivity boost only on the
 steps that ask for it, keeps it above 15 cm/360 (1.5× cap when your normal sens is already faster than 35 cm/360) and
 keeps boosted runs out of your personal bests. Recoil, deathmatch and map drills always use a real magazine and camera
@@ -201,7 +203,7 @@ Bots react with a human-like delay, move their crosshair with Fitts' law and fir
 - **Switch rifles** in Settings, or press *Equip primary* (1) during a countdown; every rifle drill follows your choice.
 - **Slots 1 / 2 / 3** draw the big weapon, the sidearm and the knife with your VALORANT binds, and each keeps its magazine.
 - **Any weapon, any drill:** the **WEAPON** picker in the menu and the pause menu remembers your choice. Weapon-specific drills (Vandal / Phantom Spray, Spray Transfer, Operator, Arsenal, Chamber and Crosshair Finder) keep their own rules.
-- **Movement:** running adds 6° of spread and walking 3°; you are accurate below 27.5% of run speed, which is what makes counter-strafing work. Braking matches Riot's measured Phantom stop times.
+- **Movement:** running adds 6° of spread and walking 3°; you are accurate below 27.5% of run speed, which is what makes counter-strafing work. Braking matches Riot's measured Phantom stop times. Air acceleration, ability impulses and landing contact are integrated within each frame and regression-tested from 20 to 240 Hz.
 - **Operator:** 2.5× scope, bolt action.
 
 The Vandal and Phantom patterns are measured from the real sprays ([SprayTrace](https://spraytrace.fyi/patterns/valorant/vandal), [Phantom](https://spraytrace.fyi/patterns/valorant/phantom)); the rest of the arsenal is reconstructed, as Riot never published those numbers.
@@ -209,14 +211,14 @@ The Vandal and Phantom patterns are measured from the real sprays ([SprayTrace](
 ## Graphics and training aids
 
 - Forward+ rendering with PBR materials and a different look per map, HDRI skies, sun shadows, AgX tonemapping, ambient occlusion and glow.
-- Animated enemy agents with VALORANT-style outlines and red fresnel that walls hide, plus a first-person gloved viewmodel with recoil, sway, reload and bolt cycle.
+- Animated enemy agents with VALORANT-style outlines and red fresnel that walls hide, plus a first-person gloved viewmodel with recoil, sway, reload and bolt cycle. Procedural weapons include distinct open/telescoping rifle stocks, chamfered grips and magazines, satin metal/polymer finishes and a viewmodel-only rim light.
 - Muzzle flash, tracers, bullet-hole decals and per-agent flash effects.
 - **Guide line** (Settings → Gameplay, on by default): a dashed line to the nearest target with the flick distance in degrees (an edge arrow when it is behind you), and a floor route to the nearest enemy on map drills. Off / Line / Line + Route.
 - Picks a preset for your PC on first start (Low on integrated, virtual or software GPUs); change it any time in Settings.
 
 ## Sensitivity and warm-up
 
-- Open **Settings → Sensitivity and crosshair → Category profiles** to set sensitivity by drill category and review a general recommendation based on recorded results.
+- Open **Settings → Sensitivity and crosshair → Category profiles** to set sensitivity by drill category and review a general recommendation based on recorded results. When the evidence is consistent, Sens Lab puts the calculated candidate, its direction and cm/360 next to a matched A/B test button; it is applied only if it improves.
 - In an eligible drill, use **Find sensitivity** in the pause menu. It stays enabled until you turn it off. Consistently stopping short can raise the setting, and consistently going past the target can lower it. Sensitivity history and shot outcomes stay on your PC.
 - Choose **Restart as warm-up** from the pause menu to practise without coaching or practice points. Choose **Restart with coach** to return to an evaluated round.
 - Open **Options** from pause for the full settings menu. The Audio category offers a soft mix with separate levels for shots and hit or miss feedback.
