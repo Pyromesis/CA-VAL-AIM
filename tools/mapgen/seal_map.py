@@ -111,13 +111,17 @@ def leak_walls(folder, boxes, seeds):
             if len(cand) == 0:
                 continue
             tr = idx.t[cand]
-            t1, k1 = au.ray_hits(tr, np.array([a[0], base + 0.9, a[2]]), d, C)
+            # Start just before the cell: a wall exactly on its boundary returns t=0, which the
+            # ray test correctly rejects. Without the epsilon those walls were never patched.
+            pad = 0.05
+            origin = a - d * pad
+            t1, k1 = au.ray_hits(tr, np.array([origin[0], base + 0.9, origin[2]]), d, C + 2 * pad)
             if k1 < 0:
                 continue
-            t2, k2 = au.ray_hits(tr, np.array([a[0], base + 1.5, a[2]]), d, C)
+            t2, k2 = au.ray_hits(tr, np.array([origin[0], base + 1.5, origin[2]]), d, C + 2 * pad)
             if k2 < 0:
                 continue
-            hit = a + d * min(t1, t2)
+            hit = origin + d * min(t1, t2)
             half = C * 0.5 + 0.02
             if dx:   # crossing along X: a wall in the YZ plane
                 walls.append([round(hit[0] - 0.05, 3), round(base + 0.25, 3), round(hit[2] - half, 3),

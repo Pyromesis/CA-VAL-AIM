@@ -232,7 +232,7 @@ def build_occupancy(folder, boxes, verbose=True):
 
 def trim(boxes, occ, floors=False):
     out = []
-    st = dict(walls=0, wall_removed=0, wall_shrunk=0, floors=0, floor_phantom=0, vol_before=0.0, vol_after=0.0)
+    st = dict(walls=0, wall_removed=0, wall_shrunk=0, wall_degenerate=0, floors=0, floor_phantom=0, vol_before=0.0, vol_after=0.0)
     for bx in boxes:
         x0, y0, z0, x1, y1, z1 = bx
         slab = (y1 - y0) <= SLAB
@@ -256,7 +256,11 @@ def trim(boxes, occ, floors=False):
         nz0, nz1 = max(z0, lo[2]), min(z1, hi[2])
         ny1 = min(y1, hi[1])
         if nx1 - nx0 < 0.02 or nz1 - nz0 < 0.02 or ny1 - y0 < 0.05:
-            st["wall_removed"] += 1
+            # Occupancy touched this box, so it is not a phantom wall. If the sampled bounds only meet
+            # at its face, shrinking would delete a real wall: keep the original positive volume instead.
+            st["wall_degenerate"] += 1
+            st["vol_after"] += (x1 - x0) * (y1 - y0) * (z1 - z0)
+            out.append(bx)
             continue
         nb = [round(float(v), 3) for v in (nx0, y0, nz0, nx1, ny1, nz1)]
         if nb != [round(float(v), 3) for v in bx]:
@@ -292,7 +296,7 @@ def main(argv):
         out, st = trim(boxes, occ, floors)
         pct = 100.0 * (1 - st["vol_after"] / st["vol_before"]) if st["vol_before"] else 0.0
         print(f"    walls {st['walls']}: removed {st['wall_removed']} with nothing drawn, shrunk {st['wall_shrunk']}, "
-              f"solid volume -{pct:.1f}%")
+              f"degenerate kept {st['wall_degenerate']}, solid volume -{pct:.1f}%")
         print(f"    floor slabs {st['floors']}: {st['floor_phantom']} with nothing drawn"
               f" ({'removed' if floors else 'kept'})")
         if report:

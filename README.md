@@ -28,7 +28,7 @@
 
 ## Download
 
-[**Download v2.13.0 for Windows**](https://github.com/Pyromesis/CA-VAL-AIM/releases/download/v2.13.0/ValTraining-2.13.0-Setup.exe) · [Latest stable release](https://github.com/Pyromesis/CA-VAL-AIM/releases/latest) · [SHA-256 for v2.13.0](https://github.com/Pyromesis/CA-VAL-AIM/releases/download/v2.13.0/SHA256SUMS.txt) · [Release notes](CHANGELOG.md)
+[**Download v2.13.1 for Windows**](https://github.com/Pyromesis/CA-VAL-AIM/releases/download/v2.13.1/ValTraining-2.13.1-Setup.exe) · [Latest stable release](https://github.com/Pyromesis/CA-VAL-AIM/releases/latest) · [SHA-256 for v2.13.1](https://github.com/Pyromesis/CA-VAL-AIM/releases/download/v2.13.1/SHA256SUMS.txt) · [Release notes](CHANGELOG.md)
 
 | File | What it does |
 |---|---|

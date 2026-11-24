@@ -166,7 +166,7 @@ class Grid:
         self.ceilings[(i, j)].add(round(y / 0.05) * 0.05)
 
     def add_wall(self, i, j, y0, y1):
-        if y1 - y0 < 0.4:
+        if y1 - y0 < 0.05:
             return
         if self.clip is not None:
             c = self.clip
@@ -257,7 +257,7 @@ def rasterise(grid, v0, v1, v2):
         # is how players end up walking through walls. Only ignore tiny trim.
         y0 = float(min(v0[1], v1[1], v2[1]))
         y1 = float(max(v0[1], v1[1], v2[1]))
-        if y1 - y0 < 0.6 or area < 0.4:
+        if y1 - y0 < 0.05 or area < 0.01:
             return
         pts = np.stack([v0, v1, v2, v0])[:, [0, 2]]
         seen = set()
@@ -467,14 +467,16 @@ def build_boxes(grid):
     done = set()   # (cell, k) already inside an emitted box
     for k in sorted(slices):
         for (i, j, w, d) in slices[k]:
-            if ((i, j), k) in done:
+            cells = [(a, b) for a in range(i, i + w) for b in range(j, j + d)]
+            # Only a fully covered rectangle is redundant. Skipping it when just its corner was done
+            # used to delete every other voxel in the rectangle (real wall segments in Split and Pearl).
+            if all((cl, k) in done for cl in cells):
                 continue
             h = 1
             while True:
                 nxt = layers.get(k + h)
                 if not nxt:
                     break
-                cells = [(a, b) for a in range(i, i + w) for b in range(j, j + d)]
                 if not all(cl in nxt for cl in cells):
                     break
                 for cl in cells:

@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [2.13.1] - 2026-11-24
+
+### Fixed
+
+- Rebuild collision for all 13 maps so players and bullets can no longer pass through visible walls. Preserve occupied walls during trimming, stop losing voxels and small wall fragments, seal cell-boundary crossings and regenerate spawn exclusions without breaking reachability.
+
 ## [2.13.0] - 2026-11-23
 
 ### Added

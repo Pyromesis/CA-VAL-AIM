@@ -2,6 +2,12 @@
 
 ## [Sin publicar]
 
+## [2.13.1] - 2026-11-24
+
+### Corregido
+
+- Colisiones reconstruidas en los 13 mapas para que el jugador y las balas ya no atraviesen paredes visibles. Se conservan paredes ocupadas durante el recorte, vóxeles y fragmentos pequeños, se sellan cruces en límites de celda y se regeneran las exclusiones sin romper la alcanzabilidad.
+
 ## [2.13.0] - 2026-11-23
 
 ### Añadido

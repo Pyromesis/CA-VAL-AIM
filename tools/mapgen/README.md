@@ -210,3 +210,14 @@ without `--spawn-unfiltered` and
   over editing the output by hand.
 * Maps without extracted GLBs cannot be checked against art; the spawn audit explicitly skips
   blockout maps. Keep the GLBs with the collision files when running these tools.
+
+## Regression tests
+
+Run the generator tests from `tools/mapgen`:
+
+```
+python -m unittest discover -s . -p "test_*.py"
+```
+
+They cover vertical-merge voxel coverage, small wall fragments, rays that start on a wall at a cell
+boundary, and occupied walls whose trimmed bounds would otherwise degenerate and delete the wall.
