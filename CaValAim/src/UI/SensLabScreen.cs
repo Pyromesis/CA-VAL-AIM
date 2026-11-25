@@ -238,6 +238,10 @@ public partial class SensLabScreen : ScreenBase
             : Heading("SENS LAB", "OVER/UNDERSHOOT, TREMOR AND TRACKING · ACCUMULATED OVER TIME");
         title.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         head.AddChild(title);
+        var converter = Btn(Loc.Spanish ? "CONVERTIDOR" : "CONVERTER", VButton.Look.Secondary,
+            Main.I.ShowSensitivityConverter, 190, 48, 16);
+        converter.SizeFlagsVertical = SizeFlags.ShrinkCenter;
+        head.AddChild(converter);
         if (!Dedicated)
         {
             var coach = Btn("AIM COACH", VButton.Look.Secondary, Main.I.ShowProfile, 220, 48, 19);

@@ -225,7 +225,11 @@ public partial class SettingsScreen : ScreenBase
                 "Calculates cm/360 and preserves the physical rotation of category profiles.")));
         v.AddChild(SensSummary());
         if (BackToPause == null)
+        {
             v.AddChild(Btn(L("PERFILES POR CATEGORÍA", "CATEGORY PROFILES"), VButton.Look.Secondary, App.ShowSensLab, 230, 40, 15));
+            v.AddChild(Btn(L("CONVERTIDOR ENTRE JUEGOS", "GAME SENSITIVITY CONVERTER"), VButton.Look.Secondary,
+                App.ShowSensitivityConverter, 260, 40, 15));
+        }
 
         // Crosshair: VALORANT's imported profile, or CA-VAL-AIM's own code: the Crosshair Finder's result or a pasted code
         // (CA-VAL-AIM only; VALORANT is never changed).

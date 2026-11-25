@@ -164,6 +164,38 @@ foreach ($c in @("") + $Cultures) {
   Report "culture test: $name" ($why -eq "") $why $r
 }
 
+# ---- 2b. Sensitivity converter: real screen controls, reverse conversion, osu!, custom yaw, Siege and APPLY ----
+$r = Invoke-Godot "converter-ui-check" (@("--headless", "--quit-after", "30", "--path", $Project, "--") + $sandbox +
+    @("--screen", "converter", "--converter-check"))
+$res = ($r.Text -split "`r?`n" | Where-Object { $_ -match '\[converter-check\] RESULT:' } | Select-Object -Last 1)
+$ex = Get-Exceptions $r.Text
+$why = if ($r.Code -ne 0) { "exit code $($r.Code) ($res)" } elseif ($ex.Count -gt 0) { "exception: $($ex[0].Trim())" } `
+    elseif ($res -notmatch 'RESULT: PASS') { "no PASS result" } else { "" }
+Report "sensitivity converter UI" ($why -eq "") $why $r
+
+# APPLY must really save and reload the trainer's settings. This separate sandbox opts into writes and starts with
+# unrelated values that must survive; the normal dev sandbox above still proves that APPLY writes nothing by default.
+$persistData = Join-Path $work "converter-persist-data"
+$persistValorant = Join-Path $work "converter-persist-valorant"
+foreach ($d in @($persistData, $persistValorant)) { New-Item -ItemType Directory -Force $d | Out-Null }
+Set-Content -LiteralPath (Join-Path $persistData "settings.json") -NoNewline -Encoding utf8 -Value `
+  '{"Language":"es","Volume":0.37,"Dpi":400,"SensOverride":0.1,"UseSensOverride":false,"CheckUpdates":false,"LastSeenVersion":"2.14.0"}'
+$r = Invoke-Godot "converter-ui-persistence" (@("--headless", "--quit-after", "30", "--path", $Project, "--") +
+    @("--dev", "--data-dir", $persistData, "--valorant-dir", $persistValorant, "--write-data") +
+    @("--screen", "converter", "--converter-check"))
+$res = ($r.Text -split "`r?`n" | Where-Object { $_ -match '\[converter-check\] RESULT:' } | Select-Object -Last 1)
+$ex = Get-Exceptions $r.Text
+$savedSens = try { Get-Content (Join-Path $persistData "settings.json") -Raw | ConvertFrom-Json } catch { $null }
+$valorantWritten = @(Get-ChildItem $persistValorant -Recurse -Force -ErrorAction SilentlyContinue)
+$why = if ($r.Code -ne 0) { "exit code $($r.Code) ($res)" } elseif ($ex.Count -gt 0) { "exception: $($ex[0].Trim())" } `
+    elseif ($res -notmatch 'RESULT: PASS \(14 passed, 0 failed\)') { "no 14-check PASS result" } `
+    elseif ($null -eq $savedSens -or -not $savedSens.UseSensOverride -or $savedSens.Dpi -ne 800 -or
+        [math]::Abs($savedSens.SensOverride - .629) -gt .00001) { "the applied CUSTOM sensitivity was not persisted" } `
+    elseif ($savedSens.Language -ne "es" -or [math]::Abs($savedSens.Volume - .37) -gt .00001 -or $savedSens.CheckUpdates) {
+        "an unrelated trainer setting changed"
+    } elseif ($valorantWritten.Count -ne 0) { "the VALORANT directory was written" } else { "" }
+Report "sensitivity converter persistence (throw-away data)" ($why -eq "") $why $r
+
 # ---- 3. Bug report: redaction, JSON shape and size limits; then a dry run from the panel (dev runs never send) ----
 $r = Invoke-Godot "bugreport-test" (@("--headless", "--path", $Project, "--") + $sandbox + @("--bugreport-test"))
 $res = ($r.Text -split "`r?`n" | Where-Object { $_ -match '\[bugreport-test\] RESULT:' } | Select-Object -Last 1)

@@ -28,7 +28,7 @@
 
 ## Download
 
-[**Download v2.13.1 for Windows**](https://github.com/Pyromesis/CA-VAL-AIM/releases/download/v2.13.1/ValTraining-2.13.1-Setup.exe) · [Latest stable release](https://github.com/Pyromesis/CA-VAL-AIM/releases/latest) · [SHA-256 for v2.13.1](https://github.com/Pyromesis/CA-VAL-AIM/releases/download/v2.13.1/SHA256SUMS.txt) · [Release notes](CHANGELOG.md)
+[**Download v2.14.0 for Windows**](https://github.com/Pyromesis/CA-VAL-AIM/releases/download/v2.14.0/ValTraining-2.14.0-Setup.exe) · [Latest stable release](https://github.com/Pyromesis/CA-VAL-AIM/releases/latest) · [SHA-256 for v2.14.0](https://github.com/Pyromesis/CA-VAL-AIM/releases/download/v2.14.0/SHA256SUMS.txt) · [Release notes](CHANGELOG.md)
 
 | File | What it does |
 |---|---|
@@ -222,6 +222,7 @@ The Vandal and Phantom patterns are measured from the real sprays ([SprayTrace](
 
 - Open **Settings → Sensitivity and crosshair → Category profiles** to set sensitivity by drill category and review a general recommendation based on recorded results. When the evidence is consistent, Sens Lab puts the calculated candidate, its direction and cm/360 next to a matched A/B test button; it is applied only if it improves.
 - Open **SENSITIVITY** from the main menu for a focused view of your current sens, eDPI, cm/360 and measured faults. A corrective routine appears only after sufficient evidence identifies a fault; balanced or insufficient profiles get no routine.
+- Open **CONVERTER** to preserve hipfire cm/360 between 12 FPS presets or a custom yaw, including the documented nonlinear PUBG and Minecraft scales and Siege's INI multiplier. osu! uses raw-input cm per screen width instead of a false 2D/rotation equivalence. Copy the result, or explicitly apply its VALORANT equivalent and DPI only to CA-VAL-AIM. See the [models and sources](docs/SENSITIVITY_CONVERTER.md).
 - In an eligible drill, use **Find sensitivity** in the pause menu. It stays enabled until you turn it off. Consistently stopping short can raise the setting, and consistently going past the target can lower it. Sensitivity history and shot outcomes stay on your PC.
 - Choose **Restart as warm-up** from the pause menu to practise without coaching or practice points. Choose **Restart with coach** to return to an evaluated round.
 - Open **Options** from pause for the full settings menu. The Audio category offers a soft mix with separate levels for shots and hit or miss feedback.

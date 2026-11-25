@@ -317,6 +317,7 @@ public partial class MenuScreen : ScreenBase
         Shortcut(L("AGENTS", "AGENTES"), Main.I.ShowAgents);
         Shortcut("COACH", Main.I.ShowProfile);
         Shortcut(L("SENSITIVITY", "SENSIBILIDAD"), Main.I.ShowSensitivity);
+        Shortcut(L("CONVERTER", "CONVERTIDOR"), Main.I.ShowSensitivityConverter);
         Shortcut(L("STATS", "ESTADÍSTICAS"), Main.I.ShowStats);
         left.AddChild(shortcuts);
 

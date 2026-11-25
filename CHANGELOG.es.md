@@ -2,6 +2,12 @@
 
 ## [Sin publicar]
 
+## [2.14.0] - 2026-11-25
+
+### Añadido
+
+- Un convertidor de sensibilidad bilingüe conserva la distancia física hipfire entre VALORANT, Call of Duty/Warzone, Fortnite, Rainbow Six Siege, CS2, Apex, Overwatch 2, Destiny 2, Quake, Rust, PUBG y Minecraft, con modelos no lineales documentados, enlaces a las fuentes y yaw personalizado. Muestra cm/360, invierte conversiones, copia resultados y solo aplica el equivalente VALORANT redondeado y el DPI a CA-VAL-AIM cuando se solicita expresamente. osu! usa cm por anchura de pantalla con raw input y nunca se equipara incorrectamente a una rotación FPS.
+
 ## [2.13.1] - 2026-11-24
 
 ### Corregido

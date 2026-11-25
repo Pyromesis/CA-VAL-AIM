@@ -31,6 +31,7 @@ public static class CultureCheck
         {
             Directory.CreateDirectory(root);
             CrosshairChecks();
+            GameSensitivityChecks.Run();
             ValorantChecks(root);
             CorruptChecks(root);
             DataChecks(root);

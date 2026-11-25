@@ -222,7 +222,7 @@ public partial class Main : Node
         else if (updating) SetScreen(new UpdatingScreen());
         else ShowMenu();
         if (updating) return;
-        // Dev-only: "--screen settings|about|stats|sensitivity" opens that screen directly (MenuScreen handles "profile").
+        // Dev-only: "--screen settings|about|stats|sensitivity|converter" opens that screen directly (MenuScreen handles "profile").
         switch (Dev ? CmdLine.After("--screen")?.ToLowerInvariant() : null)
         {
             case "settings":
@@ -236,6 +236,7 @@ public partial class Main : Node
             case "reaction" or "reactions": Callable.From(ShowReactionStats).CallDeferred(); break;
             case "senslab" or "sens-lab": Callable.From(ShowSensLab).CallDeferred(); break;
             case "sensitivity": Callable.From(ShowSensitivity).CallDeferred(); break;
+            case "converter" or "sens-converter": Callable.From(ShowSensitivityConverter).CallDeferred(); break;
             case "favorites": Callable.From(() => ShowScreen(new FavoritesScreen())).CallDeferred(); break;
             case "practice": Callable.From(ShowPractice).CallDeferred(); break;
             case "warmup" or "lockin": Callable.From(ShowLockIn).CallDeferred(); break;
@@ -268,8 +269,10 @@ public partial class Main : Node
         Analysis.CoachWarmUp.Start(); // JIT the coach off the main thread before the first results screen
         // Dev-only: "--screenshot <path prefix> --screenshot-at 3,5.5,9" saves the game's own frame (any screen, DPI-proof,
         // works on a locked desktop) as <prefix>_<n>.png at those seconds after start, then quits after the last one.
-        if (Dev && CmdLine.After("--screenshot") is { } shotPrefix)
+        // "--screenshot-jpeg" is the same capture saved as quality-72 JPEG for lightweight visual reviews.
+        if (Dev && (CmdLine.After("--screenshot") ?? CmdLine.After("--screenshot-jpeg")) is { } shotPrefix)
         {
+            bool jpeg = CmdLine.After("--screenshot-jpeg") != null;
             var times = (CmdLine.After("--screenshot-at") ?? "3").Split(',')
                 .Select(s => float.TryParse(s, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var v) ? v : -1)
                 .Where(v => v >= 0).OrderBy(v => v).ToList();
@@ -280,8 +283,8 @@ public partial class Main : Node
                 GetTree().CreateTimer(times[n]).Timeout += () =>
                 {
                     var img = GetViewport().GetTexture().GetImage();
-                    string path = $"{shotPrefix}_{idx}.png";
-                    img.SavePng(path);
+                    string path = $"{shotPrefix}_{idx}.{(jpeg ? "jpg" : "png")}";
+                    if (jpeg) img.SaveJpg(path, .72f); else img.SavePng(path);
                     GD.Print($"[screenshot] t={times[idx]:0.0}s {path} ({screen?.GetType().Name})");
                     if (last) GetTree().Quit();
                 };
@@ -421,6 +424,8 @@ public partial class Main : Node
     public void ShowSensLab() => SetScreen(new SensLabScreen());
     /// <summary>Focused current-sensitivity view; the complete laboratory remains <see cref="ShowSensLab"/>.</summary>
     public void ShowSensitivity() => SetScreen(new SensLabScreen { Dedicated = true });
+    /// <summary>Documented hipfire and osu! physical sensitivity converter; it never writes other games' settings.</summary>
+    public void ShowSensitivityConverter() => SetScreen(new SensitivityConverterScreen());
     /// <summary>The technique library (menu ACADEMY); <paramref name="technique"/> opens that lesson.</summary>
     public void ShowAcademy() => SetScreen(new AcademyScreen());
     public void ShowAcademy(string? technique, Action? back = null) => SetScreen(new AcademyScreen(technique, back));

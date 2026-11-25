@@ -131,6 +131,8 @@ flowchart LR
     Menu -->|"SETTINGS"| Settings["SettingsScreen"]
     Stats --> Reaction["ReactionStatsScreen"]
     Profile --> SensLab["SensLabScreen"]
+    SensLab --> Converter["SensitivityConverterScreen"]
+    Settings --> Converter
     Settings --> About["About + licences"]
 ```
 
@@ -160,6 +162,7 @@ flowchart LR
 | `StatsScreen` | Personal bests and history per drill and tier | `UI/StatsScreen.cs` |
 | `ReactionStatsScreen` | Reaction times by category | `UI/ReactionStatsScreen.cs` |
 | `SensLabScreen` | Full sensitivity laboratory, plus the dedicated SENSITIVITY view with measured faults and conditional corrective routines | `UI/SensLabScreen.cs` |
+| `SensitivityConverterScreen` | Documented physical hipfire conversion, custom yaw, Siege INI multipliers and separate osu! raw-input screen travel | `UI/SensitivityConverterScreen.cs`, `Core/GameSensitivity.cs` |
 | `RoutinesScreen` | Catalog plus FOR YOU: one complete measured-fault routine when evidence exists, otherwise the short guided plan | `UI/RoutinesScreen.cs` |
 | `AgentsScreen` | 29 agents, roles, abilities, drills and agent routines | `UI/AgentsScreen.cs` |
 | `PlaylistsScreen` | Named sets of drills played back to back | `UI/PlaylistsScreen.cs` |
@@ -707,6 +710,7 @@ flowchart LR
 | Session, movement, weapon, telemetry | `Game/GameSession.cs`, `MovementBody.cs`, `Weapon/WeaponController.cs`, `Telemetry.cs` |
 | Bots and difficulty | `Game/Bots/*`, `Core/Difficulty.cs`, `Core/DeathmatchRules.cs` |
 | Coach, metrics, play-by-play, Sens Lab | `Analysis/Coach.cs`, `RunAnalysis.cs`, `PlayByPlay.cs`, `SensLab.cs`, `LiveCoach.cs` |
+| Game sensitivity conversion models and sources | `Core/GameSensitivity.cs`, `Core/GameSensitivityChecks.cs`, `UI/SensitivityConverterScreen.cs`, `docs/SENSITIVITY_CONVERTER.md` |
 | Lock-In | `Warmup/*` |
 | Maps, real geometry, minimaps | `World/RealMap.cs`, `Maps/*`, `UI/MapArt.cs` |
 | Rewind | `UI/RewindScreen.cs`, `RewindView3D.cs`, `Game/Replay/*` |
