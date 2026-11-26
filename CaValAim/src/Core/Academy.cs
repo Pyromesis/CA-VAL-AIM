@@ -6,6 +6,9 @@ namespace CaValAim.Core;
 /// its author, who is credited by channel name next to it (and in CREDITS.md).</summary>
 public sealed record VideoRef(string Title, string Author, string Url, string Language = "en");
 
+/// <summary>A research or official guide linked from a lesson. Only the citation and URL are shipped, not the document.</summary>
+public sealed record ResearchRef(string Title, string Author, string Url, string Language = "en");
+
 /// <summary>One technique lesson: what it is, how to do it, what usually goes wrong, the cue to keep in mind while
 /// playing, the drills that train it and where to watch it explained.</summary>
 public sealed record Technique(
@@ -15,13 +18,16 @@ public sealed record Technique(
     string[] StepsEn, string[] StepsEs,
     string[] MistakesEn, string[] MistakesEs,
     string CueEn, string CueEs,
-    string[] Drills, VideoRef[] Videos, string[] Diagnoses)
+    string[] Drills, VideoRef[] Videos, string[] Diagnoses,
+    ResearchRef[]? ResearchLinks = null, string? PreparationGuideId = null)
 {
     public string Name => Loc.Spanish ? NameEs : NameEn;
     public string Summary => Loc.Spanish ? SummaryEs : SummaryEn;
     public string[] Steps => Loc.Spanish ? StepsEs : StepsEn;
     public string[] Mistakes => Loc.Spanish ? MistakesEs : MistakesEn;
     public string Cue => Loc.Spanish ? CueEs : CueEn;
+    public ResearchRef[] Research { get; init; } = ResearchLinks ?? Array.Empty<ResearchRef>();
+    public string? PreparationGuideId { get; init; } = PreparationGuideId;
 }
 
 /// <summary>
@@ -33,6 +39,8 @@ public static class Academy
 {
     static VideoRef Yt(string id, string author, string title, string lang = "en") =>
         new(title, author, "https://www.youtube.com/watch?v=" + id, lang);
+
+    static ResearchRef Src(string url, string author, string title, string lang = "en") => new(title, author, url, lang);
 
     public static readonly Technique[] All =
     {
@@ -68,18 +76,61 @@ public static class Academy
                 Yt("JAu24DzgRek", "West Proter", "The Ultimate Aim Training Guide"),
                 Yt("Ajl6N8cvVXo", "Lew", "How to start aim training"),
                 Yt("yQ7EDnqGkLg", "Aimlabs", "Calm Aim Training Routine for VALORANT (Full Guide + Drills)"),
-                Yt("VXqO4q0h93I", "Horcus", "Cómo mejorar el aim en VALORANT: rutina y guía completa", "es"),
-                Yt("y0SMsQ72RDM", "Oscar Molina Garcia", "5 motivos por los que tu aim no mejora", "es"),
+                Yt("VXqO4q0h93I", "Horcus", "Cómo MEJORAR AIM en VALORANT 2026! Rutina y Guía completa", "es"),
+                Yt("y0SMsQ72RDM", "Oscar Molina Garcia", "5 MOTIVOS POR LOS QUE TU AIM NO MEJORA!! GUIA MEJORAR EN VALORANT", "es"),
             },
             Array.Empty<string>()),
 
+        new("scenarios", Skill.Flicking,
+            "Choose the right scenario", "Elegir el escenario adecuado",
+            "The best drill is the one that isolates your current fault and then returns you to a real duel. Popularity, speed and score do not make a drill suitable for everyone.",
+            "El mejor ejercicio es el que aísla tu fallo actual y después te devuelve a un duelo real. Popularidad, velocidad y puntuación no hacen que un ejercicio sirva para todo el mundo.",
+            new[]
+            {
+                "Start with one measured problem, not with a leaderboard. If you overshoot, use near and wide braking drills; if you stop short, complete wide arm movements before adding speed.",
+                "For repeated extra corrections, use one-correction and confirm drills. For tremor, use a loose static hold and slow tracking without assuming that sensitivity or grip is the only cause.",
+                "For target switching, confirm each elimination, move your eyes to the next target and brake again. For premature clicks, wait for real contact instead of practising anticipation.",
+                "Stabilise one task before adding distance, speed or smaller targets. More variability is not automatically better; increase it only while the movement stays controlled.",
+                "Finish with a less controlled task: stop-shoot, a peek duel or deathmatch with one cue. The transfer block is not an A/B test or proof of lasting improvement.",
+                "Ten minutes fits one measured priority, twenty minutes joins flick to a duel and thirty minutes makes a complete session. These are editable CA-VAL-AIM structures, not scientifically optimal durations.",
+            },
+            new[]
+            {
+                "Empieza con un problema medido, no con una clasificación. Si te pasas, usa frenadas cortas y amplias; si te quedas corto, completa movimientos amplios de brazo antes de acelerar.",
+                "Para muchas correcciones, usa ajuste único y confirmación. Para temblor, mantén una posición estática con mano suelta y tracking lento sin asumir que sensibilidad o agarre son la única causa.",
+                "Al cambiar de blanco, confirma la eliminación, lleva los ojos al siguiente y vuelve a frenar. Para clics anticipados, espera contacto real en vez de practicar anticipación.",
+                "Estabiliza una tarea antes de añadir distancia, velocidad o blancos pequeños. Más variabilidad no siempre es mejor: auméntala solo si el movimiento sigue controlado.",
+                "Termina con una tarea menos controlada: stop-shoot, un peek duel o deathmatch con una consigna. La transferencia no es prueba A/B ni evidencia de mejora duradera.",
+                "Diez minutos sirven para una prioridad, veinte unen flick y duelo y treinta forman una sesión completa. Son estructuras editables de CA-VAL-AIM, no duraciones científicamente óptimas.",
+            },
+            new[] { "Choosing the hardest scenario.", "Changing drill after every bad run.", "Chasing speed before controlling the arrival.", "Using deathmatch as proof that a drill worked." },
+            new[] { "Elegir el ejercicio más difícil.", "Cambiar de ejercicio tras cada mala ronda.", "Perseguir velocidad antes de controlar la llegada.", "Usar deathmatch como prueba de que un ejercicio funcionó." },
+            "Isolate, control, transfer.",
+            "Aísla, controla, transfiere.",
+            new[] { "flickx:coach-brake-near", "flickx:coach-brake-wide", "flickx:tech-wide-arm", "microx:coach-micro-confirm", "flickx:tech-still-hold", "flickx:tech-sweep-order", "reflex:tech-wait-commit", "peekduel", "deathmatch" },
+            new[]
+            {
+                Yt("xAE2uPM59FY", "Aimlabs", "Better Flicking Guaranteed! | Aim Guide"),
+                Yt("y-xYxbYl1d0", "Voltaic", "Voltaic Speed Target Switching Training"),
+            },
+            Array.Empty<string>(),
+            ResearchLinks: new[]
+            {
+                Src("https://pmc.ncbi.nlm.nih.gov/articles/PMC11212619/", "Caballero, Barbado, Peláez and Moreno", "Applying different levels of practice variability for motor learning: More is not better"),
+                Src("https://www.nature.com/articles/s41539-024-00271-5", "Rudisch, Holzhauer, Kravanja, Hamker and Voelcker-Rehage", "A systematic review of observational practice for adaptation of reaching movements"),
+                Src("https://voltaic.gg/resources/valorant-fundamentals", "Voltaic", "Valorant Fundamentals"),
+                Src("https://voltaic.gg/resources/benchmark-focus-speed-switching-kovaaks", "Lowgravity56 and 4rK / Voltaic", "Speed Switching focus"),
+                Src("https://voltaic.gg/resources/benchmark-focus-stability-switching-kovaaks", "Lowgravity56 and 4rK / Voltaic", "Stability Switching focus"),
+            }),
+
         new("tension", Skill.Tracking,
             "Grip, posture and tension", "Agarre, postura y tensión",
-            "A shaking crosshair almost always comes from a hand that squeezes too hard. Tension is a tool you switch on to stop the mouse, not a state you stay in.",
-            "Una mira que tiembla casi siempre viene de una mano que aprieta demasiado. La tensión es una herramienta que activas para frenar el ratón, no un estado permanente.",
+            "A shaking crosshair can be linked to excess grip tension, fatigue, posture, sensitivity or other factors. Use the least tension that keeps control; do not diagnose every shake as a grip problem.",
+            "Una mira que tiembla puede estar relacionada con tensión excesiva, fatiga, postura, sensibilidad u otros factores. Usa la mínima tensión que conserve el control; no diagnostiques todo temblor como un problema de agarre.",
             new[]
             {
                 "Sit so the forearm rests on the desk and the elbow is roughly level with the mouse pad. The shoulder stays down.",
+                "Palm rests the palm and fingers on the mouse; Claw keeps some palm contact with more curved fingers; Fingertip relies mainly on the fingers. Hybrids are normal: none is universally superior, so choose comfort and control rather than copying a pro.",
                 "Hold the mouse with the minimum force that keeps it under control: about 3 out of 10. If your knuckles go white, it is too much.",
                 "Large moves come from the arm and elbow, medium moves from the wrist, the last millimetres from the fingers.",
                 "Tense only for the instant you brake on a target, then let go again. Breathe out while you track.",
@@ -89,6 +140,7 @@ public static class Academy
             new[]
             {
                 "Siéntate con el antebrazo apoyado en la mesa y el codo más o menos a la altura de la alfombrilla. El hombro, bajo.",
+                "Palm apoya palma y dedos; Claw mantiene parte de la palma con dedos más arqueados; Fingertip depende principalmente de los dedos. Los híbridos son normales: ninguno es universalmente superior, elige comodidad y control en vez de copiar a un profesional.",
                 "Sujeta el ratón con la fuerza mínima que lo mantiene bajo control: un 3 sobre 10. Si los nudillos se ponen blancos, es demasiado.",
                 "Los movimientos grandes salen del brazo y el codo, los medios de la muñeca y los últimos milímetros de los dedos.",
                 "Tensa solo en el instante de frenar sobre el blanco y vuelve a soltar. Suelta el aire mientras sigues un objetivo.",
@@ -104,10 +156,55 @@ public static class Academy
             {
                 Yt("LvgicX0HOe8", "West Proter", "Aim Coaching To Make SHAKY AIM Into SMOOTH AIM"),
                 Yt("gNDfH7J2DNE", "West Proter", "Fix Your Terrible Mouse Grip NATURALLY"),
+                Yt("zTLdpMrHcls", "Rocket Jump Ninja", "How to grip a gaming mouse for best aim potential"),
                 Yt("9vmQWQL6AMY", "Sensu", "How to Switch to Arm Aiming (Ergonomics Guide)"),
                 Yt("a-MShVYe3kY", "Corporate Serf", "The Corporate Serf Smoothness Training Method - Aim Trainer Tracking"),
             },
-            new[] { "AIM_TREMOR", "JITTER", "LEFT_WEAK", "RIGHT_WEAK", "UP_WEAK", "DOWN_WEAK" }),
+            new[] { "AIM_TREMOR", "JITTER", "LEFT_WEAK", "RIGHT_WEAK", "UP_WEAK", "DOWN_WEAK" },
+            ResearchLinks: new[]
+            {
+                Src("https://www.osha.gov/etools/computer-workstations/work-process", "U.S. Occupational Safety and Health Administration (OSHA)", "Computer Workstations: Work Process and Recognition"),
+                Src("https://www.corsair.com/us/en/explorer/gamer/mice/mouse-grips-explained-fingertip-vs-palm-vs-claw", "CORSAIR", "Mouse Grips Explained: Fingertip vs Palm vs Claw"),
+            }),
+
+        new("hands", Skill.Tracking,
+            "Hands, mobility and breaks", "Manos, movilidad y pausas",
+            "A short, painless mobility sequence and regular changes of posture can prepare your hands without forcing them. Stretching is optional, not a promise of injury prevention or better aim.",
+            "Una secuencia breve e indolora de movilidad y cambios regulares de postura preparan tus manos sin forzarlas. Estirar es opcional, no una promesa de prevenir lesiones ni mejorar el aim.",
+            new[]
+            {
+                "Start with a comfortable workstation: feet supported, shoulders down, mouse close and wrist neutral. Change position instead of holding a theoretically perfect one for hours.",
+                "Use the three-minute guide for gentle active mobility: shoulders, open/close, wrist forwards/backwards and side-to-side, forearm rotation and relaxed finger contacts.",
+                "Keep every movement inside a comfortable range. Do not bounce, force a stretch, use resistance or chase repetitions. Static stretching is not required before playing.",
+                "Move the mouse slowly with the minimum grip that keeps control. The goal is to notice comfort and movement, not to warm up until your hands are tired.",
+                "Between runs, let go for a few seconds and change your gaze or posture. OSHA's general computer-work guidance suggests a five-minute break each hour; individual needs vary.",
+                "Stop for pain, tingling, numbness, burning or reduced strength. Do not hide symptoms with more exercises; if they persist, seek advice from a qualified health professional.",
+            },
+            new[]
+            {
+                "Empieza con un puesto cómodo: pies apoyados, hombros bajos, ratón cerca y muñeca neutra. Cambia de postura en vez de mantener una supuestamente perfecta durante horas.",
+                "Usa la guía de tres minutos para movilidad activa suave: hombros, abrir/cerrar, muñeca adelante/atrás y de lado a lado, rotación del antebrazo y contactos relajados de dedos.",
+                "Todos los movimientos se quedan en un rango cómodo. Sin rebotes, estiramientos forzados, resistencia ni perseguir repeticiones. No hace falta estiramiento estático antes de jugar.",
+                "Mueve el ratón despacio con el agarre mínimo que conserve el control. Busca notar comodidad y movimiento, no cansar tus manos calentando.",
+                "Entre rondas, suelta unos segundos y cambia mirada o postura. La guía general de OSHA para ordenador sugiere cinco minutos por hora; las necesidades individuales varían.",
+                "Para ante dolor, hormigueo, entumecimiento, quemazón o pérdida de fuerza. No ocultes síntomas con más ejercicios; si persisten, consulta a un profesional sanitario cualificado.",
+            },
+            new[] { "Forcing a stretch or a wrist angle.", "Playing through numbness or pain.", "Using resistance or therapy putty as a universal warm-up.", "Treating mobility as a guarantee against injury." },
+            new[] { "Forzar un estiramiento o un ángulo de muñeca.", "Seguir jugando con entumecimiento o dolor.", "Usar resistencia o masilla terapéutica como calentamiento universal.", "Tomar la movilidad como garantía contra lesiones." },
+            "Comfortable range. No pain.",
+            "Rango cómodo. Sin dolor.",
+            new[] { "trackv:tech-smooth-slow", "flickx:tech-still-hold", "trackv:sens-smooth" },
+            new[] { Yt("uLwPjw5BLwY", "Dazs", "How To Properly Grip Your Mouse Explained (Improve Your Aim)") },
+            Array.Empty<string>(),
+            ResearchLinks: new[]
+            {
+                Src("https://www.osha.gov/etools/computer-workstations/work-process", "U.S. Occupational Safety and Health Administration (OSHA)", "Computer Workstations: Work Process and Recognition"),
+                Src("https://www.chelwest.nhs.uk/your-visit/patient-leaflets/hand-therapy", "Chelsea and Westminster Hospital NHS Foundation Trust; contributors Liz Alden and George Vasilopoulos", "Hand Therapy: active wrist exercises, desk ergonomics and typing tips"),
+                Src("https://pmc.ncbi.nlm.nih.gov/articles/PMC12089234/", "de Waal, Killian, Gagela, Baartzes and de Klerk", "Therapeutic Approaches for the Prevention of Upper Limb Repetitive Strain Injuries in Work-Related Computer Use: A Scoping Review"),
+                Src("https://www.nhs.uk/conditions/repetitive-strain-injury-rsi", "NHS", "Repetitive strain injury (RSI)"),
+                Src("https://pmc.ncbi.nlm.nih.gov/articles/PMC12305623/", "International research expert panel", "Practical recommendations on stretching exercise: A Delphi consensus statement"),
+            },
+            PreparationGuideId: "hands"),
 
         new("flick", Skill.Flicking,
             "Flick and brake", "Flick y frenada",
@@ -268,7 +365,7 @@ public static class Academy
                 Yt("1vKfPS0OlGA", "Konpeki", "An Updated Crosshair Placement Guide for 2024"),
                 Yt("McObrCzx4Tc", "THE GUIDE - Valorant", "How To PEEK & CLEAR Angles! Crosshair Placement Guide Part 2"),
                 Yt("1lfZ3GJUPpA", "Jaeky", "How to Master Crosshair Placement (Valorant Tips)"),
-                Yt("IBgGYuzgrvE", "Ernezt3d", "Crosshair Placement en Valorant: deja de apuntar al suelo", "es"),
+                Yt("IBgGYuzgrvE", "Ernezt3d", "Crosshair Placement en Valorant Deja de Apuntar al Suelo", "es"),
             },
             new[] { "XHAIR_LOW", "XHAIR_WIDE" }),
 
@@ -302,7 +399,7 @@ public static class Academy
                 Yt("yZwhnmZI69Y", "Arc", "What Is Counter-Strafing? - Valorant 101"),
                 Yt("mnQoX4JKORU", "royalG", "My Secrets for Mastering Movement (Valorant Fundamentals Guide)"),
                 Yt("LEzBXTiUQXA", "CodyAC", "How to strafe, burst, deadzone in Valorant."),
-                Yt("6ioMB4_AL1A", "ValorantDomingo", "[Paso a paso] Cómo mejorar tu counter strafe en VALORANT", "es"),
+                Yt("6ioMB4_AL1A", "ValorantDomingo", "[PASO A PASO] COMO MEJORAR TU COUNTER STRAFE EN VALORANT", "es"),
             },
             new[] { "RUN_GUN", "CLUMSY_MOVE", "MIRRORING" }),
 
@@ -401,6 +498,84 @@ public static class Academy
             Array.Empty<VideoRef>(),
             new[] { "SLOW_REACT", "FLASH_SLOW" }),
 
+        new("warmup", Skill.Flicking,
+            "Warm up without getting tired", "Calentar sin cansarte",
+            "A warm-up prepares what you already have; it is not the time to prove your score or learn a new sensitivity. RAMP can organise a session, but its VALORANT version is explicitly experimental.",
+            "Calentar prepara lo que ya tienes; no es momento de demostrar puntuación ni aprender una sensibilidad nueva. RAMP puede organizar una sesión, pero su versión VALORANT es explícitamente experimental.",
+            new[]
+            {
+                "Separate preparation from training. Before ranked, use a short sequence at your real sensitivity; longer practice belongs in a separate training block and is not automatically better.",
+                "Optionally start with the three-minute hands guide: gentle active mobility, not forceful stretching. RAMP means Raise, Activate, Mobilize and Potentiate, but Voltaic itself says its VALORANT routine is unproven.",
+                "Move from easy, accurate actions to game-like tasks: smooth contact, controlled flicks, bots and a short deathmatch. Stop while the movement still feels clean rather than arriving tired.",
+                "Finish with the two-minute mental reset: one comfortable breath, one process goal and one cue. Breathing is optional and is not presented as an immediate performance boost.",
+                "The 10/20/30-minute routines in ROUTINES are training structures, not universal warm-up prescriptions. Edit repetitions or stop early; there is no scientific optimum for everyone.",
+                "Queue when you feel ready, not because a timer expired. A long break can reduce activation, and no study has established an exact VALORANT warm-up expiry time.",
+            },
+            new[]
+            {
+                "Separa preparación y entrenamiento. Antes de ranked, usa una secuencia corta a tu sensibilidad real; la práctica larga va en otro bloque y no es automáticamente mejor.",
+                "Si quieres, empieza con la guía de manos de tres minutos: movilidad activa suave, nunca estiramientos forzados. RAMP significa Raise, Activate, Mobilize y Potentiate, pero el propio Voltaic dice que su rutina VALORANT no está probada.",
+                "Pasa de acciones fáciles y precisas a tareas de partida: contacto suave, flicks controlados, bots y un deathmatch corto. Para mientras el movimiento siga limpio en vez de llegar cansado.",
+                "Termina con el reset mental de dos minutos: respiración cómoda, objetivo de proceso y consigna. Respirar es opcional y no se presenta como mejora inmediata de rendimiento.",
+                "Las rutinas de 10/20/30 minutos en RUTINAS son estructuras de entrenamiento, no prescripciones universales de calentamiento. Edita repeticiones o para antes; no hay un óptimo científico para todos.",
+                "Entra en cola cuando estés listo, no porque acabe un temporizador. Una pausa larga puede reducir activación y ningún estudio fija la caducidad exacta de un calentamiento VALORANT.",
+            },
+            new[] { "Treating warm-up as a scored workout.", "Claiming RAMP is scientifically proven for VALORANT.", "Changing sensitivity before ranked.", "Playing ranked while pain or tilt is increasing." },
+            new[] { "Convertir el calentamiento en un entrenamiento de puntuación.", "Afirmar que RAMP está probado científicamente para VALORANT.", "Cambiar sensibilidad antes de ranked.", "Entrar en ranked con dolor o tilt aumentando." },
+            "Easy to specific, then stop.",
+            "De fácil a específico y para.",
+            new[] { "tracking", "flick", "strafebots", "deathmatch" },
+            new[] { Yt("yQ7EDnqGkLg", "Aimlabs", "Calm Aim Training Routine for VALORANT (Full Guide + Drills)") },
+            Array.Empty<string>(),
+            ResearchLinks: new[]
+            {
+                Src("https://voltaic.gg/resources/valorant-ramp-kovaaks", "VT Minigod / Voltaic", "Valorant RAMP Warm-up — experimental and unproven"),
+                Src("https://voltaic.gg/resources/valorant-routine", "Voltaic", "Valorant Routine"),
+                Src("https://pmc.ncbi.nlm.nih.gov/articles/PMC2822735/", "Studer, Koeneke, Blum and Jäncke", "The effects of practice distribution upon the regional oscillatory activity in visuomotor learning"),
+            },
+            PreparationGuideId: "full"),
+
+        new("mental", Skill.Reaction,
+            "Mental preparation and reset", "Preparación mental y reset",
+            "A short, repeatable routine can direct attention to the next action. It does not guarantee calm or victory, and most supporting evidence comes from sport rather than VALORANT.",
+            "Una rutina breve y repetible puede dirigir la atención a la siguiente acción. No garantiza calma ni victoria, y la mayoría de la evidencia viene del deporte, no de VALORANT.",
+            new[]
+            {
+                "Practise a routine before you need it: posture, a comfortable breath, one process to rehearse, one goal and one cue. Pre-performance routines help on average, but no single script fits everyone.",
+                "Use slow breathing only if it feels comfortable. A sports meta-analysis found no short-term physical performance improvement from slow-paced breathing, so treat it as optional regulation, not a trick.",
+                "Rehearse a concrete process with imagery: clear one angle, brake and confirm. Imagery complements physical practice; it does not replace it and should not be only a highlight reel of winning.",
+                "Choose an instructional cue such as 'head level' or 'stop, shoot'. Useful self-talk directs action; insults and demands to 'just calm down' add noise instead of information.",
+                "After a mistake, exhale, name the fact without judging yourself and select the next controllable action. That reset is practised in training before it is expected in a match.",
+                "If tilt or fatigue keeps rising, pause or postpone ranked. Sleep and gaming habits matter, but one match or one sleep-deprivation study cannot predict your result; avoid turning this into a lecture or a caffeine rule.",
+            },
+            new[]
+            {
+                "Practica la rutina antes de necesitarla: postura, respiración cómoda, un proceso que ensayar, objetivo y consigna. Las rutinas previas ayudan de media, pero ningún guion sirve para todos.",
+                "Usa respiración lenta solo si resulta cómoda. Un metaanálisis deportivo no halló mejora física a corto plazo, así que es regulación opcional, no un truco.",
+                "Ensaya un proceso concreto: limpiar un ángulo, frenar y confirmar. La visualización complementa la práctica física, no la sustituye ni debe ser solo un vídeo mental de victorias.",
+                "Elige una consigna como «a la cabeza» o «paro, disparo». El autotalk útil dirige acción; insultos y exigencias de «cálmate» añaden ruido en vez de información.",
+                "Tras un error, exhala, describe el hecho sin juzgarte y elige la siguiente acción controlable. El reset se practica en entrenamiento antes de esperarlo en partida.",
+                "Si tilt o fatiga aumentan, pausa o pospón ranked. Sueño y hábitos importan, pero una partida o un estudio de privación no predicen tu resultado; evita sermones y reglas universales de cafeína.",
+            },
+            new[] { "Forcing a breathing pattern until you feel dizzy.", "Visualising only the scoreboard.", "Calling yourself names after a mistake.", "Queueing again while tilt or exhaustion keeps rising." },
+            new[] { "Forzar la respiración hasta marearte.", "Visualizar solo el marcador.", "Insultarte tras un error.", "Volver a cola mientras tilt o agotamiento aumentan." },
+            "Next action, not the last mistake.",
+            "Siguiente acción, no el último error.",
+            new[] { "reflex:tech-wait-commit", "flickx:settle-confirm", "deathmatch" },
+            Array.Empty<VideoRef>(),
+            Array.Empty<string>(),
+            ResearchLinks: new[]
+            {
+                Src("https://www.tandfonline.com/doi/full/10.1080/1750984X.2021.1944271", "Rupprecht, Tran and Gröpel", "The effectiveness of pre-performance routines in sports: a meta-analysis"),
+                Src("https://www.tandfonline.com/doi/full/10.1080/1750984X.2022.2145573", "Laborde, Zammit, Iskra, Mosley, Borges, Allen and Javelle", "The influence of breathing techniques on physical sport performance: a systematic review and meta-analysis"),
+                Src("https://www.tandfonline.com/doi/full/10.1080/1750984X.2020.1780627", "Simonsmeier, Andronie, Buecker and Frank", "The effects of imagery interventions in sports: a meta-analysis"),
+                Src("https://journals.sagepub.com/doi/10.1177/1745691611413136", "Hatzigeorgiadis, Zourbanos, Galanis and Theodorakis", "Self-Talk and Sports Performance: A Meta-Analysis"),
+                Src("https://www.tandfonline.com/doi/full/10.1080/1750984X.2017.1408134", "Gröpel and Mesagno", "Choking interventions in sports: A systematic review"),
+                Src("https://www.sciencedirect.com/science/article/pii/S1389945724004362", "De Rosa, Baker, Barresi, Conte, Ficca and de Zambotti", "Video gaming and sleep in adults: A systematic review"),
+                Src("https://www.tandfonline.com/doi/full/10.2147/NSS.S470105", "Smithies, Toth and Campbell", "The Effect of Total Sleep Deprivation on the Cognitive and In-Game Performance of Rocket League Esport Players"),
+            },
+            PreparationGuideId: "mind"),
+
         new("sens", Skill.Flicking,
             "Choosing a sensitivity", "Elegir sensibilidad",
             "There is no perfect sensitivity, only a range that lets you both turn and stop. Find it once, with data, and then leave it alone.",
@@ -430,7 +605,7 @@ public static class Academy
             new[] { "sensfinder", "flickx:coach-brake-wide", "microx:coach-micro-confirm", "tracking" },
             new[]
             {
-                Yt("9yaYs34Oqeo", "Aimlabs", "The ONLY Sensitivity Guide You'll Ever Need | All FPS Games"),
+                Yt("9yaYs34Oqeo", "Aimlabs", "The ONLY Sensitivity Guide You'll Ever Need | All FPS Games (2026)"),
                 Yt("qbdqeIwRXC4", "Pandase", "How to Find your Perfect Sensitivity in Valorant (PSA Method)"),
             },
             Array.Empty<string>()),

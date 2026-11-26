@@ -146,8 +146,76 @@ static class GameplayChecks
         Check(Academy.All.SelectMany(t => t.Videos).All(v => v.Url.StartsWith("https://www.youtube.com/watch?v=", StringComparison.Ordinal)
                 && v.Url.Length == 43 && v.Author.Length > 0 && v.Title.Length > 0 && v.Language is "en" or "es"),
             "academy: every video is a credited YouTube link");
+        string academyCredits = Godot.FileAccess.GetFileAsString("res://CREDITS.md");
+        foreach (var video in Academy.All.SelectMany(t => t.Videos))
+            Check(academyCredits.Contains(video.Url, StringComparison.Ordinal)
+                && academyCredits.Contains(video.Author, StringComparison.OrdinalIgnoreCase),
+                $"academy video appears with author and URL in shipped credits: {video.Url}");
         foreach (string code in new[] { "OVERFLICK", "UNDERFLICK", "AIM_TREMOR", "JITTER", "TRACK_BEHIND", "MICRO_CONFIRM", "XHAIR_LOW", "RUN_GUN", "SPRAY_VERT", "SLOW_REACT", "TARGET_ORDER" })
             Check(Academy.For(Finding(code, Skill.Flicking))?.Diagnoses.Contains(code) == true, "academy answers the finding " + code);
+
+        Check(Academy.Find("scenarios") != null && Academy.Find("hands") != null && Academy.Find("warmup") != null
+            && Academy.Find("mental") != null, "academy includes scenario selection, hands, warm-up and mental preparation");
+        Check(Academy.Find("hands")!.PreparationGuideId == "hands" && Academy.Find("mental")!.PreparationGuideId == "mind"
+            && Academy.Find("warmup")!.PreparationGuideId == "full", "academy lessons open their matching guided preparation");
+        Check(Academy.Find("tension")!.StepsEn.Any(s => s.Contains("Palm", StringComparison.Ordinal)
+                && s.Contains("Claw", StringComparison.Ordinal) && s.Contains("Fingertip", StringComparison.Ordinal)),
+            "grip lesson explains palm, claw and fingertip without declaring a universal winner");
+        Check(Academy.All.SelectMany(t => t.Research).All(r => r.Url.StartsWith("https://", StringComparison.Ordinal)
+                && r.Title.Length > 0 && r.Author.Length > 0 && r.Language is "en" or "es"),
+            "academy research references have an author, title, language and HTTPS URL");
+        foreach (var source in Academy.All.SelectMany(t => t.Research))
+            Check(academyCredits.Contains(source.Url, StringComparison.Ordinal)
+                && academyCredits.Contains(source.Author, StringComparison.OrdinalIgnoreCase),
+                $"academy research appears with author and URL in shipped credits: {source.Url}");
+        Check(PreparationGuide.All.Select(p => p.Id).Distinct().Count() == 3
+            && PreparationGuide.All.All(p => p.Steps.All(s => s.Seconds > 0 && s.TitleEn.Length > 0 && s.TitleEs.Length > 0
+                && s.DetailEn.Length > 0 && s.DetailEs.Length > 0 && s.SourceUrl.StartsWith("https://", StringComparison.Ordinal))),
+            "preparation: hands, mind and full guides have unique IDs and complete credited bilingual steps");
+        Check(PreparationGuide.Get("hands").TotalSeconds == 180 && PreparationGuide.Get("mind").TotalSeconds == 120
+            && PreparationGuide.Get("full").TotalSeconds == 300, "preparation: hands 3 min, mind 2 min, full 5 min");
+        var prep = new PreparationSession(PreparationGuide.Get("hands"));
+        Check(prep.Index == 0 && prep.Paused && prep.Remaining == 15, "preparation starts paused with the first posture step ready");
+        prep.TogglePause(); prep.Advance(15);
+        Check(prep.Index == 1 && prep.Remaining == 15, "preparation advances exactly to shoulder mobility");
+        prep.TogglePause(); prep.Advance(30);
+        Check(prep.Index == 1 && prep.Remaining == 15, "preparation pause freezes the active step");
+        prep.Next();
+        Check(prep.Index == 2 && prep.Remaining == 20 && !prep.Paused, "preparation next skips only the current step");
+        prep.Advance(1000);
+        Check(prep.Done && prep.Remaining == 0, "preparation finishes at zero without negative time");
+        prep.Reset();
+        Check(prep.Index == 0 && prep.Paused && prep.Remaining == 15 && !prep.Done, "preparation restart restores the initial paused state");
+        foreach (var source in PreparationGuide.All.SelectMany(p => p.Steps).Select(s => s.SourceUrl).Distinct())
+            Check(academyCredits.Contains(source, StringComparison.Ordinal), "preparation source is included in shipped credits: " + source);
+
+        foreach (var (id, minutes) in new[] { ("flick-focus-10", 10f), ("flick-to-duel-20", 20f), ("complete-aim-30", 30f) })
+        {
+            var routine = RoutineLibrary.Find(id);
+            Check(routine != null && routine.Playable && routine.Minutes == minutes && routine.Steps.First().Drill == routine.Steps.Last().Drill
+                && routine.Steps.All(s => s.HowEn.Length > 0 && s.HowEs.Length > 0 && s.WhyEn.Length > 0 && s.WhyEs.Length > 0),
+                $"editorial routine {id}: {minutes} minutes, playable steps and matched baseline/validation");
+            Check(routine != null && routine.CreditEn.Contains("editorial", StringComparison.OrdinalIgnoreCase)
+                && routine.CreditEs.Contains("editorial", StringComparison.OrdinalIgnoreCase),
+                $"editorial routine {id}: no universal-best or scientifically optimal claim");
+        }
+
+        var editorial20 = RoutineLibrary.Find("flick-to-duel-20")!;
+        Check(editorial20.DescriptionEn.Contains("stop-shoot", StringComparison.Ordinal) && !editorial20.DescriptionEn.Contains("peek duels", StringComparison.Ordinal)
+            && !editorial20.DescriptionEs.Contains("peek duels", StringComparison.Ordinal), "20-minute routine description names only included transfer activities");
+
+        var warmup = new CaValAim.Warmup.WarmupScreen();
+        warmup.OpenSources();
+        Check(Main.I.GetChildren().OfType<UI.AcademyScreen>().LastOrDefault()?.BackAction == Main.I.ShowLockIn,
+            "Lock-In sources return to Lock-In instead of the main menu");
+        Action expectedBack = () => { };
+        var academyLesson = new UI.AcademyScreen("hands", expectedBack);
+        academyLesson.OpenPreparation("hands");
+        var preparation = Main.I.GetChildren().OfType<UI.PreparationScreen>().LastOrDefault();
+        Check(preparation != null, "Academy opens its matching preparation screen");
+        preparation!.BackAction!.Invoke();
+        Check(Main.I.GetChildren().OfType<UI.AcademyScreen>().LastOrDefault()?.BackAction == expectedBack,
+            "Academy preparation preserves the original coach/practice return action");
 
         var reactionRun = new RunTelemetry { Mode = "reaction", Duration = 1 };
         reactionRun.Events.Add(new TelemetryEvent(0.8f, "reaction", 420));

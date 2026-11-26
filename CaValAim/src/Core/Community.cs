@@ -23,12 +23,16 @@ public static class CommunityLinks
     public const string CartoonYouTube = "https://www.youtube.com/c/cartoonfps";
     public const string Minigodwarmup = "https://docs.google.com/document/d/1XGqfG1JQXqzuRNR7AGAXI7nxIbrm81BXS03zG1RTbIw/edit";
     public const string Minigod = "https://twitter.com/minigodcs";
+    public const string VoltaicFundamentals = "https://voltaic.gg/resources/valorant-fundamentals";
+    public const string VoltaicRamp = "https://voltaic.gg/resources/valorant-ramp-kovaaks";
+    public const string MotorVariability = "https://pmc.ncbi.nlm.nih.gov/articles/PMC11212619/";
+    public const string PrePerformance = "https://www.tandfonline.com/doi/full/10.1080/1750984X.2021.1944271";
 
     static readonly HashSet<string> Allowed = new(StringComparer.Ordinal)
     {
         VoltaicDiscord, VoltaicSite, VoltaicTwitter, VoltaicPatreon, VoltaicSini, AimJourney, AimGlossary,
         AimlabsRoutines, KvKsRoutines, CartoonGuide, CartoonTwitch, CartoonTwitter, CartoonYouTube,
-        Minigodwarmup, Minigod,
+        Minigodwarmup, Minigod, VoltaicFundamentals, VoltaicRamp, MotorVariability, PrePerformance,
     };
 
     /// <summary>Opens one of the known community pages; returns false for anything else (and never throws).</summary>

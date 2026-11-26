@@ -2,6 +2,14 @@
 
 ## [Sin publicar]
 
+## [2.15.0] - 2026-11-26
+
+### Añadido
+
+- Un paquete de preparación con fuentes añade selección de escenarios por fallo medido, tres rutinas editables de 10/20/30 minutos con medición inicial/final equivalente y transferencia a duelos, y cuatro lecciones bilingües de Academia sobre flick, agarre, movilidad y preparación mental.
+- Guías temporizadas opcionales preparan las manos en 3 minutos, reinician la atención en 2 o combinan ambas en 5, con pausa, omisión, reinicio, fuentes y avisos explícitos de dolor y tilt. Lock-In enlaza la guía completa y su evidencia; RAMP queda etiquetado como experimental.
+- Academia abre investigación y guías oficiales, compara palm/claw/fingertip sin declarar un ganador universal e incluye todos los vídeos y citas en los créditos y avisos de licencia distribuidos.
+
 ## [2.14.0] - 2026-11-25
 
 ### Añadido

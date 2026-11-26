@@ -2446,6 +2446,12 @@ public static class Loc
         ["CARRY IT INTO THE MATCH"] = "LLEVA LA PREPARACIÓN A LA PARTIDA",
         ["The effect fades after a 5 to 15 minute break, so queue right away. One goal and one cue word give you something simple to come back to each round."] =
             "El efecto disminuye tras descansar entre 5 y 15 minutos, así que busca partida al terminar. Un objetivo y una consigna te ayudan a mantener el enfoque en cada ronda.",
+        ["A warm-up prepares skill you already have. Keep it short and specific at the sens you play with; longer sessions belong in training and are not automatically better."] =
+            "El calentamiento prepara habilidades que ya tienes. Hazlo breve y específico con tu sensibilidad habitual; las sesiones largas son entrenamiento y no son automáticamente mejores.",
+        ["Easy drills first, then tasks that adapt around your current hit rate, then bots and a deathmatch. Stop while the movement is still clean instead of treating fatigue as the goal."] =
+            "Primero ejercicios fáciles, después tareas que se adaptan a tu acierto actual, bots y un combate a muerte. Para mientras el movimiento siga limpio en vez de convertir la fatiga en el objetivo.",
+        ["Queue when you feel ready; a long break can reduce activation, but no exact VALORANT expiry is established. A process goal and cue support attention without guaranteeing a result."] =
+            "Entra en cola cuando estés listo; una pausa larga puede reducir la activación, pero no hay una caducidad exacta establecida para VALORANT. Un objetivo de proceso y una consigna apoyan la atención sin garantizar un resultado.",
         ["what the research supports"] = "lo que respalda la investigación",
         ["COMPARED WITH VALORANT"] = "COMPARACIÓN CON VALORANT",
         ["BEFORE YOU START"] = "ANTES DE EMPEZAR",

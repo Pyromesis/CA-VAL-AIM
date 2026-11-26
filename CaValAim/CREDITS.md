@@ -97,6 +97,107 @@ the GNU GPL v3, like the rest of CA-VAL-AIM. Scenario names, share codes and the
 of their authors. **VALORANT** is a trademark of Riot Games, Inc.; **Aim Lab** and **Kovaak's** are trademarks of their
 respective owners. Their software is not included in CA-VAL-AIM.
 
+## Academy video guides
+
+The Academy links to third-party video guides in the browser. Their titles, channels and URLs are credited below for
+attribution and to make the source easy to find. The videos are **not bundled, downloaded, embedded or redistributed**;
+they and their thumbnails remain the property of their respective authors. No endorsement or permission to copy is implied.
+The lesson text is original writing for CA-VAL-AIM.
+
+### How to practise
+- **West Proter** — *The Ultimate Aim Training Guide* — <https://www.youtube.com/watch?v=JAu24DzgRek>
+- **Lew** — *How to start aim training* — <https://www.youtube.com/watch?v=Ajl6N8cvVXo>
+- **Aimlabs** — *Calm Aim Training Routine for VALORANT (Full Guide + Drills)* — <https://www.youtube.com/watch?v=yQ7EDnqGkLg>
+- **Horcus** — *Cómo MEJORAR AIM en VALORANT 2026! Rutina y Guía completa* — <https://www.youtube.com/watch?v=VXqO4q0h93I>
+- **Oscar Molina Garcia** — *5 MOTIVOS POR LOS QUE TU AIM NO MEJORA!! GUIA MEJORAR EN VALORANT* — <https://www.youtube.com/watch?v=y0SMsQ72RDM>
+
+### Grip, posture and tension
+- **West Proter** — *Aim Coaching To Make SHAKY AIM Into SMOOTH AIM* — <https://www.youtube.com/watch?v=LvgicX0HOe8>
+- **West Proter** — *Fix Your Terrible Mouse Grip NATURALLY* — <https://www.youtube.com/watch?v=gNDfH7J2DNE>
+- **Sensu** — *How to Switch to Arm Aiming (Ergonomics Guide)* — <https://www.youtube.com/watch?v=9vmQWQL6AMY>
+- **Rocket Jump Ninja** — *How to grip a gaming mouse for best aim potential* — <https://www.youtube.com/watch?v=zTLdpMrHcls>
+- **Corporate Serf** — *The Corporate Serf Smoothness Training Method - Aim Trainer Tracking* — <https://www.youtube.com/watch?v=a-MShVYe3kY>
+
+### Flick and brake
+- **Aimlabs** — *Better Flicking Guaranteed! | Aim Guide* — <https://www.youtube.com/watch?v=xAE2uPM59FY>
+- **Struth Gaming** — *How to Flick Shot (complete guide)* — <https://www.youtube.com/watch?v=Pvu9QcGQl3A>
+
+### Micro-corrections
+- **Zapper** — *Aim Guide for PERFECT Micro Corrections (Ep. 1)* — <https://www.youtube.com/watch?v=s0BuZ4sQpsU>
+- **Lorys** — *the KEY approach for AIM CONSISTENCY* — <https://www.youtube.com/watch?v=x9q6d0vBFag>
+
+### Smooth tracking
+- **Daniel Kapadia** — *Why Your Tracking Aim NEEDS This Training Method* — <https://www.youtube.com/watch?v=CMQh7HKSrdA>
+- **Corporate Serf** — *The Corporate Serf Smoothness Training Method - Aim Trainer Tracking* — <https://www.youtube.com/watch?v=a-MShVYe3kY>
+- **MattyOW** — *Scucchi, God's Smoothest Aimer - Unraveling the Secrets of Aim Ep. 4* — <https://www.youtube.com/watch?v=wD-WRSD3LmQ>
+
+### Target switching
+- **Voltaic** — *Voltaic Speed Target Switching Training* — <https://www.youtube.com/watch?v=y-xYxbYl1d0>
+
+### Crosshair placement
+- **Konpeki** — *An Updated Crosshair Placement Guide for 2024* — <https://www.youtube.com/watch?v=1vKfPS0OlGA>
+- **THE GUIDE - Valorant** — *How To PEEK & CLEAR Angles! Crosshair Placement Guide Part 2* — <https://www.youtube.com/watch?v=McObrCzx4Tc>
+- **Jaeky** — *How to Master Crosshair Placement (Valorant Tips)* — <https://www.youtube.com/watch?v=1lfZ3GJUPpA>
+- **Ernezt3d** — *Crosshair Placement en Valorant Deja de Apuntar al Suelo* — <https://www.youtube.com/watch?v=IBgGYuzgrvE>
+
+### Stopping before you shoot
+- **Arc** — *What Is Counter-Strafing? - Valorant 101* — <https://www.youtube.com/watch?v=yZwhnmZI69Y>
+- **royalG** — *My Secrets for Mastering Movement (Valorant Fundamentals Guide)* — <https://www.youtube.com/watch?v=mnQoX4JKORU>
+- **CodyAC** — *How to strafe, burst, deadzone in Valorant.* — <https://www.youtube.com/watch?v=LEzBXTiUQXA>
+- **ValorantDomingo** — *[PASO A PASO] COMO MEJORAR TU COUNTER STRAFE EN VALORANT* — <https://www.youtube.com/watch?v=6ioMB4_AL1A>
+
+### Peeking
+- **Konpeki** — *An Updated Peeking Guide for 2024* — <https://www.youtube.com/watch?v=W-Qce5B9ChM>
+- **Aimlabs** — *The Ultimate Peeking Guide - Tips and Tricks for Peeking in VALORANT* — <https://www.youtube.com/watch?v=oOzR2GGlIfM>
+- **SeLFlo** — *How to perfect SHOULDER Peek & JUMP Peek in VALORANT (Guide)* — <https://www.youtube.com/watch?v=xuKZm_8CLq8>
+
+### Tap, burst and spray
+- **Kelly Jepsen** — *Tapping, Bursting and Recoil Control in VALORANT* — <https://www.youtube.com/watch?v=OINm1ev_pf4>
+- **quach** — *Valorant - How to ACTUALLY Master Spray Control* — <https://www.youtube.com/watch?v=YcYR5ixYeQM>
+
+### Choosing a sensitivity
+- **Aimlabs** — *The ONLY Sensitivity Guide You'll Ever Need | All FPS Games (2026)* — <https://www.youtube.com/watch?v=9yaYs34Oqeo>
+- **Pandase** — *How to Find your Perfect Sensitivity in Valorant (PSA Method)* — <https://www.youtube.com/watch?v=qbdqeIwRXC4>
+
+## Research, ergonomics and health sources
+
+These documents support the limitations and design of the preparation lessons and guides. They are linked, not bundled.
+Sports research is not presented as VALORANT-specific evidence, and general ergonomics guidance is not medical diagnosis.
+
+### Motor learning and routine design
+- **Rudisch, Holzhauer, Kravanja, Hamker and Voelcker-Rehage** — *A systematic review of observational practice for adaptation of reaching movements* — <https://www.nature.com/articles/s41539-024-00271-5>
+- **Caballero, Barbado, Peláez and Moreno** — *Applying different levels of practice variability for motor learning: More is not better* (PeerJ, CC BY) — <https://pmc.ncbi.nlm.nih.gov/articles/PMC11212619/>
+- **Czyż and Coker** — *An applied model for using variability in practice* — <https://journals.sagepub.com/doi/10.1177/17479541231159473>
+- **Studer, Koeneke, Blum and Jäncke** — *The effects of practice distribution upon the regional oscillatory activity in visuomotor learning* — <https://pmc.ncbi.nlm.nih.gov/articles/PMC2822735/>
+- **Voltaic / sini** — *Valorant & Counter-Strike Routine* — <https://voltaic.gg/resources/valorant-routine-kovaaks>
+- **Voltaic** — *Valorant Fundamentals* — <https://voltaic.gg/resources/valorant-fundamentals>
+- **Lowgravity56 and 4rK / Voltaic** — *Speed Switching focus* and *Stability Switching focus* — <https://voltaic.gg/resources/benchmark-focus-speed-switching-kovaaks> · <https://voltaic.gg/resources/benchmark-focus-stability-switching-kovaaks>
+- **VT Minigod / Voltaic** — *Valorant RAMP Warm-up*; the source itself labels the structure experimental and unproven — <https://voltaic.gg/resources/valorant-ramp-kovaaks>
+- **Voltaic** — *Valorant Routine* — <https://voltaic.gg/resources/valorant-routine>
+
+### Grip, ergonomics, mobility and warning signs
+- **CORSAIR** — *Mouse Grips Explained: Fingertip vs Palm vs Claw* — <https://www.corsair.com/us/en/explorer/gamer/mice/mouse-grips-explained-fingertip-vs-palm-vs-claw>
+- **Dazs** — *How To Properly Grip Your Mouse Explained (Improve Your Aim)* — <https://www.youtube.com/watch?v=uLwPjw5BLwY>
+- **U.S. Occupational Safety and Health Administration (OSHA)** — *Computer Workstations: Work Process and Recognition* — <https://www.osha.gov/etools/computer-workstations/work-process>
+- **Chelsea and Westminster Hospital NHS Foundation Trust; contributors Liz Alden and George Vasilopoulos** — *Hand Therapy*, active wrist exercises, desk ergonomics and typing tips — <https://www.chelwest.nhs.uk/your-visit/patient-leaflets/hand-therapy>
+- **de Waal, Killian, Gagela, Baartzes and de Klerk** — *Therapeutic Approaches for the Prevention of Upper Limb Repetitive Strain Injuries in Work-Related Computer Use: A Scoping Review* (CC BY) — <https://pmc.ncbi.nlm.nih.gov/articles/PMC12089234/>
+- **NHS** — *Repetitive strain injury (RSI)* — <https://www.nhs.uk/conditions/repetitive-strain-injury-rsi>
+- **International research expert panel** — *Practical recommendations on stretching exercise: A Delphi consensus statement* — <https://pmc.ncbi.nlm.nih.gov/articles/PMC12305623/>
+- **British Journal of Sports Medicine** — *A systematic review of the effects of upper body warm-up on performance and injury* — <https://bjsm.bmj.com/content/49/14/935>
+- **Laporta et al.** — *What We Do Not Know About Stretching in Healthy Athletes: A Scoping Review with Evidence Gap Map from 300 Trials* — <https://link.springer.com/article/10.1007/s40279-024-02002-7>
+
+### Pre-performance routines, attention and sleep
+- **Rupprecht, Tran and Gröpel** — *The effectiveness of pre-performance routines in sports: a meta-analysis* — <https://www.tandfonline.com/doi/full/10.1080/1750984X.2021.1944271>
+- **Orbach and Blumenstein** — *Preparatory routines for emotional regulation in performance enhancement* (CC BY) — <https://pmc.ncbi.nlm.nih.gov/articles/PMC9374066/>
+- **Gröpel and Mesagno** — *Choking interventions in sports: A systematic review* — <https://www.tandfonline.com/doi/full/10.1080/1750984X.2017.1408134>
+- **Laborde, Zammit, Iskra, Mosley, Borges, Allen and Javelle** — *The influence of breathing techniques on physical sport performance: a systematic review and meta-analysis* — <https://www.tandfonline.com/doi/full/10.1080/1750984X.2022.2145573>
+- **Simonsmeier, Andronie, Buecker and Frank** — *The effects of imagery interventions in sports: a meta-analysis* — <https://www.tandfonline.com/doi/full/10.1080/1750984X.2020.1780627>
+- **Hatzigeorgiadis, Zourbanos, Galanis and Theodorakis** — *Self-Talk and Sports Performance: A Meta-Analysis* — <https://journals.sagepub.com/doi/10.1177/1745691611413136>
+- **The efficacy of psychological skills training for enhancing performance in sport: a review of reviews** — <https://www.tandfonline.com/doi/full/10.1080/1612197X.2023.2168725>
+- **De Rosa, Baker, Barresi, Conte, Ficca and de Zambotti** — *Video gaming and sleep in adults: A systematic review* — <https://www.sciencedirect.com/science/article/pii/S1389945724004362>
+- **Smithies, Toth and Campbell** — *The Effect of Total Sleep Deprivation on the Cognitive and In-Game Performance of Rocket League Esport Players* — <https://www.tandfonline.com/doi/full/10.2147/NSS.S470105>
+- **Jowett, Gledhill and Hayburn** — *Cognition, Lifestyle, and Gender: An Umbrella Review of Esport Performance, Participation, and Well-Being* — <http://journals.humankinetics.com/view/journals/jege/3/1/article-jege.2024-0005.xml>
+
 ## Engine
 Built with the Godot Engine (MIT license): <https://godotengine.org/license>
 

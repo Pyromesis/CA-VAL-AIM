@@ -28,7 +28,7 @@
 
 ## Download
 
-[**Download v2.14.0 for Windows**](https://github.com/Pyromesis/CA-VAL-AIM/releases/download/v2.14.0/ValTraining-2.14.0-Setup.exe) · [Latest stable release](https://github.com/Pyromesis/CA-VAL-AIM/releases/latest) · [SHA-256 for v2.14.0](https://github.com/Pyromesis/CA-VAL-AIM/releases/download/v2.14.0/SHA256SUMS.txt) · [Release notes](CHANGELOG.md)
+[**Download v2.15.0 for Windows**](https://github.com/Pyromesis/CA-VAL-AIM/releases/download/v2.15.0/ValTraining-2.15.0-Setup.exe) · [Latest stable release](https://github.com/Pyromesis/CA-VAL-AIM/releases/latest) · [SHA-256 for v2.15.0](https://github.com/Pyromesis/CA-VAL-AIM/releases/download/v2.15.0/SHA256SUMS.txt) · [Release notes](CHANGELOG.md)
 
 | File | What it does |
 |---|---|
@@ -148,7 +148,7 @@ The **ROUTINES** screen adapts the VALORANT material published by **Voltaic** an
 
 | Tab | What it has |
 |---|---|
-| **Routines** | 22 routines: ten measured-fault sessions, Control Foundations, five playable Voltaic/cartoon adaptations, two external Kovaak's playlists, the in-game section and three category routines (Recoil, Deathmatch and Maps). Every step has bilingual how-to-play and why-it-matters text, its source scenario name and the sensitivity/recoil it needs. |
+| **Routines** | 25 routines: ten measured-fault sessions, Control Foundations, five playable Voltaic/cartoon adaptations, two external Kovaak's playlists, the in-game section, three category routines and three editable 10/20/30-minute editorial sessions with matched baseline/validation and duel transfer. Every step has bilingual how-to-play and why-it-matters text, its source scenario name and the sensitivity/recoil it needs. |
 | **Guide** | cartoon's aim-training guide, summarised in English and Spanish. |
 | **Glossary** | 126 Voltaic aim terms with short Spanish/English definitions and a search box. |
 | **Data** | An Excel-style table of every routine, step, term and your saved progress, with a four-file CSV export. |
@@ -222,6 +222,7 @@ The Vandal and Phantom patterns are measured from the real sprays ([SprayTrace](
 
 - Open **Settings → Sensitivity and crosshair → Category profiles** to set sensitivity by drill category and review a general recommendation based on recorded results. When the evidence is consistent, Sens Lab puts the calculated candidate, its direction and cm/360 next to a matched A/B test button; it is applied only if it improves.
 - Open **SENSITIVITY** from the main menu for a focused view of your current sens, eDPI, cm/360 and measured faults. A corrective routine appears only after sufficient evidence identifies a fault; balanced or insufficient profiles get no routine.
+- Open **ACADEMY** to choose scenarios by measured fault and learn flick/braking, palm/claw/fingertip grips, safe mobility and mental resets with direct video, research and official-guide citations. Optional timed guides cover hands in 3 minutes, mental reset in 2 minutes or both in 5 minutes; Lock-In links the complete sequence. RAMP is labelled experimental and pain, numbness, reduced strength or rising tilt are reasons to stop. See the [research report](reports/Preparación%20y%20entrenamiento%20de%20aim.md).
 - Open **CONVERTER** to preserve hipfire cm/360 between 12 FPS presets or a custom yaw, including the documented nonlinear PUBG and Minecraft scales and Siege's INI multiplier. osu! uses raw-input cm per screen width instead of a false 2D/rotation equivalence. Copy the result, or explicitly apply its VALORANT equivalent and DPI only to CA-VAL-AIM. See the [models and sources](docs/SENSITIVITY_CONVERTER.md).
 - In an eligible drill, use **Find sensitivity** in the pause menu. It stays enabled until you turn it off. Consistently stopping short can raise the setting, and consistently going past the target can lower it. Sensitivity history and shot outcomes stay on your PC.
 - Choose **Restart as warm-up** from the pause menu to practise without coaching or practice points. Choose **Restart with coach** to return to an evaluated round.

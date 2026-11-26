@@ -1207,6 +1207,12 @@ public partial class RoutinesScreen : ScreenBase
             }));
 
         v.AddChild(new MRule());
+        v.AddChild(CreditsBlock("ACADEMY", k,
+            L("Each lesson links to its video guides and research sources in the browser; they are not bundled or redistributed. Every video's channel, title and URL, and every research source, is listed in CREDITS.md and Settings → About → Licenses. Video channels: " + string.Join(", ", Academy.Authors) + ".",
+                "Cada lección enlaza sus guías en vídeo y fuentes de investigación en el navegador; no se incluyen ni redistribuyen. Cada canal, título y URL de vídeo, y cada fuente de investigación, aparece en CREDITS.md y en Ajustes → Acerca de → Licencias. Canales de vídeo: " + string.Join(", ", Academy.Authors) + "."),
+            Array.Empty<(string Label, string Url)>()));
+
+        v.AddChild(new MRule());
         v.AddChild(CreditsBlock(L("OTHER CREDITS", "OTROS CRÉDITOS"), k,
             L("CA-VAL-AIM is based on the open-source ValTrainer project (GPL-3.0): the original notice is in NOTICE and the modified source is on GitHub. Engine: Godot (MIT). Models, textures, sounds and map assets have their own credits in CREDITS.md and Settings → About → Licenses. The RAMP warm-up is by MiniGods and is recommended by cartoon's guide.",
                 "CA-VAL-AIM se basa en el proyecto open source ValTrainer (GPL-3.0): el aviso original está en NOTICE y el código modificado en GitHub. Motor: Godot (MIT). Modelos, texturas, sonidos y assets de mapas tienen sus créditos en CREDITS.md y en Ajustes → Acerca de → Licencias. El RAMP warm-up es de MiniGods y lo recomienda la guía de cartoon."),

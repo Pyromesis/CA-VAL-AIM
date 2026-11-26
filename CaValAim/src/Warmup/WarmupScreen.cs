@@ -179,11 +179,15 @@ public partial class WarmupScreen : ScreenBase
         left.AddChild(new Control { SizeFlagsVertical = SizeFlags.ExpandFill }); // the start button stays at the bottom
         left.AddChild(Spacer(0, 4 * k));
         var startRow = HBox(16 * k);
+        var prep = Btn(Loc.Spanish ? "PREPARACIÓN 5 MIN" : "5-MINUTE PREP", VButton.Look.Secondary,
+            () => Main.I.ShowPreparation("full", Main.I.ShowLockIn), 250, 62, 18);
+        prep.TooltipText = Loc.Spanish ? "Guía opcional de manos y mente antes del chequeo" : "Optional hands-and-mind guide before check-in";
+        startRow.AddChild(prep);
         var start = Btn(Loc.Spanish ? "EMPEZAR" : "START LOCK-IN", VButton.Look.Primary, StartRoutine, 340, 62, 26);
         startRow.AddChild(start);
         var note = Lbl(Loc.Spanish
-            ? "Espacio empieza · primero un chequeo de 30 segundos · Esc pausa el ejercicio"
-            : "Space starts · a 30-second check-in comes first · Esc pauses a drill", UiTheme.Body, 15, UiTheme.Dim);
+            ? "Preparación opcional · luego chequeo de 30 segundos · Esc pausa el ejercicio"
+            : "Optional preparation · then a 30-second check-in · Esc pauses a drill", UiTheme.Body, 15, UiTheme.Dim);
         note.SizeFlagsVertical = SizeFlags.ShrinkCenter;
         startRow.AddChild(note);
         left.AddChild(startRow);
@@ -205,6 +209,8 @@ public partial class WarmupScreen : ScreenBase
         honest.AutowrapMode = TextServer.AutowrapMode.WordSmart;
         honest.CustomMinimumSize = new Vector2(440 * k, 0);
         wv.AddChild(honest);
+        wv.AddChild(Btn(Loc.Spanish ? "FUENTES Y GUÍA COMPLETA" : "SOURCES AND COMPLETE GUIDE", VButton.Look.Ghost,
+            OpenSources, 260, 40, 14));
 
         var hist = new VPanel
         {
@@ -223,11 +229,11 @@ public partial class WarmupScreen : ScreenBase
     static readonly (string, string)[] Notes =
     {
         ("SHORT AND AT YOUR REAL SENS",
-         "A warm-up wakes up skill you already have. About 10 to 15 minutes at the sens you play with is enough; longer mostly adds fatigue."),
+         "A warm-up prepares skill you already have. Keep it short and specific at the sens you play with; longer sessions belong in training and are not automatically better."),
         ("SIMPLE TO GAME-LIKE",
-         "Easy drills first, then drills that adapt to keep you near 8 of 10 hits, then bots and a deathmatch. Its last minute is easier, so the session ends on a good note."),
+         "Easy drills first, then tasks that adapt around your current hit rate, then bots and a deathmatch. Stop while the movement is still clean instead of treating fatigue as the goal."),
         ("CARRY IT INTO THE MATCH",
-         "The effect fades after a 5 to 15 minute break, so queue right away. One goal and one cue word give you something simple to come back to each round."),
+         "Queue when you feel ready; a long break can reduce activation, but no exact VALORANT expiry is established. A process goal and cue support attention without guaranteeing a result."),
     };
 
     void DrawHistory(DrawBox d)
@@ -255,6 +261,8 @@ public partial class WarmupScreen : ScreenBase
             Sparkline.Draw(d, new Rect2(0, 58 * k, d.Size.X, Mathf.Max(20 * k, d.Size.Y - 66 * k)), list.Select(w => w.Readiness).ToList(), k, UiTheme.Teal);
         }
     }
+
+    internal void OpenSources() => Main.I.ShowAcademy("warmup", Main.I.ShowLockIn);
 
     void StartRoutine()
     {

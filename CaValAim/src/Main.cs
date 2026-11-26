@@ -237,10 +237,12 @@ public partial class Main : Node
             case "senslab" or "sens-lab": Callable.From(ShowSensLab).CallDeferred(); break;
             case "sensitivity": Callable.From(ShowSensitivity).CallDeferred(); break;
             case "converter" or "sens-converter": Callable.From(ShowSensitivityConverter).CallDeferred(); break;
+            case "preparation" or "prep": Callable.From(() => ShowPreparation(CmdLine.After("--prep") ?? "full")).CallDeferred(); break;
             case "favorites": Callable.From(() => ShowScreen(new FavoritesScreen())).CallDeferred(); break;
             case "practice": Callable.From(ShowPractice).CallDeferred(); break;
             case "warmup" or "lockin": Callable.From(ShowLockIn).CallDeferred(); break;
             case "agents": Callable.From(ShowAgents).CallDeferred(); break; // + --agent jett, --agent-go routine|<drill> (AgentsScreen)
+            case "academy": Callable.From(() => ShowAcademy(CmdLine.After("--technique"))).CallDeferred(); break;
             case "playlists": Callable.From(ShowPlaylists).CallDeferred(); break;
             case "routines" or "guide" or "glossary" or "data" or "credits":
                 RoutinesScreen.DevTab = CmdLine.After("--tab") ?? CmdLine.After("--screen");
@@ -426,6 +428,8 @@ public partial class Main : Node
     public void ShowSensitivity() => SetScreen(new SensLabScreen { Dedicated = true });
     /// <summary>Documented hipfire and osu! physical sensitivity converter; it never writes other games' settings.</summary>
     public void ShowSensitivityConverter() => SetScreen(new SensitivityConverterScreen());
+    /// <summary>Optional hands/mind guide, opened from Lock-In or the matching Academy lesson.</summary>
+    public void ShowPreparation(string planId = "full", Action? back = null) => SetScreen(new PreparationScreen(planId, back));
     /// <summary>The technique library (menu ACADEMY); <paramref name="technique"/> opens that lesson.</summary>
     public void ShowAcademy() => SetScreen(new AcademyScreen());
     public void ShowAcademy(string? technique, Action? back = null) => SetScreen(new AcademyScreen(technique, back));

@@ -196,6 +196,15 @@ $why = if ($r.Code -ne 0) { "exit code $($r.Code) ($res)" } elseif ($ex.Count -g
     } elseif ($valorantWritten.Count -ne 0) { "the VALORANT directory was written" } else { "" }
 Report "sensitivity converter persistence (throw-away data)" ($why -eq "") $why $r
 
+# ---- 2c. Guided preparation: real buttons, pause/skip/restart, completion and every source link ----
+$r = Invoke-Godot "preparation-ui-check" (@("--headless", "--quit-after", "30", "--path", $Project, "--") + $sandbox +
+    @("--screen", "preparation", "--preparation-check"))
+$res = ($r.Text -split "`r?`n" | Where-Object { $_ -match '\[preparation-check\] RESULT:' } | Select-Object -Last 1)
+$ex = Get-Exceptions $r.Text
+$why = if ($r.Code -ne 0) { "exit code $($r.Code) ($res)" } elseif ($ex.Count -gt 0) { "exception: $($ex[0].Trim())" } `
+    elseif ($res -notmatch 'RESULT: PASS \(8 passed, 0 failed\)') { "no 8-check PASS result" } else { "" }
+Report "guided hands and mental preparation UI" ($why -eq "") $why $r
+
 # ---- 3. Bug report: redaction, JSON shape and size limits; then a dry run from the panel (dev runs never send) ----
 $r = Invoke-Godot "bugreport-test" (@("--headless", "--path", $Project, "--") + $sandbox + @("--bugreport-test"))
 $res = ($r.Text -split "`r?`n" | Where-Object { $_ -match '\[bugreport-test\] RESULT:' } | Select-Object -Last 1)

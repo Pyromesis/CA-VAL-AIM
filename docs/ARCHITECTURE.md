@@ -129,9 +129,12 @@ flowchart LR
     Menu -->|"PLAYLISTS"| Playlists["PlaylistsScreen"]
     Menu -->|"STATS"| Stats["StatsScreen"]
     Menu -->|"SETTINGS"| Settings["SettingsScreen"]
+    Menu -->|"ACADEMY"| Academy["AcademyScreen"]
     Stats --> Reaction["ReactionStatsScreen"]
     Profile --> SensLab["SensLabScreen"]
     SensLab --> Converter["SensitivityConverterScreen"]
+    Academy --> Prep["PreparationScreen"]
+    Warm --> Prep
     Settings --> Converter
     Settings --> About["About + licences"]
 ```
@@ -164,6 +167,8 @@ flowchart LR
 | `SensLabScreen` | Full sensitivity laboratory, plus the dedicated SENSITIVITY view with measured faults and conditional corrective routines | `UI/SensLabScreen.cs` |
 | `SensitivityConverterScreen` | Documented physical hipfire conversion, custom yaw, Siege INI multipliers and separate osu! raw-input screen travel | `UI/SensitivityConverterScreen.cs`, `Core/GameSensitivity.cs` |
 | `RoutinesScreen` | Catalog plus FOR YOU: one complete measured-fault routine when evidence exists, otherwise the short guided plan | `UI/RoutinesScreen.cs` |
+| `AcademyScreen` | Bilingual technique and scenario-selection lessons with drills, videos, research links and credited guided preparation | `UI/AcademyScreen.cs`, `Core/Academy.cs` |
+| `PreparationScreen` | Optional 3-minute hands, 2-minute mental and combined 5-minute timed guides with pause, skip, restart and sources | `UI/PreparationScreen.cs`, `Core/PreparationGuide.cs` |
 | `AgentsScreen` | 29 agents, roles, abilities, drills and agent routines | `UI/AgentsScreen.cs` |
 | `PlaylistsScreen` | Named sets of drills played back to back | `UI/PlaylistsScreen.cs` |
 | `WarmupScreen` | Lock-In setup: preset, shifter, estimate | `Warmup/WarmupScreen.cs` |
@@ -434,6 +439,10 @@ forty.
   fallbacks to one complete `Routine`. Each has a 14-minute core, optional four-minute deathmatch, matched baseline and
   validation blocks, and 1× sensitivity. Tips, candidates, old history and insufficient evidence return no prescription;
   `RoutinesScreen` then falls back to the existing short `CoachPlan`.
+- **Editorial routines and preparation** add three editable 10/20/30-minute sessions with matched baseline/validation and
+  transfer before validation. `Academy` selects existing drills by measured fault and links their evidence. `PreparationGuide`
+  provides credited bilingual steps and an independent timer for hands (3 min), mind (2 min) or both (5 min); these guides
+  are not fake drills and never enter playlist scoring. RAMP is explicitly experimental, and pain/tilt safeguards take priority.
 - **Sens Finder** is the in-drill version: a blind PSA-style bisection in log space, four blocks per step, head flicks
   plus seeded strafe tracking, standardized within the step and compared with Welch's standard error.
 - **Crosshair Finder** ranks colour and outline candidates by computed contrast against the map palettes and the enemy
@@ -711,6 +720,7 @@ flowchart LR
 | Bots and difficulty | `Game/Bots/*`, `Core/Difficulty.cs`, `Core/DeathmatchRules.cs` |
 | Coach, metrics, play-by-play, Sens Lab | `Analysis/Coach.cs`, `RunAnalysis.cs`, `PlayByPlay.cs`, `SensLab.cs`, `LiveCoach.cs` |
 | Game sensitivity conversion models and sources | `Core/GameSensitivity.cs`, `Core/GameSensitivityChecks.cs`, `UI/SensitivityConverterScreen.cs`, `docs/SENSITIVITY_CONVERTER.md` |
+| Academy, preparation guides and cited sources | `Core/Academy.cs`, `Core/PreparationGuide.cs`, `UI/AcademyScreen.cs`, `UI/PreparationScreen.cs`, `CaValAim/CREDITS.md`, `reports/Preparación y entrenamiento de aim.md` |
 | Lock-In | `Warmup/*` |
 | Maps, real geometry, minimaps | `World/RealMap.cs`, `Maps/*`, `UI/MapArt.cs` |
 | Rewind | `UI/RewindScreen.cs`, `RewindView3D.cs`, `Game/Replay/*` |

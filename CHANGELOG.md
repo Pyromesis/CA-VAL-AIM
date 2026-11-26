@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [2.15.0] - 2026-11-26
+
+### Added
+
+- A research-cited preparation pack adds scenario selection by measured fault, three editable 10/20/30-minute routines with matched baseline/validation and duel transfer, and four bilingual Academy lessons covering flick, grip, mobility and mental preparation.
+- Optional timed guides prepare hands in 3 minutes, reset attention in 2 minutes or combine both in 5 minutes, with pause, skip, restart, source links and explicit pain/tilt safeguards. Lock-In links the complete guide and its evidence; RAMP is labelled experimental.
+- Academy now opens research and official guides, compares palm/claw/fingertip without declaring a universal winner, and includes every video and research citation in shipped credits and licence notices.
+
 ## [2.14.0] - 2026-11-25
 
 ### Added

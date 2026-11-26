@@ -51,6 +51,10 @@ public static class AboutLicenses
         "- cartoon — guide \"How to improve aim\" and the external Flicks/Micro-adjustment playlists; " +
         "https://www.twitch.tv/cartoon, https://twitter.com/cartoonFPS, https://www.youtube.com/c/cartoonfps.\n" +
         "- MiniGods RAMP warm-up, recommended by cartoon's guide: https://twitter.com/minigodcs.\n\n" +
+        "ACADEMY VIDEOS AND RESEARCH\n\n" +
+        "Academy lessons link to third-party video guides and research documents in the browser. Every video's channel, " +
+        "title and URL, and every research source, is credited in CREDITS.md and next to the relevant lesson. Videos and " +
+        "documents are not bundled, downloaded, embedded or redistributed, and no endorsement or permission to copy is implied.\n\n" +
         "LEGAL\n" +
         "CA-VAL-AIM is a free, non-commercial fan project. It is not affiliated with or endorsed by Riot Games, " +
         "Voltaic, Aim Lab, Kovaak's or cartoon. VALORANT is a trademark of Riot Games, Inc. Aim Lab and Kovaak's are " +

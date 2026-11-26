@@ -14,6 +14,7 @@ public partial class AcademyScreen : ScreenBase
 {
     string selected;
     readonly Action? back;
+    internal Action? BackAction => back;
 
     public AcademyScreen() : this(null) { }
 
@@ -111,6 +112,18 @@ public partial class AcademyScreen : ScreenBase
             body.AddChild(row);
         }
 
+        if (lesson.PreparationGuideId is { Length: > 0 } guideId)
+        {
+            var plan = PreparationGuide.Get(guideId);
+            Section(L("PREPARACIÓN GUIADA OPCIONAL", "OPTIONAL GUIDED PREPARATION"));
+            Line(plan.Intro, UiTheme.Body, 16, UiTheme.TextSoft);
+            string label = guideId == "hands" ? L("EMPEZAR 3 MINUTOS DE MANOS", "START 3-MINUTE HANDS GUIDE")
+                : guideId == "mind" ? L("EMPEZAR 2 MINUTOS DE RESET", "START 2-MINUTE MENTAL RESET")
+                : L("EMPEZAR 5 MINUTOS DE PREPARACIÓN", "START 5-MINUTE PREPARATION");
+            string id = guideId;
+            body.AddChild(Btn(label, VButton.Look.Primary, () => OpenPreparation(id), 360, 46, 16));
+        }
+
         if (lesson.Videos.Length > 0)
         {
             Section(L("GUÍAS EN VÍDEO (SE ABREN EN EL NAVEGADOR)", "VIDEO GUIDES (OPEN IN YOUR BROWSER)"));
@@ -132,8 +145,32 @@ public partial class AcademyScreen : ScreenBase
                 "The videos belong to their authors; CA-VAL-AIM only links to them and does not download or embed their content."),
                 UiTheme.Body, 13, UiTheme.Faint);
         }
+
+        if (lesson.Research.Length > 0)
+        {
+            Section(L("INVESTIGACIÓN Y GUÍAS OFICIALES", "RESEARCH AND OFFICIAL GUIDES"));
+            foreach (var source in lesson.Research.OrderByDescending(s => s.Language == (Loc.Spanish ? "es" : "en")))
+            {
+                var line = HBox(12 * K);
+                string url = source.Url;
+                line.AddChild(Btn(L("LEER", "READ"), VButton.Look.Ghost, () => OpenResearch(url), 90, 34, 13));
+                var text = new Label
+                {
+                    Text = $"{source.Title}\n{source.Author} · {source.Url}",
+                    LabelSettings = UiTheme.Label(UiTheme.Body, 14, K, UiTheme.Dim), MouseFilter = MouseFilterEnum.Ignore,
+                    AutowrapMode = TextServer.AutowrapMode.WordSmart, SizeFlagsHorizontal = SizeFlags.ExpandFill,
+                };
+                line.AddChild(text);
+                body.AddChild(line);
+            }
+            Line(L("La investigación deportiva y ergonómica se cita con sus límites; no se presenta como evidencia específica de VALORANT ni como consejo médico individual.",
+                "Sports and ergonomics research is cited with its limitations; it is not presented as VALORANT-specific evidence or individual medical advice."),
+                UiTheme.Body, 13, UiTheme.Faint);
+        }
         body.AddChild(Spacer(0, 20 * K));
     }
+
+    internal void OpenPreparation(string guideId) => Main.I.ShowPreparation(guideId, () => Main.I.ShowAcademy(selected, back));
 
     /// <summary>Opens a credited video in the default browser (only https links from the built-in list).</summary>
     static void OpenVideo(string url)
@@ -141,5 +178,13 @@ public partial class AcademyScreen : ScreenBase
         if (!url.StartsWith("https://www.youtube.com/watch?v=", StringComparison.Ordinal)) return;
         try { OS.ShellOpen(url); }
         catch (Exception e) { Log.Error("Academy: could not open the link: " + e.Message); }
+    }
+
+    /// <summary>Opens a built-in research citation; no remote page is downloaded or executed by the app.</summary>
+    static void OpenResearch(string url)
+    {
+        if (!url.StartsWith("https://", StringComparison.Ordinal)) return;
+        try { OS.ShellOpen(url); }
+        catch (Exception e) { Log.Error("Academy: could not open the research link: " + e.Message); }
     }
 }

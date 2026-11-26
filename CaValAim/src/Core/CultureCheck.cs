@@ -438,6 +438,12 @@ public static class CultureCheck
                 string translated = Loc.T(text);
                 Check($"warmup complete phrase: {text}", translated != text && Loc.T(translated) == translated);
             }
+            Check("warmup research note: short and specific", Loc.T("A warm-up prepares skill you already have. Keep it short and specific at the sens you play with; longer sessions belong in training and are not automatically better.") ==
+                "El calentamiento prepara habilidades que ya tienes. Hazlo breve y específico con tu sensibilidad habitual; las sesiones largas son entrenamiento y no son automáticamente mejores.");
+            Check("warmup research note: simple to game-like", Loc.T("Easy drills first, then tasks that adapt around your current hit rate, then bots and a deathmatch. Stop while the movement is still clean instead of treating fatigue as the goal.") ==
+                "Primero ejercicios fáciles, después tareas que se adaptan a tu acierto actual, bots y un combate a muerte. Para mientras el movimiento siga limpio en vez de convertir la fatiga en el objetivo.");
+            Check("warmup research note: carry into match", Loc.T("Queue when you feel ready; a long break can reduce activation, but no exact VALORANT expiry is established. A process goal and cue support attention without guaranteeing a result.") ==
+                "Entra en cola cuando estés listo; una pausa larga puede reducir la activación, pero no hay una caducidad exacta establecida para VALORANT. Un objetivo de proceso y una consigna apoyan la atención sin garantizar un resultado.");
             Check("warmup preserves custom goal and cue", Warmup.LockInText.DisplayGoal("Mi objetivo personal") == "Mi objetivo personal" && Warmup.LockInText.DisplayCue("Mi consigna") == "Mi consigna");
             Check("HUD rank band uses Spanish with the actual en dash", Loc.T("REGULAR · SILVER – GOLD") == "REGULAR · PLATA – ORO");
             Check("warmup preset localized at display time", Warmup.WarmupPresets.NameOf(Warmup.WarmupPresets.Get("short")) == "Breve");
