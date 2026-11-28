@@ -217,6 +217,20 @@ static class GameplayChecks
         Check(Main.I.GetChildren().OfType<UI.AcademyScreen>().LastOrDefault()?.BackAction == expectedBack,
             "Academy preparation preserves the original coach/practice return action");
 
+        // Static drill rows must sleep after their entrance and wake for real interactions.
+        var sleepingRow = new UI.MDrillRow { Delay = 0 };
+        Main.I.AddChild(sleepingRow);
+        sleepingRow._Process(1);
+        Check(!sleepingRow.IsProcessing(), "performance: drill row sleeps after entrance");
+        sleepingRow.EmitSignal(BaseButton.SignalName.MouseEntered);
+        Check(sleepingRow.IsProcessing(), "performance: drill row wakes on hover");
+        sleepingRow.QueueFree();
+        var statefulLink = new UI.MUpdateLink();
+        Main.I.AddChild(statefulLink);
+        statefulLink._Process(1);
+        Check(statefulLink.IsProcessing(), "performance: stateful links keep processing");
+        statefulLink.QueueFree();
+
         var reactionRun = new RunTelemetry { Mode = "reaction", Duration = 1 };
         reactionRun.Events.Add(new TelemetryEvent(0.8f, "reaction", 420));
         reactionRun.Shots.Add(new ShotSample { T = 0.8f, Accurate = false, Speed = 2 });

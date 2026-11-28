@@ -130,6 +130,11 @@ public abstract partial class MButtonBase : BaseButton
 
     public override void _Ready()
     {
+        if (RestWhenIdle)
+        {
+            MouseEntered += () => SetProcess(true);
+            FocusEntered += () => SetProcess(true);
+        }
         MouseEntered += UiTheme.HoverSound;
         Pressed += UiTheme.ClickSound;
     }
@@ -148,7 +153,13 @@ public abstract partial class MButtonBase : BaseButton
             Hover = h; Down = d;
             QueueRedraw();
         }
+        // Static rows stay visible but stop consuming frames. Mouse/focus signals in _Ready wake them.
+        if (RestWhenIdle && !entering && !Animating && !IsHovered() && !HasFocus() && Hover <= 0.001f && Down <= 0.0001f)
+            SetProcess(false);
     }
+
+    /// <summary>Opt in only when every state change also redraws the widget; dynamic buttons must keep processing.</summary>
+    protected virtual bool RestWhenIdle => false;
 
     /// <summary>True while a subclass has its own animation running.</summary>
     protected virtual bool Animating => false;
@@ -422,6 +433,8 @@ public partial class MSegment : Control
 /// name a few pixels and draws an accent tick at the left edge; the row background only hints at a surface.</summary>
 public partial class MDrillRow : MButtonBase
 {
+    protected override bool RestWhenIdle => true;
+
     public string Title = "", Meta = "", Value = "", ValueCaption = "";
     public bool IsNew;
     public FavoriteKind? FavoriteType;

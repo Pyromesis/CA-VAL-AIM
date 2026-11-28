@@ -2,6 +2,12 @@
 
 ## [Sin publicar]
 
+## [2.15.1] - 2026-11-27
+
+### Corregido
+
+- Las filas inactivas de la biblioteca entran en reposo tras su animación de entrada y se reactivan con el ratón o el foco de teclado. Una medición de desarrollo a 1600×900 del menú de entrenamiento estable baja de unos 6,1 ms / 250 FPS a 2,3 ms / 877 FPS sin cambiar el contenido ni la interacción de las filas.
+
 ## [2.15.0] - 2026-11-26
 
 ### Añadido

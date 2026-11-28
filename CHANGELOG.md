@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [2.15.1] - 2026-11-27
+
+### Fixed
+
+- Idle drill-library rows now sleep after their entrance and wake on mouse hover or keyboard focus. A 1600×900 development measurement of the stable training menu drops from about 6.1 ms / 250 FPS to 2.3 ms / 877 FPS without changing row content or interactions.
+
 ## [2.15.0] - 2026-11-26
 
 ### Added
